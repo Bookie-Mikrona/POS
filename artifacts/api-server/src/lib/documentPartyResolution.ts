@@ -39,7 +39,12 @@ export function normalizeTaxId(value: string | null | undefined): string {
 }
 
 function normalizeRegistrationId(value: string | null | undefined): string {
-  return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const normalized = (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  // Slovenian legal entities may print the seven-digit registration number
+  // while company settings contain its ten-digit head-office form (...000).
+  // Do not collapse non-zero branch suffixes or foreign alphanumeric IDs.
+  const slovenianHeadOffice = normalized.match(/^(\d{7})(?:000)?$/);
+  return slovenianHeadOffice ? slovenianHeadOffice[1] : normalized;
 }
 
 function normalizeAlias(value: string | null | undefined): string {

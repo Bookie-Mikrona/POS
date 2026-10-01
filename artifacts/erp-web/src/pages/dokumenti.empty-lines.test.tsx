@@ -24,6 +24,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useListAccounts: () => ({ data: { accounts: [] } }),
   useListPeriods: () => ({ data: { periods: [] } }),
   useListCompanyFursVatCodes: () => ({ data: { codes: [] } }),
+  useListVatCodes: () => ({ data: { vatCodes: [] } }),
   useGetCounterpartyAccountTemplates: () => ({
     data: { templates: [] },
     isLoading: false,
@@ -41,6 +42,7 @@ vi.mock("@workspace/api-client-react", () => ({
   getListDocumentsQueryKey: vi.fn(),
   getGetDocumentQueryKey: vi.fn(),
   getListCounterpartiesQueryKey: vi.fn(),
+  getListVatCodesQueryKey: vi.fn(),
   getListCompanyFursVatCodesQueryKey: vi.fn(),
 }));
 

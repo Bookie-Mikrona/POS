@@ -18,6 +18,7 @@ import {
   accountsTable,
   companiesTable,
   counterpartiesTable,
+  counterpartyAccountTemplatesTable,
   db,
   invoiceLinesTable,
   invoicesTable,
@@ -35,7 +36,13 @@ function app() {
   instance.use(express.json());
   instance.use(invoicesRouter);
   instance.use((error: Error, _req: any, res: any, _next: any) => {
-    res.status(500).json({ error: error.message });
+    const dbError = error as Error & { code?: string; constraint?: string; detail?: string };
+    res.status(500).json({
+      error: dbError.message,
+      code: dbError.code,
+      constraint: dbError.constraint,
+      detail: dbError.detail,
+    });
   });
   return instance;
 }
@@ -49,12 +56,18 @@ let assetAccountId: string;
 let inputVatAccountId: string;
 let outputVatAccountId: string;
 let euVatCodeId: string;
+let companyEuVatCodeId: string;
+let globalS22Id: string;
+let companyS22Id: string;
+let globalP22Id: string;
+let companyP22Id: string;
 
 async function createInvoice(options: {
   suffix: string;
   supplierId?: string;
   assetType?: "NONE" | "OTHER_FA";
   vatCodeId?: string | null;
+  vatRate?: string;
 }) {
   const number = `EU-FA-${runId}-${options.suffix}`;
   const [source] = await db.insert(purchaseSourceDocumentsTable).values({
@@ -82,8 +95,8 @@ async function createInvoice(options: {
     description: "EU fixed asset",
     quantity: "1.000",
     unitPrice: "100.0000",
-    vatRate: "22.00",
-    vatCodeId: options.vatCodeId === undefined ? euVatCodeId : options.vatCodeId,
+    vatRate: options.vatRate ?? "22.00",
+    vatCodeId: options.vatCodeId === undefined ? companyEuVatCodeId : options.vatCodeId,
     assetType: options.assetType ?? "OTHER_FA",
     accountId: assetAccountId,
   });
@@ -153,8 +166,7 @@ beforeAll(async () => {
     .limit(1);
   if (!vatCode) throw new Error("EUB22 IN VAT code is missing from the test database");
   euVatCodeId = vatCode.id;
-  await db.insert(vatCodesTable).values({
-    id: euVatCodeId,
+  const [companyVatCode] = await db.insert(vatCodesTable).values({
     companyId,
     code: "EUB22",
     name: "EU goods acquisition 22%",
@@ -164,42 +176,90 @@ beforeAll(async () => {
     accountOutputId: outputVatAccountId,
     fursCodeId: euVatCodeId,
     validFrom: "2025-07-01",
-  }).onConflictDoNothing({ target: vatCodesTable.id });
+  }).returning({ id: vatCodesTable.id });
+  companyEuVatCodeId = companyVatCode.id;
+  if (companyEuVatCodeId === euVatCodeId) {
+    throw new Error("Company VAT fixture must use a distinct ID from its global FURS code");
+  }
+
+  const [s22] = await db.select({ id: vatCodeTable.id }).from(vatCodeTable)
+    .where(and(eq(vatCodeTable.code, "S22"), eq(vatCodeTable.direction, "OUT")))
+    .limit(1);
+  const [p22] = await db.select({ id: vatCodeTable.id }).from(vatCodeTable)
+    .where(and(eq(vatCodeTable.code, "P22"), eq(vatCodeTable.direction, "IN")))
+    .limit(1);
+  if (!s22 || !p22) throw new Error("S22 OUT and P22 IN FURS test codes are missing");
+  globalS22Id = s22.id;
+  globalP22Id = p22.id;
+  const [companyS22] = await db.insert(vatCodesTable).values({
+    companyId,
+    code: "S22",
+    name: "Domestic sale 22%",
+    rate: "22.00",
+    behavior: "standard",
+    fursCodeId: globalS22Id,
+    validFrom: "2025-07-01",
+  }).returning({ id: vatCodesTable.id });
+  companyS22Id = companyS22.id;
+  const [companyP22] = await db.insert(vatCodesTable).values({
+    companyId,
+    code: "P22",
+    name: "Domestic purchase 22%",
+    rate: "22.00",
+    behavior: "standard",
+    accountInputId: inputVatAccountId,
+    fursCodeId: globalP22Id,
+    validFrom: "2025-07-01",
+  }).returning({ id: vatCodesTable.id });
+  companyP22Id = companyP22.id;
 });
 
 afterAll(async () => {
   if (!companyId) return;
+  await db.update(invoicesTable)
+    .set({ linkedEntryId: null })
+    .where(eq(invoicesTable.companyId, companyId));
   const entries = await db.select({ id: journalEntriesTable.id }).from(journalEntriesTable)
     .where(eq(journalEntriesTable.companyId, companyId));
   const entryIds = entries.map((entry) => entry.id);
   if (entryIds.length > 0) {
     await db.delete(vatLedgerTable).where(inArray(vatLedgerTable.journalEntryId, entryIds));
   }
-  await db.delete(invoicesTable).where(eq(invoicesTable.companyId, companyId));
-  await db.delete(purchaseSourceDocumentsTable).where(eq(purchaseSourceDocumentsTable.companyId, companyId));
   if (entryIds.length > 0) {
     await db.delete(journalEntryLinesTable).where(inArray(journalEntryLinesTable.entryId, entryIds));
     await db.delete(journalEntriesTable).where(inArray(journalEntriesTable.id, entryIds));
   }
+  await db.delete(invoicesTable).where(eq(invoicesTable.companyId, companyId));
+  await db.delete(purchaseSourceDocumentsTable).where(eq(purchaseSourceDocumentsTable.companyId, companyId));
+  await db.delete(counterpartyAccountTemplatesTable)
+    .where(eq(counterpartyAccountTemplatesTable.companyId, companyId));
   await db.delete(accountingPeriodsTable).where(eq(accountingPeriodsTable.companyId, companyId));
+  await db.delete(vatCodesTable).where(eq(vatCodesTable.companyId, companyId));
   await db.delete(accountsTable).where(eq(accountsTable.companyId, companyId));
+  await db.delete(counterpartiesTable).where(eq(counterpartiesTable.companyId, companyId));
   await db.delete(accountingRolesTable).where(eq(accountingRolesTable.companyId, companyId));
-  await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
+  const [deletedCompany] = await db.delete(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .returning({ id: companiesTable.id });
+  if (!deletedCompany) throw new Error(`Test company cleanup did not delete ${companyId}`);
 });
 
 describe.sequential("received EU fixed-asset invoice posting", () => {
   it("posts the balanced 04/1604000/2604000/221 entry and paired KPR/KIR VAT", async () => {
     const { invoiceId, number } = await createInvoice({ suffix: "POST" });
-    const posted = await request(app())
-      .post(`/companies/${companyId}/invoices/${invoiceId}/post`)
-      .expect(200);
+    const response = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    const posted = response.body;
 
     const lines = await db.select({
       accountId: journalEntryLinesTable.accountId,
       side: journalEntryLinesTable.side,
       amount: journalEntryLinesTable.amount,
+      vatCodeId: journalEntryLinesTable.vatCodeId,
+      companyVatCodeId: journalEntryLinesTable.companyVatCodeId,
     }).from(journalEntryLinesTable)
-      .where(eq(journalEntryLinesTable.entryId, posted.body.linkedEntryId));
+      .where(eq(journalEntryLinesTable.entryId, posted.linkedEntryId));
     expect(lines).toHaveLength(4);
     expect(lines).toEqual(expect.arrayContaining([
       expect.objectContaining({ accountId: assetAccountId, side: "debit", amount: "100.00" }),
@@ -207,6 +267,10 @@ describe.sequential("received EU fixed-asset invoice posting", () => {
       expect.objectContaining({ accountId: outputVatAccountId, side: "credit", amount: "22.00" }),
       expect.objectContaining({ accountId: payableAccountId, side: "credit", amount: "100.00" }),
     ]));
+    expect(lines.find((line) => line.accountId === assetAccountId)).toMatchObject({
+      vatCodeId: euVatCodeId,
+      companyVatCodeId: companyEuVatCodeId,
+    });
     const vatRows = await db.select({
       id: vatLedgerTable.id,
       direction: vatLedgerTable.direction,
@@ -215,7 +279,7 @@ describe.sequential("received EU fixed-asset invoice posting", () => {
       baseAmount: vatLedgerTable.baseAmount,
       vatAmount: vatLedgerTable.vatAmount,
       documentNo: vatLedgerTable.documentNo,
-    }).from(vatLedgerTable).where(eq(vatLedgerTable.journalEntryId, posted.body.linkedEntryId));
+    }).from(vatLedgerTable).where(eq(vatLedgerTable.journalEntryId, posted.linkedEntryId));
     expect(vatRows).toHaveLength(2);
     const inputRow = vatRows.find((row) => row.direction === "IN");
     const outputRow = vatRows.find((row) => row.direction === "OUT");
@@ -233,6 +297,95 @@ describe.sequential("received EU fixed-asset invoice posting", () => {
     });
     expect(inputRow?.pairId).toBe(outputRow?.id);
     expect(outputRow?.pairId).toBe(inputRow?.id);
+  });
+
+  it("uses the linked FURS rate when the reverse-charge supplier line itself is 0%", async () => {
+    const { invoiceId } = await createInvoice({ suffix: "SUPPLIER-ZERO-RATE", vatRate: "0.00" });
+    const response = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    const posted = response.body;
+    const lines = await db.select({
+      accountId: journalEntryLinesTable.accountId,
+      side: journalEntryLinesTable.side,
+      amount: journalEntryLinesTable.amount,
+    }).from(journalEntryLinesTable)
+      .where(eq(journalEntryLinesTable.entryId, posted.linkedEntryId));
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ accountId: inputVatAccountId, side: "debit", amount: "22.00" }),
+      expect.objectContaining({ accountId: outputVatAccountId, side: "credit", amount: "22.00" }),
+    ]));
+  });
+
+  it("rejects a received invoice linked to an OUT code before posting", async () => {
+    const { invoiceId } = await createInvoice({
+      suffix: "WRONG-IN-DIRECTION",
+      vatCodeId: companyS22Id,
+      assetType: "NONE",
+    });
+    const entriesBefore = await db.select({ id: journalEntriesTable.id })
+      .from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
+
+    const response = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("S22");
+    expect(response.body.error).toContain("OUT");
+    expect(response.body.error).toContain("Nastavitve > DDV kode");
+    const [invoice] = await db.select({
+      status: invoicesTable.status,
+      linkedEntryId: invoicesTable.linkedEntryId,
+    }).from(invoicesTable).where(eq(invoicesTable.id, invoiceId)).limit(1);
+    const entriesAfter = await db.select({ id: journalEntriesTable.id })
+      .from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
+    expect(invoice).toEqual({ status: "draft", linkedEntryId: null });
+    expect(entriesAfter.map((entry) => entry.id)).toEqual(entriesBefore.map((entry) => entry.id));
+  });
+
+  it("propagates an explicit standard IN selection as global FURS ID and preserves tenant provenance", async () => {
+    const { invoiceId } = await createInvoice({
+      suffix: "STANDARD-IN-CODE",
+      vatCodeId: companyP22Id,
+      assetType: "NONE",
+    });
+    const response = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+
+    const [invoiceLine] = await db.select({
+      vatCodeId: invoiceLinesTable.vatCodeId,
+    }).from(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, invoiceId)).limit(1);
+    expect(invoiceLine.vatCodeId).toBe(companyP22Id);
+
+    const postedLines = await db.select({
+      accountId: journalEntryLinesTable.accountId,
+      vatCodeId: journalEntryLinesTable.vatCodeId,
+      companyVatCodeId: journalEntryLinesTable.companyVatCodeId,
+      vatAmount: journalEntryLinesTable.vatAmount,
+    }).from(journalEntryLinesTable)
+      .where(eq(journalEntryLinesTable.entryId, response.body.linkedEntryId));
+    const expenseLine = postedLines.find((line) => line.accountId === assetAccountId);
+    expect(expenseLine).toMatchObject({
+      vatCodeId: globalP22Id,
+      companyVatCodeId: companyP22Id,
+      vatAmount: "22.00",
+    });
+
+    const [vatRow] = await db.select({
+      direction: vatLedgerTable.direction,
+      vatCodeId: vatLedgerTable.vatCodeId,
+      baseAmount: vatLedgerTable.baseAmount,
+      vatAmount: vatLedgerTable.vatAmount,
+    }).from(vatLedgerTable)
+      .where(eq(vatLedgerTable.journalEntryId, response.body.linkedEntryId))
+      .limit(1);
+    expect(vatRow).toEqual({
+      direction: "IN",
+      vatCodeId: globalP22Id,
+      baseAmount: "100.00",
+      vatAmount: "22.00",
+    });
   });
 
   it("rejects an EU asset without an explicit asset classification", async () => {

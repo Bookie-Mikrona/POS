@@ -47,8 +47,10 @@ import {
   companiesTable,
   db,
   documentsTable,
+  vatCodeTable,
   pool,
 } from "@workspace/db";
+import type { OcrResult } from "@workspace/db";
 import documentsRouter from "./documents";
 
 const app = express();
@@ -59,7 +61,7 @@ const run = Math.random().toString(36).slice(2, 8);
 let companyId = "";
 let accountId = "";
 
-async function createReviewableDocument(fileName: string): Promise<string> {
+async function createReviewableDocument(fileName: string, ocrResult?: OcrResult): Promise<string> {
   const [document] = await db
     .insert(documentsTable)
     .values({
@@ -68,7 +70,7 @@ async function createReviewableDocument(fileName: string): Promise<string> {
       mimeType: "application/pdf",
       objectPath: `/objects/tests/${run}/${fileName}`,
       status: "done",
-      ocrResult: { rawText: "", confidence: 1, lines: [] },
+      ocrResult: ocrResult ?? { rawText: "", confidence: 1, lines: [] },
     })
     .returning({ id: documentsTable.id });
   return document.id;
@@ -151,6 +153,105 @@ describe("izvajalec potrditve ali zavrnitve dokumenta", () => {
     const detail = await supertest(app).get(`/companies/${companyId}/documents/${documentId}`);
     expect(detail.status).toBe(200);
     expect(detail.body.confirmedBy).toBe("Janez Novak");
+  });
+
+  it("zavrne FURS kodo brez tenant povezave pred transakcijo in pusti dokument done/unlinked", async () => {
+    currentUserId = FULL_NAME_USER;
+    const [fursCode] = await db.select({
+      id: vatCodeTable.id,
+      code: vatCodeTable.code,
+    }).from(vatCodeTable)
+      .where(eq(vatCodeTable.code, "S22"))
+      .limit(1);
+    expect(fursCode).toBeTruthy();
+
+    const documentId = await createReviewableDocument("nepovezana-ddv-koda.pdf", {
+      rawText: "",
+      confidence: 1,
+      suggestedDocumentType: "invoice_issued",
+      invoiceDate: "2026-01-10",
+      lines: [{
+        description: "Izdana storitev",
+        quantity: 1,
+        unitPrice: 10,
+        vatRate: 22,
+        vatBase: 10,
+        vatAmount: 2.2,
+        accountId,
+        vatCodeId: fursCode.id,
+        confidence: 1,
+      }],
+    });
+
+    const response = await supertest(app)
+      .post(`/companies/${companyId}/documents/${documentId}/confirm`)
+      .send({
+        documentType: "invoice_issued",
+        createInvoice: true,
+        invoiceDate: "2026-01-10",
+        lines: [{
+          description: "Izdana storitev",
+          quantity: 1,
+          unitPrice: 10,
+          vatRate: 22,
+          vatBase: 10,
+          vatAmount: 2.2,
+          accountId,
+          vatCodeId: fursCode.id,
+        }],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain(fursCode.code);
+    expect(response.body.error).toContain("Nastavitve > DDV kode");
+    const [stored] = await db.select({
+      status: documentsTable.status,
+      linkedInvoiceId: documentsTable.linkedInvoiceId,
+    }).from(documentsTable).where(eq(documentsTable.id, documentId)).limit(1);
+    expect(stored).toEqual({ status: "done", linkedInvoiceId: null });
+  });
+
+  it("ne shrani zneska valute USD kot EUR in dokument pusti done/unlinked", async () => {
+    currentUserId = FULL_NAME_USER;
+    const documentId = await createReviewableDocument("usd-vir.pdf", {
+      rawText: "USD 20.00 + USD 4.40 VAT",
+      confidence: 1,
+      currency: "USD",
+      lines: [{
+        description: "Service",
+        quantity: 1,
+        unitPrice: 20,
+        vatRate: 22,
+        vatBase: 20,
+        vatAmount: 4.4,
+        accountId,
+        confidence: 1,
+      }],
+    });
+
+    const response = await supertest(app)
+      .post(`/companies/${companyId}/documents/${documentId}/confirm`)
+      .send({
+        createInvoice: true,
+        lines: [{
+          description: "Service",
+          quantity: 1,
+          unitPrice: 20,
+          vatRate: 22,
+          vatBase: 20,
+          vatAmount: 4.4,
+          accountId,
+        }],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("USD");
+    expect(response.body.error).toContain("Samodejna pretvorba v EUR ni podprta");
+    const [stored] = await db.select({
+      status: documentsTable.status,
+      linkedInvoiceId: documentsTable.linkedInvoiceId,
+    }).from(documentsTable).where(eq(documentsTable.id, documentId)).limit(1);
+    expect(stored).toEqual({ status: "done", linkedInvoiceId: null });
   });
 
   it("uporabi primarno e-pošto ob zavrnitvi uporabnika brez imena", async () => {

@@ -19,6 +19,7 @@ import {
   posBookingSettingsTable,
   posReceiptBookingSourcesTable,
   vatCodeTable,
+  vatCodesTable,
   goodsReceiptsTable,
   documentsTable,
   racuniTable,
@@ -39,6 +40,7 @@ import {
   ReceiptEditConflict,
 } from "../lib/posReceiptBooking";
 import { createVatLedgerEntries, type EntryMeta, type VatLine } from "../lib/vatLedger";
+import { documentVatBehavior } from "../lib/documentVatCodeMapping";
 import {
   claimPurchaseSourceDocument,
   normalizePurchaseDocumentNumber,
@@ -255,8 +257,13 @@ async function fetchInvoiceWithLines(invoiceId: string) {
       sequence: invoiceLinesTable.sequence,
     })
     .from(invoiceLinesTable)
+    .innerJoin(invoicesTable, eq(invoicesTable.id, invoiceLinesTable.invoiceId))
     .innerJoin(accountsTable, eq(accountsTable.id, invoiceLinesTable.accountId))
-    .leftJoin(vatCodeTable, eq(vatCodeTable.id, invoiceLinesTable.vatCodeId))
+    .leftJoin(vatCodesTable, and(
+      eq(vatCodesTable.id, invoiceLinesTable.vatCodeId),
+      eq(vatCodesTable.companyId, invoicesTable.companyId),
+    ))
+    .leftJoin(vatCodeTable, eq(vatCodeTable.id, vatCodesTable.fursCodeId))
     .where(eq(invoiceLinesTable.invoiceId, invoiceId))
     .orderBy(asc(invoiceLinesTable.sequence));
 
@@ -839,7 +846,11 @@ router.get(
       })
       .from(invoiceLinesTable)
       .innerJoin(invoicesTable, eq(invoicesTable.id, invoiceLinesTable.invoiceId))
-      .leftJoin(vatCodeTable, eq(vatCodeTable.id, invoiceLinesTable.vatCodeId))
+      .leftJoin(vatCodesTable, and(
+        eq(vatCodesTable.id, invoiceLinesTable.vatCodeId),
+        eq(vatCodesTable.companyId, invoicesTable.companyId),
+      ))
+      .leftJoin(vatCodeTable, eq(vatCodeTable.id, vatCodesTable.fursCodeId))
       .where(eq(invoicesTable.companyId, companyId));
 
     const totalsMap = new Map<string, { net: number; vat: number }>();
@@ -2155,11 +2166,45 @@ router.post(
 
     const selectedVatCodeIds = [...new Set(lines.map((line) => line.vatCodeId).filter((id): id is string => !!id))];
     const selectedVatCodes = selectedVatCodeIds.length > 0
-      ? await db.select().from(vatCodeTable).where(inArray(vatCodeTable.id, selectedVatCodeIds))
+      ? await db.select({
+          companyVatCodeId: vatCodesTable.id,
+          companyVatRate: vatCodesTable.rate,
+          companyVatBehavior: vatCodesTable.behavior,
+          id: vatCodeTable.id,
+          code: vatCodeTable.code,
+          description: vatCodeTable.description,
+          direction: vatCodeTable.direction,
+          rate: vatCodeTable.rate,
+          validFrom: vatCodeTable.validFrom,
+          validTo: vatCodeTable.validTo,
+          isReverseCharge: vatCodeTable.isReverseCharge,
+          isImport: vatCodeTable.isImport,
+          kirBaseField: vatCodeTable.kirBaseField,
+          kprBaseField: vatCodeTable.kprBaseField,
+          kirVatField: vatCodeTable.kirVatField,
+          kprVatField: vatCodeTable.kprVatField,
+          triggersRpO: vatCodeTable.triggersRpO,
+          rpOColumn: vatCodeTable.rpOColumn,
+          triggersPdO: vatCodeTable.triggersPdO,
+        })
+          .from(vatCodesTable)
+          .innerJoin(vatCodeTable, eq(vatCodeTable.id, vatCodesTable.fursCodeId))
+          .where(and(
+            eq(vatCodesTable.companyId, companyId),
+            inArray(vatCodesTable.id, selectedVatCodeIds),
+          ))
       : [];
-    const selectedVatCodeById = new Map(selectedVatCodes.map((code) => [code.id, code]));
+    const selectedVatCodeById = new Map(selectedVatCodes.map((code) => [code.companyVatCodeId, code]));
     if (selectedVatCodeById.size !== selectedVatCodeIds.length) {
       res.status(400).json({ error: "Izbrana DDV koda ne obstaja." });
+      return;
+    }
+    const expectedVatDirection = invoice.type === "issued" ? "OUT" : "IN";
+    const wrongDirectionCode = selectedVatCodes.find(code => code.direction !== expectedVatDirection);
+    if (wrongDirectionCode) {
+      res.status(400).json({
+        error: `DDV-koda ${wrongDirectionCode.code} (${wrongDirectionCode.id}) ima smer ${wrongDirectionCode.direction}, za ${invoice.type === "issued" ? "izdani" : "prejeti"} račun pa mora biti ${expectedVatDirection}. Preverite povezavo v Nastavitve > DDV kode.`,
+      });
       return;
     }
     const euAcquisitionLines = lines.filter((line) =>
@@ -2213,7 +2258,10 @@ router.post(
           res.status(400).json({ error: "Vsaka postavka pridobitve OS iz EU potrebuje potrjeno vrsto osnovnega sredstva in knjižljivi konto 02/03 oziroma 04." });
           return;
         }
-        if (code.direction !== "IN" || !code.isReverseCharge || Number(code.rate) !== Number(line.vatRate)
+        const companyCode = selectedVatCodeById.get(line.vatCodeId!)!;
+        if (code.direction !== "IN" || !code.isReverseCharge
+          || Number(code.rate) !== Number(companyCode.companyVatRate)
+          || companyCode.companyVatBehavior !== documentVatBehavior(code)
           || code.validFrom > invoice.invoiceDate || (code.validTo && code.validTo < invoice.invoiceDate)) {
           res.status(400).json({ error: `DDV koda ${code.code} ni veljavna za datum ali stopnjo tega računa.` });
           return;
@@ -2225,10 +2273,15 @@ router.post(
     const lineCalcs = lines.map((l) => {
       const qty = parseFloat(l.quantity);
       const price = parseFloat(l.unitPrice);
-      const vatR = parseFloat(l.vatRate);
+      const selectedVatCode = l.vatCodeId ? selectedVatCodeById.get(l.vatCodeId) : undefined;
+      const isEuAcquisition = Boolean(selectedVatCode?.code.startsWith("EUB"));
+      // Reverse-charge supplier documents may show 0% VAT even though the
+      // FURS acquisition code specifies the domestic accounting rate.
+      const vatR = isEuAcquisition && selectedVatCode
+        ? Number(selectedVatCode.rate)
+        : parseFloat(l.vatRate);
       const lineTotal = qty * price;
       const vatAmt = lineTotal * vatR / 100;
-      const isEuAcquisition = Boolean(l.vatCodeId && selectedVatCodeById.get(l.vatCodeId)?.code.startsWith("EUB"));
       return { ...l, lineTotal, vatAmt, grossTotal: lineTotal + (isEuAcquisition ? 0 : vatAmt), vatR, isEuAcquisition };
     });
 
@@ -2467,6 +2520,7 @@ router.post(
       description: string | null;
       partnerId?: string | null;
       vatCodeId?: string | null;
+      companyVatCodeId?: string | null;
       vatAmount?: string | null;
       assetType?: "NONE" | "OTHER_FA" | "REALESTATE";
     }[] = [];
@@ -2538,7 +2592,7 @@ router.post(
       let totalTax = new Decimal(0);
       for (const line of lineCalcs) {
         const base = new Decimal(line.quantity).mul(line.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-        const tax = base.mul(line.vatRate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        const tax = base.mul(line.vatR).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
         totalBase = totalBase.plus(base);
         totalTax = totalTax.plus(tax);
         journalLines.push({
@@ -2547,7 +2601,8 @@ router.post(
           amount: money(base),
           description: line.description,
           partnerId: invoice.counterpartyId,
-          vatCodeId: line.vatCodeId,
+          vatCodeId: selectedVatCodeById.get(line.vatCodeId!)?.id,
+          companyVatCodeId: line.vatCodeId,
           vatAmount: money(tax),
           assetType: line.assetType,
         });
@@ -2576,13 +2631,18 @@ router.post(
         const rate = new Decimal(line.vatRate).toString();
         const net = new Decimal(line.quantity).mul(line.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
         const vat = net.mul(rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-        const vatCodeId = new Decimal(rate).eq(0) ? null : fursVatCodeByRate.get(Number(rate)) ?? null;
+        const selectedVatCode = line.vatCodeId
+          ? selectedVatCodeById.get(line.vatCodeId)
+          : undefined;
+        const vatCodeId = selectedVatCode?.id
+          ?? (new Decimal(rate).eq(0) ? null : fursVatCodeByRate.get(Number(rate)) ?? null);
+        const companyVatCodeId = selectedVatCode?.companyVatCodeId ?? null;
         const key = `${vatCodeId ?? "none"}:${rate}`;
         const total = invoiceBucketTotals.get(key) ?? { net: new Decimal(0), vat: new Decimal(0) };
         total.net = total.net.plus(net);
         total.vat = total.vat.plus(vat);
         invoiceBucketTotals.set(key, total);
-        return { ...line, rate, net, vat, vatCodeId, key };
+        return { ...line, rate, net, vat, vatCodeId, companyVatCodeId, key };
       });
       for (const [key, matched] of matchedBuckets) {
         const invoiceBucket = invoiceBucketTotals.get(key);
@@ -2633,6 +2693,7 @@ router.post(
             amount: money(remainder),
             description: line.description ?? null,
             vatCodeId: line.vatCodeId,
+            companyVatCodeId: line.companyVatCodeId,
             vatAmount: null,
           });
         }
@@ -2793,6 +2854,7 @@ router.post(
           sequence: i,
           partnerId: l.partnerId ?? null,
           vatCodeId: l.vatCodeId ?? null,
+          companyVatCodeId: l.companyVatCodeId ?? null,
           vatAmount: l.vatAmount ?? null,
         })),
       );

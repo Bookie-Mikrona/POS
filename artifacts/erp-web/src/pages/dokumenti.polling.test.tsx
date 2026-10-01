@@ -51,11 +51,13 @@ vi.mock("@workspace/api-client-react", async () => {
     useCreateCounterparty: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
     useListAccounts: () => ({ data: { accounts: [] } }),
     useListPeriods: () => ({ data: { periods: [] } }),
+    useListVatCodes: () => ({ data: { vatCodes: [] } }),
     useGetCounterpartyAccountTemplates: () => ({ data: { templates: [] }, isLoading: false, isError: false }),
     useListCompanyFursVatCodes: () => ({ data: { codes: [] } }),
     getListDocumentsQueryKey: listKey,
     getGetDocumentQueryKey: (companyId: string, documentId: string) => ["document", companyId, documentId],
     getListCounterpartiesQueryKey: (companyId: string) => ["counterparties", companyId],
+    getListVatCodesQueryKey: (companyId: string, params: unknown) => ["/vat-codes", companyId, params],
     getListCompanyFursVatCodesQueryKey: (companyId: string, params: unknown) => ["/furs-vat-codes", companyId, params],
   };
 });

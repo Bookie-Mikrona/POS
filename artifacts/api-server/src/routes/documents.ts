@@ -29,6 +29,7 @@ import {
   counterpartiesTable,
   accountsTable,
   vatCodeTable,
+  vatCodesTable,
   invoicesTable,
   invoiceLinesTable,
   accountingPeriodsTable,
@@ -40,6 +41,11 @@ import { anthropic } from "@workspace/integrations-anthropic-ai";
 import type { OcrResult, ProposedLine } from "@workspace/db";
 import { validateDirectPostingAccounts } from "../lib/directPostingAccountValidation";
 import { claimPurchaseSourceDocument } from "../lib/purchaseSourceDocuments";
+import {
+  expectedDocumentVatDirection,
+  inheritOmittedVatCodeSelection,
+  resolveDocumentVatCodeMappings,
+} from "../lib/documentVatCodeMapping";
 import {
   classifyPartyIdentity,
   filterSelfCounterparties,
@@ -174,6 +180,8 @@ type OcrCandidateLine = ProposedLine & {
   assetTypeOriginalAccountId?: string | null;
   assetType?: "NONE" | "OTHER_FA" | "REALESTATE";
   vatCodeId?: string | null;
+  vatCodeFursId?: string;
+  proposedFursVatCodeId?: string | null;
   vatCodeReason?: string;
   vatCodeReviewRequired?: boolean;
   vatCodeReviewReason?: string;
@@ -922,9 +930,10 @@ router.post(
   "/companies/:companyId/documents/:id/confirm",
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
-    const authReq = req as AuthenticatedRequest;
     const companyId = extractParam(req.params.companyId);
     const id = extractParam(req.params.id);
+    try {
+    const authReq = req as AuthenticatedRequest;
 
     const access = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!access) return;
@@ -980,6 +989,8 @@ router.post(
       assetTypeOriginalAccountCode?: string | null;
       assetTypeOriginalAccountId?: string | null;
       vatCodeId?: string | null;
+      vatCodeFursId?: string;
+      proposedFursVatCodeId?: string | null;
       vatCodeReason?: string;
       vatCodeReviewRequired?: boolean;
       vatCodeReviewReason?: string;
@@ -1013,11 +1024,13 @@ router.post(
     submittedLines.forEach((line, index) => {
       const proposal = ocrProposalLines[index];
       if (!proposal) return;
+      const selectedLine = inheritOmittedVatCodeSelection(line, proposal);
+      if (selectedLine !== line) line.vatCodeId = selectedLine.vatCodeId;
       line.assetTypeCandidate = proposal.assetTypeCandidate;
       line.assetTypeReason = proposal.assetTypeReason;
       line.assetTypeOriginalAccountCode = proposal.assetTypeOriginalAccountCode;
       line.assetTypeOriginalAccountId = proposal.assetTypeOriginalAccountId;
-      if (proposal.vatCodeId) line.vatCodeId = proposal.vatCodeId;
+      line.proposedFursVatCodeId = proposal.vatCodeId;
       if (proposal.vatCodeReason) line.vatCodeReason = proposal.vatCodeReason;
       if (proposal.vatCodeReviewRequired) {
         line.vatCodeReviewRequired = true;
@@ -1117,33 +1130,92 @@ router.post(
       }
     }
 
-    const requestedVatCodeIds = [...new Set(submittedLines.map(line => line.vatCodeId).filter((id): id is string => !!id))];
+    if (submittedLines.some(line =>
+      line.vatCodeId !== undefined
+      && line.vatCodeId !== null
+      && typeof line.vatCodeId !== "string",
+    )) {
+      res.status(400).json({ error: "DDV-koda na vrstici ni veljaven identifikator." });
+      return;
+    }
+    const requestedVatCodeIds = [...new Set(submittedLines
+      .map(line => line.vatCodeId)
+      .filter((codeId): codeId is string => typeof codeId === "string" && codeId.length > 0))];
     const fursVatCodesById = new Map<string, { code: string; direction: "IN" | "OUT"; validFrom: string; validTo: string | null }>();
+    const invoiceVatDate = (invoiceDate ?? ocrReview?.invoiceDate ?? new Date().toISOString()).slice(0, 10);
+    const effectiveDocumentType = documentType ?? ocrReview?.suggestedDocumentType ?? doc.documentType;
+    const expectedVatDirection = expectedDocumentVatDirection(
+      createInvoice && effectiveDocumentType !== "invoice_issued"
+        ? "invoice_received"
+        : effectiveDocumentType,
+    );
     if (requestedVatCodeIds.length > 0) {
-      const invoiceVatDate = (invoiceDate ?? ocrReview?.invoiceDate ?? "").slice(0, 10);
-      const requestedVatCodes = await db.select({
-        id: vatCodeTable.id,
-        code: vatCodeTable.code,
-        direction: vatCodeTable.direction,
-        validFrom: vatCodeTable.validFrom,
-        validTo: vatCodeTable.validTo,
-      })
-        .from(vatCodeTable)
-        .where(and(
-          inArray(vatCodeTable.id, requestedVatCodeIds),
-          eq(vatCodeTable.direction, "IN"),
-        ));
+      const [requestedVatCodes, companyVatCodes] = await Promise.all([
+        db.select({
+          id: vatCodeTable.id,
+          code: vatCodeTable.code,
+          direction: vatCodeTable.direction,
+          rate: vatCodeTable.rate,
+          validFrom: vatCodeTable.validFrom,
+          validTo: vatCodeTable.validTo,
+          isReverseCharge: vatCodeTable.isReverseCharge,
+        })
+          .from(vatCodeTable)
+          .where(inArray(vatCodeTable.id, requestedVatCodeIds)),
+        db.select({
+          id: vatCodesTable.id,
+          companyId: vatCodesTable.companyId,
+          fursCodeId: vatCodesTable.fursCodeId,
+          rate: vatCodesTable.rate,
+          behavior: vatCodesTable.behavior,
+          validFrom: vatCodesTable.validFrom,
+          validTo: vatCodesTable.validTo,
+          isActive: vatCodesTable.isActive,
+        })
+          .from(vatCodesTable)
+          .where(and(
+            eq(vatCodesTable.companyId, companyId),
+            inArray(vatCodesTable.fursCodeId, requestedVatCodeIds),
+          )),
+      ]);
       for (const code of requestedVatCodes) fursVatCodesById.set(code.id, code);
-      const hasInvalidVatCode = requestedVatCodeIds.some(id => {
-        const code = fursVatCodesById.get(id);
-        return !code
-          || (invoiceVatDate !== "" && code.validFrom > invoiceVatDate)
-          || (invoiceVatDate !== "" && code.validTo != null && code.validTo < invoiceVatDate);
-      });
-      if (hasInvalidVatCode) {
-        res.status(400).json({ error: "Izbrana vstopna DDV-koda ne obstaja ali ni veljavna na datum računa." });
+      const mapping = resolveDocumentVatCodeMappings(
+        requestedVatCodeIds,
+        requestedVatCodes,
+        companyVatCodes,
+        companyId,
+        invoiceVatDate,
+        expectedVatDirection,
+      );
+      if (mapping.error) {
+        const failedId = mapping.error.fursCodeId;
+        const fursCode = requestedVatCodes.find(code => code.id === failedId);
+        const codeLabel = fursCode?.code ?? failedId;
+        const error = mapping.error.kind === "wrong_direction"
+          ? `DDV-koda ${codeLabel} (${failedId}) nima ustrezne smeri za ${mapping.error.expected === "OUT" ? "izdani" : "prejeti"} račun.`
+          : mapping.error.kind === "invalid_furs_date"
+            ? `DDV-koda ${codeLabel} (${failedId}) ni veljavna na datum računa.`
+            : mapping.error.kind === "ambiguous_company_mapping"
+              ? `DDV-koda ${codeLabel} (${failedId}) ima več veljavnih povezav v Nastavitve > DDV kode. Uredite šifrant podjetja.`
+              : `DDV-koda ${codeLabel} (${failedId}) nima enolične aktivne, datumom veljavne povezave v Nastavitve > DDV kode. Preverite FURS povezavo, stopnjo, vrsto, aktivnost in veljavnost kode.`;
+        res.status(400).json({ error });
         return;
       }
+      for (const line of submittedLines) {
+        if (typeof line.vatCodeId !== "string" || line.vatCodeId.length === 0) continue;
+        line.vatCodeFursId = line.vatCodeId;
+        line.vatCodeId = mapping.mappings.get(line.vatCodeId)!;
+      }
+    }
+
+    const sourceCurrency = typeof ocrReview?.currency === "string"
+      ? ocrReview.currency.trim().toUpperCase()
+      : "EUR";
+    if (createInvoice && sourceCurrency !== "EUR") {
+      res.status(400).json({
+        error: `Izvorni dokument je v valuti ${sourceCurrency}. Samodejna pretvorba v EUR ni podprta; račun ni bil ustvarjen in dokument ostaja nespremenjen. Uporabite preverjeno pretvorbo ali ročni vnos računa v EUR.`,
+      });
+      return;
     }
 
     // Sestavi confirmedData iz OCR + popravkov računovodje
@@ -1182,13 +1254,13 @@ router.post(
         .where(and(eq(counterpartiesTable.id, counterpartyId), eq(counterpartiesTable.companyId, companyId)))
         .limit(1);
       if (!cp) { res.status(400).json({ error: "Partner ni najden" }); return; }
-      const effectiveDocumentType = documentType ?? ocrReview?.suggestedDocumentType ?? doc.documentType;
       const isEuSupplier = effectiveDocumentType !== "invoice_issued"
         && (isEuSupplierTaxId(cp.taxId) || isEuSupplierTaxId(ocrReview?.counterpartyTaxId));
       if (isEuSupplier) {
         const missingEubLine = submittedLines.find(line => {
           if (line.assetType !== "OTHER_FA" && line.assetType !== "REALESTATE") return false;
-          return !line.vatCodeId || !fursVatCodesById.get(line.vatCodeId)?.code.startsWith("EUB");
+          const fursCodeId = line.vatCodeFursId ?? line.vatCodeId;
+          return !fursCodeId || !fursVatCodesById.get(fursCodeId)?.code.startsWith("EUB");
         });
         if (missingEubLine) {
           res.status(400).json({
@@ -1232,7 +1304,7 @@ router.post(
         }
       }
 
-      const invType = documentType === "invoice_issued" ? "issued" : "received";
+      const invType = effectiveDocumentType === "invoice_issued" ? "issued" : "received";
 
       // Poišči privzete AR/AP konto (120 za izdane, 220 za prejete) če ni podan
       const arApPrefix = invType === "issued" ? "120" : isEuSupplier ? "221" : "220";
@@ -1409,38 +1481,51 @@ router.post(
         }, new Map());
 
       if (lineAccountPairs.size > 0) {
-        await Promise.all(
-          Array.from(lineAccountPairs.entries()).map(([acctId, desc]) =>
-            db
-              .insert(counterpartyAccountTemplatesTable)
-              .values({
-                companyId,
-                counterpartyId,
-                accountId: acctId,
-                documentType: docTypeKey,
-                lastLineDescription: desc || null,
-                usageCount: 1,
-                lastUsedAt: new Date(),
-              })
-              .onConflictDoUpdate({
-                target: [
-                  counterpartyAccountTemplatesTable.companyId,
-                  counterpartyAccountTemplatesTable.counterpartyId,
-                  counterpartyAccountTemplatesTable.accountId,
-                  counterpartyAccountTemplatesTable.documentType,
-                ],
-                set: {
-                  usageCount: sql`${counterpartyAccountTemplatesTable.usageCount} + 1`,
+        try {
+          await Promise.all(
+            Array.from(lineAccountPairs.entries()).map(([acctId, desc]) =>
+              db
+                .insert(counterpartyAccountTemplatesTable)
+                .values({
+                  companyId,
+                  counterpartyId,
+                  accountId: acctId,
+                  documentType: docTypeKey,
                   lastLineDescription: desc || null,
+                  usageCount: 1,
                   lastUsedAt: new Date(),
-                },
-              }),
-          ),
-        );
+                })
+                .onConflictDoUpdate({
+                  target: [
+                    counterpartyAccountTemplatesTable.companyId,
+                    counterpartyAccountTemplatesTable.counterpartyId,
+                    counterpartyAccountTemplatesTable.accountId,
+                    counterpartyAccountTemplatesTable.documentType,
+                  ],
+                  set: {
+                    usageCount: sql`${counterpartyAccountTemplatesTable.usageCount} + 1`,
+                    lastLineDescription: desc || null,
+                    lastUsedAt: new Date(),
+                  },
+                }),
+            ),
+          );
+        } catch (error) {
+          req.log?.warn(
+            { err: error, companyId, documentId: id, invoiceId: linkedInvoiceId },
+            "Dokument potrjen, vendar posodobitev predlog kontiranja ni uspela",
+          );
+        }
       }
     }
 
     res.json(updated);
+    } catch (error) {
+      req.log?.error({ err: error, companyId, documentId: id }, "Nepričakovana napaka pri potrditvi dokumenta");
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Potrditev dokumenta ni uspela zaradi nepričakovane napake." });
+      }
+    }
   },
 );
 

@@ -86,6 +86,15 @@ describe("OCR active-company party resolution", () => {
     expect(normalizeTaxId("AT12345678")).not.toBe(normalizeTaxId("12345678"));
   });
 
+  it("recognizes a seven-digit Slovenian registration number and its head-office suffix as the same company", () => {
+    const headOffice = { ...company, maticnaStevilka: "5711053000" };
+    expect(classifyPartyIdentity({ taxId: "SI12345678", registrationId: "5711053" }, headOffice)).toBe("self");
+    expect(classifyPartyIdentity({ registrationId: "5711053" }, headOffice)).toBe("self");
+    expect(classifyPartyIdentity({ registrationId: "5711053000" }, { ...company, maticnaStevilka: "5711053" })).toBe("self");
+    expect(classifyPartyIdentity({ taxId: "SI12345678", registrationId: "5711053001" }, headOffice)).toBe("conflict");
+    expect(classifyPartyIdentity({ taxId: "SI99887766", registrationId: "5711053" }, headOffice)).toBe("conflict");
+  });
+
   it("recognizes company aliases only when party IDs are absent, and treats conflicting IDs as evidence", () => {
     expect(classifyPartyIdentity({ name: "MIKRONA" }, company)).toBe("self");
     expect(classifyPartyIdentity({ name: "Mikrona d.o.o.", taxId: "SI99887766" }, company)).toBe("other");

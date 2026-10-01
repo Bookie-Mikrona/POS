@@ -19,10 +19,12 @@ import {
   useListAccounts,
   useListPeriods,
   useGetCounterpartyAccountTemplates,
+  useListVatCodes,
   useListCompanyFursVatCodes,
   getListDocumentsQueryKey,
   getGetDocumentQueryKey,
   getListCounterpartiesQueryKey,
+  getListVatCodesQueryKey,
   getListCompanyFursVatCodesQueryKey,
   type DocumentRecord,
   type ProposedLine,
@@ -78,6 +80,16 @@ const formatEur = (n: number | null | undefined) => {
   return new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(n);
 };
 
+const formatCurrencyAmount = (n: number | null | undefined, currency: string) => {
+  if (n === null || n === undefined) return "-";
+  try {
+    return new Intl.NumberFormat("sl-SI", { style: "currency", currency }).format(n);
+  } catch {
+    const amount = new Intl.NumberFormat("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    return `${amount} ${currency}`;
+  }
+};
+
 type ReviewDocumentType = "invoice_received" | "invoice_issued" | "other";
 
 function isReviewDocumentType(value: string | null | undefined): value is ReviewDocumentType {
@@ -95,6 +107,57 @@ function normalizeTaxId(value: string | null | undefined) {
 
 function normalizeCompanyName(value: string | null | undefined) {
   return value?.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}\s]+/gu, "") ?? "";
+}
+
+function getSafeDocumentConfirmErrorMessage(error: unknown) {
+  const errorRecord = error && typeof error === "object"
+    ? error as Record<string, unknown>
+    : {};
+  const response = errorRecord.response && typeof errorRecord.response === "object"
+    ? errorRecord.response as Record<string, unknown>
+    : {};
+  const statusValue = errorRecord.status ?? response.status;
+  const status = typeof statusValue === "number" ? statusValue : undefined;
+  const data = errorRecord.data;
+  const dataRecord = data && typeof data === "object"
+    ? data as Record<string, unknown>
+    : {};
+  const structuredMessage = [dataRecord.error, dataRecord.message, dataRecord.detail]
+    .find((value): value is string => typeof value === "string" && value.trim().length > 0);
+  const isSafeMessage = (message: string) =>
+    message.length <= 800
+    && !/<\/?[a-z!][^>]*>/i.test(message)
+    && !/<!doctype|(?:\n|\r)\s*at\s+[\w.$]+\s*\(|\bSQLSTATE\b|\b(?:SELECT|INSERT|UPDATE|DELETE)\b.{0,60}\b(?:FROM|INTO|SET)\b|\b(?:syntax error at or near|relation .* does not exist|duplicate key value)\b/i.test(message);
+
+  if (structuredMessage && isSafeMessage(structuredMessage)) return structuredMessage.trim();
+
+  const message = errorRecord.message;
+  if (
+    typeof message === "string"
+    && message.trim()
+    && !/^\s*HTTP\s+\d{3}\b/i.test(message)
+    && !/^Failed to parse response\b/i.test(message)
+    && isSafeMessage(message)
+  ) {
+    return message.trim();
+  }
+
+  if (status === 400) {
+    return "Strežnik je zavrnil podatke. Preverite zahtevane podatke in povezave DDV-kod v DDV šifrantu.";
+  }
+  if (status === 401 || status === 403) {
+    return "Za potrditev dokumenta nimate ustreznih pravic. Preverite dostop ali se obrnite na skrbnika.";
+  }
+  if (status === 404) {
+    return "Dokumenta ni več mogoče najti. Osvežite seznam in poskusite znova.";
+  }
+  if (status === 409) {
+    return "Dokument se je med potrjevanjem spremenil. Osvežite podatke in poskusite znova.";
+  }
+  if (status && status >= 500) {
+    return `Strežnik trenutno ne more potrditi dokumenta (HTTP ${status}). Poskusite znova pozneje; če se težava ponovi, se obrnite na skrbnika.`;
+  }
+  return "Dokumenta ni bilo mogoče potrditi. Preverite podatke in poskusite znova.";
 }
 
 function matchesCompanyIdentity(
@@ -693,6 +756,8 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
   const ocr = doc.ocrResult;
+  const sourceCurrency = ocr?.currency?.trim().toUpperCase() || "EUR";
+  const isForeignCurrency = sourceCurrency !== "EUR";
   const isViewer = activeCompany?.role === "viewer";
 
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
@@ -727,17 +792,6 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
   const openPeriods = periods.filter(p => p.status === "open");
-  const { data: fursVatCodesData } = useListCompanyFursVatCodes(
-    activeCompany?.id ?? "",
-    { direction: "IN" },
-    {
-      query: {
-        enabled: !!activeCompany?.id,
-        queryKey: getListCompanyFursVatCodesQueryKey(activeCompany?.id ?? "", { direction: "IN" }),
-      },
-    },
-  );
-  const allEubVatCodes = (fursVatCodesData?.codes ?? []).filter(code => code.code.startsWith("EUB"));
 
   const confirmMut = useConfirmDocument();
   const createCounterpartyMut = useCreateCounterparty();
@@ -754,6 +808,39 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     dueDate: ocr?.dueDate?.split("T")[0] || "",
     createInvoice: true
   });
+  const fursVatDirection: "IN" | "OUT" | undefined = form.documentType === "invoice_issued"
+    ? "OUT"
+    : form.documentType === "invoice_received"
+      ? "IN"
+      : undefined;
+  const fursVatCodeParams = fursVatDirection ? { direction: fursVatDirection } : undefined;
+  const { data: fursVatCodesData } = useListCompanyFursVatCodes(
+    activeCompany?.id ?? "",
+    fursVatCodeParams,
+    {
+      query: {
+        enabled: !!activeCompany?.id && !!fursVatDirection,
+        queryKey: getListCompanyFursVatCodesQueryKey(activeCompany?.id ?? "", fursVatCodeParams),
+      },
+    },
+  );
+  const {
+    data: companyVatCodesData,
+    isLoading: companyVatCodesLoading,
+    isError: companyVatCodesError,
+  } = useListVatCodes(
+    activeCompany?.id ?? "",
+    { includeInactive: true },
+    {
+      query: {
+        enabled: !!activeCompany?.id,
+        queryKey: getListVatCodesQueryKey(activeCompany?.id ?? "", { includeInactive: true }),
+      },
+    },
+  );
+  const globalFursVatCodes = fursVatCodesData?.codes ?? [];
+  const allEubVatCodes = globalFursVatCodes.filter(code => code.code.startsWith("EUB"));
+  const companyVatCodes = companyVatCodesData?.vatCodes ?? [];
   const selectedCounterpartyId = counterparties.some(counterparty => counterparty.id === form.counterpartyId)
     ? form.counterpartyId
     : "";
@@ -792,6 +879,9 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     && (!invoiceVatDate || code.validFrom <= invoiceVatDate)
     && (!invoiceVatDate || !code.validTo || code.validTo >= invoiceVatDate),
   );
+  const isFursCodeValidForInvoiceDate = (code: { validFrom?: string | null; validTo?: string | null }) =>
+    (!code.validFrom || !invoiceVatDate || code.validFrom.slice(0, 10) <= invoiceVatDate)
+    && (!code.validTo || !invoiceVatDate || code.validTo.slice(0, 10) >= invoiceVatDate);
 
   const {
     data: accountTemplatesData,
@@ -939,10 +1029,60 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
       : line));
   };
 
+  const ordinaryFursVatCodesForLine = (line: ReviewLine) => globalFursVatCodes.filter(code =>
+    !!fursVatDirection
+    && code.direction === fursVatDirection
+    && Number(code.rate) === line.vatRate
+    && isFursCodeValidForInvoiceDate(code),
+  );
+  const selectOrdinaryVatCodeForLine = (idx: number, vatCodeId: string) => {
+    const line = editableLines[idx];
+    const vatCode = line && ordinaryFursVatCodesForLine(line).find(code => code.id === vatCodeId);
+    if (!vatCode) return;
+    setEditableLines(prev => prev.map((currentLine, i) => i === idx
+      ? { ...currentLine, vatCodeId, vatCodeReason: `Ročno izbrana FURS koda ${vatCode.code}: ${vatCode.description}` }
+      : currentLine));
+  };
+  const getVatCodeMappingIssue = (line: ReviewLine) => {
+    if (!line.vatCodeId) return null;
+    const globalCode = globalFursVatCodes.find(code => code.id === line.vatCodeId);
+    if (
+      !globalCode
+      || !fursVatDirection
+      || globalCode.direction !== fursVatDirection
+      || Number(globalCode.rate) !== line.vatRate
+      || !isFursCodeValidForInvoiceDate(globalCode)
+    ) {
+      return "Izbrana globalna FURS DDV-koda ne ustreza smeri računa, datumu ali stopnji vrstice. Izberite ustrezno kodo.";
+    }
+    if (companyVatCodesLoading) return "Preverjanje povezave DDV-kode s šifrantom podjetja še poteka.";
+    if (companyVatCodesError) return "Povezave DDV-kode s šifrantom podjetja ni bilo mogoče preveriti. Osvežite podatke ali preverite DDV šifrant.";
+
+    const linkedVatCodes = companyVatCodes.filter(code => code.fursCodeId === globalCode.id);
+    if (linkedVatCodes.length === 0) {
+      return `Globalna FURS koda ${globalCode.code} ni povezana z DDV-kodo podjetja. Povezavo nastavite v DDV šifrantu.`;
+    }
+    if (linkedVatCodes.length > 1) {
+      return `Globalna FURS koda ${globalCode.code} je povezana z več DDV-kodami podjetja. V DDV šifrantu pustite eno ustrezno povezavo.`;
+    }
+    const linkedVatCode = linkedVatCodes[0];
+    if (
+      !linkedVatCode.isActive
+      || Number(linkedVatCode.rate) !== Number(globalCode.rate)
+      || linkedVatCode.fursCodeDirection !== fursVatDirection
+      || (linkedVatCode.validFrom && invoiceVatDate && linkedVatCode.validFrom.slice(0, 10) > invoiceVatDate)
+      || (linkedVatCode.validTo && invoiceVatDate && linkedVatCode.validTo.slice(0, 10) < invoiceVatDate)
+    ) {
+      return `Povezana DDV-koda podjetja za FURS kodo ${globalCode.code} je neaktivna ali ne velja za smer, stopnjo oziroma datum računa. Preverite DDV šifrant.`;
+    }
+    return null;
+  };
+
   const linesAwaitingAssetDecision = editableLines.filter(line =>
     line.assetTypeCandidate && line.assetType == null,
   );
   const linesAwaitingVatReview = editableLines.filter(line => line.vatCodeReviewRequired && !line.vatCodeId);
+  const linesWithVatMappingIssues = editableLines.filter(line => getVatCodeMappingIssue(line));
   const linesWithMissingAccount = editableLines.filter(l => !l.accountId);
   const hasUnresolvedLines = linesWithMissingAccount.length > 0;
   const linesWithInvalidAccount = editableLines.filter(line => {
@@ -1029,20 +1169,28 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               <div className="col-span-2 p-4 bg-muted/30 rounded-lg border mt-2">
                 <div className="flex justify-between items-center mb-2">
                   <Label className="text-xs text-muted-foreground">Zneski</Label>
-                  <span className="text-xs font-mono text-muted-foreground">{ocr?.currency || "EUR"}</span>
+                  <span className="text-xs font-mono text-muted-foreground">{sourceCurrency}</span>
                 </div>
                 <div className="flex justify-between text-sm py-1 border-b">
                   <span className="text-muted-foreground">Neto:</span>
-                  <span className="font-medium">{formatEur(ocr?.totalNet)}</span>
+                  <span className="font-medium">{formatCurrencyAmount(ocr?.totalNet, sourceCurrency)}</span>
                 </div>
                 <div className="flex justify-between text-sm py-1 border-b">
                   <span className="text-muted-foreground">DDV:</span>
-                  <span className="font-medium">{formatEur(ocr?.totalVat)}</span>
+                  <span className="font-medium">{formatCurrencyAmount(ocr?.totalVat, sourceCurrency)}</span>
                 </div>
                 <div className="flex justify-between text-base py-2 font-bold">
                   <span>Bruto za plačilo:</span>
-                  <span>{formatEur(ocr?.totalGross)}</span>
+                  <span>{formatCurrencyAmount(ocr?.totalGross, sourceCurrency)}</span>
                 </div>
+                {isForeignCurrency && (
+                  <Alert className="mt-3 border-amber-300 bg-amber-50 text-amber-950">
+                    <AlertTriangle className="h-4 w-4 text-amber-700" />
+                    <AlertDescription className="text-xs">
+                      Dokument je prepoznan v valuti {sourceCurrency}. Zneski se ne preračunajo samodejno v EUR, zato iz teh podatkov ni mogoče ustvariti osnutka računa. Za ročni vnos preverjenega EUR računa uporabite <Link href="/racuni" className="font-medium underline">obstoječi vnos računov</Link>.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             </div>
           </CardContent>
@@ -1108,6 +1256,16 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-700 shrink-0" />
                   <AlertDescription className="text-xs ml-1">
                     {linesAwaitingVatReview[0].vatCodeReviewReason} Osnutka računa zaradi DDV ne bo mogoče ustvariti, dokler DDV-koda ni preverjena.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+            {linesWithVatMappingIssues.length > 0 && form.createInvoice && (
+              <div className="px-5 pb-2">
+                <Alert className="py-2 px-3 border-amber-300 bg-amber-50 text-amber-950">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+                  <AlertDescription className="text-xs ml-1">
+                    DDV-kode na {linesWithVatMappingIssues.length === 1 ? "eni vrstici ni mogoče uporabiti" : `${linesWithVatMappingIssues.length} vrsticah ni mogoče uporabiti`} brez veljavne povezave globalne FURS kode s šifrantom podjetja. Preverite opozorila pri vrsticah in <Link href="/ddv" className="font-medium underline">DDV šifrant</Link>.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -1202,11 +1360,44 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                                 )}
                               </div>
                             )}
+                            {!line.vatCodeReviewRequired && form.createInvoice && isReviewDocumentType(form.documentType) && !isViewer && (
+                              <div className="mt-1.5 space-y-1.5">
+                                <Label className="text-[10px] font-normal text-muted-foreground">
+                                  Globalna FURS DDV-koda
+                                </Label>
+                                <Select
+                                  value={line.vatCodeId ?? ""}
+                                  onValueChange={value => selectOrdinaryVatCodeForLine(idx, value)}
+                                >
+                                  <SelectTrigger
+                                    className="h-8 bg-background text-xs"
+                                    aria-label={`Globalna FURS DDV-koda — ${line.description}`}
+                                  >
+                                    <SelectValue placeholder="Izberite FURS kodo glede na stopnjo…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {ordinaryFursVatCodesForLine(line).map(code => (
+                                      <SelectItem key={code.id} value={code.id}>
+                                        <span className="font-mono">{code.code}</span> · {Number(code.rate)} % — {code.description}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {line.vatCodeId && getVatCodeMappingIssue(line) && (
+                                  <p className="text-[10px] font-normal text-amber-800">
+                                    {getVatCodeMappingIssue(line)}{" "}
+                                    <Link href="/ddv" className="font-medium underline">Odprite DDV šifrant.</Link>
+                                  </p>
+                                )}
+                              </div>
+                            )}
                             {line.vatCodeId && line.vatCodeReason && (
-                              <p className="mt-1 text-[10px] font-normal text-blue-800">DDV EUB22/95: {line.vatCodeReason}</p>
+                              <p className="mt-1 text-[10px] font-normal text-blue-800">
+                                {line.vatCodeReviewRequired ? "DDV EUB22/95:" : "FURS DDV-koda:"} {line.vatCodeReason}
+                              </p>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums">{formatEur(line.vatBase)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{formatCurrencyAmount(line.vatBase, sourceCurrency)}</td>
                           <td className="px-4 py-3 text-right">{line.vatRate}%</td>
                           <td className="px-4 py-2">
                             <Select
@@ -1507,7 +1698,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Osnutka računa ni bilo mogoče ustvariti</AlertTitle>
                   <AlertDescription>
-                    {confirmMut.error instanceof Error ? confirmMut.error.message : "Preverite konto obveznosti dobavitelju in izbrane DDV-kode, nato poskusite znova."}
+                    {getSafeDocumentConfirmErrorMessage(confirmMut.error)}
                   </AlertDescription>
                 </Alert>
               )}
@@ -1526,11 +1717,17 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               {hasInvalidAccounts && (
                 <p className="text-amber-600 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> {linesWithInvalidAccount.length} {linesWithInvalidAccount.length === 1 ? "konto ni knjižljiv" : "kontov ni knjižljivih"}</p>
               )}
+              {form.createInvoice && isForeignCurrency && (
+                <p className="text-amber-700 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Osnutka računa v valuti {sourceCurrency} ni mogoče ustvariti; vnos EUR zneskov opravite ročno prek strani <Link href="/racuni" className="font-medium underline">Računi</Link>.
+                </p>
+              )}
             </div>
             <Button 
               size="lg" 
               onClick={handleSubmit} 
-              disabled={!isReviewDocumentType(form.documentType) || !selectedCounterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && (linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0)) || confirmMut.isPending || isViewer}
+              disabled={!isReviewDocumentType(form.documentType) || !selectedCounterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && (isForeignCurrency || linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0 || linesWithVatMappingIssues.length > 0)) || confirmMut.isPending || isViewer}
               className="bg-primary text-primary-foreground min-w-[200px]"
             >
               {confirmMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
