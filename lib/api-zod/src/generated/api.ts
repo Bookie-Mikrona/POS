@@ -13753,7 +13753,23 @@ export const ListDocumentsQueryParams = zod.object({
   "limit": zod.coerce.number().default(listDocumentsQueryLimitDefault)
 })
 
+export const listDocumentsResponseDocumentsItemOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const listDocumentsResponseDocumentsItemOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const listDocumentsResponseDocumentsItemOcrResultOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const listDocumentsResponseDocumentsItemOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
 export const listDocumentsResponseDocumentsItemOcrResultOneLinesItemSuggestionCountMin = 0;
+
+export const listDocumentsResponseDocumentsItemConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const listDocumentsResponseDocumentsItemConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const listDocumentsResponseDocumentsItemConfirmedDataOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const listDocumentsResponseDocumentsItemConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
 
 export const listDocumentsResponseDocumentsItemConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
@@ -13784,6 +13800,18 @@ export const ListDocumentsResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(listDocumentsResponseDocumentsItemOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(listDocumentsResponseDocumentsItemOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -13806,6 +13834,19 @@ export const ListDocumentsResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(listDocumentsResponseDocumentsItemOcrResultOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(listDocumentsResponseDocumentsItemOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -13839,6 +13880,18 @@ export const ListDocumentsResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(listDocumentsResponseDocumentsItemConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(listDocumentsResponseDocumentsItemConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -13861,6 +13914,19 @@ export const ListDocumentsResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(listDocumentsResponseDocumentsItemConfirmedDataOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(listDocumentsResponseDocumentsItemConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -13907,7 +13973,23 @@ export const RegisterDocumentBody = zod.object({
   "fileSizeBytes": zod.number().optional()
 })
 
+export const registerDocumentResponseOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const registerDocumentResponseOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const registerDocumentResponseOcrResultOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const registerDocumentResponseOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
 export const registerDocumentResponseOcrResultOneLinesItemSuggestionCountMin = 0;
+
+export const registerDocumentResponseConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const registerDocumentResponseConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const registerDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const registerDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
 
 export const registerDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
@@ -13937,6 +14019,18 @@ export const RegisterDocumentResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(registerDocumentResponseOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(registerDocumentResponseOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -13959,6 +14053,19 @@ export const RegisterDocumentResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(registerDocumentResponseOcrResultOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(registerDocumentResponseOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -13992,6 +14099,18 @@ export const RegisterDocumentResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(registerDocumentResponseConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(registerDocumentResponseConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -14014,6 +14133,19 @@ export const RegisterDocumentResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(registerDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(registerDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14050,7 +14182,23 @@ export const GetDocumentParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getDocumentResponseOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const getDocumentResponseOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const getDocumentResponseOcrResultOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const getDocumentResponseOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
 export const getDocumentResponseOcrResultOneLinesItemSuggestionCountMin = 0;
+
+export const getDocumentResponseConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const getDocumentResponseConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const getDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const getDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
 
 export const getDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
@@ -14080,6 +14228,18 @@ export const GetDocumentResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentResponseOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentResponseOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -14102,6 +14262,19 @@ export const GetDocumentResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentResponseOcrResultOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentResponseOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14135,6 +14308,18 @@ export const GetDocumentResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentResponseConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentResponseConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -14157,6 +14342,19 @@ export const GetDocumentResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14201,14 +14399,31 @@ export const GetDocumentExchangeRateQueryParams = zod.object({
   "date": zod.coerce.string().describe('Invoice date in YYYY-MM-DD format'),
   "mode": zod.enum(['ecb', 'manual']).optional(),
   "unitsPerEur": zod.coerce.number().gt(getDocumentExchangeRateQueryUnitsPerEurExclusiveMin).optional().describe('Manual rate expressed as source-currency units for one EUR'),
-  "rateDate": zod.coerce.string().optional().describe('Effective manual-rate date in YYYY-MM-DD format')
+  "rateDate": zod.coerce.string().optional().describe('Effective manual-rate date in YYYY-MM-DD format'),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional()
 })
+
+export const getDocumentExchangeRateResponseSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const getDocumentExchangeRateResponseExpenseEurRoundingAdjustmentLineIndexMin = 0;
 
 export const getDocumentExchangeRateResponseUnitsPerEurExclusiveMin = 0;
 
 
 
 export const GetDocumentExchangeRateResponse = zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentExchangeRateResponseSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(getDocumentExchangeRateResponseExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "currency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -14248,6 +14463,10 @@ export const ConfirmDocumentParams = zod.object({
 
 export const confirmDocumentBodyLinesItemSuggestionCountMin = 0;
 
+export const confirmDocumentBodyExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const confirmDocumentBodyExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
 export const confirmDocumentBodyExchangeRateUnitsPerEurExclusiveMin = 0;
 
 export const confirmDocumentBodyExchangeRateManualReasonMin = 3;
@@ -14256,6 +14475,8 @@ export const confirmDocumentBodyExchangeRateManualReasonMax = 500;
 
 
 export const ConfirmDocumentBody = zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional().describe('Explicit review of the gross expense treatment and separate consideration of reverse-charge obligations.'),
   "documentType": zod.enum(['invoice_received', 'invoice_issued', 'other']).optional(),
   "counterpartyId": zod.string().nullish(),
   "periodId": zod.string().nullish(),
@@ -14278,6 +14499,18 @@ export const ConfirmDocumentBody = zod.object({
   "arApAccountId": zod.string().nullish().describe('Konto terjatev (izdani račun) ali obveznosti (prejet račun); če ni podan, se samodejno poišče privzeti konto (120\* ali 220\*)'),
   "createInvoice": zod.boolean().optional().describe('Ali naj se avtomatično ustvari draft račun'),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentBodyExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentBodyExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "requestedDate": zod.string(),
   "rateDate": zod.string(),
@@ -14287,7 +14520,23 @@ export const ConfirmDocumentBody = zod.object({
 }).optional()
 }).describe('Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa')
 
+export const confirmDocumentResponseOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const confirmDocumentResponseOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const confirmDocumentResponseOcrResultOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const confirmDocumentResponseOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
 export const confirmDocumentResponseOcrResultOneLinesItemSuggestionCountMin = 0;
+
+export const confirmDocumentResponseConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const confirmDocumentResponseConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const confirmDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const confirmDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
 
 export const confirmDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
@@ -14317,6 +14566,18 @@ export const ConfirmDocumentResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentResponseOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentResponseOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -14339,6 +14600,19 @@ export const ConfirmDocumentResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentResponseOcrResultOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentResponseOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14372,6 +14646,18 @@ export const ConfirmDocumentResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentResponseConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentResponseConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -14394,6 +14680,19 @@ export const ConfirmDocumentResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(confirmDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14430,7 +14729,23 @@ export const RejectDocumentParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const rejectDocumentResponseOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const rejectDocumentResponseOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const rejectDocumentResponseOcrResultOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const rejectDocumentResponseOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
 export const rejectDocumentResponseOcrResultOneLinesItemSuggestionCountMin = 0;
+
+export const rejectDocumentResponseConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const rejectDocumentResponseConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin = 0;
+
+export const rejectDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLineIndexMin = 0;
+
+export const rejectDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
 
 export const rejectDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
@@ -14460,6 +14775,18 @@ export const RejectDocumentResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(rejectDocumentResponseOcrResultOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(rejectDocumentResponseOcrResultOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -14482,6 +14809,19 @@ export const RejectDocumentResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(rejectDocumentResponseOcrResultOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(rejectDocumentResponseOcrResultOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14515,6 +14855,18 @@ export const RejectDocumentResponse = zod.object({
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.object({
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(rejectDocumentResponseConfirmedDataOneExchangeRateSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(rejectDocumentResponseConfirmedDataOneExchangeRateExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "mode": zod.enum(['ecb', 'manual']),
   "sourceCurrency": zod.string(),
   "targetCurrency": zod.enum(['EUR']),
@@ -14537,6 +14889,19 @@ export const RejectDocumentResponse = zod.object({
   "convertedAt": zod.string(),
   "manualReason": zod.string().optional()
 }).optional(),
+  "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
+  "vatTreatmentReviewed": zod.boolean().optional(),
+  "sourceRoundingAdjustment": zod.object({
+  "sourceCurrency": zod.string(),
+  "sourceGross": zod.number(),
+  "lineGross": zod.number(),
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(rejectDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLineIndexMin)
+}).optional().describe('Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.'),
+  "expenseEurRoundingAdjustment": zod.object({
+  "amount": zod.number(),
+  "lineIndex": zod.number().min(rejectDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin)
+}).optional().describe('Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.'),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),

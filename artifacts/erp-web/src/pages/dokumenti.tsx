@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
@@ -31,6 +31,9 @@ import {
   type DocumentRecord,
   type DocumentExchangeRateQuote,
   type DocumentExchangeRateSnapshot,
+  type DocumentExpenseEurRoundingAdjustment,
+  type DocumentSourceRoundingAdjustment,
+  type DocumentVatTreatment,
   type ProposedLine,
 } from "@workspace/api-client-react";
 
@@ -42,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { DocumentUpload } from "@/components/documents/document-upload";
@@ -95,6 +99,29 @@ const formatCurrencyAmount = (n: number | null | undefined, currency: string) =>
 };
 
 type ReviewDocumentType = "invoice_received" | "invoice_issued" | "other";
+type VatTreatment = DocumentVatTreatment;
+
+const GROSS_EXPENSE_VAT_TREATMENT: VatTreatment = "gross-expense-no-input-vat";
+
+type SourceRoundingAdjustment = DocumentSourceRoundingAdjustment;
+type ExpenseEurRoundingAdjustment = DocumentExpenseEurRoundingAdjustment;
+
+function formatSourceAmount(amount: number, currency: string) {
+  return `${new Intl.NumberFormat("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} ${currency}`;
+}
+
+function formatSourceRoundingAdjustment(adjustment: SourceRoundingAdjustment) {
+  return `Centna uskladitev OCR: seštevek vrstic ${formatSourceAmount(adjustment.lineGross, adjustment.sourceCurrency)}, znesek dokumenta ${formatSourceAmount(adjustment.sourceGross, adjustment.sourceCurrency)}; razlika ${formatSourceAmount(adjustment.amount, adjustment.sourceCurrency)} vključena v strošek postavke ${adjustment.lineIndex + 1}.`;
+}
+
+function formatSourceRoundingDifference(lineGross: number, sourceGross: number, amount: number, currency: string) {
+  return `Centna uskladitev OCR: seštevek vrstic ${formatSourceAmount(lineGross, currency)}, znesek dokumenta ${formatSourceAmount(sourceGross, currency)}; razlika ${formatSourceAmount(amount, currency)}. Končno razporeditev uskladitve določi strežnik.`;
+}
+
+function formatExpenseEurRoundingAdjustment(adjustment: ExpenseEurRoundingAdjustment) {
+  const amount = `${adjustment.amount > 0 ? "+" : ""}${formatSourceAmount(adjustment.amount, "EUR")}`;
+  return `Uskladitev EUR zaokroževanja: ${amount} pri postavki ${adjustment.lineIndex + 1}, da strošek ustreza preračunu celotnega zneska dokumenta.`;
+}
 
 function isReviewDocumentType(value: string | null | undefined): value is ReviewDocumentType {
   return value === "invoice_received" || value === "invoice_issued" || value === "other";
@@ -111,6 +138,46 @@ function normalizeTaxId(value: string | null | undefined) {
 
 function normalizeCompanyName(value: string | null | undefined) {
   return value?.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}\s]+/gu, "") ?? "";
+}
+
+function normalizeCounterpartyLegalName(value: string | null | undefined) {
+  const tokens = value?.normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const legalSuffixes = new Set([
+    "inc", "incorporated", "llc", "ltd", "limited", "corp", "corporation",
+    "company", "co", "gmbh", "ag", "sa", "sarl", "bv", "nv", "plc", "doo",
+  ]);
+  const countrySuffixes = new Set([
+    "usa", "us", "unitedstates", "ireland", "uk", "unitedkingdom", "canada",
+    "australia", "germany", "france", "netherlands", "singapore", "india",
+    "spain", "italy", "poland", "slovenia", "switzerland", "sweden", "norway",
+    "denmark", "finland", "belgium", "austria", "japan", "china", "brazil", "mexico",
+  ]);
+  const normalizedTokens = [...tokens];
+  let removedSuffix = true;
+  while (removedSuffix && normalizedTokens.length > 1) {
+    removedSuffix = false;
+    const lastToken = normalizedTokens[normalizedTokens.length - 1];
+    if (countrySuffixes.has(lastToken) || legalSuffixes.has(lastToken)) {
+      normalizedTokens.pop();
+      removedSuffix = true;
+    } else if (
+      normalizedTokens.length > 2
+      && normalizedTokens.slice(-3).join("") === "unitedstatesofamerica"
+    ) {
+      normalizedTokens.splice(-3);
+      removedSuffix = true;
+    } else if (
+      normalizedTokens.length > 1
+      && ["unitedstates", "unitedkingdom"].includes(normalizedTokens.slice(-2).join(""))
+    ) {
+      normalizedTokens.splice(-2);
+      removedSuffix = true;
+    } else if (normalizedTokens.length > 2 && normalizedTokens.slice(-3).join("") === "doo") {
+      normalizedTokens.splice(-3);
+      removedSuffix = true;
+    }
+  }
+  return normalizedTokens.join("");
 }
 
 function getSafeDocumentConfirmErrorMessage(error: unknown) {
@@ -181,6 +248,77 @@ function matchesCompanyIdentity(
   return companyNames
     .map(normalizeCompanyName)
     .some(name => name !== "" && normalizedOtherNames.has(name));
+}
+
+function normalizeCounterpartyTaxIdentity(value: string | null | undefined) {
+  const normalized = value?.normalize("NFKC").trim().replace(/^SI\s*/i, "").replace(/[^a-z\d]/gi, "").toUpperCase();
+  return normalized && normalized.length >= 6 && /\d/.test(normalized) ? normalized : null;
+}
+
+function normalizeCounterpartyRegistrationIdentity(value: string | null | undefined) {
+  const normalized = value?.normalize("NFKC").trim().replace(/[^a-z\d]/gi, "").toUpperCase();
+  if (!normalized || !/\d/.test(normalized)) return null;
+  if (/^\d{7}$/.test(normalized)) return `${normalized}000`;
+  return normalized;
+}
+
+function findOcrCounterpartyMatch(
+  counterparties: Array<{
+    id: string;
+    name: string;
+    taxId?: string | null;
+    registrationNumber?: string | null;
+  }>,
+  ocr: {
+    counterpartyName?: string | null;
+    suggestedCounterpartyName?: string | null;
+    counterpartyTaxId?: string | null;
+    counterpartyRegistrationNumber?: string | null;
+  },
+) {
+  const ocrTaxIdentity = normalizeCounterpartyTaxIdentity(ocr.counterpartyTaxId);
+  const ocrRegistrationIdentity = normalizeCounterpartyRegistrationIdentity(ocr.counterpartyRegistrationNumber);
+  const hasIdentifierConflict = (counterparty: typeof counterparties[number]) => {
+    const counterpartyTaxIdentity = normalizeCounterpartyTaxIdentity(counterparty.taxId);
+    const counterpartyRegistrationIdentity = normalizeCounterpartyRegistrationIdentity(counterparty.registrationNumber);
+    return (!!ocrTaxIdentity && !!counterpartyTaxIdentity && ocrTaxIdentity !== counterpartyTaxIdentity)
+      || (!!ocrRegistrationIdentity && !!counterpartyRegistrationIdentity && ocrRegistrationIdentity !== counterpartyRegistrationIdentity);
+  };
+  const identifierMatches = counterparties.filter(counterparty => {
+    const counterpartyTaxIdentity = normalizeCounterpartyTaxIdentity(counterparty.taxId);
+    const counterpartyRegistrationIdentity = normalizeCounterpartyRegistrationIdentity(counterparty.registrationNumber);
+    const taxIdentityMatches = !!ocrTaxIdentity && ocrTaxIdentity === counterpartyTaxIdentity;
+    const registrationIdentityMatches = !!ocrRegistrationIdentity && ocrRegistrationIdentity === counterpartyRegistrationIdentity;
+    return (taxIdentityMatches || registrationIdentityMatches) && !hasIdentifierConflict(counterparty);
+  });
+  if (identifierMatches.length > 0) {
+    return identifierMatches.length === 1 ? identifierMatches[0].id : "";
+  }
+
+  const normalizedOcrName = normalizeCounterpartyLegalName(ocr.counterpartyName || ocr.suggestedCounterpartyName);
+  if (!normalizedOcrName) return "";
+  const nameMatches = counterparties.filter(counterparty =>
+    normalizeCounterpartyLegalName(counterparty.name) === normalizedOcrName,
+  );
+  if (nameMatches.length !== 1 || hasIdentifierConflict(nameMatches[0])) return "";
+  return nameMatches[0].id;
+}
+
+function periodContainsDate(
+  period: { startDate?: string | null; endDate?: string | null; status?: string },
+  invoiceDate: string,
+) {
+  const startDate = period.startDate?.slice(0, 10) ?? "";
+  const endDate = period.endDate?.slice(0, 10) ?? "";
+  const isCalendarDate = (date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date)
+    && !Number.isNaN(Date.parse(`${date}T00:00:00.000Z`))
+    && new Date(`${date}T00:00:00.000Z`).toISOString().slice(0, 10) === date;
+  return period.status === "open"
+    && isCalendarDate(invoiceDate)
+    && isCalendarDate(startDate)
+    && isCalendarDate(endDate)
+    && startDate <= invoiceDate
+    && invoiceDate <= endDate;
 }
 
 const STATUS_CONFIG: Record<string, { label: string, variant: "default" | "secondary" | "destructive" | "outline", colorClass?: string }> = {
@@ -367,6 +505,18 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
   const statusInfo = STATUS_CONFIG[doc.status] || { label: doc.status, variant: "outline" };
   const isViewer = activeCompany?.role === "viewer";
   const confirmedExchangeRate = doc.confirmedData?.exchangeRate;
+  const confirmedDataWithTreatment = doc.confirmedData;
+  const confirmedVatTreatment = confirmedDataWithTreatment?.vatTreatment
+    ?? confirmedExchangeRate?.vatTreatment
+    ?? "standard";
+  const confirmedSourceRoundingAdjustment = confirmedDataWithTreatment?.sourceRoundingAdjustment
+    ?? confirmedExchangeRate?.sourceRoundingAdjustment;
+  const confirmedExpenseEurRoundingAdjustment = confirmedDataWithTreatment?.expenseEurRoundingAdjustment
+    ?? confirmedExchangeRate?.expenseEurRoundingAdjustment;
+  const confirmedSourceCurrency = confirmedDataWithTreatment?.currency?.trim().toUpperCase() || "EUR";
+  const confirmedGrossAmount = confirmedDataWithTreatment?.totalGross
+    ?? confirmedDataWithTreatment?.lines?.reduce((total, line) => total + line.vatBase + line.vatAmount, 0)
+    ?? null;
 
   return (
     <div className="flex flex-col h-full">
@@ -474,7 +624,27 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
             <DocumentPreview objectPath={doc.objectPath} mimeType={doc.mimeType} />
             {doc.status === "confirmed" && (
               <>
-                {confirmedExchangeRate && <ConfirmedExchangeRateSummary exchangeRate={confirmedExchangeRate} />}
+                {confirmedExchangeRate && (
+                  <ConfirmedExchangeRateSummary
+                    exchangeRate={confirmedExchangeRate}
+                    vatTreatment={confirmedVatTreatment}
+                    sourceRoundingAdjustment={confirmedSourceRoundingAdjustment}
+                    expenseEurRoundingAdjustment={confirmedExpenseEurRoundingAdjustment}
+                  />
+                )}
+                {confirmedVatTreatment === GROSS_EXPENSE_VAT_TREATMENT && !confirmedExchangeRate && (
+                  <ConfirmedGrossTreatmentSummary
+                    currency={confirmedSourceCurrency}
+                    grossAmount={confirmedGrossAmount}
+                    sourceRoundingAdjustment={confirmedSourceRoundingAdjustment}
+                    expenseEurRoundingAdjustment={confirmedExpenseEurRoundingAdjustment}
+                    sourceTotals={{
+                      net: confirmedDataWithTreatment?.totalNet,
+                      vat: confirmedDataWithTreatment?.totalVat,
+                      gross: confirmedDataWithTreatment?.totalGross,
+                    }}
+                  />
+                )}
                 <ConfirmedDocumentLines
                   lines={getConfirmedDocumentLines(doc)}
                   currency={doc.confirmedData?.currency?.trim().toUpperCase() || "EUR"}
@@ -763,12 +933,31 @@ export function ConfirmedDocumentLines({ lines, currency = "EUR" }: { lines: Pro
   );
 }
 
-export function ConfirmedExchangeRateSummary({ exchangeRate }: { exchangeRate: DocumentExchangeRateSnapshot }) {
+export function ConfirmedExchangeRateSummary({
+  exchangeRate,
+  vatTreatment,
+  sourceRoundingAdjustment,
+  expenseEurRoundingAdjustment,
+}: {
+  exchangeRate: DocumentExchangeRateSnapshot;
+  vatTreatment?: VatTreatment;
+  sourceRoundingAdjustment?: SourceRoundingAdjustment;
+  expenseEurRoundingAdjustment?: ExpenseEurRoundingAdjustment;
+}) {
+  const confirmedTreatment = vatTreatment
+    ?? exchangeRate.vatTreatment
+    ?? "standard";
+  const isGrossExpense = confirmedTreatment === GROSS_EXPENSE_VAT_TREATMENT;
+  const persistedRoundingAdjustment = sourceRoundingAdjustment ?? exchangeRate.sourceRoundingAdjustment;
+  const persistedExpenseEurRoundingAdjustment = expenseEurRoundingAdjustment
+    ?? exchangeRate.expenseEurRoundingAdjustment;
   return (
-    <Card className="shadow-none border-border">
+    <Card className={`shadow-none ${isGrossExpense ? "border-amber-300 bg-amber-50/40" : "border-border"}`}>
       <CardContent className="p-5 space-y-3">
         <div>
-          <h3 className="font-semibold text-base">Potrjena pretvorba valute</h3>
+          <h3 className="font-semibold text-base">
+            {isGrossExpense ? "Potrjena pretvorba in knjiženje celotnega zneska v strošek" : "Potrjena pretvorba valute"}
+          </h3>
           <p className="text-sm text-muted-foreground mt-1">
             {exchangeRate.sourceCurrency} → EUR · 1 EUR = {exchangeRate.unitsPerEur.toLocaleString("sl-SI")} {exchangeRate.sourceCurrency}
           </p>
@@ -802,12 +991,84 @@ export function ConfirmedExchangeRateSummary({ exchangeRate }: { exchangeRate: D
             <p className="font-medium">Bruto {formatEur(exchangeRate.eurTotals.gross)}</p>
           </div>
         </div>
+        {persistedRoundingAdjustment && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+            <AlertTriangle className="h-4 w-4 text-amber-700" />
+            <AlertDescription className="text-sm">
+              {formatSourceRoundingAdjustment(persistedRoundingAdjustment)}
+            </AlertDescription>
+          </Alert>
+        )}
+        {persistedExpenseEurRoundingAdjustment && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+            <AlertTriangle className="h-4 w-4 text-amber-700" />
+            <AlertDescription className="text-sm">
+              {formatExpenseEurRoundingAdjustment(persistedExpenseEurRoundingAdjustment)}
+            </AlertDescription>
+          </Alert>
+        )}
+        {isGrossExpense && (
+          <p className="text-sm font-medium">
+            Knjiženi strošek {formatEur(exchangeRate.eurTotals.net)} · odbitni DDV {formatEur(0)} · celotni strošek {formatEur(exchangeRate.eurTotals.gross)}
+          </p>
+        )}
         {exchangeRate.roundingDifference !== 0 && (
           <p className="text-xs text-muted-foreground">
             Razlika zaokroževanja: {formatEur(exchangeRate.roundingDifference)}. Preračun je zaokrožen po vrsticah, zato se vsota lahko razlikuje od preračuna skupnega zneska.
           </p>
         )}
         <p className="text-[11px] text-muted-foreground">Pretvorba je bila potrjena {new Date(exchangeRate.convertedAt).toLocaleString("sl-SI")}.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ConfirmedGrossTreatmentSummary({
+  currency,
+  grossAmount,
+  sourceRoundingAdjustment,
+  expenseEurRoundingAdjustment,
+  sourceTotals,
+}: {
+  currency: string;
+  grossAmount: number | null;
+  sourceRoundingAdjustment?: SourceRoundingAdjustment;
+  expenseEurRoundingAdjustment?: ExpenseEurRoundingAdjustment;
+  sourceTotals?: { net?: number | null; vat?: number | null; gross?: number | null };
+}) {
+  return (
+    <Card className="shadow-none border-amber-300 bg-amber-50/40">
+      <CardContent className="p-4 space-y-2">
+        <h3 className="font-semibold text-sm">Potrjeno knjiženje celotnega zneska v strošek</h3>
+        {sourceRoundingAdjustment && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+            <AlertTriangle className="h-4 w-4 text-amber-700" />
+            <AlertDescription className="text-sm">
+              {formatSourceRoundingAdjustment(sourceRoundingAdjustment)}
+            </AlertDescription>
+          </Alert>
+        )}
+        {expenseEurRoundingAdjustment && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+            <AlertTriangle className="h-4 w-4 text-amber-700" />
+            <AlertDescription className="text-sm">
+              {formatExpenseEurRoundingAdjustment(expenseEurRoundingAdjustment)}
+            </AlertDescription>
+          </Alert>
+        )}
+        {sourceTotals && (
+          <div className="rounded-md bg-background p-3 text-sm">
+            <p className="text-xs text-muted-foreground mb-1">Izvorni zneski ({currency})</p>
+            <p>Neto {formatCurrencyAmount(sourceTotals.net, currency)}</p>
+            <p>DDV {formatCurrencyAmount(sourceTotals.vat, currency)}</p>
+            <p className="font-medium">Bruto {formatCurrencyAmount(sourceTotals.gross ?? grossAmount, currency)}</p>
+          </div>
+        )}
+        <div className="text-sm space-y-1">
+          <p>Knjiženi strošek: <strong>{formatCurrencyAmount(grossAmount, currency)}</strong></p>
+          <p>Odbitni DDV: <strong>{formatCurrencyAmount(0, currency)}</strong></p>
+          <p className="font-medium">Celotni strošek: {formatCurrencyAmount(grossAmount, currency)}</p>
+        </div>
       </CardContent>
     </Card>
   );
@@ -832,7 +1093,9 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
       [name],
     );
   const counterparties = allCounterparties.filter(counterparty =>
-    !isActiveCompanyIdentity(counterparty.taxId, counterparty.name),
+    counterparty.isActive !== false
+    && (!counterparty.companyId || counterparty.companyId === activeCompany?.id)
+    && !isActiveCompanyIdentity(counterparty.taxId, counterparty.name),
   );
   const ocrCounterpartyIsOwnCompany = !!activeCompany && matchesCompanyIdentity(
     activeCompany.podjetjeDavcna,
@@ -863,13 +1126,21 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     : "";
   const [form, setForm] = useState({
     documentType: initialDocumentType,
-    counterpartyId: ocr?.suggestedCounterpartyId || "",
-    periodId: ocr?.suggestedPeriodId || (openPeriods.length > 0 ? openPeriods[openPeriods.length - 1].id : ""),
+    counterpartyId: "",
+    periodId: "",
     invoiceNumber: ocr?.invoiceNumber || "",
     invoiceDate: ocr?.invoiceDate?.split("T")[0] || "",
     dueDate: ocr?.dueDate?.split("T")[0] || "",
     createInvoice: true
   });
+  const counterpartySelectionTouchedRef = useRef(false);
+  const periodSelectionTouchedRef = useRef(false);
+  const [vatTreatment, setVatTreatment] = useState<VatTreatment>("standard");
+  const [grossTreatmentReviewed, setGrossTreatmentReviewed] = useState(false);
+  const exchangeRateReviewRef = useRef<HTMLDivElement | null>(null);
+  const isGrossExpenseEligible = form.createInvoice && form.documentType === "invoice_received";
+  const effectiveVatTreatment = isGrossExpenseEligible ? vatTreatment : "standard";
+  const isGrossExpenseTreatment = effectiveVatTreatment === GROSS_EXPENSE_VAT_TREATMENT;
   const [exchangeRateMode, setExchangeRateMode] = useState<"ecb" | "manual">("ecb");
   const [manualRateInput, setManualRateInput] = useState("");
   const [manualRateDate, setManualRateDate] = useState(form.invoiceDate);
@@ -886,6 +1157,25 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     && !Number.isNaN(Date.parse(`${date}T00:00:00.000Z`))
     && new Date(`${date}T00:00:00.000Z`).toISOString().slice(0, 10) === date;
   const validInvoiceDate = isIsoDate(form.invoiceDate);
+  const openPeriodsForInvoiceDate = validInvoiceDate
+    ? openPeriods.filter(period => periodContainsDate(period, form.invoiceDate))
+    : [];
+  const suggestedPeriodForInvoiceDate = openPeriodsForInvoiceDate.find(period => period.id === ocr?.suggestedPeriodId);
+  const automaticallyMatchedPeriodId = suggestedPeriodForInvoiceDate?.id
+    ?? (openPeriodsForInvoiceDate.length === 1 ? openPeriodsForInvoiceDate[0].id : "");
+  useEffect(() => {
+    setForm(previous => {
+      if (periodSelectionTouchedRef.current) {
+        const manuallySelectedPeriod = periods.find(period => period.id === previous.periodId);
+        if (manuallySelectedPeriod && periodContainsDate(manuallySelectedPeriod, previous.invoiceDate)) {
+          return previous;
+        }
+      }
+      return previous.periodId === automaticallyMatchedPeriodId
+        ? previous
+        : { ...previous, periodId: automaticallyMatchedPeriodId };
+    });
+  }, [automaticallyMatchedPeriodId, form.invoiceDate, periods]);
   const validManualRateDate = isIsoDate(manualRateDate)
     && !!form.invoiceDate
     && manualRateDate <= form.invoiceDate;
@@ -900,6 +1190,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const exchangeRateParams = {
     date: form.invoiceDate,
     mode: exchangeRateMode,
+    vatTreatment: effectiveVatTreatment,
     ...(exchangeRateMode === "manual" && parsedManualRate !== null
       ? { unitsPerEur: parsedManualRate, rateDate: manualRateDate }
       : {}),
@@ -929,6 +1220,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     },
   );
   const fetchedExchangeRate = exchangeRateQuery.data as DocumentExchangeRateQuote | undefined;
+  const fetchedVatTreatment = fetchedExchangeRate?.vatTreatment ?? "standard";
   const exchangeRateMatchesRequest = !!fetchedExchangeRate
     && !exchangeRateQuery.isFetching
     && !exchangeRateQuery.isError
@@ -936,6 +1228,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     && fetchedExchangeRate.currency === "USD"
     && fetchedExchangeRate.targetCurrency === "EUR"
     && fetchedExchangeRate.mode === exchangeRateMode
+    && fetchedVatTreatment === effectiveVatTreatment
     && fetchedExchangeRate.requestedDate === form.invoiceDate
     && fetchedExchangeRate.convertedLines.length === (ocr?.lines?.length ?? 0)
     && (exchangeRateMode === "ecb"
@@ -945,11 +1238,15 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
         && fetchedExchangeRate.unitsPerEur === parsedManualRate
         && fetchedExchangeRate.rateDate === manualRateDate);
   const exchangeRatePreview = exchangeRateMatchesRequest ? fetchedExchangeRate : undefined;
+  const exchangeRatePreviewTreatment = exchangeRatePreview?.vatTreatment ?? "standard";
+  const exchangeRatePreviewRoundingAdjustment = exchangeRatePreview?.sourceRoundingAdjustment;
+  const exchangeRatePreviewExpenseEurRoundingAdjustment = exchangeRatePreview?.expenseEurRoundingAdjustment;
   const exchangeRateReviewBasis = JSON.stringify({
     companyId: activeCompany?.id ?? "",
     docId: doc.id,
     requestedDate: form.invoiceDate,
     mode: exchangeRateMode,
+    vatTreatment: effectiveVatTreatment,
     manualRateInput,
     manualRateDate,
     manualRateReason,
@@ -998,6 +1295,22 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const selectedCounterpartyId = counterparties.some(counterparty => counterparty.id === form.counterpartyId)
     ? form.counterpartyId
     : "";
+  const ocrCounterpartyRegistrationNumber = (ocr as (typeof ocr & {
+    counterpartyRegistrationNumber?: string | null;
+  }) | undefined)?.counterpartyRegistrationNumber;
+  const automaticallyMatchedCounterpartyId = findOcrCounterpartyMatch(counterparties, {
+    counterpartyName: ocr?.counterpartyName,
+    suggestedCounterpartyName: ocr?.suggestedCounterpartyName,
+    counterpartyTaxId: ocr?.counterpartyTaxId,
+    counterpartyRegistrationNumber: ocrCounterpartyRegistrationNumber,
+  });
+
+  useEffect(() => {
+    if (counterpartySelectionTouchedRef.current) return;
+    setForm(previous => previous.counterpartyId === automaticallyMatchedCounterpartyId
+      ? previous
+      : { ...previous, counterpartyId: automaticallyMatchedCounterpartyId });
+  }, [automaticallyMatchedCounterpartyId]);
 
   // Mini-form for quick partner creation
   const [showCreatePartner, setShowCreatePartner] = useState(false);
@@ -1021,6 +1334,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
       {
         onSuccess: (created) => {
           queryClient.invalidateQueries({ queryKey: getListCounterpartiesQueryKey(activeCompany.id) });
+          counterpartySelectionTouchedRef.current = true;
           setForm(p => ({ ...p, counterpartyId: created.id }));
           setShowCreatePartner(false);
         },
@@ -1112,6 +1426,16 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
       };
     })
   );
+  const grossSourceLineAmount = editableLines.reduce((total, line) => total + line.vatBase + line.vatAmount, 0);
+  const grossSourceAmount = typeof ocr?.totalGross === "number" && Number.isFinite(ocr.totalGross)
+    ? ocr.totalGross
+    : grossSourceLineAmount;
+  const grossSourceAdjustmentAmount = grossSourceAmount - grossSourceLineAmount;
+  const grossSourceRoundingDifference = (sourceCurrency === "EUR" || sourceCurrency === "USD")
+    && Number.isFinite(grossSourceAdjustmentAmount)
+    && Math.abs(grossSourceAdjustmentAmount) >= 0.005
+    ? formatSourceRoundingDifference(grossSourceLineAmount, grossSourceAmount, grossSourceAdjustmentAmount, sourceCurrency)
+    : null;
 
   // Once accounts load, apply fuzzy matching to lines that have no resolved accountId
   const accountsLoaded = accounts.length > 0;
@@ -1235,8 +1559,12 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const linesAwaitingAssetDecision = editableLines.filter(line =>
     line.assetTypeCandidate && line.assetType == null,
   );
-  const linesAwaitingVatReview = editableLines.filter(line => line.vatCodeReviewRequired && !line.vatCodeId);
-  const linesWithVatMappingIssues = editableLines.filter(line => getVatCodeMappingIssue(line));
+  const linesAwaitingVatReview = isGrossExpenseTreatment
+    ? []
+    : editableLines.filter(line => line.vatCodeReviewRequired && !line.vatCodeId);
+  const linesWithVatMappingIssues = isGrossExpenseTreatment
+    ? []
+    : editableLines.filter(line => getVatCodeMappingIssue(line));
   const linesWithMissingAccount = editableLines.filter(l => !l.accountId);
   const hasUnresolvedLines = linesWithMissingAccount.length > 0;
   const linesWithInvalidAccount = editableLines.filter(line => {
@@ -1244,6 +1572,13 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     return account ? !account.isActive || account.allowsPosting === false : false;
   });
   const hasInvalidAccounts = linesWithInvalidAccount.length > 0;
+  const linesWithNonExpenseAccount = isGrossExpenseTreatment
+    ? editableLines.filter(line => {
+        const account = line.accountId ? accounts.find(item => item.id === line.accountId) : undefined;
+        return !account || account.type !== "expense";
+      })
+    : [];
+  const hasNonExpenseAccounts = linesWithNonExpenseAccount.length > 0;
   const hasNoLines = editableLines.length === 0;
 
   // Confidence calculations
@@ -1252,16 +1587,25 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const progressColor = docConfidence >= 80 ? "[&>div]:bg-emerald-500" : docConfidence >= 50 ? "[&>div]:bg-amber-500" : "[&>div]:bg-red-500";
 
   const handleSubmit = () => {
-    if (!activeCompany || !isReviewDocumentType(form.documentType) || !selectedCounterpartyId || hasNoLines) return;
+    if (!activeCompany || !isReviewDocumentType(form.documentType) || !selectedCounterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts) return;
     if (form.createInvoice && isForeignCurrency && (!isSupportedFxCurrency || !fxReviewReady)) return;
+    if (form.createInvoice && isGrossExpenseTreatment && (!grossTreatmentReviewed || hasNonExpenseAccounts)) return;
+    if (form.createInvoice && !isGrossExpenseTreatment && (linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0 || linesWithVatMappingIssues.length > 0)) return;
     const exchangeRate = needsFxReview && exchangeRatePreview && hasReviewedExchangeRate
       ? {
+          vatTreatment: exchangeRatePreview.vatTreatment ?? "standard",
           mode: exchangeRateMode,
           requestedDate: form.invoiceDate,
           rateDate: exchangeRatePreview.rateDate,
           unitsPerEur: exchangeRatePreview.unitsPerEur,
           reviewed: true as const,
           ...(exchangeRateMode === "manual" ? { manualReason: manualRateReason.trim() } : {}),
+          ...(exchangeRatePreview.sourceRoundingAdjustment
+            ? { sourceRoundingAdjustment: exchangeRatePreview.sourceRoundingAdjustment }
+            : {}),
+          ...(exchangeRatePreviewExpenseEurRoundingAdjustment
+            ? { expenseEurRoundingAdjustment: exchangeRatePreviewExpenseEurRoundingAdjustment }
+            : {}),
         }
       : undefined;
     
@@ -1276,6 +1620,9 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
         invoiceDate: form.invoiceDate || null,
         dueDate: form.dueDate || null,
         createInvoice: form.createInvoice,
+        ...(isGrossExpenseTreatment
+          ? { vatTreatment: GROSS_EXPENSE_VAT_TREATMENT, vatTreatmentReviewed: true }
+          : {}),
         ...(exchangeRate ? { exchangeRate } : {}),
         // Submit editable lines (with fuzzy-resolved + manually selected accounts)
         lines: editableLines
@@ -1359,7 +1706,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                 )}
               </div>
               {isForeignCurrency && isSupportedFxCurrency && (
-                <div className="col-span-2 min-w-0">
+                <div ref={exchangeRateReviewRef} className="col-span-2 min-w-0 scroll-mt-6">
                   <Card className="shadow-none border-border overflow-hidden">
                     <CardContent className="p-4 sm:p-5 space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -1515,9 +1862,9 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                               <p className="font-medium">Bruto {formatCurrencyAmount(exchangeRatePreview.sourceTotals.gross, sourceCurrency)}</p>
                             </div>
                             <div className="rounded-md border p-3 text-sm">
-                              <p className="text-xs text-muted-foreground mb-1">Predogled osnutka (EUR)</p>
+                              <p className="text-xs text-muted-foreground mb-1">{isGrossExpenseTreatment ? "Predogled stroška (EUR)" : "Predogled osnutka (EUR)"}</p>
                               <p>Neto {formatEur(exchangeRatePreview.eurTotals.net)}</p>
-                              <p>DDV {formatEur(exchangeRatePreview.eurTotals.vat)}</p>
+                              <p>{isGrossExpenseTreatment ? "Odbitni DDV" : "DDV"} {formatEur(isGrossExpenseTreatment ? 0 : exchangeRatePreview.eurTotals.vat)}</p>
                               <p className="font-medium">Bruto {formatEur(exchangeRatePreview.eurTotals.gross)}</p>
                             </div>
                           </div>
@@ -1526,6 +1873,14 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                             <p className="text-xs text-muted-foreground">
                               Razlika zaokroževanja: {formatEur(exchangeRatePreview.roundingDifference)}. Vrstice se preračunajo in zaokrožijo posamično, zato njihov seštevek lahko odstopa od preračuna skupnega zneska.
                             </p>
+                          )}
+                          {isGrossExpenseTreatment && exchangeRatePreviewExpenseEurRoundingAdjustment && (
+                            <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+                              <AlertTriangle className="h-4 w-4 text-amber-700" />
+                              <AlertDescription className="text-sm">
+                                {formatExpenseEurRoundingAdjustment(exchangeRatePreviewExpenseEurRoundingAdjustment)}
+                              </AlertDescription>
+                            </Alert>
                           )}
 
                           <div className="min-w-0 overflow-x-auto rounded-md border">
@@ -1546,7 +1901,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                                       <td className="px-3 py-2 font-medium">{line.description}</td>
                                       <td className="px-3 py-2 text-right tabular-nums">{formatEur(converted.unitPrice)}</td>
                                       <td className="px-3 py-2 text-right tabular-nums">{formatEur(converted.vatBase)}</td>
-                                      <td className="px-3 py-2 text-right tabular-nums">{formatEur(converted.vatAmount)}</td>
+                                      <td className="px-3 py-2 text-right tabular-nums">{formatEur(isGrossExpenseTreatment ? 0 : converted.vatAmount)}</td>
                                     </tr>
                                   ) : null;
                                 })}
@@ -1621,7 +1976,17 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                 </Alert>
               </div>
             )}
-            {linesAwaitingAssetDecision.length > 0 && form.createInvoice && (
+            {form.createInvoice && isGrossExpenseTreatment && hasNonExpenseAccounts && (
+              <div className="px-5 pb-2">
+                <Alert className="py-2 px-3 border-amber-200 bg-amber-50 text-amber-900">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <AlertDescription className="text-xs ml-1">
+                    Pri knjiženju celotnega zneska v strošek mora biti vsaka vrstica povezana z aktivnim, knjižljivim kontom vrste odhodek.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+              {linesAwaitingAssetDecision.length > 0 && form.createInvoice && !isGrossExpenseTreatment && (
               <div className="px-5 pb-2">
                 <Alert className="py-2 px-3 border-amber-300 bg-amber-50 text-amber-950">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-700 shrink-0" />
@@ -1695,7 +2060,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                         <tr key={idx} className={`hover:bg-muted/10 ${missing ? "bg-amber-50/40" : ""}`}>
                           <td className="px-4 py-3 font-medium max-w-[190px]" title={line.description}>
                             <div className="truncate">{line.description}</div>
-                            {line.assetTypeCandidate && (
+                            {!isGrossExpenseTreatment && line.assetTypeCandidate && (
                               <div className="mt-1.5 rounded-md border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-950">
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <Badge variant="outline" className="border-amber-300 text-amber-900">
@@ -1717,7 +2082,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                                 )}
                               </div>
                             )}
-                            {line.vatCodeReviewRequired && !line.vatCodeId && (
+                            {!isGrossExpenseTreatment && line.vatCodeReviewRequired && !line.vatCodeId && (
                               <div className="mt-1.5 space-y-1.5">
                                 <p className="text-[10px] font-normal text-amber-800">{line.vatCodeReviewReason}</p>
                                 {!isViewer && form.createInvoice && (
@@ -1741,7 +2106,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                                 )}
                               </div>
                             )}
-                            {!line.vatCodeReviewRequired && form.createInvoice && isReviewDocumentType(form.documentType) && !isViewer && (
+                            {!isGrossExpenseTreatment && !line.vatCodeReviewRequired && form.createInvoice && isReviewDocumentType(form.documentType) && !isViewer && (
                               <div className="mt-1.5 space-y-1.5">
                                 <Label className="text-[10px] font-normal text-muted-foreground">
                                   Globalna FURS DDV-koda
@@ -1772,7 +2137,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                                 )}
                               </div>
                             )}
-                            {line.vatCodeId && line.vatCodeReason && (
+                            {!isGrossExpenseTreatment && line.vatCodeId && line.vatCodeReason && (
                               <p className="mt-1 text-[10px] font-normal text-blue-800">
                                 {line.vatCodeReviewRequired ? "DDV EUB22/95:" : "FURS DDV-koda:"} {line.vatCodeReason}
                               </p>
@@ -1893,7 +2258,16 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               <Checkbox 
                 id="createInvoice" 
                 checked={form.createInvoice} 
-                onCheckedChange={(c) => setForm(p => ({...p, createInvoice: !!c}))} 
+                onCheckedChange={(c) => {
+                  const createInvoice = !!c;
+                  if (!createInvoice) {
+                    setVatTreatment("standard");
+                    setGrossTreatmentReviewed(false);
+                    setReviewedExchangeRateKey("");
+                  }
+                  setForm(p => ({ ...p, createInvoice }));
+                }}
+                disabled={isViewer}
               />
               <Label htmlFor="createInvoice" className="text-sm font-medium cursor-pointer">
                 Ustvari osnutek računa
@@ -1906,6 +2280,9 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               <Label>Tip dokumenta</Label>
               <Select value={form.documentType} onValueChange={v => {
                 setForm(p => ({ ...p, documentType: v }));
+                setVatTreatment("standard");
+                setGrossTreatmentReviewed(false);
+                setReviewedExchangeRateKey("");
                 if (showCreatePartner) {
                   setNewPartner(p => ({ ...p, type: getPartnerTypeForDocument(v) }));
                 }
@@ -1921,9 +2298,111 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               </Select>
             </div>
 
+            {isGrossExpenseEligible && (
+              <div className="md:col-span-2 xl:col-span-3 rounded-xl border border-amber-300 bg-amber-50/60 p-4 space-y-3">
+                <div>
+                  <h4 className="font-semibold text-sm">Obravnava vstopnega DDV</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Izberite način knjiženja za prejeti račun. Privzeto ostane običajna obravnava DDV.
+                  </p>
+                </div>
+                <RadioGroup
+                  value={vatTreatment}
+                  onValueChange={value => {
+                    if (value === "standard" || value === GROSS_EXPENSE_VAT_TREATMENT) {
+                      setVatTreatment(value);
+                      setGrossTreatmentReviewed(false);
+                      setReviewedExchangeRateKey("");
+                    }
+                  }}
+                  disabled={isViewer}
+                  className="gap-3"
+                >
+                  <div className="flex items-start gap-2 rounded-md border bg-background p-3">
+                    <RadioGroupItem id="vat-treatment-standard" value="standard" className="mt-0.5" />
+                    <Label htmlFor="vat-treatment-standard" className="cursor-pointer text-sm leading-5">
+                      Običajna obravnava DDV (privzeto)
+                    </Label>
+                  </div>
+                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-white p-3">
+                    <RadioGroupItem id="vat-treatment-gross-expense" value={GROSS_EXPENSE_VAT_TREATMENT} className="mt-0.5" />
+                    <Label htmlFor="vat-treatment-gross-expense" className="cursor-pointer text-sm leading-5 font-semibold">
+                      Celoten znesek v strošek – brez odbitka DDV
+                    </Label>
+                  </div>
+                </RadioGroup>
+                {isGrossExpenseTreatment && (
+                  <div className="space-y-3">
+                    <Alert className="border-amber-300 bg-white text-amber-950">
+                      <AlertTriangle className="h-4 w-4 text-amber-700" />
+                      <AlertDescription className="text-sm">
+                        Uporabite, kadar se DDV, zaračunan na računu, vključi v strošek in se vstopni DDV ne odbije. Če je bil DDV zaračunan napačno, je treba morebitno obveznost samoobdavčitve preveriti ločeno; država dobavitelja sama po sebi ne določa davčne obravnave.
+                      </AlertDescription>
+                    </Alert>
+                    <div className="rounded-md border bg-background p-3 space-y-2 text-sm">
+                      <h5 className="font-medium">Predogled knjiženja celotnega zneska v strošek</h5>
+                      <div className="text-xs text-muted-foreground">
+                        Izvorni račun ({sourceCurrency}): neto {formatCurrencyAmount(ocr?.totalNet, sourceCurrency)} · DDV {formatCurrencyAmount(ocr?.totalVat, sourceCurrency)} · bruto {formatCurrencyAmount(ocr?.totalGross, sourceCurrency)}
+                      </div>
+                      {sourceCurrency === "USD" ? (
+                        exchangeRatePreview && exchangeRatePreviewTreatment === GROSS_EXPENSE_VAT_TREATMENT ? (
+                          <>
+                            <div className="space-y-1">
+                              <p>Neto stroška (EUR): <strong>{formatEur(exchangeRatePreview.eurTotals.net)}</strong></p>
+                              <p>Odbitni DDV (EUR): <strong>{formatEur(0)}</strong></p>
+                              <p>Celotni strošek (EUR): <strong>{formatEur(exchangeRatePreview.eurTotals.gross)}</strong></p>
+                            </div>
+                            {exchangeRatePreviewRoundingAdjustment && (
+                              <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+                                <AlertTriangle className="h-4 w-4 text-amber-700" />
+                                <AlertDescription className="text-sm">
+                                  {formatSourceRoundingAdjustment(exchangeRatePreviewRoundingAdjustment)}
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Za predogled stroška v EUR je potreben veljaven tečaj ECB ali ročni tečaj za izbrani način knjiženja.</p>
+                        )
+                      ) : sourceCurrency === "EUR" ? (
+                        <div className="space-y-1">
+                          <p>Neto stroška (EUR): <strong>{formatEur(grossSourceAmount)}</strong></p>
+                          <p>Odbitni DDV (EUR): <strong>{formatEur(0)}</strong></p>
+                          <p>Celotni strošek (EUR): <strong>{formatEur(grossSourceAmount)}</strong></p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-destructive">Predogled EUR za valuto {sourceCurrency} ni podprt; osnutka za to valuto ni mogoče ustvariti.</p>
+                      )}
+                      {grossSourceRoundingDifference
+                        && (sourceCurrency === "EUR" || !exchangeRatePreviewRoundingAdjustment) && (
+                        <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+                          <AlertTriangle className="h-4 w-4 text-amber-700" />
+                          <AlertDescription className="text-sm">{grossSourceRoundingDifference}</AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                    <div className="flex items-start gap-2 rounded-md border bg-white p-3">
+                      <Checkbox
+                        id="gross-vat-treatment-reviewed"
+                        checked={grossTreatmentReviewed}
+                        disabled={isViewer}
+                        onCheckedChange={checked => setGrossTreatmentReviewed(!!checked)}
+                      />
+                      <Label htmlFor="gross-vat-treatment-reviewed" className="cursor-pointer text-sm leading-5">
+                        Pregledal sem knjiženje celotnega zneska v strošek, morebitno centno uskladitev OCR v izvorni valuti ter morebitno uskladitev EUR zaokroževanja. Morebitno samoobdavčitev obravnavam ločeno.
+                      </Label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Partner <span className="text-destructive">*</span></Label>
-              <Select value={selectedCounterpartyId} onValueChange={v => setForm(p => ({...p, counterpartyId: v}))}>
+              <Select value={selectedCounterpartyId} onValueChange={v => {
+                counterpartySelectionTouchedRef.current = true;
+                setForm(p => ({...p, counterpartyId: v}));
+              }}>
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Izberite partnerja" />
                 </SelectTrigger>
@@ -2030,12 +2509,15 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
             <div className="space-y-2">
               <Label>Obdobje <span className="text-destructive">*</span></Label>
-              <Select value={form.periodId} onValueChange={v => setForm(p => ({...p, periodId: v}))}>
+              <Select value={form.periodId} onValueChange={v => {
+                periodSelectionTouchedRef.current = true;
+                setForm(p => ({...p, periodId: v}));
+              }}>
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Izberite obdobje" />
                 </SelectTrigger>
                 <SelectContent>
-                  {openPeriods.map(p => (
+                  {openPeriodsForInvoiceDate.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -2079,6 +2561,18 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
           <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="text-sm text-muted-foreground space-y-1">
+              {needsFxReview && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-fit border-primary text-primary hover:bg-primary/5"
+                  onClick={() => exchangeRateReviewRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                >
+                  <ChevronUp className="mr-1.5 h-4 w-4" />
+                  Preglej tečaj in preračun
+                </Button>
+              )}
               {confirmMut.isError && (
                 <Alert variant="destructive" className="max-w-2xl">
                   <AlertTriangle className="h-4 w-4" />
@@ -2115,11 +2609,17 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                   Pred ustvarjanjem EUR osnutka pridobite veljaven tečaj in izrecno preglejte predogled.
                 </p>
               )}
+              {form.createInvoice && isGrossExpenseTreatment && !grossTreatmentReviewed && (
+                <p className="text-amber-700 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Pred potrditvijo potrdite pregled knjiženja celotnega zneska v strošek.
+                </p>
+              )}
             </div>
             <Button 
               size="lg" 
               onClick={handleSubmit} 
-              disabled={!isReviewDocumentType(form.documentType) || !selectedCounterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && ((isForeignCurrency && (!isSupportedFxCurrency || !fxReviewReady)) || linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0 || linesWithVatMappingIssues.length > 0)) || confirmMut.isPending || isViewer}
+              disabled={!isReviewDocumentType(form.documentType) || !selectedCounterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && ((isForeignCurrency && (!isSupportedFxCurrency || !fxReviewReady)) || (isGrossExpenseTreatment ? (!grossTreatmentReviewed || hasNonExpenseAccounts) : (linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0 || linesWithVatMappingIssues.length > 0)))) || confirmMut.isPending || isViewer}
               className="bg-primary text-primary-foreground min-w-[200px]"
             >
               {confirmMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}

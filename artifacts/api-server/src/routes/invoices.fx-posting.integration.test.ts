@@ -61,9 +61,14 @@ async function createInvoice(options: {
   suffix: string;
   type: "issued" | "received";
   sourceType?: string;
+  currency?: string;
+  quantity?: string;
   unitPrice?: string;
+  vatRate?: string;
   vatBase?: string | null;
   vatAmount?: string | null;
+  vatCodeId?: string | null;
+  accountId?: string;
 }) {
   const number = `FX-${runId}-${options.suffix}`;
   const sourceDocument = options.type === "received"
@@ -74,7 +79,7 @@ async function createInvoice(options: {
         normalizedNumber: number.replaceAll("-", ""),
         displayNumber: number,
         documentDate: "2026-02-10",
-        currency: "USD",
+        currency: options.currency ?? "USD",
       }).returning({ id: purchaseSourceDocumentsTable.id }))[0]
     : null;
   const [invoice] = await db.insert(invoicesTable).values({
@@ -93,15 +98,17 @@ async function createInvoice(options: {
   } as any).returning({ id: invoicesTable.id });
   await db.insert(invoiceLinesTable).values({
     invoiceId: invoice.id,
-    description: "FX approved invoice line",
-    quantity: "1.000",
-    // Stored source amount deliberately differs from the FX-approved base/tax.
+    description: "Reviewed document invoice line",
+    quantity: options.quantity ?? "1.000",
+    // Stored source amount deliberately differs from the reviewed base/tax.
     unitPrice: options.unitPrice ?? "0.9700",
-    vatRate: "22.00",
+    vatRate: options.vatRate ?? "22.00",
     vatBase: options.vatBase === undefined ? "0.97" : options.vatBase,
     vatAmount: options.vatAmount === undefined ? "0.22" : options.vatAmount,
-    vatCodeId: options.type === "issued" ? salesVatCodeId : purchaseVatCodeId,
-    accountId: options.type === "issued" ? salesAccountId : expenseAccountId,
+    vatCodeId: options.vatCodeId === undefined
+      ? options.type === "issued" ? salesVatCodeId : purchaseVatCodeId
+      : options.vatCodeId,
+    accountId: options.accountId ?? (options.type === "issued" ? salesAccountId : expenseAccountId),
     sequence: 0,
   });
   return invoice.id;
@@ -228,7 +235,7 @@ afterAll(async () => {
   await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
 });
 
-describe.sequential("AI document FX invoice amounts", () => {
+describe.sequential("AI document invoice amounts", () => {
   it("uses the approved EUR base and VAT for received and issued details and balanced postings", async () => {
     for (const type of ["received", "issued"] as const) {
       const invoiceId = await createInvoice({
@@ -317,7 +324,289 @@ describe.sequential("AI document FX invoice amounts", () => {
       const [invoice] = await db.select({ status: invoicesTable.status })
         .from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
       expect(invoice.status).toBe("draft");
+      await db.delete(invoicesTable).where(eq(invoicesTable.id, invoiceId));
     }
+  });
+
+  it("posts reviewed gross-only EUR expense base without creating VAT or reverse-charge entries", async () => {
+    const invoiceId = await createInvoice({
+      suffix: "gross-only-eur",
+      type: "received",
+      sourceType: "ai-document-gross-expense",
+      currency: "EUR",
+      quantity: "1001.000",
+      // Quantity × four-decimal unit price rounds to 20.32; the reviewed
+      // document base is authoritative at 20.33.
+      unitPrice: "0.0203",
+      vatRate: "0.00",
+      vatBase: "20.33",
+      vatAmount: "0.00",
+      vatCodeId: null,
+    });
+    const detailResponse = await request(app())
+      .get(`/companies/${companyId}/invoices/${invoiceId}`)
+      .expect(200);
+    expect(detailResponse.body).toMatchObject({
+      totalNet: "20.33",
+      totalVat: "0.00",
+      totalGross: "20.33",
+      lines: [expect.objectContaining({
+        lineTotal: "20.33",
+        vatAmount: "0.00",
+        grossTotal: "20.33",
+      })],
+    });
+    const listResponse = await request(app())
+      .get(`/companies/${companyId}/invoices?type=received`);
+    expect(listResponse.status, JSON.stringify(listResponse.body)).toBe(200);
+    expect(listResponse.body.invoices.find((row: any) => row.id === invoiceId)).toMatchObject({
+      totalNet: "20.33",
+      totalVat: "0.00",
+      totalGross: "20.33",
+    });
+
+    const forbiddenEdits = [
+      { vatRate: 22, vatCodeId: null, accountId: expenseAccountId },
+      { vatRate: 0, vatCodeId: purchaseVatCodeId, accountId: expenseAccountId },
+      { vatRate: 0, vatCodeId: null, accountId: salesAccountId },
+    ];
+    for (const [index, edit] of forbiddenEdits.entries()) {
+      const rejectedEdit = await request(app())
+        .patch(`/companies/${companyId}/invoices/${invoiceId}`)
+        .send({
+          lines: [{
+            description: `Forbidden gross-only edit ${index}`,
+            quantity: 1001,
+            unitPrice: 0.0203,
+            ...edit,
+          }],
+        });
+      expect(rejectedEdit.status, JSON.stringify(rejectedEdit.body)).toBe(400);
+    }
+    const [unchangedLine] = await db.select({
+      vatRate: invoiceLinesTable.vatRate,
+      vatBase: invoiceLinesTable.vatBase,
+      vatAmount: invoiceLinesTable.vatAmount,
+      vatCodeId: invoiceLinesTable.vatCodeId,
+      accountId: invoiceLinesTable.accountId,
+    }).from(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, invoiceId));
+    expect(unchangedLine).toEqual({
+      vatRate: "0.00",
+      vatBase: "20.33",
+      vatAmount: "0.00",
+      vatCodeId: null,
+      accountId: expenseAccountId,
+    });
+
+    const updateResponse = await request(app())
+      .patch(`/companies/${companyId}/invoices/${invoiceId}`)
+      .send({
+        sourceType: "manual",
+        lines: [{
+          description: "Reviewed gross expense, renamed",
+          quantity: 1001,
+          unitPrice: 0.0203,
+          vatRate: 0,
+          vatCodeId: null,
+          accountId: alternateExpenseAccountId,
+        }],
+      });
+    expect(updateResponse.status, JSON.stringify(updateResponse.body)).toBe(200);
+    expect(updateResponse.body).toMatchObject({
+      sourceType: "ai-document-gross-expense",
+      totalNet: "20.33",
+      totalVat: "0.00",
+      totalGross: "20.33",
+    });
+    const [storedLine] = await db.select({
+      vatBase: invoiceLinesTable.vatBase,
+      vatAmount: invoiceLinesTable.vatAmount,
+    }).from(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, invoiceId));
+    expect(storedLine).toEqual({ vatBase: "20.33", vatAmount: "0.00" });
+
+    const postedResponse = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`)
+      .expect(200);
+    const postedLines = await expectBalanced(postedResponse.body.linkedEntryId);
+    expect(postedLines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ accountId: alternateExpenseAccountId, side: "debit", amount: "20.33" }),
+      expect.objectContaining({ accountId: apAccountId, side: "credit", amount: "20.33" }),
+    ]));
+    expect(postedLines.some(line =>
+      line.accountId === inputVatAccountId || line.accountId === outputVatAccountId,
+    )).toBe(false);
+    const vatRows = await db.select({ id: vatLedgerTable.id })
+      .from(vatLedgerTable).where(eq(vatLedgerTable.journalEntryId, postedResponse.body.linkedEntryId));
+    expect(vatRows).toEqual([]);
+  });
+
+  it("posts all 21 signed gross expense lines with a balanced net AP amount", async () => {
+    const invoiceId = await createInvoice({
+      suffix: "gross-only-mixed-21",
+      type: "received",
+      sourceType: "ai-document-gross-expense",
+      currency: "EUR",
+      quantity: "1.000",
+      unitPrice: "14.0000",
+      vatRate: "0.00",
+      vatBase: "14.00",
+      vatAmount: "0.00",
+      vatCodeId: null,
+    });
+    await db.delete(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, invoiceId));
+    const amounts = [
+      ...Array.from({ length: 19 }, () => "14.00"),
+      "18.93",
+      "-18.30",
+    ];
+    await db.insert(invoiceLinesTable).values(amounts.map((amount, sequence) => ({
+      invoiceId,
+      description: `Signed gross expense line ${sequence + 1}`,
+      quantity: "1.000",
+      unitPrice: amount === "-18.30" ? "-18.3000" : `${amount}00`,
+      vatRate: "0.00",
+      vatBase: amount,
+      vatAmount: "0.00",
+      vatCodeId: null,
+      accountId: expenseAccountId,
+      sequence,
+    })));
+
+    const detailResponse = await request(app())
+      .get(`/companies/${companyId}/invoices/${invoiceId}`)
+      .expect(200);
+    expect(detailResponse.body).toMatchObject({
+      totalNet: "266.63",
+      totalVat: "0.00",
+      totalGross: "266.63",
+    });
+    expect(detailResponse.body.lines).toHaveLength(21);
+
+    const postedResponse = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`)
+      .expect(200);
+    const postedLines = await expectBalanced(postedResponse.body.linkedEntryId);
+    const expenseDebits = postedLines
+      .filter(line => line.accountId === expenseAccountId && line.side === "debit")
+      .reduce((sum, line) => sum + Number(line.amount), 0);
+    const expenseCredits = postedLines
+      .filter(line => line.accountId === expenseAccountId && line.side === "credit")
+      .reduce((sum, line) => sum + Number(line.amount), 0);
+    expect(expenseDebits.toFixed(2)).toBe("284.93");
+    expect(expenseCredits.toFixed(2)).toBe("18.30");
+    expect((expenseDebits - expenseCredits).toFixed(2)).toBe("266.63");
+    expect(postedLines).toContainEqual(
+      expect.objectContaining({ accountId: apAccountId, side: "credit", amount: "266.63" }),
+    );
+    expect(postedLines.some(line =>
+      line.accountId === inputVatAccountId || line.accountId === outputVatAccountId,
+    )).toBe(false);
+    expect(await db.select({ id: vatLedgerTable.id })
+      .from(vatLedgerTable).where(eq(vatLedgerTable.journalEntryId, postedResponse.body.linkedEntryId))).toEqual([]);
+  });
+
+  it("posts a wholly negative gross credit invoice with expense credit and AP debit", async () => {
+    const invoiceId = await createInvoice({
+      suffix: "gross-only-credit",
+      type: "received",
+      sourceType: "ai-document-gross-expense",
+      currency: "EUR",
+      unitPrice: "-20.3300",
+      vatRate: "0.00",
+      vatBase: "-20.33",
+      vatAmount: "0.00",
+      vatCodeId: null,
+    });
+    const detailResponse = await request(app())
+      .get(`/companies/${companyId}/invoices/${invoiceId}`)
+      .expect(200);
+    expect(detailResponse.body).toMatchObject({
+      totalNet: "-20.33",
+      totalVat: "0.00",
+      totalGross: "-20.33",
+    });
+
+    const postedResponse = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`)
+      .expect(200);
+    const postedLines = await expectBalanced(postedResponse.body.linkedEntryId);
+    expect(postedLines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ accountId: expenseAccountId, side: "credit", amount: "20.33" }),
+      expect.objectContaining({ accountId: apAccountId, side: "debit", amount: "20.33" }),
+    ]));
+    expect(await db.select({ id: vatLedgerTable.id })
+      .from(vatLedgerTable).where(eq(vatLedgerTable.journalEntryId, postedResponse.body.linkedEntryId))).toEqual([]);
+  });
+
+  it("fails closed when a gross-only invoice has stored VAT corruption", async () => {
+    const invoiceId = await createInvoice({
+      suffix: "gross-only-corrupt-tax",
+      type: "received",
+      sourceType: "ai-document-gross-expense",
+      currency: "EUR",
+      quantity: "1001.000",
+      unitPrice: "0.0203",
+      vatRate: "0.00",
+      vatBase: "20.33",
+      vatAmount: "0.01",
+      vatCodeId: null,
+    });
+    const response = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("Bruto strošek iz dokumenta");
+    const [invoice] = await db.select({ status: invoicesTable.status })
+      .from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+    expect(invoice.status).toBe("draft");
+  });
+
+  it("recalculates a gross-only line edit from the new price with zero VAT", async () => {
+    const invoiceId = await createInvoice({
+      suffix: "gross-only-price-edit",
+      type: "received",
+      sourceType: "ai-document-gross-expense",
+      currency: "EUR",
+      quantity: "1001.000",
+      unitPrice: "0.0203",
+      vatRate: "0.00",
+      vatBase: "20.33",
+      vatAmount: "0.00",
+      vatCodeId: null,
+    });
+    const updateResponse = await request(app())
+      .patch(`/companies/${companyId}/invoices/${invoiceId}`)
+      .send({
+        lines: [{
+          description: "Repriced gross expense",
+          quantity: 1001,
+          unitPrice: 0.025,
+          vatRate: 0,
+          vatCodeId: null,
+          accountId: expenseAccountId,
+        }],
+      });
+    expect(updateResponse.status, JSON.stringify(updateResponse.body)).toBe(200);
+    expect(updateResponse.body).toMatchObject({
+      totalNet: "25.03",
+      totalVat: "0.00",
+      totalGross: "25.03",
+    });
+    const [storedLine] = await db.select({
+      vatBase: invoiceLinesTable.vatBase,
+      vatAmount: invoiceLinesTable.vatAmount,
+    }).from(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, invoiceId));
+    expect(storedLine).toEqual({ vatBase: "25.03", vatAmount: "0.00" });
+
+    const postedResponse = await request(app())
+      .post(`/companies/${companyId}/invoices/${invoiceId}/post`)
+      .expect(200);
+    const postedLines = await expectBalanced(postedResponse.body.linkedEntryId);
+    expect(postedLines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ accountId: expenseAccountId, side: "debit", amount: "25.03" }),
+      expect.objectContaining({ accountId: apAccountId, side: "credit", amount: "25.03" }),
+    ]));
+    expect(await db.select({ id: vatLedgerTable.id })
+      .from(vatLedgerTable).where(eq(vatLedgerTable.journalEntryId, postedResponse.body.linkedEntryId))).toEqual([]);
   });
 
   it("preserves converted declared VAT for account/description-only edits and ignores a client source marker", async () => {

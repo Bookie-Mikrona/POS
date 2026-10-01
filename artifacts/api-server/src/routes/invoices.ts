@@ -196,26 +196,34 @@ function calcLineTotals(lines: { quantity: string; unitPrice: string; vatRate: s
   };
 }
 
-const AI_DOCUMENT_FX_SOURCE = "ai-document-fx";
+const AI_DOCUMENT_GROSS_EXPENSE_SOURCE = "ai-document-gross-expense";
+const AI_DOCUMENT_AMOUNT_SOURCE_TYPES = new Set([
+  "ai-document-fx",
+  AI_DOCUMENT_GROSS_EXPENSE_SOURCE,
+]);
 
-function isAiDocumentFx(sourceType: string): boolean {
-  return sourceType === AI_DOCUMENT_FX_SOURCE;
+function usesAiDocumentApprovedAmounts(sourceType: string): boolean {
+  return AI_DOCUMENT_AMOUNT_SOURCE_TYPES.has(sourceType);
 }
 
-class InvalidFxInvoiceAmountsError extends Error {
+function isAiDocumentGrossExpense(sourceType: string): boolean {
+  return sourceType === AI_DOCUMENT_GROSS_EXPENSE_SOURCE;
+}
+
+class InvalidDocumentInvoiceAmountsError extends Error {
   constructor() {
-    super("Račun FX iz dokumenta vsebuje manjkajočo ali neveljavno shranjeno davčno osnovo/DDV.");
-    this.name = "InvalidFxInvoiceAmountsError";
+    super("Račun iz dokumenta vsebuje manjkajočo ali neveljavno shranjeno davčno osnovo/DDV.");
+    this.name = "InvalidDocumentInvoiceAmountsError";
   }
 }
 
-function storedFxAmount(value: string | number | null | undefined): number {
+function storedDocumentAmount(value: string | number | null | undefined): number {
   if (
     value == null
     || (typeof value === "string" && value.trim() === "")
     || !Number.isFinite(Number(value))
   ) {
-    throw new InvalidFxInvoiceAmountsError();
+    throw new InvalidDocumentInvoiceAmountsError();
   }
   return Number(value);
 }
@@ -231,10 +239,10 @@ function invoiceLineAmounts(
     reverseCharge?: boolean | null;
   },
 ): { lineTotal: number; vatAmt: number } {
-  if (isAiDocumentFx(sourceType)) {
+  if (usesAiDocumentApprovedAmounts(sourceType)) {
     return {
-      lineTotal: storedFxAmount(line.vatBase),
-      vatAmt: storedFxAmount(line.storedVatAmount),
+      lineTotal: storedDocumentAmount(line.vatBase),
+      vatAmt: storedDocumentAmount(line.storedVatAmount),
     };
   }
   const qty = parseFloat(line.quantity);
@@ -2011,11 +2019,35 @@ router.patch(
       if (!v) { res.status(400).json({ error: "DDV konto ni aktiven analitični konto, ki dovoljuje knjiženje" }); return; }
     }
     if (lines && lines.length > 0) {
+      if (isAiDocumentGrossExpense(existing.sourceType)) {
+        const invalidGrossExpenseLine = lines.some(line =>
+          line.vatRate !== 0 || line.vatCodeId != null);
+        if (invalidGrossExpenseLine) {
+          res.status(400).json({
+            error: "Bruto strošek iz dokumenta mora ostati brez DDV kode in z 0% DDV.",
+          });
+          return;
+        }
+      }
       const updateLineAccountIds = [...new Set(lines.map((l) => l.accountId))];
-      const validAccounts = await db.select({ id: accountsTable.id }).from(accountsTable)
+      const validAccounts = await db.select({
+        id: accountsTable.id,
+        type: accountsTable.type,
+        isActive: accountsTable.isActive,
+        allowsPosting: accountsTable.allowsPosting,
+      }).from(accountsTable)
         .where(and(inArray(accountsTable.id, updateLineAccountIds), eq(accountsTable.companyId, companyId)));
       if (validAccounts.length !== updateLineAccountIds.length) {
         res.status(400).json({ error: "Eden ali več kontov vrstic ne pripada temu podjetju" });
+        return;
+      }
+      if (isAiDocumentGrossExpense(existing.sourceType)
+        && validAccounts.some(account =>
+          account.type !== "expense" || !account.isActive || !account.allowsPosting,
+        )) {
+        res.status(400).json({
+          error: "Bruto strošek iz dokumenta zahteva aktiven knjižljiv odhodkovni konto.",
+        });
         return;
       }
     }
@@ -2102,7 +2134,7 @@ router.patch(
           vatBase: string | null;
           vatAmount: string | null;
         }>();
-        if (isAiDocumentFx(existing.sourceType)) {
+        if (usesAiDocumentApprovedAmounts(existing.sourceType)) {
           const existingLines = await tx
             .select({
               sequence: invoiceLinesTable.sequence,
@@ -2136,7 +2168,7 @@ router.patch(
             vatRate: l.vatRate.toFixed(2),
             vatCodeId: l.vatCodeId ?? null,
             assetType: l.assetType ?? "NONE",
-            ...(isAiDocumentFx(existing.sourceType) ? storedFxAmountsBySequence.get(i) : {}),
+            ...(usesAiDocumentApprovedAmounts(existing.sourceType) ? storedFxAmountsBySequence.get(i) : {}),
             accountId: l.accountId,
             sequence: i,
           })),
@@ -2266,6 +2298,45 @@ router.post(
       return;
     }
 
+    if (isAiDocumentGrossExpense(invoice.sourceType)) {
+      const validGrossExpenseAmounts = invoice.type === "received" && lines.every(line =>
+        new Decimal(line.vatRate).isZero()
+        && line.vatCodeId == null
+        && line.storedVatAmount != null
+        && new Decimal(line.storedVatAmount).isZero(),
+      );
+      if (!validGrossExpenseAmounts) {
+        res.status(400).json({
+          error: "Bruto strošek iz dokumenta mora biti prejeti račun z ničelno stopnjo/DDV in brez DDV kode.",
+        });
+        return;
+      }
+      const grossExpenseAccounts = await db.select({
+        id: accountsTable.id,
+        type: accountsTable.type,
+        isActive: accountsTable.isActive,
+        allowsPosting: accountsTable.allowsPosting,
+      })
+        .from(accountsTable)
+        .where(and(
+          eq(accountsTable.companyId, companyId),
+          inArray(accountsTable.id, [...new Set(lines.map(line => line.accountId))]),
+        ));
+      const grossExpenseAccountsById = new Map(grossExpenseAccounts.map(account => [account.id, account]));
+      if (lines.some(line => {
+        const account = grossExpenseAccountsById.get(line.accountId);
+        return !account
+          || account.type !== "expense"
+          || !account.isActive
+          || !account.allowsPosting;
+      })) {
+        res.status(400).json({
+          error: "Bruto strošek iz dokumenta zahteva aktiven knjižljiv odhodkovni konto.",
+        });
+        return;
+      }
+    }
+
     const selectedVatCodeIds = [...new Set(lines.map((line) => line.vatCodeId).filter((id): id is string => !!id))];
     const selectedVatCodes = selectedVatCodeIds.length > 0
       ? await db.select({
@@ -2390,10 +2461,10 @@ router.post(
           : parseFloat(l.vatRate);
         const { lineTotal, vatAmt: approvedVatAmount } = invoiceLineAmounts(invoice.sourceType, l);
         // EU acquisition VAT is self-assessed at the selected FURS rate. Other
-        // FX document lines use their accountant-approved converted tax value.
+        // Approved document lines use their accountant-reviewed stored tax value.
         const vatAmt = isEuAcquisition
           ? lineTotal * vatR / 100
-          : isAiDocumentFx(invoice.sourceType)
+          : usesAiDocumentApprovedAmounts(invoice.sourceType)
             ? approvedVatAmount
             : lineTotal * vatR / 100;
         return {
@@ -2406,7 +2477,7 @@ router.post(
         };
       });
     } catch (error) {
-      if (!(error instanceof InvalidFxInvoiceAmountsError)) throw error;
+      if (!(error instanceof InvalidDocumentInvoiceAmountsError)) throw error;
       res.status(400).json({ error: error.message });
       return;
     }
@@ -2486,6 +2557,12 @@ router.post(
       ? await getInvoicePosReceiptLinksResponse(companyId, id)
       : null;
     const hasPosLinks = Boolean(posLinks && posLinks.body.links.length > 0);
+    if (isAiDocumentGrossExpense(invoice.sourceType) && hasPosLinks) {
+      res.status(409).json({
+        error: "Bruto strošek brez DDV trenutno ni mogoče knjižiti skupaj s POS prejemnicami.",
+      });
+      return;
+    }
     if (hasPosLinks && euAcquisitionLines.length > 0) {
       res.status(409).json({ error: "Računa za pridobitev osnovnega sredstva iz EU ni dovoljeno povezati z zalogovno POS prejemnico." });
       return;
@@ -2687,7 +2764,7 @@ router.post(
           side: "credit",
           amount: l.lineTotal.toFixed(2),
           description: l.description ?? null,
-          ...(isAiDocumentFx(invoice.sourceType) ? {
+          ...(usesAiDocumentApprovedAmounts(invoice.sourceType) ? {
             vatCodeId: selectedVatCode?.id ?? null,
             companyVatCodeId: selectedVatCode?.companyVatCodeId ?? null,
             vatAmount: money(l.vatAmt),
@@ -2746,6 +2823,33 @@ router.post(
         { accountId: outputAccount, side: "credit", amount: money(totalTax), description: "Obračunani DDV od pridobitve OS iz EU" },
         { accountId: invoice.arApAccountId, side: "credit", amount: money(totalBase), description: entryDescription, partnerId: invoice.counterpartyId },
       );
+    } else if (isAiDocumentGrossExpense(invoice.sourceType)) {
+      const grossExpenseTotal = lineCalcs.reduce(
+        (sum, line) => sum.plus(new Decimal(line.lineTotal).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)),
+        new Decimal(0),
+      ).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+      if (grossExpenseTotal.isZero()) {
+        res.status(400).json({ error: "Bruto strošek brez DDV ne more imeti ničelnega skupnega zneska." });
+        return;
+      }
+      for (const line of lineCalcs) {
+        const amount = new Decimal(line.lineTotal).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        if (amount.isZero()) continue;
+        journalLines.push({
+          accountId: line.accountId,
+          side: amount.gt(0) ? "debit" : "credit",
+          amount: money(amount.abs()),
+          description: line.description ?? null,
+          partnerId: invoice.counterpartyId,
+        });
+      }
+      journalLines.push({
+        accountId: invoice.arApAccountId,
+        side: grossExpenseTotal.gt(0) ? "credit" : "debit",
+        amount: money(grossExpenseTotal.abs()),
+        description: entryDescription,
+        partnerId: invoice.counterpartyId,
+      });
     } else {
       const matchedBuckets = new Map<string, { net: Decimal; vat: Decimal; gross: Decimal }>();
       let matchedGross = new Decimal(0);
@@ -2764,7 +2868,7 @@ router.post(
       const exactInvoiceLines = lineCalcs.map(line => {
         const rate = new Decimal(line.vatRate).toString();
         const net = new Decimal(line.lineTotal).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-        const vat = isAiDocumentFx(invoice.sourceType)
+        const vat = usesAiDocumentApprovedAmounts(invoice.sourceType)
           ? new Decimal(line.vatAmt).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
           : net.mul(rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
         const selectedVatCode = line.vatCodeId
@@ -2830,7 +2934,7 @@ router.post(
             description: line.description ?? null,
             vatCodeId: line.vatCodeId,
             companyVatCodeId: line.companyVatCodeId,
-            vatAmount: isAiDocumentFx(invoice.sourceType) && !hasPosLinks
+            vatAmount: usesAiDocumentApprovedAmounts(invoice.sourceType) && !hasPosLinks
               ? money(line.vat)
               : null,
           });
@@ -2861,7 +2965,7 @@ router.post(
             partnerId: invoice.counterpartyId,
             description: `Vstopni DDV ${rate}%`,
           });
-        } else if (!posVatLedgerLines && !isAiDocumentFx(invoice.sourceType)) {
+        } else if (!posVatLedgerLines && !usesAiDocumentApprovedAmounts(invoice.sourceType)) {
           const expenseLine = journalLines.find(line =>
             line.side === "debit" && line.vatCodeId === vatCodeId);
           if (expenseLine) expenseLine.vatAmount = money(remainderVat);
@@ -2877,6 +2981,19 @@ router.post(
         description: entryDescription,
         partnerId: invoice.counterpartyId,
       });
+    }
+
+    if (isAiDocumentGrossExpense(invoice.sourceType)) {
+      const journalTotals = journalLines.reduce((totals, line) => {
+        totals[line.side] = totals[line.side].plus(line.amount);
+        return totals;
+      }, { debit: new Decimal(0), credit: new Decimal(0) });
+      if (!journalTotals.debit.eq(journalTotals.credit)) {
+        res.status(409).json({
+          error: "Bruto strošek brez DDV ni uravnotežen; račun ostane osnutek.",
+        });
+        return;
+      }
     }
 
     // Vstavi v DB (transakcija). Status prevzamemo atomarno, zato dve sočasni

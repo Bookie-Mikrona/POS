@@ -9101,6 +9101,10 @@ paths:
           in: query
           schema: { type: string }
           description: Effective manual-rate date in YYYY-MM-DD format
+        - name: vatTreatment
+          in: query
+          schema:
+            $ref: "#/components/schemas/DocumentVatTreatment"
       responses:
         "200":
           description: Read-only exchange-rate and rounded EUR preview
@@ -22006,6 +22010,14 @@ components:
             - "null"
         exchangeRate:
           $ref: "#/components/schemas/DocumentExchangeRateSnapshot"
+        vatTreatment:
+          $ref: "#/components/schemas/DocumentVatTreatment"
+        vatTreatmentReviewed:
+          type: boolean
+        sourceRoundingAdjustment:
+          $ref: "#/components/schemas/DocumentSourceRoundingAdjustment"
+        expenseEurRoundingAdjustment:
+          $ref: "#/components/schemas/DocumentExpenseEurRoundingAdjustment"
         lines:
           type: array
           items:
@@ -22143,6 +22155,27 @@ components:
           type: string
         fileSizeBytes:
           type: integer
+    DocumentSourceRoundingAdjustment:
+      type: object
+      required: [sourceCurrency, sourceGross, lineGross, amount, lineIndex]
+      properties:
+        sourceCurrency: { type: string }
+        sourceGross: { type: number }
+        lineGross: { type: number }
+        amount: { type: number }
+        lineIndex: { type: integer, minimum: 0 }
+      description: Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.
+    DocumentVatTreatment:
+      type: string
+      enum: [standard, gross-expense-no-input-vat]
+      description: Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.
+    DocumentExpenseEurRoundingAdjustment:
+      type: object
+      required: [amount, lineIndex]
+      properties:
+        amount: { type: number }
+        lineIndex: { type: integer, minimum: 0 }
+      description: Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.
     DocumentFxTotals:
       type: object
       required: [net, vat, gross]
@@ -22163,6 +22196,12 @@ components:
       type: object
       required: [mode, requestedDate, rateDate, unitsPerEur, reviewed]
       properties:
+        vatTreatment:
+          $ref: "#/components/schemas/DocumentVatTreatment"
+        sourceRoundingAdjustment:
+          $ref: "#/components/schemas/DocumentSourceRoundingAdjustment"
+        expenseEurRoundingAdjustment:
+          $ref: "#/components/schemas/DocumentExpenseEurRoundingAdjustment"
         mode: { type: string, enum: [ecb, manual] }
         requestedDate: { type: string }
         rateDate: { type: string }
@@ -22178,6 +22217,12 @@ components:
       type: object
       required: [mode, currency, targetCurrency, requestedDate, rateDate, unitsPerEur, source, sourceUrl, sourceTotals, eurTotals, convertedLines, roundingDifference]
       properties:
+        vatTreatment:
+          $ref: "#/components/schemas/DocumentVatTreatment"
+        sourceRoundingAdjustment:
+          $ref: "#/components/schemas/DocumentSourceRoundingAdjustment"
+        expenseEurRoundingAdjustment:
+          $ref: "#/components/schemas/DocumentExpenseEurRoundingAdjustment"
         mode: { type: string, enum: [ecb, manual] }
         currency: { type: string }
         targetCurrency: { type: string, enum: [EUR] }
@@ -22201,6 +22246,12 @@ components:
       type: object
       required: [mode, sourceCurrency, targetCurrency, requestedDate, rateDate, unitsPerEur, source, sourceUrl, sourceTotals, eurTotals, roundingDifference, convertedAt]
       properties:
+        vatTreatment:
+          $ref: "#/components/schemas/DocumentVatTreatment"
+        sourceRoundingAdjustment:
+          $ref: "#/components/schemas/DocumentSourceRoundingAdjustment"
+        expenseEurRoundingAdjustment:
+          $ref: "#/components/schemas/DocumentExpenseEurRoundingAdjustment"
         mode: { type: string, enum: [ecb, manual] }
         sourceCurrency: { type: string }
         targetCurrency: { type: string, enum: [EUR] }
@@ -22220,6 +22271,11 @@ components:
       type: object
       description: Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa
       properties:
+        vatTreatment:
+          $ref: "#/components/schemas/DocumentVatTreatment"
+        vatTreatmentReviewed:
+          type: boolean
+          description: Explicit review of the gross expense treatment and separate consideration of reverse-charge obligations.
         documentType:
           type: string
           enum:

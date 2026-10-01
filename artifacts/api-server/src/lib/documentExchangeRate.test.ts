@@ -90,6 +90,115 @@ describe("document exchange rate conversion", () => {
     expect(result.eurTotals).toEqual({ net: 85.3, vat: 18.77, gross: 104.07 });
   });
 
+  it("converts each complete source gross to EUR once for reviewed no-input-VAT expenses", () => {
+    const result = convertDocumentAmounts(
+      [{ quantity: 1, unitPrice: 20, vatRate: 22, vatBase: 20, vatAmount: 4.4 }],
+      { net: 20, vat: 4.4, gross: 24.4 },
+      1.2,
+      "gross-expense-no-input-vat",
+    );
+
+    expect(result.sourceTotals).toEqual({ net: 20, vat: 4.4, gross: 24.4 });
+    expect(result.convertedLines).toEqual([{
+      quantity: 1,
+      unitPrice: 20.33,
+      vatRate: 0,
+      vatBase: 20.33,
+      vatAmount: 0,
+    }]);
+    expect(result.eurTotals).toEqual({ net: 20.33, vat: 0, gross: 20.33 });
+    expect(result.roundingDifference).toBe(0);
+  });
+
+  it("preserves negative gross credit lines while converting the complete amount", () => {
+    const result = convertDocumentAmounts(
+      [{ quantity: -1, unitPrice: 20, vatRate: 22, vatBase: -20, vatAmount: -4.4 }],
+      { net: -20, vat: -4.4, gross: -24.4 },
+      1.2,
+      "gross-expense-no-input-vat",
+    );
+
+    expect(result.sourceTotals).toEqual({ net: -20, vat: -4.4, gross: -24.4 });
+    expect(result.convertedLines).toEqual([{
+      quantity: -1,
+      unitPrice: 20.33,
+      vatRate: 0,
+      vatBase: -20.33,
+      vatAmount: 0,
+    }]);
+    expect(result.eurTotals).toEqual({ net: -20.33, vat: 0, gross: -20.33 });
+    expect(result.roundingDifference).toBe(0);
+  });
+
+  it("reconciles a bounded two-cent source-header mismatch on the largest same-sign gross line only for gross treatment", () => {
+    const positiveGrossCents = [
+      1495, 1463, 4902, 1464, 1484, 1485, 1451, 1453, 1464, 1461,
+      1404, 1454, 1492, 1482, 1430, 1464, 1460, 1467, 1468, 1453,
+    ];
+    const lines = [
+      ...positiveGrossCents.map((grossCents, lineIndex) => {
+        const vatAmount = lineIndex === 2 ? 8.8 : 2.64;
+        const vatBase = grossCents / 100 - vatAmount;
+        return { quantity: 1, unitPrice: vatBase, vatRate: 22, vatBase, vatAmount };
+      }),
+      { quantity: -1, unitPrice: 17.21, vatRate: 22, vatBase: -17.21, vatAmount: -3.79 },
+    ];
+    const headerTotals = { net: 250.8, vat: 55.18, gross: 305.98 };
+
+    const result = convertDocumentAmounts(
+      lines,
+      headerTotals,
+      1.1476,
+      "gross-expense-no-input-vat",
+      "USD",
+    );
+    expect(lines).toHaveLength(21);
+    expect(result.sourceRoundingAdjustment).toEqual({
+      sourceCurrency: "USD",
+      sourceGross: 305.98,
+      lineGross: 305.96,
+      amount: 0.02,
+      lineIndex: 2,
+    });
+    expect(result.sourceTotals).toEqual(headerTotals);
+    expect(result.expenseEurRoundingAdjustment).toEqual({ amount: 0.02, lineIndex: 2 });
+    expect(result.convertedLines[2]).toMatchObject({ vatBase: 42.75, vatAmount: 0, vatRate: 0 });
+    expect(result.convertedLines.at(-1)).toMatchObject({ vatBase: -18.3, vatAmount: 0, vatRate: 0 });
+    expect(result.eurTotals).toEqual({ net: 266.63, vat: 0, gross: 266.63 });
+    expect(result.roundingDifference).toBe(0);
+    expect(lines.at(-1)).toMatchObject({ vatBase: -17.21, vatAmount: -3.79 });
+
+    expect(() => convertDocumentAmounts(
+      lines,
+      { ...headerTotals, gross: 305.99 },
+      1.1476,
+      "gross-expense-no-input-vat",
+      "USD",
+    )).toThrowError(/se ne ujemajo/);
+    expect(() => convertDocumentAmounts(lines, headerTotals, 1.1476))
+      .toThrowError(/se ne ujemajo/);
+  });
+
+  it("rejects a gross adjustment with no same-sign line or one that would flip line sign", () => {
+    const tinyPositiveLines = [
+      { quantity: 1, unitPrice: 0.01, vatRate: 0, vatBase: 0.01, vatAmount: 0 },
+      { quantity: 1, unitPrice: 0.01, vatRate: 0, vatBase: 0.01, vatAmount: 0 },
+      { quantity: 1, unitPrice: 0.01, vatRate: 0, vatBase: 0.01, vatAmount: 0 },
+    ];
+    expect(() => convertDocumentAmounts(
+      tinyPositiveLines,
+      { net: 0.01, vat: 0, gross: 0.01 },
+      1,
+      "gross-expense-no-input-vat",
+    )).toThrowError(/ni mogoče varno uskladiti/);
+    expect(() => convertDocumentAmounts(
+      [tinyPositiveLines[0]],
+      { net: 0.01, vat: 0, gross: 0 },
+      1,
+      "gross-expense-no-input-vat",
+    )).toThrowError(/ni mogoče varno uskladiti/);
+  });
+
   it("rejects zero, non-finite, and malformed source rates and does not silently lose unmatched OCR totals", () => {
     const lines = [{ quantity: 1, unitPrice: 10, vatRate: 22, vatBase: 10, vatAmount: 2.2 }];
     expect(() => convertDocumentAmounts(lines, { net: 10, vat: 2.2, gross: 12.2 }, 0))

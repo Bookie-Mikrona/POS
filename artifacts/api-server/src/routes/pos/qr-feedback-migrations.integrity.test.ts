@@ -166,6 +166,7 @@ describe("testni manifest ročnih migracij", () => {
     const plan = buildValidatedTestMigrationPlan(testMigrationManifest, migrationFiles);
     expect(plan.map(entry => entry.file)).toContain("170-pos-course-name-snapshot.sql");
     expect(plan.map(entry => entry.file)).toContain("239-document-fx-source-type.sql");
+    expect(plan.map(entry => entry.file)).toContain("240-document-gross-expense-source-type.sql");
   });
 });
 

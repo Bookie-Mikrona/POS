@@ -10084,6 +10084,38 @@ export const OcrResultSuggestedDocumentType = {
   invoice_issued: 'invoice_issued',
 } as const;
 
+/**
+ * Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.
+ */
+export type DocumentVatTreatment = typeof DocumentVatTreatment[keyof typeof DocumentVatTreatment];
+
+
+export const DocumentVatTreatment = {
+  standard: 'standard',
+  'gross-expense-no-input-vat': 'gross-expense-no-input-vat',
+} as const;
+
+/**
+ * Explicitly reviewed source-currency cent reconciliation to the document gross, allocated to one line without changing the original OCR.
+ */
+export interface DocumentSourceRoundingAdjustment {
+  sourceCurrency: string;
+  sourceGross: number;
+  lineGross: number;
+  amount: number;
+  /** @minimum 0 */
+  lineIndex: number;
+}
+
+/**
+ * Reviewed EUR cent allocation aligning gross expenses with the directly converted full document gross.
+ */
+export interface DocumentExpenseEurRoundingAdjustment {
+  amount: number;
+  /** @minimum 0 */
+  lineIndex: number;
+}
+
 export type DocumentExchangeRateSnapshotMode = typeof DocumentExchangeRateSnapshotMode[keyof typeof DocumentExchangeRateSnapshotMode];
 
 
@@ -10114,6 +10146,9 @@ export interface DocumentFxTotals {
 }
 
 export interface DocumentExchangeRateSnapshot {
+  vatTreatment?: DocumentVatTreatment;
+  sourceRoundingAdjustment?: DocumentSourceRoundingAdjustment;
+  expenseEurRoundingAdjustment?: DocumentExpenseEurRoundingAdjustment;
   mode: DocumentExchangeRateSnapshotMode;
   sourceCurrency: string;
   targetCurrency: DocumentExchangeRateSnapshotTargetCurrency;
@@ -10154,6 +10189,10 @@ export interface OcrResult {
   /** @nullable */
   currency?: string | null;
   exchangeRate?: DocumentExchangeRateSnapshot;
+  vatTreatment?: DocumentVatTreatment;
+  vatTreatmentReviewed?: boolean;
+  sourceRoundingAdjustment?: DocumentSourceRoundingAdjustment;
+  expenseEurRoundingAdjustment?: DocumentExpenseEurRoundingAdjustment;
   lines: ProposedLine[];
   /** @nullable */
   suggestedCounterpartyId?: string | null;
@@ -10253,6 +10292,9 @@ export const DocumentExchangeRateSelectionMode = {
 } as const;
 
 export interface DocumentExchangeRateSelection {
+  vatTreatment?: DocumentVatTreatment;
+  sourceRoundingAdjustment?: DocumentSourceRoundingAdjustment;
+  expenseEurRoundingAdjustment?: DocumentExpenseEurRoundingAdjustment;
   mode: DocumentExchangeRateSelectionMode;
   requestedDate: string;
   rateDate: string;
@@ -10291,6 +10333,9 @@ export const DocumentExchangeRateQuoteSource = {
 } as const;
 
 export interface DocumentExchangeRateQuote {
+  vatTreatment?: DocumentVatTreatment;
+  sourceRoundingAdjustment?: DocumentSourceRoundingAdjustment;
+  expenseEurRoundingAdjustment?: DocumentExpenseEurRoundingAdjustment;
   mode: DocumentExchangeRateQuoteMode;
   currency: string;
   targetCurrency: DocumentExchangeRateQuoteTargetCurrency;
@@ -10321,6 +10366,9 @@ export const ConfirmDocumentBodyDocumentType = {
  * Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa
  */
 export interface ConfirmDocumentBody {
+  vatTreatment?: DocumentVatTreatment;
+  /** Explicit review of the gross expense treatment and separate consideration of reverse-charge obligations. */
+  vatTreatmentReviewed?: boolean;
   documentType?: ConfirmDocumentBodyDocumentType;
   /** @nullable */
   counterpartyId?: string | null;
@@ -12858,6 +12906,7 @@ unitsPerEur?: number;
  * Effective manual-rate date in YYYY-MM-DD format
  */
 rateDate?: string;
+vatTreatment?: DocumentVatTreatment;
 };
 
 export type GetDocumentExchangeRateMode = typeof GetDocumentExchangeRateMode[keyof typeof GetDocumentExchangeRateMode];

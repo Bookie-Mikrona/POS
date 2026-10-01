@@ -44,7 +44,7 @@ export const invoicesTable = pgTable("invoices", {
   type: invoiceTypeEnum("type").notNull(),
   /** Izvor določa poseben knjižbeni tok; POS zbirni A-račun ne knjiži DDV/prihodkov znova. */
   sourceType: text("source_type")
-    .$type<"manual" | "pos-sync" | "pos-contract-summary" | "bookie-old" | "ai-document-fx">()
+    .$type<"manual" | "pos-sync" | "pos-contract-summary" | "bookie-old" | "ai-document-fx" | "ai-document-gross-expense">()
     .notNull()
     .default("manual"),
   /** Poslovni mesec izvornega zbirnika (YYYY-MM); pri običajnih računih je NULL. */
@@ -96,7 +96,7 @@ export const invoicesTable = pgTable("invoices", {
     .defaultNow()
     .$onUpdate(() => new Date()),
 }, (t) => [
-  check("invoices_source_type_check", sql`${t.sourceType} IN ('manual', 'pos-sync', 'pos-contract-summary', 'bookie-old', 'ai-document-fx')`),
+  check("invoices_source_type_check", sql`${t.sourceType} IN ('manual', 'pos-sync', 'pos-contract-summary', 'bookie-old', 'ai-document-fx', 'ai-document-gross-expense')`),
   uniqueIndex("invoices_source_document_unique")
     .on(t.sourceDocumentId),
   uniqueIndex("invoices_historical_reference_unique")

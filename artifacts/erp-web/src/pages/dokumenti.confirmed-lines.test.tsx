@@ -1,7 +1,12 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ConfirmedDocumentLines, ConfirmedExchangeRateSummary, getConfirmedDocumentLines } from "./dokumenti";
+import {
+  ConfirmedDocumentLines,
+  ConfirmedExchangeRateSummary,
+  ConfirmedGrossTreatmentSummary,
+  getConfirmedDocumentLines,
+} from "./dokumenti";
 import type { DocumentExchangeRateSnapshot, DocumentRecord, ProposedLine } from "@workspace/api-client-react";
 
 const baseLine = {
@@ -77,5 +82,68 @@ describe("ConfirmedDocumentLines", () => {
     expect(screen.getByText(/Utemeljitev ročnega tečaja: Bančni tečaj/)).toBeInTheDocument();
     expect(screen.getByText(/Razlika zaokroževanja/)).toBeInTheDocument();
     expect(screen.getByText(/24,40/)).toBeInTheDocument();
+  });
+
+  it("after reload renders gross USD booking totals and the source-cent reconciliation audit", () => {
+    const exchangeRate = {
+      mode: "ecb",
+      vatTreatment: "gross-expense-no-input-vat",
+      sourceCurrency: "USD",
+      targetCurrency: "EUR",
+      requestedDate: "2026-07-30",
+      rateDate: "2026-07-30",
+      unitsPerEur: 1.1476,
+      source: "ECB",
+      sourceUrl: null,
+      sourceTotals: { net: 250.8, vat: 55.18, gross: 305.98 },
+      eurTotals: { net: 266.63, vat: 0, gross: 266.63 },
+      roundingDifference: 0,
+      convertedAt: "2026-07-30T10:00:00.000Z",
+      sourceRoundingAdjustment: {
+        sourceCurrency: "USD",
+        sourceGross: 305.98,
+        lineGross: 305.96,
+        amount: 0.02,
+        lineIndex: 2,
+      },
+      expenseEurRoundingAdjustment: {
+        amount: 0.02,
+        lineIndex: 2,
+      },
+    } satisfies DocumentExchangeRateSnapshot & {
+      expenseEurRoundingAdjustment: { amount: number; lineIndex: number };
+    };
+
+    render(<ConfirmedExchangeRateSummary exchangeRate={exchangeRate} />);
+
+    expect(screen.getByText(/Potrjena pretvorba in knjiženje celotnega zneska v strošek/)).toBeInTheDocument();
+    expect(screen.getByText(/Knjiženi strošek 266,63/)).toBeInTheDocument();
+    expect(screen.getByText(/odbitni DDV 0,00/)).toBeInTheDocument();
+    expect(screen.getByText(/Centna uskladitev OCR: seštevek vrstic 305,96.*znesek dokumenta 305,98.*razlika 0,02.*postavke 3/)).toBeInTheDocument();
+    expect(screen.getByText(/Uskladitev EUR zaokroževanja: \+0,02 EUR pri postavki 3, da strošek ustreza preračunu celotnega zneska dokumenta/)).toBeInTheDocument();
+  });
+
+  it("after reload renders EUR gross-cost totals and persisted source reconciliation", () => {
+    render(
+      <ConfirmedGrossTreatmentSummary
+        currency="EUR"
+        grossAmount={305.98}
+        sourceTotals={{ net: 250.8, vat: 55.18, gross: 305.98 }}
+        sourceRoundingAdjustment={{
+          sourceCurrency: "EUR",
+          sourceGross: 305.98,
+          lineGross: 305.96,
+          amount: 0.02,
+          lineIndex: 20,
+        }}
+        expenseEurRoundingAdjustment={{ amount: 0.02, lineIndex: 2 }}
+      />,
+    );
+
+    expect(screen.getByText(/Izvorni zneski \(EUR\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Knjiženi strošek:/).parentElement).toHaveTextContent("305,98");
+    expect(screen.getByText(/Odbitni DDV:/).parentElement).toHaveTextContent("0,00");
+    expect(screen.getByText(/Centna uskladitev OCR: seštevek vrstic 305,96.*znesek dokumenta 305,98/)).toBeInTheDocument();
+    expect(screen.getByText(/Uskladitev EUR zaokroževanja: \+0,02 EUR pri postavki 3, da strošek ustreza preračunu celotnega zneska dokumenta/)).toBeInTheDocument();
   });
 });

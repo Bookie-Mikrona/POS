@@ -9,6 +9,7 @@ const ECB_LOOKBACK_DAYS = 10;
 const ecbQuoteCache = new Map<string, { quote: EcbUsdEurQuote; expiresAt: number }>();
 
 export type ExchangeRateMode = "ecb" | "manual";
+export type DocumentVatTreatment = "standard" | "gross-expense-no-input-vat";
 
 export type EcbUsdEurQuote = {
   rateDate: string;
@@ -26,12 +27,25 @@ export type ExchangeRateLine = {
 };
 
 export type DocumentTotals = { net: number; vat: number; gross: number };
+export type SourceGrossRoundingAdjustment = {
+  sourceCurrency: string;
+  sourceGross: number;
+  lineGross: number;
+  amount: number;
+  lineIndex: number;
+};
+export type ExpenseEurRoundingAdjustment = {
+  amount: number;
+  lineIndex: number;
+};
 
 export type ConvertedDocumentAmounts = {
   sourceTotals: DocumentTotals;
   eurTotals: DocumentTotals;
   convertedLines: ExchangeRateLine[];
   roundingDifference: number;
+  sourceRoundingAdjustment?: SourceGrossRoundingAdjustment;
+  expenseEurRoundingAdjustment?: ExpenseEurRoundingAdjustment;
 };
 
 export class DocumentExchangeRateError extends Error {
@@ -388,8 +402,13 @@ export function convertDocumentAmounts(
   lines: ExchangeRateLine[],
   totals: DocumentTotals,
   unitsPerEur: number,
+  vatTreatment: DocumentVatTreatment = "standard",
+  sourceCurrency = "EUR",
 ): ConvertedDocumentAmounts {
   assertPositiveUnitsPerEur(unitsPerEur);
+  if (vatTreatment !== "standard" && vatTreatment !== "gross-expense-no-input-vat") {
+    throw new DocumentExchangeRateError("INVALID_VAT_TREATMENT", "Neveljavna obravnava DDV za račun.");
+  }
   if (!Array.isArray(lines) || lines.length === 0) {
     throw new DocumentExchangeRateError("MISSING_SOURCE_LINES", "Izvorni dokument nima vrstic za pretvorbo.");
   }
@@ -399,29 +418,84 @@ export function convertDocumentAmounts(
     vat: requiredAmount(totals?.vat, "DDV"),
     gross: requiredAmount(totals?.gross, "bruto"),
   };
-  const sourceNetFromLines = sumAndRound(lines.map((line) => requiredAmount(line.vatBase, "osnova")), 2);
-  const sourceVatFromLines = sumAndRound(lines.map((line) => requiredAmount(line.vatAmount, "DDV")), 2);
-  const sourceGrossFromLines = sumAndRound([
-    ...lines.map((line) => requiredAmount(line.vatBase, "osnova")),
-    ...lines.map((line) => requiredAmount(line.vatAmount, "DDV")),
-  ], 2);
-  if (
-    !centsEqual(sourceNetFromLines, sourceTotals.net)
-    || !centsEqual(sourceVatFromLines, sourceTotals.vat)
-    || !centsEqual(sourceGrossFromLines, sourceTotals.gross)
-  ) {
+  const sourceBases = lines.map((line) => requiredAmount(line.vatBase, "osnova"));
+  const sourceVatAmounts = lines.map((line) => requiredAmount(line.vatAmount, "DDV"));
+  const sourceNetFromLines = sumAndRound(sourceBases, 2);
+  const sourceVatFromLines = sumAndRound(sourceVatAmounts, 2);
+  const sourceLineGrosses = lines.map((_, index) =>
+    sumAndRound([sourceBases[index], sourceVatAmounts[index]], 2));
+  const sourceGrossFromLines = vatTreatment === "gross-expense-no-input-vat"
+    ? sumAndRound(sourceLineGrosses, 2)
+    : sumAndRound([...sourceBases, ...sourceVatAmounts], 2);
+  const sourceNetDifference = differenceAndRound(sourceTotals.net, sourceNetFromLines, 2);
+  const sourceVatDifference = differenceAndRound(sourceTotals.vat, sourceVatFromLines, 2);
+  const sourceGrossDifference = differenceAndRound(sourceTotals.gross, sourceGrossFromLines, 2);
+  const sourceTotalsMismatch = vatTreatment === "gross-expense-no-input-vat"
+    ? [sourceNetDifference, sourceVatDifference, sourceGrossDifference]
+      .some((difference) => Math.abs(difference) > 0.02)
+    : !centsEqual(sourceNetFromLines, sourceTotals.net)
+      || !centsEqual(sourceVatFromLines, sourceTotals.vat)
+      || !centsEqual(sourceGrossFromLines, sourceTotals.gross);
+  if (sourceTotalsMismatch) {
     throw new DocumentExchangeRateError(
       "OCR_TOTALS_MISMATCH",
       "Skupni zneski OCR se ne ujemajo z vsotami vrstic. Pred pretvorbo popravite OCR ali preverite dokument.",
     );
   }
 
-  const convertedLines = lines.map((line) => {
+  let sourceRoundingAdjustment: SourceGrossRoundingAdjustment | undefined;
+  const grossLinesForConversion = [...sourceLineGrosses];
+  if (vatTreatment === "gross-expense-no-input-vat" && sourceGrossDifference !== 0) {
+    const sourceGross = round(sourceTotals.gross, 2);
+    const lineGross = sourceGrossFromLines;
+    const sign = Math.sign(sourceGross);
+    const candidates = sourceLineGrosses
+      .map((gross, lineIndex) => ({ gross, lineIndex }))
+      .filter(({ gross }) => gross !== 0 && Math.sign(gross) === sign)
+      .sort((a, b) => Math.abs(b.gross) - Math.abs(a.gross) || a.lineIndex - b.lineIndex);
+    const selectedLine = candidates[0];
+    const adjustedGross = selectedLine
+      ? sumAndRound([selectedLine.gross, sourceGrossDifference], 2)
+      : 0;
+    if (!selectedLine || sign === 0 || Math.sign(adjustedGross) !== sign) {
+      throw new DocumentExchangeRateError(
+        "OCR_TOTALS_MISMATCH",
+        "Bruto OCR glava se razlikuje od vsote vrstic in odstopanja ni mogoče varno uskladiti.",
+      );
+    }
+    grossLinesForConversion[selectedLine.lineIndex] = adjustedGross;
+    sourceRoundingAdjustment = {
+      sourceCurrency,
+      sourceGross,
+      lineGross,
+      amount: sourceGrossDifference,
+      lineIndex: selectedLine.lineIndex,
+    };
+  }
+
+  const convertedLines = lines.map((line, lineIndex) => {
     const quantity = requiredAmount(line.quantity, "količina");
     const unitPrice = requiredAmount(line.unitPrice, "cena na enoto");
     const vatRate = requiredAmount(line.vatRate, "stopnja DDV");
     const vatBase = requiredAmount(line.vatBase, "osnova");
     const vatAmount = requiredAmount(line.vatAmount, "znesek DDV");
+    if (vatTreatment === "gross-expense-no-input-vat") {
+      if (quantity === 0) {
+        throw new DocumentExchangeRateError(
+          "INVALID_SOURCE_QUANTITY",
+          "Vrstica z bruto odhodkom mora imeti količino, različno od nič.",
+        );
+      }
+      const sourceGross = grossLinesForConversion[lineIndex]!;
+      const eurGross = divideAndRound(sourceGross, unitsPerEur, 2);
+      return {
+        quantity,
+        unitPrice: divideAndRound(eurGross, quantity, 4),
+        vatRate: 0,
+        vatBase: eurGross,
+        vatAmount: 0,
+      };
+    }
     return {
       quantity,
       unitPrice: divideAndRound(unitPrice, unitsPerEur, 4),
@@ -430,12 +504,50 @@ export function convertDocumentAmounts(
       vatAmount: divideAndRound(vatAmount, unitsPerEur, 2),
     };
   });
-  const eurTotals = {
-    net: sumAndRound(convertedLines.map((line) => line.vatBase), 2),
-    vat: sumAndRound(convertedLines.map((line) => line.vatAmount), 2),
-    gross: sumAndRound(convertedLines.flatMap((line) => [line.vatBase, line.vatAmount]), 2),
-  };
   const directGross = divideAndRound(sourceTotals.gross, unitsPerEur, 2);
+  let expenseEurRoundingAdjustment: ExpenseEurRoundingAdjustment | undefined;
+  if (vatTreatment === "gross-expense-no-input-vat") {
+    const eurLineGross = sumAndRound(convertedLines.map((line) => line.vatBase), 2);
+    const amount = differenceAndRound(directGross, eurLineGross, 2);
+    if (amount !== 0) {
+      const sign = Math.sign(directGross);
+      const selectedLine = convertedLines
+        .map((line, lineIndex) => ({ line, lineIndex }))
+        .filter(({ line }) => line.vatBase !== 0 && Math.sign(line.vatBase) === sign)
+        .sort((a, b) =>
+          Math.abs(b.line.vatBase) - Math.abs(a.line.vatBase) || a.lineIndex - b.lineIndex)[0];
+      const adjustedGross = selectedLine
+        ? sumAndRound([selectedLine.line.vatBase, amount], 2)
+        : 0;
+      if (
+        !selectedLine
+        || sign === 0
+        || Math.sign(adjustedGross) !== sign
+      ) {
+        throw new DocumentExchangeRateError(
+          "OCR_TOTALS_MISMATCH",
+          "Pretvorjenih bruto vrstic ni mogoče varno uskladiti z neposredno pretvorjenim bruto zneskom dokumenta.",
+        );
+      }
+      selectedLine.line.vatBase = adjustedGross;
+      selectedLine.line.unitPrice = divideAndRound(adjustedGross, selectedLine.line.quantity, 4);
+      expenseEurRoundingAdjustment = {
+        amount,
+        lineIndex: selectedLine.lineIndex,
+      };
+    }
+  }
+  const eurTotals = vatTreatment === "gross-expense-no-input-vat"
+    ? {
+        net: sumAndRound(convertedLines.map((line) => line.vatBase), 2),
+        vat: 0,
+        gross: sumAndRound(convertedLines.map((line) => line.vatBase), 2),
+      }
+    : {
+        net: sumAndRound(convertedLines.map((line) => line.vatBase), 2),
+        vat: sumAndRound(convertedLines.map((line) => line.vatAmount), 2),
+        gross: sumAndRound(convertedLines.flatMap((line) => [line.vatBase, line.vatAmount]), 2),
+      };
   return {
     sourceTotals: {
       net: round(sourceTotals.net, 2),
@@ -445,6 +557,8 @@ export function convertDocumentAmounts(
     eurTotals,
     convertedLines,
     roundingDifference: differenceAndRound(eurTotals.gross, directGross, 2),
+    ...(sourceRoundingAdjustment ? { sourceRoundingAdjustment } : {}),
+    ...(expenseEurRoundingAdjustment ? { expenseEurRoundingAdjustment } : {}),
   };
 }
 

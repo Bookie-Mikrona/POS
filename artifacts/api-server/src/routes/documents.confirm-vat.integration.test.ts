@@ -24,6 +24,7 @@ import {
   invoiceLinesTable,
   invoicesTable,
   pool,
+  purchaseSourceDocumentsTable,
   vatCodeTable,
   vatCodesTable,
 } from "@workspace/db";
@@ -44,8 +45,11 @@ const runId = Math.random().toString(36).slice(2, 9);
 let companyId: string;
 let periodId: string;
 let counterpartyId: string;
+let supplierCounterpartyId: string;
 let revenueAccountId: string;
 let receivableAccountId: string;
+let expenseAccountId: string;
+let payableAccountId: string;
 let globalS22Id: string;
 let globalS95Id: string;
 let globalS5Id: string;
@@ -120,6 +124,55 @@ async function createUsdDocument(fileName: string) {
   return { id: document.id, invoiceDate };
 }
 
+async function createGrossSourceDocument(
+  fileName: string,
+  currency: "EUR" | "USD",
+  amounts = { net: 20, vat: 4.4, gross: 24.4 },
+  sourceLines?: Array<{
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    vatBase: number;
+    vatAmount: number;
+  }>,
+) {
+  const invoiceDate = currentInvoiceDate();
+  const [document] = await db.insert(documentsTable).values({
+    companyId,
+    fileName,
+    mimeType: "application/pdf",
+    objectPath: `/objects/tests/${runId}/${fileName}`,
+    status: "done",
+    documentType: "invoice_received",
+    ocrResult: {
+      rawText: "Reviewed supplier invoice source values must remain immutable",
+      confidence: 1,
+      invoiceNumber: `OCR-${runId}-${fileName}`,
+      invoiceDate,
+      totalNet: amounts.net,
+      totalVat: amounts.vat,
+      totalGross: amounts.gross,
+      currency,
+      suggestedDocumentType: "invoice_received",
+      lines: (sourceLines ?? [{
+        quantity: 1,
+        unitPrice: amounts.net,
+        vatRate: 22,
+        vatBase: amounts.net,
+        vatAmount: amounts.vat,
+      }]).map((line, index) => ({
+        description: line.vatBase < 0 ? "Supplier credit" : `Third-country service cost ${index + 1}`,
+        ...line,
+        accountId: expenseAccountId,
+        // Gross treatment must not book this OCR tax proposal as input VAT.
+        vatCodeId: globalS22Id,
+        confidence: 1,
+      })),
+    },
+  }).returning({ id: documentsTable.id });
+  return { id: document.id, invoiceDate };
+}
+
 function confirmDraft(
   documentId: string,
   vatRate: number,
@@ -177,6 +230,12 @@ beforeAll(async () => {
     name: `VAT mapping customer ${runId}`,
   }).returning({ id: counterpartiesTable.id });
   counterpartyId = counterparty.id;
+  const [supplier] = await db.insert(counterpartiesTable).values({
+    companyId,
+    type: "supplier",
+    name: `Gross expense supplier ${runId}`,
+  }).returning({ id: counterpartiesTable.id });
+  supplierCounterpartyId = supplier.id;
 
   const [revenue] = await db.insert(accountsTable).values({
     companyId,
@@ -196,6 +255,24 @@ beforeAll(async () => {
     allowsPosting: true,
   }).returning({ id: accountsTable.id });
   receivableAccountId = receivable.id;
+  const [expense] = await db.insert(accountsTable).values({
+    companyId,
+    code: "4000000",
+    name: "Test expense",
+    type: "expense",
+    isActive: true,
+    allowsPosting: true,
+  }).returning({ id: accountsTable.id });
+  expenseAccountId = expense.id;
+  const [payable] = await db.insert(accountsTable).values({
+    companyId,
+    code: "2200000",
+    name: "Test payable",
+    type: "liability",
+    isActive: true,
+    allowsPosting: true,
+  }).returning({ id: accountsTable.id });
+  payableAccountId = payable.id;
 
   const [s22] = await db.select({ id: vatCodeTable.id }).from(vatCodeTable)
     .where(and(eq(vatCodeTable.code, "S22"), eq(vatCodeTable.direction, "OUT")))
@@ -242,6 +319,8 @@ afterAll(async () => {
   if (!companyId) return;
   await db.delete(documentsTable).where(eq(documentsTable.companyId, companyId));
   await db.delete(invoicesTable).where(eq(invoicesTable.companyId, companyId));
+  await db.delete(purchaseSourceDocumentsTable)
+    .where(eq(purchaseSourceDocumentsTable.companyId, companyId));
   await db.delete(counterpartyAccountTemplatesTable).where(eq(counterpartyAccountTemplatesTable.companyId, companyId));
   await db.delete(vatCodesTable).where(eq(vatCodesTable.companyId, companyId));
   await db.delete(accountingPeriodsTable).where(eq(accountingPeriodsTable.companyId, companyId));
@@ -312,6 +391,8 @@ describe.sequential("USD document exchange rate confirmation", () => {
   function confirmUsd(documentId: string, invoiceDate: string, options: {
     exchangeRate?: Record<string, unknown>;
     line?: Record<string, unknown>;
+    vatTreatment?: "standard" | "gross-expense-no-input-vat";
+    vatTreatmentReviewed?: boolean;
   } = {}) {
     return request(app())
       .post(`/companies/${companyId}/documents/${documentId}/confirm`)
@@ -323,6 +404,10 @@ describe.sequential("USD document exchange rate confirmation", () => {
         invoiceDate,
         createInvoice: true,
         arApAccountId: receivableAccountId,
+        ...(options.vatTreatment ? { vatTreatment: options.vatTreatment } : {}),
+        ...(options.vatTreatmentReviewed !== undefined
+          ? { vatTreatmentReviewed: options.vatTreatmentReviewed }
+          : {}),
         lines: [{
           description: "USD service",
           quantity: 1,
@@ -339,13 +424,356 @@ describe.sequential("USD document exchange rate confirmation", () => {
       });
   }
 
-  const reviewedManualRate = (invoiceDate: string) => ({
+  function confirmGross(documentId: string, invoiceDate: string, options: {
+    documentType?: string;
+    accountId?: string;
+    vatTreatmentReviewed?: boolean;
+    exchangeRate?: Record<string, unknown>;
+    lines?: Record<string, unknown>[];
+  } = {}) {
+    return request(app())
+      .post(`/companies/${companyId}/documents/${documentId}/confirm`)
+      .send({
+        documentType: options.documentType ?? "invoice_received",
+        counterpartyId: supplierCounterpartyId,
+        periodId,
+        invoiceNumber: `GROSS-${runId}-${documentId}`,
+        invoiceDate,
+        createInvoice: true,
+        arApAccountId: payableAccountId,
+        vatTreatment: "gross-expense-no-input-vat",
+        vatTreatmentReviewed: options.vatTreatmentReviewed ?? true,
+        lines: options.lines ?? [{
+          description: "Third-country service cost",
+          quantity: 1,
+          unitPrice: 20,
+          vatRate: 22,
+          vatBase: 20,
+          vatAmount: 4.4,
+          accountId: options.accountId ?? expenseAccountId,
+          vatCodeId: globalS22Id,
+          confidence: 1,
+        }],
+        exchangeRate: options.exchangeRate
+          ?? reviewedManualRate(invoiceDate, "gross-expense-no-input-vat", 1.2),
+      });
+  }
+
+  const reviewedManualRate = (
+    invoiceDate: string,
+    vatTreatment: "standard" | "gross-expense-no-input-vat" = "standard",
+    unitsPerEur = 1.25,
+  ) => ({
     mode: "manual",
+    vatTreatment,
     requestedDate: invoiceDate,
     rateDate: invoiceDate,
-    unitsPerEur: 1.25,
+    unitsPerEur,
     reviewed: true,
     manualReason: "Supplier rate reviewed",
+  });
+
+  it("previews and confirms a reviewed USD gross expense using one whole-gross conversion", async () => {
+    const document = await createGrossSourceDocument("usd-gross-expense.pdf", "USD");
+    const preview = await request(app())
+      .get(`/companies/${companyId}/documents/${document.id}/exchange-rate`)
+      .query({
+        date: document.invoiceDate,
+        mode: "manual",
+        unitsPerEur: "1.2",
+        rateDate: document.invoiceDate,
+        vatTreatment: "gross-expense-no-input-vat",
+      })
+      .expect(200);
+    expect(preview.body).toMatchObject({
+      mode: "manual",
+      vatTreatment: "gross-expense-no-input-vat",
+      sourceTotals: { net: 20, vat: 4.4, gross: 24.4 },
+      eurTotals: { net: 20.33, vat: 0, gross: 20.33 },
+      convertedLines: [{
+        unitPrice: 20.33,
+        vatRate: 0,
+        vatBase: 20.33,
+        vatAmount: 0,
+      }],
+    });
+
+    const staleTreatment = await confirmGross(document.id, document.invoiceDate, {
+      exchangeRate: {
+        ...preview.body,
+        reviewed: true,
+        vatTreatment: "standard",
+        manualReason: "Supplier rate reviewed",
+      },
+    }).expect(400);
+    expect(staleTreatment.body.code).toBe("STALE_VAT_TREATMENT_QUOTE");
+
+    const response = await confirmGross(document.id, document.invoiceDate, {
+      exchangeRate: {
+        ...preview.body,
+        reviewed: true,
+        manualReason: "Supplier rate reviewed",
+      },
+    }).expect(200);
+    expect(response.body.confirmedData).toMatchObject({
+      currency: "EUR",
+      sourceCurrency: "USD",
+      vatTreatment: "gross-expense-no-input-vat",
+      vatTreatmentReviewed: true,
+      totalNet: 20.33,
+      totalVat: 0,
+      totalGross: 20.33,
+      exchangeRate: {
+        vatTreatment: "gross-expense-no-input-vat",
+        sourceTotals: { net: 20, vat: 4.4, gross: 24.4 },
+        eurTotals: { net: 20.33, vat: 0, gross: 20.33 },
+      },
+      lines: [{
+        unitPrice: 20.33,
+        vatRate: 0,
+        vatBase: 20.33,
+        vatAmount: 0,
+        vatCodeId: null,
+        proposedFursVatCodeId: globalS22Id,
+        assetType: "NONE",
+      }],
+    });
+    const [invoiceLine] = await db.select({
+      unitPrice: invoiceLinesTable.unitPrice,
+      vatRate: invoiceLinesTable.vatRate,
+      vatBase: invoiceLinesTable.vatBase,
+      vatAmount: invoiceLinesTable.vatAmount,
+      vatCodeId: invoiceLinesTable.vatCodeId,
+      assetType: invoiceLinesTable.assetType,
+    }).from(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, response.body.linkedInvoiceId)).limit(1);
+    expect(invoiceLine).toEqual({
+      unitPrice: "20.3300",
+      vatRate: "0.00",
+      vatBase: "20.33",
+      vatAmount: "0.00",
+      vatCodeId: null,
+      assetType: "NONE",
+    });
+    const [invoiceHeader] = await db.select({ sourceType: invoicesTable.sourceType })
+      .from(invoicesTable).where(eq(invoicesTable.id, response.body.linkedInvoiceId)).limit(1);
+    expect(invoiceHeader.sourceType).toBe("ai-document-gross-expense");
+    const [storedDocument] = await db.select({
+      ocrResult: documentsTable.ocrResult,
+      confirmedData: documentsTable.confirmedData,
+    }).from(documentsTable).where(eq(documentsTable.id, document.id)).limit(1);
+    expect(storedDocument.ocrResult).toMatchObject({
+      currency: "USD",
+      totalNet: 20,
+      totalVat: 4.4,
+      totalGross: 24.4,
+      lines: [{ vatBase: 20, vatAmount: 4.4, vatRate: 22 }],
+    });
+    expect(storedDocument.confirmedData).toMatchObject({
+      sourceCurrency: "USD",
+      currency: "EUR",
+      vatTreatment: "gross-expense-no-input-vat",
+    });
+  });
+
+  it("discloses and books a bounded source-header cent adjustment without changing the USD OCR", async () => {
+    const positiveGrossCents = [
+      1495, 1463, 4902, 1464, 1484, 1485, 1451, 1453, 1464, 1461,
+      1404, 1454, 1492, 1482, 1430, 1464, 1460, 1467, 1468, 1453,
+    ];
+    const sourceLines = [
+      ...positiveGrossCents.map((grossCents, lineIndex) => {
+        const vatAmount = lineIndex === 2 ? 8.8 : 2.64;
+        const vatBase = grossCents / 100 - vatAmount;
+        return { quantity: 1, unitPrice: vatBase, vatRate: 22, vatBase, vatAmount };
+      }),
+      { quantity: -1, unitPrice: 17.21, vatRate: 22, vatBase: -17.21, vatAmount: -3.79 },
+    ];
+    const document = await createGrossSourceDocument(
+      "usd-gross-header-rounding.pdf",
+      "USD",
+      { net: 250.8, vat: 55.18, gross: 305.98 },
+      sourceLines,
+    );
+    const preview = await request(app())
+      .get(`/companies/${companyId}/documents/${document.id}/exchange-rate`)
+      .query({
+        date: document.invoiceDate,
+        mode: "manual",
+        unitsPerEur: "1.1476",
+        rateDate: document.invoiceDate,
+        vatTreatment: "gross-expense-no-input-vat",
+      })
+      .expect(200);
+    expect(preview.body).toMatchObject({
+      sourceRoundingAdjustment: {
+        sourceCurrency: "USD",
+        sourceGross: 305.98,
+        lineGross: 305.96,
+        amount: 0.02,
+        lineIndex: 2,
+      },
+      expenseEurRoundingAdjustment: { amount: 0.02, lineIndex: 2 },
+      sourceTotals: { gross: 305.98 },
+      eurTotals: { net: 266.63, vat: 0, gross: 266.63 },
+    });
+
+    const [ocrDocument] = await db.select({ ocrResult: documentsTable.ocrResult })
+      .from(documentsTable).where(eq(documentsTable.id, document.id)).limit(1);
+    const originalLines = (ocrDocument.ocrResult as any).lines as Record<string, unknown>[];
+    const staleAdjustment = await confirmGross(document.id, document.invoiceDate, {
+      lines: originalLines,
+      exchangeRate: {
+        ...preview.body,
+        reviewed: true,
+        manualReason: "Supplier rate reviewed",
+        sourceRoundingAdjustment: {
+          ...preview.body.sourceRoundingAdjustment,
+          amount: 0.01,
+        },
+      },
+    }).expect(400);
+    expect(staleAdjustment.body.code).toBe("STALE_SOURCE_ROUNDING_ADJUSTMENT");
+    const staleEurAdjustment = await confirmGross(document.id, document.invoiceDate, {
+      lines: originalLines,
+      exchangeRate: {
+        ...preview.body,
+        reviewed: true,
+        manualReason: "Supplier rate reviewed",
+        expenseEurRoundingAdjustment: {
+          ...preview.body.expenseEurRoundingAdjustment,
+          amount: 0.01,
+        },
+      },
+    }).expect(400);
+    expect(staleEurAdjustment.body.code).toBe("STALE_EUR_GROSS_ROUNDING_ADJUSTMENT");
+
+    const response = await confirmGross(document.id, document.invoiceDate, {
+      lines: originalLines,
+      exchangeRate: {
+        ...preview.body,
+        reviewed: true,
+        manualReason: "Supplier rate reviewed",
+      },
+    }).expect(200);
+    expect(response.body.confirmedData).toMatchObject({
+      totalNet: 266.63,
+      totalVat: 0,
+      totalGross: 266.63,
+      sourceRoundingAdjustment: {
+        sourceCurrency: "USD",
+        sourceGross: 305.98,
+        lineGross: 305.96,
+        amount: 0.02,
+        lineIndex: 2,
+      },
+      expenseEurRoundingAdjustment: {
+        amount: 0.02,
+        lineIndex: 2,
+      },
+      exchangeRate: {
+        sourceTotals: { net: 250.8, vat: 55.18, gross: 305.98 },
+        eurTotals: { net: 266.63, vat: 0, gross: 266.63 },
+        sourceRoundingAdjustment: {
+          sourceCurrency: "USD",
+          sourceGross: 305.98,
+          lineGross: 305.96,
+          amount: 0.02,
+          lineIndex: 2,
+        },
+        expenseEurRoundingAdjustment: { amount: 0.02, lineIndex: 2 },
+      },
+    });
+    const postedLines = await db.select({
+      vatBase: invoiceLinesTable.vatBase,
+      vatAmount: invoiceLinesTable.vatAmount,
+    }).from(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, response.body.linkedInvoiceId));
+    expect(postedLines).toHaveLength(21);
+    expect(postedLines.reduce((sum, line) => sum + Number(line.vatBase), 0)).toBeCloseTo(266.63, 6);
+    expect(postedLines.every(line => Number(line.vatAmount) === 0)).toBe(true);
+    const [storedDocument] = await db.select({ ocrResult: documentsTable.ocrResult })
+      .from(documentsTable).where(eq(documentsTable.id, document.id)).limit(1);
+    expect(storedDocument.ocrResult).toMatchObject({
+      totalNet: 250.8,
+      totalVat: 55.18,
+      totalGross: 305.98,
+      lines: sourceLines.map(({ vatBase, vatAmount }) => ({ vatBase, vatAmount })),
+    });
+    const reloaded = await request(app())
+      .get(`/companies/${companyId}/documents/${document.id}`)
+      .expect(200);
+    expect(typeof reloaded.body.confirmedData.invoiceDate).toBe("string");
+    expect(reloaded.body.confirmedData.sourceCurrency).toBe("USD");
+    const validatedReload = GetDocumentResponse.parse(reloaded.body);
+    expect(validatedReload.confirmedData).toMatchObject({
+      currency: "EUR",
+      vatTreatment: "gross-expense-no-input-vat",
+      vatTreatmentReviewed: true,
+      sourceRoundingAdjustment: {
+        sourceCurrency: "USD",
+        sourceGross: 305.98,
+        lineGross: 305.96,
+        amount: 0.02,
+        lineIndex: 2,
+      },
+      expenseEurRoundingAdjustment: { amount: 0.02, lineIndex: 2 },
+      exchangeRate: {
+        sourceRoundingAdjustment: {
+          sourceCurrency: "USD",
+          sourceGross: 305.98,
+          lineGross: 305.96,
+          amount: 0.02,
+          lineIndex: 2,
+        },
+        expenseEurRoundingAdjustment: { amount: 0.02, lineIndex: 2 },
+      },
+    });
+  });
+
+  it("supports EUR gross expenses and rejects unreviewed, issued, and revenue-account gross treatment", async () => {
+    const eurDocument = await createGrossSourceDocument("eur-gross-expense.pdf", "EUR");
+    const eurResponse = await confirmGross(eurDocument.id, eurDocument.invoiceDate).expect(200);
+    expect(eurResponse.body.confirmedData).toMatchObject({
+      currency: "EUR",
+      sourceCurrency: "EUR",
+      vatTreatment: "gross-expense-no-input-vat",
+      totalNet: 24.4,
+      totalVat: 0,
+      totalGross: 24.4,
+      lines: [{ unitPrice: 24.4, vatRate: 0, vatBase: 24.4, vatAmount: 0, vatCodeId: null }],
+    });
+    const [eurInvoice] = await db.select({ sourceType: invoicesTable.sourceType })
+      .from(invoicesTable).where(eq(invoicesTable.id, eurResponse.body.linkedInvoiceId)).limit(1);
+    expect(eurInvoice.sourceType).toBe("ai-document-gross-expense");
+
+    const unreviewed = await createGrossSourceDocument("unreviewed-gross-expense.pdf", "USD");
+    const unreviewedResponse = await confirmGross(unreviewed.id, unreviewed.invoiceDate, {
+      vatTreatmentReviewed: false,
+    }).expect(400);
+    expect(unreviewedResponse.body.code).toBe("VAT_TREATMENT_REVIEW_REQUIRED");
+
+    const issued = await createUsdDocument("issued-gross-expense.pdf");
+    const issuedResponse = await confirmGross(issued.id, issued.invoiceDate, {
+      documentType: "invoice_issued",
+    }).expect(400);
+    expect(issuedResponse.body.code).toBe("VAT_TREATMENT_RECEIVED_ONLY");
+
+    const revenueAccount = await createGrossSourceDocument("revenue-gross-expense.pdf", "USD");
+    const revenueResponse = await confirmGross(revenueAccount.id, revenueAccount.invoiceDate, {
+      accountId: revenueAccountId,
+    }).expect(400);
+    expect(revenueResponse.body.code).toBe("GROSS_EXPENSE_ACCOUNT_REQUIRED");
+    const rejectedDocuments = await db.select({
+      id: documentsTable.id,
+      status: documentsTable.status,
+    }).from(documentsTable).where(and(
+      eq(documentsTable.companyId, companyId),
+      eq(documentsTable.status, "done"),
+    ));
+    expect(rejectedDocuments.map(row => row.id)).toEqual(expect.arrayContaining([
+      unreviewed.id,
+      issued.id,
+      revenueAccount.id,
+    ]));
   });
 
   it("returns reviewed manual previews without depending on ECB availability and reports ECB failure explicitly", async () => {

@@ -65,6 +65,9 @@ import {
   getEcbUsdEurQuote,
   type DocumentTotals,
   type ExchangeRateMode,
+  type DocumentVatTreatment,
+  type ExpenseEurRoundingAdjustment,
+  type SourceGrossRoundingAdjustment,
 } from "../lib/documentExchangeRate";
 
 const router: IRouter = Router();
@@ -202,6 +205,64 @@ type OcrReviewResult = OcrResult & {
   invoiceDate?: string;
   lines: OcrCandidateLine[];
 };
+
+function assertSubmittedSourceAmountsMatchOcr(
+  ocrLines: readonly ProposedLine[],
+  submittedLines: readonly ProposedLine[],
+): void {
+  if (submittedLines.length !== ocrLines.length) {
+    throw new DocumentExchangeRateError(
+      "SOURCE_LINES_CHANGED",
+      "Število vrstic se ne ujema z nespremenljivim OCR-izvirnikom. Pretvorba ni bila izvedena.",
+    );
+  }
+  const sourceAmounts: Array<keyof Pick<ProposedLine, "quantity" | "unitPrice" | "vatRate" | "vatBase" | "vatAmount">> = [
+    "quantity", "unitPrice", "vatRate", "vatBase", "vatAmount",
+  ];
+  for (const [index, sourceLine] of ocrLines.entries()) {
+    const submittedLine = submittedLines[index];
+    for (const key of sourceAmounts) {
+      const submittedValue = submittedLine[key];
+      const originalValue = sourceLine[key];
+      if (
+        typeof submittedValue !== "number"
+        || !Number.isFinite(submittedValue)
+        || typeof originalValue !== "number"
+        || !Number.isFinite(originalValue)
+        || submittedValue !== originalValue
+      ) {
+        throw new DocumentExchangeRateError(
+          "SOURCE_LINE_AMOUNT_CHANGED",
+          `Znesek, količina ali stopnja DDV vrstice ${index + 1} se ne ujema z nespremenljivim OCR-izvirnikom.`,
+        );
+      }
+    }
+  }
+}
+
+function sameSourceGrossAdjustment(
+  submitted: unknown,
+  expected: SourceGrossRoundingAdjustment | undefined,
+): boolean {
+  if (!expected) return submitted === undefined || submitted === null;
+  if (!submitted || typeof submitted !== "object") return false;
+  const value = submitted as Partial<SourceGrossRoundingAdjustment>;
+  return value.sourceCurrency === expected.sourceCurrency
+    && value.sourceGross === expected.sourceGross
+    && value.lineGross === expected.lineGross
+    && value.amount === expected.amount
+    && value.lineIndex === expected.lineIndex;
+}
+
+function sameExpenseEurAdjustment(
+  submitted: unknown,
+  expected: ExpenseEurRoundingAdjustment | undefined,
+): boolean {
+  if (!expected) return submitted === undefined || submitted === null;
+  if (!submitted || typeof submitted !== "object") return false;
+  const value = submitted as Partial<ExpenseEurRoundingAdjustment>;
+  return value.amount === expected.amount && value.lineIndex === expected.lineIndex;
+}
 
 type OcrDraft = Partial<OcrResult> & {
   issuer?: DocumentParty | null;
@@ -966,6 +1027,11 @@ router.get(
       if (mode !== "ecb" && mode !== "manual") {
         throw new DocumentExchangeRateError("INVALID_MODE", "Način tečaja mora biti »ecb« ali »manual«.");
       }
+      const treatmentValue = queryValue(req.query.vatTreatment);
+      const vatTreatment = treatmentValue == null ? "standard" : treatmentValue;
+      if (vatTreatment !== "standard" && vatTreatment !== "gross-expense-no-input-vat") {
+        throw new DocumentExchangeRateError("INVALID_VAT_TREATMENT", "Neveljavna obravnava DDV za račun.");
+      }
 
       const ocr = doc.ocrResult as OcrReviewResult | null;
       const currency = typeof ocr?.currency === "string" ? ocr.currency.trim().toUpperCase() : "EUR";
@@ -1013,9 +1079,12 @@ router.get(
         })),
         sourceTotals,
         unitsPerEur,
+        vatTreatment as DocumentVatTreatment,
+        currency,
       );
       res.json({
         mode: mode as ExchangeRateMode,
+        vatTreatment,
         currency,
         targetCurrency: "EUR",
         requestedDate,
@@ -1072,6 +1141,8 @@ router.post(
       createInvoice = false,
       arApAccountId,
       exchangeRate,
+      vatTreatment: requestedVatTreatment,
+      vatTreatmentReviewed,
     } = req.body as {
       documentType?: string;
       counterpartyId?: string;
@@ -1082,16 +1153,60 @@ router.post(
       lines?: ProposedLine[];
       createInvoice?: boolean;
       arApAccountId?: string;
+      vatTreatment?: DocumentVatTreatment;
+      vatTreatmentReviewed?: boolean;
       exchangeRate?: {
         mode?: "ecb" | "manual";
+        vatTreatment?: DocumentVatTreatment;
         requestedDate?: string;
         rateDate?: string;
         unitsPerEur?: number;
         reviewed?: boolean;
         manualReason?: string;
+        sourceRoundingAdjustment?: SourceGrossRoundingAdjustment;
+        expenseEurRoundingAdjustment?: ExpenseEurRoundingAdjustment;
       };
     };
     const ocrReview = doc.ocrResult as OcrReviewResult | null;
+    const vatTreatment = requestedVatTreatment === undefined ? "standard" : requestedVatTreatment;
+    if (vatTreatment !== "standard" && vatTreatment !== "gross-expense-no-input-vat") {
+      res.status(400).json({ error: "Neveljavna obravnava DDV za račun.", code: "INVALID_VAT_TREATMENT" });
+      return;
+    }
+    if (vatTreatment === "gross-expense-no-input-vat" && vatTreatmentReviewed !== true) {
+      res.status(400).json({
+        error: "Za bruto odhodek brez odbitka vstopnega DDV je potrebna izrecna potrditev računovodje.",
+        code: "VAT_TREATMENT_REVIEW_REQUIRED",
+      });
+      return;
+    }
+    const sourceCurrency = typeof ocrReview?.currency === "string"
+      ? ocrReview.currency.trim().toUpperCase()
+      : "EUR";
+    const effectiveDocumentType = documentType ?? ocrReview?.suggestedDocumentType ?? doc.documentType;
+    if (vatTreatment === "gross-expense-no-input-vat") {
+      if (createInvoice !== true) {
+        res.status(400).json({
+          error: "Bruto odhodek brez odbitka DDV je dovoljen samo ob ustvarjanju prejetega računa.",
+          code: "VAT_TREATMENT_REQUIRES_INVOICE",
+        });
+        return;
+      }
+      if (effectiveDocumentType !== "invoice_received") {
+        res.status(400).json({
+          error: "Bruto odhodek brez odbitka DDV je dovoljen samo za prejeti račun.",
+          code: "VAT_TREATMENT_RECEIVED_ONLY",
+        });
+        return;
+      }
+      if (sourceCurrency !== "EUR" && sourceCurrency !== "USD") {
+        res.status(400).json({
+          error: `Bruto odhodki iz valute ${sourceCurrency} v EUR niso podprti.`,
+          code: "UNSUPPORTED_CURRENCY",
+        });
+        return;
+      }
+    }
 
     if (!Array.isArray(lines) || lines.length === 0) {
       res.status(400).json({ error: "Dokument nima vrstic za kontiranje — dodajte vsaj eno vrstico." });
@@ -1115,7 +1230,7 @@ router.post(
       vatCodeReviewReason?: string;
     }>;
     const ocrProposalLines = ocrReview?.lines ?? [];
-    if (createInvoice) {
+    if (createInvoice && vatTreatment !== "gross-expense-no-input-vat") {
       for (const [index, proposed] of ocrProposalLines.entries()) {
         if (proposed.assetTypeCandidate) {
           const submitted = submittedLines[index];
@@ -1142,18 +1257,26 @@ router.post(
     // metadata fields are not client-authoritative.
     submittedLines.forEach((line, index) => {
       const proposal = ocrProposalLines[index];
-      if (!proposal) return;
-      const selectedLine = inheritOmittedVatCodeSelection(line, proposal);
-      if (selectedLine !== line) line.vatCodeId = selectedLine.vatCodeId;
-      line.assetTypeCandidate = proposal.assetTypeCandidate;
-      line.assetTypeReason = proposal.assetTypeReason;
-      line.assetTypeOriginalAccountCode = proposal.assetTypeOriginalAccountCode;
-      line.assetTypeOriginalAccountId = proposal.assetTypeOriginalAccountId;
-      line.proposedFursVatCodeId = proposal.vatCodeId;
-      if (proposal.vatCodeReason) line.vatCodeReason = proposal.vatCodeReason;
-      if (proposal.vatCodeReviewRequired) {
-        line.vatCodeReviewRequired = true;
-        line.vatCodeReviewReason = proposal.vatCodeReviewReason;
+      if (proposal) {
+        const selectedLine = inheritOmittedVatCodeSelection(line, proposal);
+        if (selectedLine !== line) line.vatCodeId = selectedLine.vatCodeId;
+        line.assetTypeCandidate = proposal.assetTypeCandidate;
+        line.assetTypeReason = proposal.assetTypeReason;
+        line.assetTypeOriginalAccountCode = proposal.assetTypeOriginalAccountCode;
+        line.assetTypeOriginalAccountId = proposal.assetTypeOriginalAccountId;
+        line.proposedFursVatCodeId = proposal.vatCodeId;
+        if (proposal.vatCodeReason) line.vatCodeReason = proposal.vatCodeReason;
+        if (proposal.vatCodeReviewRequired) {
+          line.vatCodeReviewRequired = true;
+          line.vatCodeReviewReason = proposal.vatCodeReviewReason;
+        }
+      }
+      if (vatTreatment === "gross-expense-no-input-vat") {
+        line.proposedFursVatCodeId = proposal?.vatCodeId ?? null;
+        line.vatCodeId = null;
+        line.vatCodeFursId = undefined;
+        line.vatCodeReviewRequired = false;
+        delete line.vatCodeReviewReason;
       }
     });
     for (const line of submittedLines) {
@@ -1163,6 +1286,7 @@ router.post(
       }
       if (
         createInvoice
+        && vatTreatment !== "gross-expense-no-input-vat"
         && line.assetTypeCandidate
         && line.assetType == null
       ) {
@@ -1171,7 +1295,12 @@ router.post(
         });
         return;
       }
-      if (createInvoice && line.vatCodeReviewRequired && !line.vatCodeId) {
+      if (
+        createInvoice
+        && vatTreatment !== "gross-expense-no-input-vat"
+        && line.vatCodeReviewRequired
+        && !line.vatCodeId
+      ) {
         res.status(400).json({
           error: line.vatCodeReviewReason ?? "Izberite veljavno vstopno DDV-kodo pred ustvarjanjem računa."
         });
@@ -1179,6 +1308,7 @@ router.post(
       }
       if (
         createInvoice
+        && vatTreatment !== "gross-expense-no-input-vat"
         && line.assetTypeCandidate
         && line.assetType !== "NONE"
         && line.assetType !== line.assetTypeCandidate
@@ -1201,6 +1331,7 @@ router.post(
         .select({
           id: accountsTable.id,
           code: accountsTable.code,
+          type: accountsTable.type,
           isActive: accountsTable.isActive,
           allowsPosting: accountsTable.allowsPosting,
         })
@@ -1233,10 +1364,29 @@ router.post(
         });
         return;
       }
-      const acceptedAssetLines = createInvoice ? submittedLines.filter(line =>
+      const acceptedAssetLines = createInvoice && vatTreatment !== "gross-expense-no-input-vat" ? submittedLines.filter(line =>
         line.assetType === "OTHER_FA" || line.assetType === "REALESTATE",
       ) : [];
       const accountById = new Map(validAccounts.map(account => [account.id, account]));
+      if (vatTreatment === "gross-expense-no-input-vat") {
+        const invalidExpenseLine = submittedLines.find(line =>
+          !line.accountId || accountById.get(line.accountId)?.type !== "expense",
+        );
+        if (invalidExpenseLine) {
+          res.status(400).json({
+            error: `Bruto odhodek brez odbitka DDV zahteva aktiven, knjižljiv konto odhodkov za vrstico »${invalidExpenseLine.description}«.`,
+            code: "GROSS_EXPENSE_ACCOUNT_REQUIRED",
+          });
+          return;
+        }
+        // Gross-expense treatment may clear an OCR asset proposal only after
+        // every selected tenant account has been proven to be a postable expense.
+        submittedLines.forEach(line => {
+          line.assetType = "NONE";
+          line.vatCodeId = null;
+          line.vatCodeFursId = undefined;
+        });
+      }
       const invalidAssetAccount = acceptedAssetLines.find(line => {
         const code = line.accountId ? accountById.get(line.accountId)?.code : undefined;
         return !code || !/^(02|04)/.test(code) || /^4/.test(code);
@@ -1262,7 +1412,6 @@ router.post(
       .filter((codeId): codeId is string => typeof codeId === "string" && codeId.length > 0))];
     const fursVatCodesById = new Map<string, { code: string; direction: "IN" | "OUT"; validFrom: string; validTo: string | null }>();
     const invoiceVatDate = (invoiceDate ?? ocrReview?.invoiceDate ?? new Date().toISOString()).slice(0, 10);
-    const effectiveDocumentType = documentType ?? ocrReview?.suggestedDocumentType ?? doc.documentType;
     const expectedVatDirection = expectedDocumentVatDirection(
       createInvoice && effectiveDocumentType !== "invoice_issued"
         ? "invoice_received"
@@ -1327,11 +1476,11 @@ router.post(
       }
     }
 
-    const sourceCurrency = typeof ocrReview?.currency === "string"
-      ? ocrReview.currency.trim().toUpperCase()
-      : "EUR";
     let confirmedLines: typeof submittedLines = submittedLines;
     let exchangeAudit: Record<string, unknown> | undefined;
+    let convertedBookingTotals: DocumentTotals | undefined;
+    let sourceRoundingAdjustment: SourceGrossRoundingAdjustment | undefined;
+    let expenseEurRoundingAdjustment: ExpenseEurRoundingAdjustment | undefined;
     if (createInvoice && sourceCurrency !== "EUR") {
       if (sourceCurrency !== "USD") {
         res.status(400).json({
@@ -1356,6 +1505,12 @@ router.post(
             "Pred ustvarjanjem EUR-osnutka morate pregledati in izrecno potrditi tečaj.",
           );
         }
+        if ((exchangeRate.vatTreatment ?? "standard") !== vatTreatment) {
+          throw new DocumentExchangeRateError(
+            "STALE_VAT_TREATMENT_QUOTE",
+            "Pregledani predogled ne ustreza izbrani obravnavi DDV. Pridobite in preglejte nov predogled.",
+          );
+        }
         if (exchangeRate.mode !== "ecb" && exchangeRate.mode !== "manual") {
           throw new DocumentExchangeRateError("INVALID_MODE", "Način tečaja mora biti »ecb« ali »manual«.");
         }
@@ -1367,34 +1522,7 @@ router.post(
         }
 
         const originalLines = ocrReview?.lines ?? [];
-        if (submittedLines.length !== originalLines.length) {
-          throw new DocumentExchangeRateError(
-            "SOURCE_LINES_CHANGED",
-            "Število vrstic se ne ujema z nespremenljivim OCR-izvirnikom. Pretvorba ni bila izvedena.",
-          );
-        }
-        const sourceAmounts: Array<keyof Pick<ProposedLine, "quantity" | "unitPrice" | "vatRate" | "vatBase" | "vatAmount">> = [
-          "quantity", "unitPrice", "vatRate", "vatBase", "vatAmount",
-        ];
-        for (const [index, sourceLine] of originalLines.entries()) {
-          const submittedLine = submittedLines[index];
-          for (const key of sourceAmounts) {
-            const submittedValue = submittedLine[key];
-            const originalValue = sourceLine[key];
-            if (
-              typeof submittedValue !== "number"
-              || !Number.isFinite(submittedValue)
-              || typeof originalValue !== "number"
-              || !Number.isFinite(originalValue)
-              || submittedValue !== originalValue
-            ) {
-              throw new DocumentExchangeRateError(
-                "SOURCE_LINE_AMOUNT_CHANGED",
-                `Znesek, količina ali stopnja DDV vrstice ${index + 1} se ne ujema z nespremenljivim OCR-izvirnikom.`,
-              );
-            }
-          }
-        }
+        assertSubmittedSourceAmountsMatchOcr(originalLines, submittedLines);
 
         let authoritativeRateDate: string;
         let authoritativeUnitsPerEur: number;
@@ -1450,13 +1578,37 @@ router.post(
             gross: ocrReview?.totalGross as number,
           },
           authoritativeUnitsPerEur,
+          vatTreatment,
+          sourceCurrency,
         );
+        if (!sameSourceGrossAdjustment(
+          exchangeRate.sourceRoundingAdjustment,
+          converted.sourceRoundingAdjustment,
+        )) {
+          throw new DocumentExchangeRateError(
+            "STALE_SOURCE_ROUNDING_ADJUSTMENT",
+            "Predogled prilagoditve bruto zneska se ne ujema z izvirnikom. Pridobite in preglejte nov predogled.",
+          );
+        }
+        if (!sameExpenseEurAdjustment(
+          exchangeRate.expenseEurRoundingAdjustment,
+          converted.expenseEurRoundingAdjustment,
+        )) {
+          throw new DocumentExchangeRateError(
+            "STALE_EUR_GROSS_ROUNDING_ADJUSTMENT",
+            "Predogled uskladitve bruto zneska v EUR se ne ujema z izvirnikom. Pridobite in preglejte nov predogled.",
+          );
+        }
         confirmedLines = submittedLines.map((line, index) => ({
           ...line,
           ...converted.convertedLines[index],
         }));
+        convertedBookingTotals = converted.eurTotals;
+        sourceRoundingAdjustment = converted.sourceRoundingAdjustment;
+        expenseEurRoundingAdjustment = converted.expenseEurRoundingAdjustment;
         exchangeAudit = {
           mode: exchangeRate.mode,
+          vatTreatment,
           sourceCurrency,
           targetCurrency: "EUR",
           requestedDate: exchangeRate.requestedDate,
@@ -1467,6 +1619,7 @@ router.post(
           reviewed: true,
           request: {
             mode: exchangeRate.mode,
+            vatTreatment,
             requestedDate: exchangeRate.requestedDate,
             rateDate: exchangeRate.rateDate,
             unitsPerEur: exchangeRate.unitsPerEur,
@@ -1474,17 +1627,68 @@ router.post(
             ...(manualReason ? { manualReason } : {}),
           },
           quote: {
+            vatTreatment,
             rateDate: authoritativeRateDate,
             unitsPerEur: authoritativeUnitsPerEur,
             source: exchangeSource,
             sourceUrl: exchangeSourceUrl,
+            ...(converted.sourceRoundingAdjustment
+              ? { sourceRoundingAdjustment: converted.sourceRoundingAdjustment }
+              : {}),
+            ...(converted.expenseEurRoundingAdjustment
+              ? { expenseEurRoundingAdjustment: converted.expenseEurRoundingAdjustment }
+              : {}),
           },
           sourceTotals: converted.sourceTotals,
           eurTotals: converted.eurTotals,
+          ...(converted.sourceRoundingAdjustment
+            ? { sourceRoundingAdjustment: converted.sourceRoundingAdjustment }
+            : {}),
+          ...(converted.expenseEurRoundingAdjustment
+            ? { expenseEurRoundingAdjustment: converted.expenseEurRoundingAdjustment }
+            : {}),
           roundingDifference: converted.roundingDifference,
           convertedAt: new Date().toISOString(),
           ...(manualReason ? { manualReason } : {}),
         };
+      } catch (error) {
+        if (error instanceof DocumentExchangeRateError) {
+          res.status(error.status).json({ error: error.message, code: error.code });
+          return;
+        }
+        throw error;
+      }
+    } else if (
+      createInvoice
+      && vatTreatment === "gross-expense-no-input-vat"
+      && sourceCurrency === "EUR"
+    ) {
+      try {
+        const originalLines = ocrReview?.lines ?? [];
+        assertSubmittedSourceAmountsMatchOcr(originalLines, submittedLines);
+        const converted = convertDocumentAmounts(
+          originalLines.map(line => ({
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            vatRate: line.vatRate,
+            vatBase: line.vatBase,
+            vatAmount: line.vatAmount,
+          })),
+          {
+            net: ocrReview?.totalNet as number,
+            vat: ocrReview?.totalVat as number,
+            gross: ocrReview?.totalGross as number,
+          },
+          1,
+          vatTreatment,
+        );
+        confirmedLines = submittedLines.map((line, index) => ({
+          ...line,
+          ...converted.convertedLines[index],
+        }));
+        convertedBookingTotals = converted.eurTotals;
+        sourceRoundingAdjustment = converted.sourceRoundingAdjustment;
+        expenseEurRoundingAdjustment = converted.expenseEurRoundingAdjustment;
       } catch (error) {
         if (error instanceof DocumentExchangeRateError) {
           res.status(error.status).json({ error: error.message, code: error.code });
@@ -1502,6 +1706,12 @@ router.post(
       invoiceDate: invoiceDate ?? base.invoiceDate,
       dueDate: dueDate ?? base.dueDate,
       currency: createInvoice && sourceCurrency !== "EUR" ? "EUR" : sourceCurrency,
+      vatTreatment,
+      ...(vatTreatment === "gross-expense-no-input-vat"
+        ? { vatTreatmentReviewed: true }
+        : {}),
+      ...(sourceRoundingAdjustment ? { sourceRoundingAdjustment } : {}),
+      ...(expenseEurRoundingAdjustment ? { expenseEurRoundingAdjustment } : {}),
       lines: confirmedLines,
       suggestedCounterpartyId: counterpartyId ?? base.suggestedCounterpartyId,
       suggestedPeriodId: periodId ?? base.suggestedPeriodId,
@@ -1512,8 +1722,20 @@ router.post(
         totalNet: (exchangeAudit.eurTotals as DocumentTotals).net,
         totalVat: (exchangeAudit.eurTotals as DocumentTotals).vat,
         totalGross: (exchangeAudit.eurTotals as DocumentTotals).gross,
+      } : convertedBookingTotals ? {
+        sourceCurrency,
+        totalNet: convertedBookingTotals.net,
+        totalVat: convertedBookingTotals.vat,
+        totalGross: convertedBookingTotals.gross,
       } : { sourceCurrency }),
-    } as OcrResult & { sourceCurrency?: string; exchangeRate?: Record<string, unknown> };
+    } as OcrResult & {
+      sourceCurrency?: string;
+      exchangeRate?: Record<string, unknown>;
+      vatTreatment?: DocumentVatTreatment;
+      vatTreatmentReviewed?: boolean;
+      sourceRoundingAdjustment?: SourceGrossRoundingAdjustment;
+      expenseEurRoundingAdjustment?: ExpenseEurRoundingAdjustment;
+    };
 
     let linkedInvoiceId: string | null = null;
     let updated: typeof doc | undefined;
@@ -1684,7 +1906,11 @@ router.post(
           dueDate: (dueDate ?? null) as string | null,
           status: "draft",
           // Reviewed FX amounts, not rounded unit-price multiplication, are authoritative.
-          ...(exchangeAudit ? { sourceType: "ai-document-fx" } : {}),
+          ...(vatTreatment === "gross-expense-no-input-vat"
+            ? { sourceType: "ai-document-gross-expense" }
+            : exchangeAudit
+              ? { sourceType: "ai-document-fx" }
+              : {}),
           arApAccountId: resolvedArApAccount.id,
           createdBy: authReq.clerkUserId,
           notes: `Ustvarjeno iz dokumenta: ${doc.fileName}`,
