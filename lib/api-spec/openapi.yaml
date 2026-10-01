@@ -9069,6 +9069,75 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/documents/{id}/exchange-rate:
+    get:
+      operationId: getDocumentExchangeRate
+      tags: [documents]
+      summary: Preview source-currency amounts in EUR using an ECB or reviewed manual rate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: date
+          in: query
+          required: true
+          schema: { type: string }
+          description: Invoice date in YYYY-MM-DD format
+        - name: mode
+          in: query
+          schema: { type: string, enum: [ecb, manual] }
+        - name: unitsPerEur
+          in: query
+          schema: { type: number, exclusiveMinimum: 0 }
+          description: Manual rate expressed as source-currency units for one EUR
+        - name: rateDate
+          in: query
+          schema: { type: string }
+          description: Effective manual-rate date in YYYY-MM-DD format
+      responses:
+        "200":
+          description: Read-only exchange-rate and rounded EUR preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentExchangeRateQuote"
+        "400":
+          description: Invalid date, currency, rate, or source amounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Official reference rate unavailable; manual review remains possible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Official provider returned malformed or incorrect-series data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /companies/{companyId}/documents/{id}/confirm:
     post:
       operationId: confirmDocument
@@ -21935,6 +22004,8 @@ components:
           type:
             - string
             - "null"
+        exchangeRate:
+          $ref: "#/components/schemas/DocumentExchangeRateSnapshot"
         lines:
           type: array
           items:
@@ -22072,6 +22143,79 @@ components:
           type: string
         fileSizeBytes:
           type: integer
+    DocumentFxTotals:
+      type: object
+      required: [net, vat, gross]
+      properties:
+        net: { type: number }
+        vat: { type: number }
+        gross: { type: number }
+    DocumentFxConvertedLine:
+      type: object
+      required: [quantity, unitPrice, vatRate, vatBase, vatAmount]
+      properties:
+        quantity: { type: number }
+        unitPrice: { type: number }
+        vatRate: { type: number }
+        vatBase: { type: number }
+        vatAmount: { type: number }
+    DocumentExchangeRateSelection:
+      type: object
+      required: [mode, requestedDate, rateDate, unitsPerEur, reviewed]
+      properties:
+        mode: { type: string, enum: [ecb, manual] }
+        requestedDate: { type: string }
+        rateDate: { type: string }
+        unitsPerEur: { type: number, exclusiveMinimum: 0 }
+        reviewed:
+          type: boolean
+          description: Explicit accountant approval of the rate and EUR preview
+        manualReason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    DocumentExchangeRateQuote:
+      type: object
+      required: [mode, currency, targetCurrency, requestedDate, rateDate, unitsPerEur, source, sourceUrl, sourceTotals, eurTotals, convertedLines, roundingDifference]
+      properties:
+        mode: { type: string, enum: [ecb, manual] }
+        currency: { type: string }
+        targetCurrency: { type: string, enum: [EUR] }
+        requestedDate: { type: string }
+        rateDate: { type: string }
+        unitsPerEur: { type: number, exclusiveMinimum: 0 }
+        source: { type: string, enum: [ECB, manual] }
+        sourceUrl: { type: [string, "null"] }
+        sourceTotals:
+          $ref: "#/components/schemas/DocumentFxTotals"
+        eurTotals:
+          $ref: "#/components/schemas/DocumentFxTotals"
+        convertedLines:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentFxConvertedLine"
+        roundingDifference:
+          type: number
+          description: Rounded line-total sum minus directly converted source gross total, in EUR
+    DocumentExchangeRateSnapshot:
+      type: object
+      required: [mode, sourceCurrency, targetCurrency, requestedDate, rateDate, unitsPerEur, source, sourceUrl, sourceTotals, eurTotals, roundingDifference, convertedAt]
+      properties:
+        mode: { type: string, enum: [ecb, manual] }
+        sourceCurrency: { type: string }
+        targetCurrency: { type: string, enum: [EUR] }
+        requestedDate: { type: string }
+        rateDate: { type: string }
+        unitsPerEur: { type: number }
+        source: { type: string, enum: [ECB, manual] }
+        sourceUrl: { type: [string, "null"] }
+        sourceTotals:
+          $ref: "#/components/schemas/DocumentFxTotals"
+        eurTotals:
+          $ref: "#/components/schemas/DocumentFxTotals"
+        roundingDifference: { type: number }
+        convertedAt: { type: string }
+        manualReason: { type: string }
     ConfirmDocumentBody:
       type: object
       description: Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa
@@ -22116,6 +22260,8 @@ components:
         createInvoice:
           type: boolean
           description: Ali naj se avtomatično ustvari draft račun
+        exchangeRate:
+          $ref: "#/components/schemas/DocumentExchangeRateSelection"
       required: []
     BankTransaction:
       type: object

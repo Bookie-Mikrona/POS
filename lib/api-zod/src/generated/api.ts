@@ -13783,6 +13783,29 @@ export const ListDocumentsResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -13815,6 +13838,29 @@ export const ListDocumentsResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -13890,6 +13936,29 @@ export const RegisterDocumentResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -13922,6 +13991,29 @@ export const RegisterDocumentResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -13987,6 +14079,29 @@ export const GetDocumentResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14019,6 +14134,29 @@ export const GetDocumentResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14048,6 +14186,59 @@ export const GetDocumentResponse = zod.object({
 
 
 /**
+ * @summary Preview source-currency amounts in EUR using an ECB or reviewed manual rate
+ */
+export const GetDocumentExchangeRateParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const getDocumentExchangeRateQueryUnitsPerEurExclusiveMin = 0;
+
+
+
+export const GetDocumentExchangeRateQueryParams = zod.object({
+  "date": zod.coerce.string().describe('Invoice date in YYYY-MM-DD format'),
+  "mode": zod.enum(['ecb', 'manual']).optional(),
+  "unitsPerEur": zod.coerce.number().gt(getDocumentExchangeRateQueryUnitsPerEurExclusiveMin).optional().describe('Manual rate expressed as source-currency units for one EUR'),
+  "rateDate": zod.coerce.string().optional().describe('Effective manual-rate date in YYYY-MM-DD format')
+})
+
+export const getDocumentExchangeRateResponseUnitsPerEurExclusiveMin = 0;
+
+
+
+export const GetDocumentExchangeRateResponse = zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "currency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number().gt(getDocumentExchangeRateResponseUnitsPerEurExclusiveMin),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "convertedLines": zod.array(zod.object({
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number()
+})),
+  "roundingDifference": zod.number().describe('Rounded line-total sum minus directly converted source gross total, in EUR')
+})
+
+
+/**
  * @summary Confirm OCR proposal and optionally create a draft invoice
  */
 export const ConfirmDocumentParams = zod.object({
@@ -14056,6 +14247,11 @@ export const ConfirmDocumentParams = zod.object({
 })
 
 export const confirmDocumentBodyLinesItemSuggestionCountMin = 0;
+
+export const confirmDocumentBodyExchangeRateUnitsPerEurExclusiveMin = 0;
+
+export const confirmDocumentBodyExchangeRateManualReasonMin = 3;
+export const confirmDocumentBodyExchangeRateManualReasonMax = 500;
 
 
 
@@ -14080,7 +14276,15 @@ export const ConfirmDocumentBody = zod.object({
   "suggestionCount": zod.number().min(confirmDocumentBodyLinesItemSuggestionCountMin).optional()
 })).optional(),
   "arApAccountId": zod.string().nullish().describe('Konto terjatev (izdani račun) ali obveznosti (prejet račun); če ni podan, se samodejno poišče privzeti konto (120\* ali 220\*)'),
-  "createInvoice": zod.boolean().optional().describe('Ali naj se avtomatično ustvari draft račun')
+  "createInvoice": zod.boolean().optional().describe('Ali naj se avtomatično ustvari draft račun'),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number().gt(confirmDocumentBodyExchangeRateUnitsPerEurExclusiveMin),
+  "reviewed": zod.boolean().describe('Explicit accountant approval of the rate and EUR preview'),
+  "manualReason": zod.string().min(confirmDocumentBodyExchangeRateManualReasonMin).max(confirmDocumentBodyExchangeRateManualReasonMax).optional()
+}).optional()
 }).describe('Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa')
 
 export const confirmDocumentResponseOcrResultOneLinesItemSuggestionCountMin = 0;
@@ -14112,6 +14316,29 @@ export const ConfirmDocumentResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14144,6 +14371,29 @@ export const ConfirmDocumentResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14209,6 +14459,29 @@ export const RejectDocumentResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),
@@ -14241,6 +14514,29 @@ export const RejectDocumentResponse = zod.object({
   "totalVat": zod.number().nullish(),
   "totalGross": zod.number().nullish(),
   "currency": zod.string().nullish(),
+  "exchangeRate": zod.object({
+  "mode": zod.enum(['ecb', 'manual']),
+  "sourceCurrency": zod.string(),
+  "targetCurrency": zod.enum(['EUR']),
+  "requestedDate": zod.string(),
+  "rateDate": zod.string(),
+  "unitsPerEur": zod.number(),
+  "source": zod.enum(['ECB', 'manual']),
+  "sourceUrl": zod.string().nullable(),
+  "sourceTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "eurTotals": zod.object({
+  "net": zod.number(),
+  "vat": zod.number(),
+  "gross": zod.number()
+}),
+  "roundingDifference": zod.number(),
+  "convertedAt": zod.string(),
+  "manualReason": zod.string().optional()
+}).optional(),
   "lines": zod.array(zod.object({
   "description": zod.string(),
   "quantity": zod.number(),

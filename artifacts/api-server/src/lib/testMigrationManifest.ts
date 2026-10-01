@@ -455,6 +455,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["237-purchase-article-eslog-units.sql", "221-bookie-old-financial-invoices.sql"],
   },
+  {
+    file: "239-document-fx-source-type.sql",
+    classification: "schema",
+    dependsOn: ["221-bookie-old-financial-invoices.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

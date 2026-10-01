@@ -90,6 +90,7 @@ import type {
   DimensionRecord,
   DnevnaKosilaObdobje,
   DnevniMeniVnos,
+  DocumentExchangeRateQuote,
   DocumentRecord,
   DodajModifikatorjeInput,
   DostavaIndividualnegaBona,
@@ -131,6 +132,7 @@ import type {
   GetArtikliKatalogPdfParams,
   GetBalanceSheetParams,
   GetDnevnaKosilaObdobjeParams,
+  GetDocumentExchangeRateParams,
   GetDostavaPredogledParams,
   GetIncomeStatementParams,
   GetJavnaRazpolozljivostParams,
@@ -26837,6 +26839,100 @@ export function useGetDocument<TData = Awaited<ReturnType<typeof getDocument>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetDocumentQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDocumentExchangeRateUrl = (companyId: string,
+    id: string,
+    params: GetDocumentExchangeRateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/documents/${id}/exchange-rate?${stringifiedParams}` : `/api/companies/${companyId}/documents/${id}/exchange-rate`
+}
+
+/**
+ * @summary Preview source-currency amounts in EUR using an ECB or reviewed manual rate
+ */
+export const getDocumentExchangeRate = async (companyId: string,
+    id: string,
+    params: GetDocumentExchangeRateParams, options?: RequestInit): Promise<DocumentExchangeRateQuote> => {
+
+  return customFetch<DocumentExchangeRateQuote>(getGetDocumentExchangeRateUrl(companyId,id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocumentExchangeRateQueryKey = (companyId: string,
+    id: string,
+    params?: GetDocumentExchangeRateParams,) => {
+    return [
+    `/api/companies/${companyId}/documents/${id}/exchange-rate`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetDocumentExchangeRateQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentExchangeRate>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    id: string,
+    params: GetDocumentExchangeRateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocumentExchangeRate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocumentExchangeRateQueryKey(companyId,id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocumentExchangeRate>>> = ({ signal }) => getDocumentExchangeRate(companyId,id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocumentExchangeRate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDocumentExchangeRateQueryResult = NonNullable<Awaited<ReturnType<typeof getDocumentExchangeRate>>>
+export type GetDocumentExchangeRateQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Preview source-currency amounts in EUR using an ECB or reviewed manual rate
+ */
+
+export function useGetDocumentExchangeRate<TData = Awaited<ReturnType<typeof getDocumentExchangeRate>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    id: string,
+    params: GetDocumentExchangeRateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocumentExchangeRate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDocumentExchangeRateQueryOptions(companyId,id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

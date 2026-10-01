@@ -165,6 +165,7 @@ describe("testni manifest ročnih migracij", () => {
   it("trenutni manifest je popoln, klasificiran in pravilno razvrščen", () => {
     const plan = buildValidatedTestMigrationPlan(testMigrationManifest, migrationFiles);
     expect(plan.map(entry => entry.file)).toContain("170-pos-course-name-snapshot.sql");
+    expect(plan.map(entry => entry.file)).toContain("239-document-fx-source-type.sql");
   });
 });
 

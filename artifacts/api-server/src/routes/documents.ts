@@ -56,6 +56,16 @@ import {
   type DocumentParty,
   type OcrDocumentType,
 } from "../lib/documentPartyResolution";
+import {
+  assertPositiveUnitsPerEur,
+  assertRequestedInvoiceDate,
+  assertValidRateDate,
+  convertDocumentAmounts,
+  DocumentExchangeRateError,
+  getEcbUsdEurQuote,
+  type DocumentTotals,
+  type ExchangeRateMode,
+} from "../lib/documentExchangeRate";
 
 const router: IRouter = Router();
 
@@ -925,6 +935,106 @@ router.get(
   },
 );
 
+// ─── GET /companies/:companyId/documents/:id/exchange-rate ─────────────────────
+router.get(
+  "/companies/:companyId/documents/:id/exchange-rate",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const id = extractParam(req.params.id);
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+
+    const [doc] = await db.select({
+      id: documentsTable.id,
+      ocrResult: documentsTable.ocrResult,
+    }).from(documentsTable)
+      .where(and(eq(documentsTable.id, id), eq(documentsTable.companyId, companyId)))
+      .limit(1);
+    if (!doc) {
+      res.status(404).json({ error: { code: "DOCUMENT_NOT_FOUND", message: "Dokument ni najden." } });
+      return;
+    }
+
+    try {
+      const queryValue = (value: unknown): unknown => Array.isArray(value) ? value[0] : value;
+      const requestedDate = queryValue(req.query.date);
+      assertRequestedInvoiceDate(requestedDate);
+      const modeValue = queryValue(req.query.mode);
+      const mode = modeValue == null ? "ecb" : modeValue;
+      if (mode !== "ecb" && mode !== "manual") {
+        throw new DocumentExchangeRateError("INVALID_MODE", "Način tečaja mora biti »ecb« ali »manual«.");
+      }
+
+      const ocr = doc.ocrResult as OcrReviewResult | null;
+      const currency = typeof ocr?.currency === "string" ? ocr.currency.trim().toUpperCase() : "EUR";
+      if (currency !== "USD") {
+        throw new DocumentExchangeRateError(
+          "UNSUPPORTED_CURRENCY",
+          `Pretvorba dokumentov iz valute ${currency} v EUR trenutno ni podprta. Podprt je USD.`,
+          422,
+        );
+      }
+
+      const sourceTotals: DocumentTotals = {
+        net: ocr?.totalNet as number,
+        vat: ocr?.totalVat as number,
+        gross: ocr?.totalGross as number,
+      };
+      let rateDate: string;
+      let unitsPerEur: number;
+      let source: "ECB" | "manual";
+      let sourceUrl: string | null;
+      if (mode === "manual") {
+        const requestedRateDate = queryValue(req.query.rateDate);
+        rateDate = requestedRateDate == null ? requestedDate : requestedRateDate as string;
+        assertValidRateDate(rateDate, requestedDate);
+        const rawRate = queryValue(req.query.unitsPerEur);
+        unitsPerEur = typeof rawRate === "string" && rawRate.trim() !== "" ? Number(rawRate) : Number.NaN;
+        assertPositiveUnitsPerEur(unitsPerEur);
+        source = "manual";
+        sourceUrl = null;
+      } else {
+        const quote = await getEcbUsdEurQuote(requestedDate);
+        rateDate = quote.rateDate;
+        unitsPerEur = quote.unitsPerEur;
+        source = quote.source;
+        sourceUrl = quote.sourceUrl;
+      }
+
+      const converted = convertDocumentAmounts(
+        (ocr?.lines ?? []).map((line) => ({
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          vatRate: line.vatRate,
+          vatBase: line.vatBase,
+          vatAmount: line.vatAmount,
+        })),
+        sourceTotals,
+        unitsPerEur,
+      );
+      res.json({
+        mode: mode as ExchangeRateMode,
+        currency,
+        targetCurrency: "EUR",
+        requestedDate,
+        rateDate,
+        unitsPerEur,
+        source,
+        sourceUrl,
+        ...converted,
+      });
+    } catch (error) {
+      if (error instanceof DocumentExchangeRateError) {
+        res.status(error.status).json({ error: { code: error.code, message: error.message } });
+        return;
+      }
+      throw error;
+    }
+  },
+);
+
 // ─── POST /companies/:companyId/documents/:id/confirm ─────────────────────────
 router.post(
   "/companies/:companyId/documents/:id/confirm",
@@ -961,6 +1071,7 @@ router.post(
       lines = [],
       createInvoice = false,
       arApAccountId,
+      exchangeRate,
     } = req.body as {
       documentType?: string;
       counterpartyId?: string;
@@ -971,6 +1082,14 @@ router.post(
       lines?: ProposedLine[];
       createInvoice?: boolean;
       arApAccountId?: string;
+      exchangeRate?: {
+        mode?: "ecb" | "manual";
+        requestedDate?: string;
+        rateDate?: string;
+        unitsPerEur?: number;
+        reviewed?: boolean;
+        manualReason?: string;
+      };
     };
     const ocrReview = doc.ocrResult as OcrReviewResult | null;
 
@@ -1211,25 +1330,190 @@ router.post(
     const sourceCurrency = typeof ocrReview?.currency === "string"
       ? ocrReview.currency.trim().toUpperCase()
       : "EUR";
+    let confirmedLines: typeof submittedLines = submittedLines;
+    let exchangeAudit: Record<string, unknown> | undefined;
     if (createInvoice && sourceCurrency !== "EUR") {
-      res.status(400).json({
-        error: `Izvorni dokument je v valuti ${sourceCurrency}. Samodejna pretvorba v EUR ni podprta; račun ni bil ustvarjen in dokument ostaja nespremenjen. Uporabite preverjeno pretvorbo ali ročni vnos računa v EUR.`,
-      });
-      return;
+      if (sourceCurrency !== "USD") {
+        res.status(400).json({
+          error: `Pretvorba iz valute ${sourceCurrency} v EUR ni podprta; račun ni bil ustvarjen in dokument ostaja nespremenjen.`,
+          code: "UNSUPPORTED_CURRENCY",
+        });
+        return;
+      }
+      if (!invoiceDate) {
+        res.status(400).json({
+          error: "Za ustvarjanje osnutka računa so obvezni partner, obračunsko obdobje in datum računa.",
+          code: "MISSING_INVOICE_DATE",
+        });
+        return;
+      }
+
+      try {
+        assertRequestedInvoiceDate(invoiceDate);
+        if (!exchangeRate || exchangeRate.reviewed !== true) {
+          throw new DocumentExchangeRateError(
+            "EXCHANGE_RATE_REVIEW_REQUIRED",
+            "Pred ustvarjanjem EUR-osnutka morate pregledati in izrecno potrditi tečaj.",
+          );
+        }
+        if (exchangeRate.mode !== "ecb" && exchangeRate.mode !== "manual") {
+          throw new DocumentExchangeRateError("INVALID_MODE", "Način tečaja mora biti »ecb« ali »manual«.");
+        }
+        if (exchangeRate.requestedDate !== invoiceDate) {
+          throw new DocumentExchangeRateError(
+            "STALE_EXCHANGE_RATE_DATE",
+            "Tečaj je bil pridobljen za drug datum računa. Pridobite in preglejte tečaj za trenutni datum računa.",
+          );
+        }
+
+        const originalLines = ocrReview?.lines ?? [];
+        if (submittedLines.length !== originalLines.length) {
+          throw new DocumentExchangeRateError(
+            "SOURCE_LINES_CHANGED",
+            "Število vrstic se ne ujema z nespremenljivim OCR-izvirnikom. Pretvorba ni bila izvedena.",
+          );
+        }
+        const sourceAmounts: Array<keyof Pick<ProposedLine, "quantity" | "unitPrice" | "vatRate" | "vatBase" | "vatAmount">> = [
+          "quantity", "unitPrice", "vatRate", "vatBase", "vatAmount",
+        ];
+        for (const [index, sourceLine] of originalLines.entries()) {
+          const submittedLine = submittedLines[index];
+          for (const key of sourceAmounts) {
+            const submittedValue = submittedLine[key];
+            const originalValue = sourceLine[key];
+            if (
+              typeof submittedValue !== "number"
+              || !Number.isFinite(submittedValue)
+              || typeof originalValue !== "number"
+              || !Number.isFinite(originalValue)
+              || submittedValue !== originalValue
+            ) {
+              throw new DocumentExchangeRateError(
+                "SOURCE_LINE_AMOUNT_CHANGED",
+                `Znesek, količina ali stopnja DDV vrstice ${index + 1} se ne ujema z nespremenljivim OCR-izvirnikom.`,
+              );
+            }
+          }
+        }
+
+        let authoritativeRateDate: string;
+        let authoritativeUnitsPerEur: number;
+        let exchangeSource: "ECB" | "manual";
+        let exchangeSourceUrl: string | null;
+        let manualReason: string | undefined;
+        if (exchangeRate.mode === "manual") {
+          assertValidRateDate(exchangeRate.rateDate, invoiceDate);
+          assertPositiveUnitsPerEur(exchangeRate.unitsPerEur);
+          manualReason = typeof exchangeRate.manualReason === "string"
+            ? exchangeRate.manualReason.trim()
+            : "";
+          if (manualReason.length < 3 || manualReason.length > 500) {
+            throw new DocumentExchangeRateError(
+              "MANUAL_REASON_REQUIRED",
+              "Za ročni tečaj navedite razlog dolžine od 3 do 500 znakov.",
+            );
+          }
+          authoritativeRateDate = exchangeRate.rateDate;
+          authoritativeUnitsPerEur = exchangeRate.unitsPerEur;
+          exchangeSource = "manual";
+          exchangeSourceUrl = null;
+        } else {
+          const quote = await getEcbUsdEurQuote(invoiceDate);
+          if (
+            exchangeRate.rateDate !== quote.rateDate
+            || typeof exchangeRate.unitsPerEur !== "number"
+            || !Number.isFinite(exchangeRate.unitsPerEur)
+            || Math.abs(exchangeRate.unitsPerEur - quote.unitsPerEur) > 1e-12
+          ) {
+            throw new DocumentExchangeRateError(
+              "STALE_ECB_QUOTE",
+              "Pregledani tečaj ECB se je spremenil ali ni več aktualen. Pridobite in preglejte trenutni tečaj.",
+            );
+          }
+          authoritativeRateDate = quote.rateDate;
+          authoritativeUnitsPerEur = quote.unitsPerEur;
+          exchangeSource = quote.source;
+          exchangeSourceUrl = quote.sourceUrl;
+        }
+
+        const converted = convertDocumentAmounts(
+          originalLines.map((line) => ({
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            vatRate: line.vatRate,
+            vatBase: line.vatBase,
+            vatAmount: line.vatAmount,
+          })),
+          {
+            net: ocrReview?.totalNet as number,
+            vat: ocrReview?.totalVat as number,
+            gross: ocrReview?.totalGross as number,
+          },
+          authoritativeUnitsPerEur,
+        );
+        confirmedLines = submittedLines.map((line, index) => ({
+          ...line,
+          ...converted.convertedLines[index],
+        }));
+        exchangeAudit = {
+          mode: exchangeRate.mode,
+          sourceCurrency,
+          targetCurrency: "EUR",
+          requestedDate: exchangeRate.requestedDate,
+          rateDate: authoritativeRateDate,
+          unitsPerEur: authoritativeUnitsPerEur,
+          source: exchangeSource,
+          sourceUrl: exchangeSourceUrl,
+          reviewed: true,
+          request: {
+            mode: exchangeRate.mode,
+            requestedDate: exchangeRate.requestedDate,
+            rateDate: exchangeRate.rateDate,
+            unitsPerEur: exchangeRate.unitsPerEur,
+            reviewed: true,
+            ...(manualReason ? { manualReason } : {}),
+          },
+          quote: {
+            rateDate: authoritativeRateDate,
+            unitsPerEur: authoritativeUnitsPerEur,
+            source: exchangeSource,
+            sourceUrl: exchangeSourceUrl,
+          },
+          sourceTotals: converted.sourceTotals,
+          eurTotals: converted.eurTotals,
+          roundingDifference: converted.roundingDifference,
+          convertedAt: new Date().toISOString(),
+          ...(manualReason ? { manualReason } : {}),
+        };
+      } catch (error) {
+        if (error instanceof DocumentExchangeRateError) {
+          res.status(error.status).json({ error: error.message, code: error.code });
+          return;
+        }
+        throw error;
+      }
     }
 
     // Sestavi confirmedData iz OCR + popravkov računovodje
     const base = doc.ocrResult ?? { rawText: "", confidence: 0, lines: [] };
-    const confirmedData: OcrResult = {
+    const confirmedData = {
       ...base,
       invoiceNumber: invoiceNumber ?? base.invoiceNumber,
       invoiceDate: invoiceDate ?? base.invoiceDate,
       dueDate: dueDate ?? base.dueDate,
-      lines: submittedLines,
+      currency: createInvoice && sourceCurrency !== "EUR" ? "EUR" : sourceCurrency,
+      lines: confirmedLines,
       suggestedCounterpartyId: counterpartyId ?? base.suggestedCounterpartyId,
       suggestedPeriodId: periodId ?? base.suggestedPeriodId,
       suggestedDocumentType: (documentType as OcrResult["suggestedDocumentType"]) ?? base.suggestedDocumentType,
-    };
+      ...(exchangeAudit ? {
+        sourceCurrency,
+        exchangeRate: exchangeAudit,
+        totalNet: (exchangeAudit.eurTotals as DocumentTotals).net,
+        totalVat: (exchangeAudit.eurTotals as DocumentTotals).vat,
+        totalGross: (exchangeAudit.eurTotals as DocumentTotals).gross,
+      } : { sourceCurrency }),
+    } as OcrResult & { sourceCurrency?: string; exchangeRate?: Record<string, unknown> };
 
     let linkedInvoiceId: string | null = null;
     let updated: typeof doc | undefined;
@@ -1399,6 +1683,8 @@ router.post(
           invoiceDate: invoiceDate as string,
           dueDate: (dueDate ?? null) as string | null,
           status: "draft",
+          // Reviewed FX amounts, not rounded unit-price multiplication, are authoritative.
+          ...(exchangeAudit ? { sourceType: "ai-document-fx" } : {}),
           arApAccountId: resolvedArApAccount.id,
           createdBy: authReq.clerkUserId,
           notes: `Ustvarjeno iz dokumenta: ${doc.fileName}`,

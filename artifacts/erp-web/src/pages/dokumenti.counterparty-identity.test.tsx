@@ -17,6 +17,11 @@ const state = vi.hoisted(() => ({
   globalFursVatCodes: [] as Array<Record<string, unknown>>,
   companyVatCodes: [] as Array<Record<string, unknown>>,
   fursVatCodeRequests: [] as Array<{ companyId: string; params: unknown; options: unknown }>,
+  exchangeRateData: null as Record<string, unknown> | null,
+  exchangeRateLoading: false,
+  exchangeRateError: false,
+  exchangeRateRequests: [] as Array<{ companyId: string; docId: string; params: unknown; options: unknown }>,
+  exchangeRateRefetch: vi.fn(),
   confirmError: null as unknown,
   confirmMutate: vi.fn(),
   createCounterpartyMutate: vi.fn(),
@@ -55,6 +60,17 @@ vi.mock("@workspace/api-client-react", () => ({
       },
     };
   },
+  useGetDocumentExchangeRate: (companyId: string, docId: string, params: unknown, options: unknown) => {
+    state.exchangeRateRequests.push({ companyId, docId, params, options });
+    return {
+      data: state.exchangeRateData,
+      isLoading: state.exchangeRateLoading,
+      isFetching: state.exchangeRateLoading,
+      isError: state.exchangeRateError,
+      isPlaceholderData: false,
+      refetch: state.exchangeRateRefetch,
+    };
+  },
   useListVatCodes: () => ({ data: { vatCodes: state.companyVatCodes } }),
   useGetCounterpartyAccountTemplates: () => ({
     data: { templates: [] },
@@ -74,6 +90,7 @@ vi.mock("@workspace/api-client-react", () => ({
   }),
   getListDocumentsQueryKey: vi.fn(),
   getGetDocumentQueryKey: vi.fn(),
+  getGetDocumentExchangeRateQueryKey: vi.fn((companyId: string, docId: string, params: unknown) => ["exchange-rate", companyId, docId, params]),
   getListCounterpartiesQueryKey: vi.fn(),
   getListVatCodesQueryKey: vi.fn(() => ["company-vat-codes"]),
   getListCompanyFursVatCodesQueryKey: vi.fn(() => ["furs-vat-codes"]),
@@ -90,6 +107,29 @@ const validLine = {
   accountId: "account-1",
   accountCode: "4000",
 };
+
+function exchangeRateQuote(mode: "ecb" | "manual", requestedDate = "2026-09-01", unitsPerEur = 1.1) {
+  return {
+    mode,
+    currency: "USD",
+    targetCurrency: "EUR",
+    requestedDate,
+    rateDate: requestedDate,
+    unitsPerEur,
+    source: mode === "ecb" ? "ECB" : "manual",
+    sourceUrl: mode === "ecb" ? "https://example.test/ecb" : null,
+    sourceTotals: { net: 20, vat: 4.4, gross: 24.4 },
+    eurTotals: { net: 18.18, vat: 4, gross: 22.18 },
+    convertedLines: [{
+      quantity: 1,
+      unitPrice: 90.91,
+      vatRate: 22,
+      vatBase: 18.18,
+      vatAmount: 4,
+    }],
+    roundingDifference: 0.01,
+  };
+}
 
 function createDocument(ocrOverrides: Record<string, unknown> = {}) {
   return {
@@ -144,6 +184,11 @@ beforeEach(() => {
   state.globalFursVatCodes = [];
   state.companyVatCodes = [];
   state.fursVatCodeRequests = [];
+  state.exchangeRateData = null;
+  state.exchangeRateLoading = false;
+  state.exchangeRateError = false;
+  state.exchangeRateRequests = [];
+  state.exchangeRateRefetch.mockClear();
   state.confirmError = null;
   state.confirmMutate.mockClear();
   state.createCounterpartyMutate.mockClear();
@@ -340,16 +385,18 @@ describe("DocumentReviewForm — partner identity and document roles", () => {
     expect(state.confirmMutate).not.toHaveBeenCalled();
   });
 
-  it("shows OCR totals in their source currency and does not create a foreign-currency invoice", () => {
+  it("reviews an ECB USD quote and submits reviewed FX metadata without converting the source lines", () => {
     state.counterparties = [{ id: "supplier-1", name: "Dobavitelj", type: "supplier" }];
     const usdCode = globalFursCode("furs-usd", "IN", "P22");
     state.globalFursVatCodes = [usdCode];
     state.companyVatCodes = [companyVatCode("company-vat-usd", usdCode.id, "P22")];
+    state.exchangeRateData = exchangeRateQuote("ecb");
 
     renderForm(createDocument({
       suggestedDocumentType: "invoice_received",
       suggestedCounterpartyId: "supplier-1",
       currency: "USD",
+      invoiceDate: "2026-09-01",
       totalNet: 20,
       totalVat: 4.4,
       totalGross: 24.4,
@@ -362,22 +409,45 @@ describe("DocumentReviewForm — partner identity and document roles", () => {
     expect(netSourceAmount).not.toContain("€");
     expect(vatSourceAmount).toContain("4,40");
     expect(vatSourceAmount).not.toContain("€");
-    expect(screen.getByText(/Dokument je prepoznan v valuti USD/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "obstoječi vnos računov" })).toHaveAttribute("href", "/racuni");
+    expect(screen.getByText("Pregled pretvorbe USD v EUR")).toBeInTheDocument();
+    expect(screen.getByText("1 EUR = 1,1 USD")).toBeInTheDocument();
+    expect(screen.getByText(/Razlika zaokroževanja/)).toBeInTheDocument();
+    expect(state.exchangeRateRequests[0]).toEqual(expect.objectContaining({
+      companyId: state.activeCompany.id,
+      docId: "document-identity-test",
+      params: { date: "2026-09-01", mode: "ecb" },
+    }));
 
     const confirmButton = screen.getByRole("button", { name: /Potrdi in shrani/ });
     expect(confirmButton).toBeDisabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Ustvari osnutek računa" }));
+
+    openSelect(screen.getByRole("combobox", { name: "Vir tečaja" }));
+    fireEvent.click(screen.getByRole("option", { name: "Ročni tečaj" }));
+    expect(confirmButton).toBeDisabled();
+    openSelect(screen.getByRole("combobox", { name: "Vir tečaja" }));
+    fireEvent.click(screen.getByRole("option", { name: "Samodejni tečaj ECB" }));
+    expect(screen.getByRole("checkbox", { name: /Pregledal\/-a sem tečaj/ })).not.toBeChecked();
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Pregledal\/-a sem tečaj/ }));
     expect(confirmButton).toBeEnabled();
     fireEvent.click(confirmButton);
 
     expect(state.confirmMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          createInvoice: false,
+          createInvoice: true,
+          exchangeRate: {
+            mode: "ecb",
+            requestedDate: "2026-09-01",
+            rateDate: "2026-09-01",
+            unitsPerEur: 1.1,
+            reviewed: true,
+          },
           lines: [
             expect.objectContaining({
               vatCodeId: usdCode.id,
+              unitPrice: 100,
               vatBase: 20,
               vatAmount: 4.4,
             }),
@@ -386,6 +456,98 @@ describe("DocumentReviewForm — partner identity and document roles", () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it("keeps an ECB draft blocked while the automatic quote is pending and offers retry after an error", () => {
+    state.exchangeRateLoading = true;
+    const pendingView = renderForm(createDocument({
+      currency: "USD",
+      invoiceDate: "2026-09-01",
+    }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Pridobivam tečaj");
+    expect(screen.getByRole("button", { name: /Potrdi in shrani/ })).toBeDisabled();
+    expect(state.exchangeRateRequests[0].params).toEqual({ date: "2026-09-01", mode: "ecb" });
+
+    pendingView.unmount();
+    state.exchangeRateLoading = false;
+    state.exchangeRateError = true;
+    state.exchangeRateRefetch.mockClear();
+    renderForm(createDocument({
+      currency: "USD",
+      invoiceDate: "2026-09-01",
+    }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Poskusi znova" }));
+    expect(state.exchangeRateRefetch).toHaveBeenCalledOnce();
+    expect(screen.getByText(/Tečaja ni bilo mogoče pridobiti/)).toBeInTheDocument();
+  });
+
+  it("requires a valid manual rate and reason, and invalidates a reviewed preview when the invoice date changes", async () => {
+    state.counterparties = [{ id: "supplier-1", name: "Dobavitelj", type: "supplier" }];
+    const usdCode = globalFursCode("furs-usd-manual", "IN", "P22");
+    state.globalFursVatCodes = [usdCode];
+    state.companyVatCodes = [companyVatCode("company-vat-usd-manual", usdCode.id, "P22")];
+    state.exchangeRateData = exchangeRateQuote("manual", "2026-09-01", 1.25);
+
+    renderForm(createDocument({
+      suggestedDocumentType: "invoice_received",
+      suggestedCounterpartyId: "supplier-1",
+      currency: "USD",
+      invoiceDate: "2026-09-01",
+      lines: [{ ...validLine, vatBase: 20, vatAmount: 4.4, vatCodeId: usdCode.id }],
+    }));
+
+    openSelect(screen.getByRole("combobox", { name: "Vir tečaja" }));
+    fireEvent.click(screen.getByRole("option", { name: "Ročni tečaj" }));
+    fireEvent.change(screen.getByLabelText("1 EUR = koliko USD?"), { target: { value: "1,25" } });
+    fireEvent.change(screen.getByLabelText("Datum veljavnosti tečaja"), { target: { value: "2026-09-02" } });
+    fireEvent.change(screen.getByLabelText("Utemeljitev ročnega tečaja (obvezno)"), { target: { value: "Tečaj banke" } });
+    expect(screen.getByText(/ne sme biti poznejši od datuma računa/)).toBeInTheDocument();
+    expect(screen.queryByText("1 EUR = 1,25 USD")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Potrdi in shrani/ })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Utemeljitev ročnega tečaja (obvezno)"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Datum veljavnosti tečaja"), { target: { value: "2026-09-01" } });
+    await screen.findByText("1 EUR = 1,25 USD");
+    expect(state.exchangeRateRequests.some(request =>
+      JSON.stringify(request.params) === JSON.stringify({
+        date: "2026-09-01",
+        mode: "manual",
+        unitsPerEur: 1.25,
+        rateDate: "2026-09-01",
+      }),
+    )).toBe(true);
+
+    const reviewCheckbox = screen.getByRole("checkbox", { name: /Pregledal\/-a sem tečaj/ });
+    expect(reviewCheckbox).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Utemeljitev ročnega tečaja (obvezno)"), { target: { value: "Tečaj banke" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Pregledal\/-a sem tečaj/ }));
+    expect(screen.getByRole("button", { name: /Potrdi in shrani/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /Potrdi in shrani/ }));
+    expect(state.confirmMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          exchangeRate: {
+            mode: "manual",
+            requestedDate: "2026-09-01",
+            rateDate: "2026-09-01",
+            unitsPerEur: 1.25,
+            reviewed: true,
+            manualReason: "Tečaj banke",
+          },
+          lines: [expect.objectContaining({ unitPrice: 100, vatBase: 20, vatAmount: 4.4 })],
+        }),
+      }),
+      expect.any(Object),
+    );
+    fireEvent.change(screen.getByLabelText("Datum računa"), { target: { value: "2026-09-03" } });
+
+    expect(screen.getByRole("button", { name: /Potrdi in shrani/ })).toBeDisabled();
+    expect(screen.queryByRole("checkbox", { name: /Pregledal\/-a sem tečaj/ })).not.toBeInTheDocument();
+    expect(state.exchangeRateRequests.some(request =>
+      (request.params as { date?: string }).date === "2026-09-03",
+    )).toBe(true);
   });
 
   it("shows structured API JSON errors but replaces HTML server responses with a safe Slovenian status", () => {

@@ -12,6 +12,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import {
   useListDocuments,
   useGetDocument,
+  useGetDocumentExchangeRate,
   useConfirmDocument,
   useRejectDocument,
   useListCounterparties,
@@ -23,10 +24,13 @@ import {
   useListCompanyFursVatCodes,
   getListDocumentsQueryKey,
   getGetDocumentQueryKey,
+  getGetDocumentExchangeRateQueryKey,
   getListCounterpartiesQueryKey,
   getListVatCodesQueryKey,
   getListCompanyFursVatCodesQueryKey,
   type DocumentRecord,
+  type DocumentExchangeRateQuote,
+  type DocumentExchangeRateSnapshot,
   type ProposedLine,
 } from "@workspace/api-client-react";
 
@@ -300,7 +304,7 @@ export default function Dokumenti() {
               </p>
             </div>
           ) : (
-            <DocumentDetailPanel docId={selectedDocId} onDeselect={() => setSelectedDocId(null)} />
+            <DocumentDetailPanel key={`${activeCompany?.id ?? ""}:${selectedDocId}`} docId={selectedDocId} onDeselect={() => setSelectedDocId(null)} />
           )}
         </div>
       </div>
@@ -362,6 +366,7 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
 
   const statusInfo = STATUS_CONFIG[doc.status] || { label: doc.status, variant: "outline" };
   const isViewer = activeCompany?.role === "viewer";
+  const confirmedExchangeRate = doc.confirmedData?.exchangeRate;
 
   return (
     <div className="flex flex-col h-full">
@@ -468,7 +473,13 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
             </div>
             <DocumentPreview objectPath={doc.objectPath} mimeType={doc.mimeType} />
             {doc.status === "confirmed" && (
-              <ConfirmedDocumentLines lines={getConfirmedDocumentLines(doc)} />
+              <>
+                {confirmedExchangeRate && <ConfirmedExchangeRateSummary exchangeRate={confirmedExchangeRate} />}
+                <ConfirmedDocumentLines
+                  lines={getConfirmedDocumentLines(doc)}
+                  currency={doc.confirmedData?.currency?.trim().toUpperCase() || "EUR"}
+                />
+              </>
             )}
             <div className={doc.status === "done" ? undefined : "hidden"}>
               {doc.status === "done" ? <DocumentReviewForm doc={doc} /> : null}
@@ -707,7 +718,7 @@ export function getConfirmedDocumentLines(
   return doc.confirmedData?.lines ?? doc.ocrResult?.lines ?? [];
 }
 
-export function ConfirmedDocumentLines({ lines }: { lines: ProposedLine[] }) {
+export function ConfirmedDocumentLines({ lines, currency = "EUR" }: { lines: ProposedLine[]; currency?: string }) {
   if (lines.length === 0) return null;
 
   return (
@@ -724,7 +735,7 @@ export function ConfirmedDocumentLines({ lines }: { lines: ProposedLine[] }) {
             <thead className="text-xs text-muted-foreground bg-muted/30 uppercase border-b">
               <tr>
                 <th className="px-4 py-3 font-medium">Opis</th>
-                <th className="px-4 py-3 font-medium text-right">Znesek</th>
+                <th className="px-4 py-3 font-medium text-right">Znesek ({currency})</th>
                 <th className="px-4 py-3 font-medium text-right">DDV %</th>
                 <th className="px-4 py-3 font-medium min-w-[180px]">Konto</th>
               </tr>
@@ -733,7 +744,7 @@ export function ConfirmedDocumentLines({ lines }: { lines: ProposedLine[] }) {
               {lines.map((line, idx) => (
                 <tr key={idx}>
                   <td className="px-4 py-3 font-medium">{line.description}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatEur(line.vatBase)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{formatCurrencyAmount(line.vatBase, currency)}</td>
                   <td className="px-4 py-3 text-right">{line.vatRate}%</td>
                   <td className="px-4 py-3">
                     <span className="font-mono">{line.accountCode || "–"}</span>
@@ -752,12 +763,63 @@ export function ConfirmedDocumentLines({ lines }: { lines: ProposedLine[] }) {
   );
 }
 
+export function ConfirmedExchangeRateSummary({ exchangeRate }: { exchangeRate: DocumentExchangeRateSnapshot }) {
+  return (
+    <Card className="shadow-none border-border">
+      <CardContent className="p-5 space-y-3">
+        <div>
+          <h3 className="font-semibold text-base">Potrjena pretvorba valute</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            {exchangeRate.sourceCurrency} → EUR · 1 EUR = {exchangeRate.unitsPerEur.toLocaleString("sl-SI")} {exchangeRate.sourceCurrency}
+          </p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Tečaj {exchangeRate.source === "ECB" ? "ECB" : "ročni"} z dne {exchangeRate.rateDate}
+          {" "}· zahtevani datum {exchangeRate.requestedDate}
+          {exchangeRate.sourceUrl && (
+            <> · <a href={exchangeRate.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">vir tečaja</a></>
+          )}
+        </p>
+        {exchangeRate.source === "ECB" && exchangeRate.rateDate < exchangeRate.requestedDate && (
+          <p className="text-xs text-muted-foreground">
+            Za zahtevani datum ECB tečaja ni objavila; uporabljen je zadnji razpoložljivi predhodni tečaj.
+          </p>
+        )}
+        {exchangeRate.manualReason && (
+          <p className="text-sm break-words">Utemeljitev ročnega tečaja: {exchangeRate.manualReason}</p>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-md bg-muted/30 p-3 text-sm">
+            <p className="text-xs text-muted-foreground mb-1">Izvorni zneski ({exchangeRate.sourceCurrency})</p>
+            <p>Neto {formatCurrencyAmount(exchangeRate.sourceTotals.net, exchangeRate.sourceCurrency)}</p>
+            <p>DDV {formatCurrencyAmount(exchangeRate.sourceTotals.vat, exchangeRate.sourceCurrency)}</p>
+            <p className="font-medium">Bruto {formatCurrencyAmount(exchangeRate.sourceTotals.gross, exchangeRate.sourceCurrency)}</p>
+          </div>
+          <div className="rounded-md bg-muted/30 p-3 text-sm">
+            <p className="text-xs text-muted-foreground mb-1">Osnutek EUR</p>
+            <p>Neto {formatEur(exchangeRate.eurTotals.net)}</p>
+            <p>DDV {formatEur(exchangeRate.eurTotals.vat)}</p>
+            <p className="font-medium">Bruto {formatEur(exchangeRate.eurTotals.gross)}</p>
+          </div>
+        </div>
+        {exchangeRate.roundingDifference !== 0 && (
+          <p className="text-xs text-muted-foreground">
+            Razlika zaokroževanja: {formatEur(exchangeRate.roundingDifference)}. Preračun je zaokrožen po vrsticah, zato se vsota lahko razlikuje od preračuna skupnega zneska.
+          </p>
+        )}
+        <p className="text-[11px] text-muted-foreground">Pretvorba je bila potrjena {new Date(exchangeRate.convertedAt).toLocaleString("sl-SI")}.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
   const ocr = doc.ocrResult;
   const sourceCurrency = ocr?.currency?.trim().toUpperCase() || "EUR";
   const isForeignCurrency = sourceCurrency !== "EUR";
+  const isSupportedFxCurrency = sourceCurrency === "USD";
   const isViewer = activeCompany?.role === "viewer";
 
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
@@ -808,6 +870,98 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     dueDate: ocr?.dueDate?.split("T")[0] || "",
     createInvoice: true
   });
+  const [exchangeRateMode, setExchangeRateMode] = useState<"ecb" | "manual">("ecb");
+  const [manualRateInput, setManualRateInput] = useState("");
+  const [manualRateDate, setManualRateDate] = useState(form.invoiceDate);
+  const [manualRateReason, setManualRateReason] = useState("");
+  const [reviewedExchangeRateKey, setReviewedExchangeRateKey] = useState("");
+  const [debouncedManualRate, setDebouncedManualRate] = useState<number | null>(null);
+  const parsedManualRate = (() => {
+    const normalized = manualRateInput.trim().replace(/\s/g, "").replace(",", ".");
+    if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) return null;
+    const rate = Number(normalized);
+    return Number.isFinite(rate) && rate > 0 ? rate : null;
+  })();
+  const isIsoDate = (date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date)
+    && !Number.isNaN(Date.parse(`${date}T00:00:00.000Z`))
+    && new Date(`${date}T00:00:00.000Z`).toISOString().slice(0, 10) === date;
+  const validInvoiceDate = isIsoDate(form.invoiceDate);
+  const validManualRateDate = isIsoDate(manualRateDate)
+    && !!form.invoiceDate
+    && manualRateDate <= form.invoiceDate;
+  const manualRateDebouncing = exchangeRateMode === "manual"
+    && parsedManualRate !== null
+    && parsedManualRate !== debouncedManualRate;
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedManualRate(parsedManualRate), 350);
+    return () => window.clearTimeout(timeout);
+  }, [parsedManualRate]);
+
+  const exchangeRateParams = {
+    date: form.invoiceDate,
+    mode: exchangeRateMode,
+    ...(exchangeRateMode === "manual" && parsedManualRate !== null
+      ? { unitsPerEur: parsedManualRate, rateDate: manualRateDate }
+      : {}),
+  };
+  const validManualReason = manualRateReason.trim().length >= 3;
+  const exchangeRateQueryEnabled = !!activeCompany?.id
+    && isSupportedFxCurrency
+    && validInvoiceDate
+    && (exchangeRateMode === "ecb"
+      || (parsedManualRate !== null && !manualRateDebouncing && validManualRateDate));
+  const exchangeRateQuery = useGetDocumentExchangeRate(
+    activeCompany?.id ?? "",
+    doc.id,
+    exchangeRateParams,
+    {
+      query: {
+        enabled: exchangeRateQueryEnabled,
+        queryKey: getGetDocumentExchangeRateQueryKey(
+          activeCompany?.id ?? "",
+          doc.id,
+          exchangeRateParams,
+        ),
+        placeholderData: undefined,
+        retry: false,
+        staleTime: 5 * 60 * 1000,
+      },
+    },
+  );
+  const fetchedExchangeRate = exchangeRateQuery.data as DocumentExchangeRateQuote | undefined;
+  const exchangeRateMatchesRequest = !!fetchedExchangeRate
+    && !exchangeRateQuery.isFetching
+    && !exchangeRateQuery.isError
+    && !exchangeRateQuery.isPlaceholderData
+    && fetchedExchangeRate.currency === "USD"
+    && fetchedExchangeRate.targetCurrency === "EUR"
+    && fetchedExchangeRate.mode === exchangeRateMode
+    && fetchedExchangeRate.requestedDate === form.invoiceDate
+    && fetchedExchangeRate.convertedLines.length === (ocr?.lines?.length ?? 0)
+    && (exchangeRateMode === "ecb"
+      ? fetchedExchangeRate.source === "ECB"
+      : fetchedExchangeRate.source === "manual"
+        && parsedManualRate !== null
+        && fetchedExchangeRate.unitsPerEur === parsedManualRate
+        && fetchedExchangeRate.rateDate === manualRateDate);
+  const exchangeRatePreview = exchangeRateMatchesRequest ? fetchedExchangeRate : undefined;
+  const exchangeRateReviewBasis = JSON.stringify({
+    companyId: activeCompany?.id ?? "",
+    docId: doc.id,
+    requestedDate: form.invoiceDate,
+    mode: exchangeRateMode,
+    manualRateInput,
+    manualRateDate,
+    manualRateReason,
+    preview: exchangeRatePreview ?? null,
+  });
+  const hasReviewedExchangeRate = !!exchangeRatePreview
+    && (exchangeRateMode === "ecb" || validManualReason)
+    && reviewedExchangeRateKey === exchangeRateReviewBasis;
+  const needsFxReview = isForeignCurrency && isSupportedFxCurrency && form.createInvoice;
+  const fxReviewReady = !needsFxReview || (!!exchangeRatePreview
+    && (exchangeRateMode === "ecb" || (validManualRateDate && validManualReason))
+    && hasReviewedExchangeRate);
   const fursVatDirection: "IN" | "OUT" | undefined = form.documentType === "invoice_issued"
     ? "OUT"
     : form.documentType === "invoice_received"
@@ -1099,6 +1253,17 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
   const handleSubmit = () => {
     if (!activeCompany || !isReviewDocumentType(form.documentType) || !selectedCounterpartyId || hasNoLines) return;
+    if (form.createInvoice && isForeignCurrency && (!isSupportedFxCurrency || !fxReviewReady)) return;
+    const exchangeRate = needsFxReview && exchangeRatePreview && hasReviewedExchangeRate
+      ? {
+          mode: exchangeRateMode,
+          requestedDate: form.invoiceDate,
+          rateDate: exchangeRatePreview.rateDate,
+          unitsPerEur: exchangeRatePreview.unitsPerEur,
+          reviewed: true as const,
+          ...(exchangeRateMode === "manual" ? { manualReason: manualRateReason.trim() } : {}),
+        }
+      : undefined;
     
     confirmMut.mutate({
       companyId: activeCompany.id,
@@ -1111,6 +1276,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
         invoiceDate: form.invoiceDate || null,
         dueDate: form.dueDate || null,
         createInvoice: form.createInvoice,
+        ...(exchangeRate ? { exchangeRate } : {}),
         // Submit editable lines (with fuzzy-resolved + manually selected accounts)
         lines: editableLines
       }
@@ -1183,15 +1349,230 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                   <span>Bruto za plačilo:</span>
                   <span>{formatCurrencyAmount(ocr?.totalGross, sourceCurrency)}</span>
                 </div>
-                {isForeignCurrency && (
+                {isForeignCurrency && !isSupportedFxCurrency && (
                   <Alert className="mt-3 border-amber-300 bg-amber-50 text-amber-950">
                     <AlertTriangle className="h-4 w-4 text-amber-700" />
                     <AlertDescription className="text-xs">
-                      Dokument je prepoznan v valuti {sourceCurrency}. Zneski se ne preračunajo samodejno v EUR, zato iz teh podatkov ni mogoče ustvariti osnutka računa. Za ročni vnos preverjenega EUR računa uporabite <Link href="/racuni" className="font-medium underline">obstoječi vnos računov</Link>.
+                      Valuta {sourceCurrency} še ni podprta za samodejni preračun. Ne bo obravnavana kot EUR; ustvarjanje osnutka je onemogočeno. Za vnos preverjenih EUR zneskov uporabite <Link href="/racuni" className="font-medium underline">obstoječi vnos računov</Link>.
                     </AlertDescription>
                   </Alert>
                 )}
               </div>
+              {isForeignCurrency && isSupportedFxCurrency && (
+                <div className="col-span-2 min-w-0">
+                  <Card className="shadow-none border-border overflow-hidden">
+                    <CardContent className="p-4 sm:p-5 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div className="min-w-0">
+                          <h4 className="font-semibold">Pregled pretvorbe USD v EUR</h4>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Izvorni USD zneski ostanejo nespremenjeni. Strežnik bo ob potrditvi ponovno izračunal EUR iz poslanih izvornih vrstic.
+                          </p>
+                        </div>
+                        <div className="w-full sm:w-48 shrink-0 space-y-1">
+                          <Label htmlFor="exchange-rate-mode" className="text-xs">Vir tečaja</Label>
+                          <Select
+                            value={exchangeRateMode}
+                            onValueChange={value => {
+                              if (value === "ecb" || value === "manual") {
+                                setReviewedExchangeRateKey("");
+                                setExchangeRateMode(value);
+                              }
+                            }}
+                            disabled={isViewer}
+                          >
+                            <SelectTrigger id="exchange-rate-mode" className="h-9 bg-background">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ecb">Samodejni tečaj ECB</SelectItem>
+                              <SelectItem value="manual">Ročni tečaj</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {exchangeRateMode === "manual" && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="manual-units-per-eur" className="text-xs">1 EUR = koliko USD?</Label>
+                            <Input
+                              id="manual-units-per-eur"
+                              inputMode="decimal"
+                              value={manualRateInput}
+                              onChange={event => {
+                                setReviewedExchangeRateKey("");
+                                setManualRateInput(event.target.value);
+                              }}
+                              placeholder="npr. 1,08"
+                              className="h-9 bg-background"
+                              disabled={isViewer}
+                            />
+                            {manualRateInput && parsedManualRate === null && (
+                              <p className="text-xs text-destructive">Vnesite pozitivni tečaj; decimalno vejico lahko uporabite kot ločilo.</p>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="manual-rate-date" className="text-xs">Datum veljavnosti tečaja</Label>
+                            <Input
+                              id="manual-rate-date"
+                              type="date"
+                              value={manualRateDate}
+                              onChange={event => {
+                                setReviewedExchangeRateKey("");
+                                setManualRateDate(event.target.value);
+                              }}
+                              max={form.invoiceDate || undefined}
+                              className="h-9 bg-background"
+                              disabled={isViewer}
+                            />
+                            {!!manualRateDate && !validManualRateDate && (
+                              <p className="text-xs text-destructive">Datum tečaja mora biti veljaven in ne sme biti poznejši od datuma računa.</p>
+                            )}
+                          </div>
+                          <div className="space-y-1 sm:col-span-2">
+                            <Label htmlFor="manual-rate-reason" className="text-xs">Utemeljitev ročnega tečaja (obvezno)</Label>
+                            <Input
+                              id="manual-rate-reason"
+                              value={manualRateReason}
+                              onChange={event => {
+                                setReviewedExchangeRateKey("");
+                                setManualRateReason(event.target.value);
+                              }}
+                              placeholder="Navedite razlog uporabe ročnega tečaja"
+                              maxLength={500}
+                              className="bg-background"
+                              disabled={isViewer}
+                            />
+                            {manualRateReason.trim().length > 0 && !validManualReason && (
+                              <p className="text-xs text-destructive">Utemeljitev mora vsebovati vsaj 3 znake.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {!validInvoiceDate ? (
+                        <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+                          <AlertTriangle className="h-4 w-4 text-amber-700" />
+                          <AlertDescription className="text-sm">Za pridobitev tečaja najprej vnesite veljaven datum računa.</AlertDescription>
+                        </Alert>
+                      ) : exchangeRateMode === "manual" && parsedManualRate === null ? (
+                        <p className="text-sm text-muted-foreground">Vnesite pozitiven ročni tečaj za predogled preračuna.</p>
+                      ) : exchangeRateMode === "manual" && !validManualRateDate ? (
+                        <p className="text-sm text-destructive">Popravite datum veljavnosti ročnega tečaja.</p>
+                      ) : exchangeRateMode === "manual" && manualRateDebouncing ? (
+                        <p className="text-sm text-muted-foreground">Posodabljam predogled ročnega tečaja…</p>
+                      ) : exchangeRateQuery.isError ? (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                            <span>Tečaja ni bilo mogoče pridobiti. Preverite povezavo ali poskusite znova.</span>
+                            <Button type="button" size="sm" variant="outline" onClick={() => exchangeRateQuery.refetch()}>
+                              Poskusi znova
+                            </Button>
+                          </AlertDescription>
+                        </Alert>
+                      ) : exchangeRateQuery.isLoading || exchangeRateQuery.isFetching ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Pridobivam tečaj in pripravljam EUR predogled…
+                        </div>
+                      ) : !exchangeRatePreview ? (
+                        <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+                          <AlertTriangle className="h-4 w-4 text-amber-700" />
+                          <AlertDescription className="text-sm">
+                            Predogled tečaja še ni na voljo za izbrani datum in način. Osnutka EUR ni mogoče ustvariti brez veljavnega predogleda.
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="rounded-lg border bg-muted/20 p-3 sm:p-4 space-y-2">
+                            <p className="font-medium text-sm">
+                              1 EUR = {exchangeRatePreview.unitsPerEur.toLocaleString("sl-SI")} USD
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Tečaj je izražen v USD za 1 EUR; preračun v EUR deli izvorni znesek USD s tem tečajem.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Tečaj {exchangeRatePreview.source === "ECB" ? "ECB" : "ročni"} · veljaven {exchangeRatePreview.rateDate}
+                              {" "}· datum računa {exchangeRatePreview.requestedDate}
+                              {exchangeRatePreview.sourceUrl && (
+                                <> · <a href={exchangeRatePreview.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">vir tečaja</a></>
+                              )}
+                            </p>
+                            {exchangeRatePreview.rateDate < exchangeRatePreview.requestedDate && exchangeRatePreview.source === "ECB" && (
+                              <p className="text-xs text-amber-800">
+                                Za izbrani datum ECB ni objavila tečaja; uporabljen je zadnji razpoložljivi tečaj za predhodni dan.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="rounded-md border p-3 text-sm">
+                              <p className="text-xs text-muted-foreground mb-1">Izvorni zneski ({sourceCurrency})</p>
+                              <p>Neto {formatCurrencyAmount(exchangeRatePreview.sourceTotals.net, sourceCurrency)}</p>
+                              <p>DDV {formatCurrencyAmount(exchangeRatePreview.sourceTotals.vat, sourceCurrency)}</p>
+                              <p className="font-medium">Bruto {formatCurrencyAmount(exchangeRatePreview.sourceTotals.gross, sourceCurrency)}</p>
+                            </div>
+                            <div className="rounded-md border p-3 text-sm">
+                              <p className="text-xs text-muted-foreground mb-1">Predogled osnutka (EUR)</p>
+                              <p>Neto {formatEur(exchangeRatePreview.eurTotals.net)}</p>
+                              <p>DDV {formatEur(exchangeRatePreview.eurTotals.vat)}</p>
+                              <p className="font-medium">Bruto {formatEur(exchangeRatePreview.eurTotals.gross)}</p>
+                            </div>
+                          </div>
+
+                          {exchangeRatePreview.roundingDifference !== 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Razlika zaokroževanja: {formatEur(exchangeRatePreview.roundingDifference)}. Vrstice se preračunajo in zaokrožijo posamično, zato njihov seštevek lahko odstopa od preračuna skupnega zneska.
+                            </p>
+                          )}
+
+                          <div className="min-w-0 overflow-x-auto rounded-md border">
+                            <table className="w-full min-w-[520px] text-xs text-left">
+                              <thead className="bg-muted/30 text-muted-foreground border-b">
+                                <tr>
+                                  <th className="px-3 py-2 font-medium">Vrstica</th>
+                                  <th className="px-3 py-2 font-medium text-right">Cena enote (EUR)</th>
+                                  <th className="px-3 py-2 font-medium text-right">Osnova (EUR)</th>
+                                  <th className="px-3 py-2 font-medium text-right">DDV (EUR)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {editableLines.map((line, index) => {
+                                  const converted = exchangeRatePreview.convertedLines[index];
+                                  return converted ? (
+                                    <tr key={`${line.description}-${index}`}>
+                                      <td className="px-3 py-2 font-medium">{line.description}</td>
+                                      <td className="px-3 py-2 text-right tabular-nums">{formatEur(converted.unitPrice)}</td>
+                                      <td className="px-3 py-2 text-right tabular-nums">{formatEur(converted.vatBase)}</td>
+                                      <td className="px-3 py-2 text-right tabular-nums">{formatEur(converted.vatAmount)}</td>
+                                    </tr>
+                                  ) : null;
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {form.createInvoice && (
+                            <div className="flex items-start gap-2 rounded-md border bg-background p-3">
+                              <Checkbox
+                                id="reviewed-exchange-rate"
+                                checked={hasReviewedExchangeRate}
+                                disabled={isViewer || !exchangeRatePreview || (exchangeRateMode === "manual" && !validManualReason)}
+                                onCheckedChange={checked => setReviewedExchangeRateKey(checked ? exchangeRateReviewBasis : "")}
+                              />
+                              <Label htmlFor="reviewed-exchange-rate" className="text-sm leading-5 cursor-pointer">
+                                Pregledal/-a sem tečaj in EUR predogled ter odobravam uporabo za osnutek računa.
+                              </Label>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1671,11 +2052,16 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
             </div>
 
             <div className="space-y-2">
-              <Label>Datum računa</Label>
+              <Label htmlFor="document-invoice-date">Datum računa</Label>
               <Input 
+                id="document-invoice-date"
                 type="date" 
                 value={form.invoiceDate} 
-                onChange={e => setForm(p => ({...p, invoiceDate: e.target.value}))} 
+                  onChange={e => {
+                    setReviewedExchangeRateKey("");
+                    setForm(p => ({...p, invoiceDate: e.target.value}));
+                    setManualRateDate(e.target.value);
+                  }}
                 className="bg-background"
               />
             </div>
@@ -1717,17 +2103,23 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               {hasInvalidAccounts && (
                 <p className="text-amber-600 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> {linesWithInvalidAccount.length} {linesWithInvalidAccount.length === 1 ? "konto ni knjižljiv" : "kontov ni knjižljivih"}</p>
               )}
-              {form.createInvoice && isForeignCurrency && (
+              {form.createInvoice && isForeignCurrency && !isSupportedFxCurrency && (
                 <p className="text-amber-700 flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  Osnutka računa v valuti {sourceCurrency} ni mogoče ustvariti; vnos EUR zneskov opravite ročno prek strani <Link href="/racuni" className="font-medium underline">Računi</Link>.
+                  Osnutka računa za valuto {sourceCurrency} ni mogoče ustvariti, ker pretvorba ni podprta. Uporabite <Link href="/racuni" className="font-medium underline">Računi</Link> za preverjen ročni EUR vnos.
+                </p>
+              )}
+              {form.createInvoice && needsFxReview && !fxReviewReady && (
+                <p className="text-amber-700 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Pred ustvarjanjem EUR osnutka pridobite veljaven tečaj in izrecno preglejte predogled.
                 </p>
               )}
             </div>
             <Button 
               size="lg" 
               onClick={handleSubmit} 
-              disabled={!isReviewDocumentType(form.documentType) || !selectedCounterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && (isForeignCurrency || linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0 || linesWithVatMappingIssues.length > 0)) || confirmMut.isPending || isViewer}
+              disabled={!isReviewDocumentType(form.documentType) || !selectedCounterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && ((isForeignCurrency && (!isSupportedFxCurrency || !fxReviewReady)) || linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0 || linesWithVatMappingIssues.length > 0)) || confirmMut.isPending || isViewer}
               className="bg-primary text-primary-foreground min-w-[200px]"
             >
               {confirmMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}

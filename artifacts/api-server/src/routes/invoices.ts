@@ -196,6 +196,83 @@ function calcLineTotals(lines: { quantity: string; unitPrice: string; vatRate: s
   };
 }
 
+const AI_DOCUMENT_FX_SOURCE = "ai-document-fx";
+
+function isAiDocumentFx(sourceType: string): boolean {
+  return sourceType === AI_DOCUMENT_FX_SOURCE;
+}
+
+class InvalidFxInvoiceAmountsError extends Error {
+  constructor() {
+    super("Račun FX iz dokumenta vsebuje manjkajočo ali neveljavno shranjeno davčno osnovo/DDV.");
+    this.name = "InvalidFxInvoiceAmountsError";
+  }
+}
+
+function storedFxAmount(value: string | number | null | undefined): number {
+  if (
+    value == null
+    || (typeof value === "string" && value.trim() === "")
+    || !Number.isFinite(Number(value))
+  ) {
+    throw new InvalidFxInvoiceAmountsError();
+  }
+  return Number(value);
+}
+
+function invoiceLineAmounts(
+  sourceType: string,
+  line: {
+    quantity: string;
+    unitPrice: string;
+    vatRate: string;
+    vatBase: string | null;
+    storedVatAmount: string | null;
+    reverseCharge?: boolean | null;
+  },
+): { lineTotal: number; vatAmt: number } {
+  if (isAiDocumentFx(sourceType)) {
+    return {
+      lineTotal: storedFxAmount(line.vatBase),
+      vatAmt: storedFxAmount(line.storedVatAmount),
+    };
+  }
+  const qty = parseFloat(line.quantity);
+  const price = parseFloat(line.unitPrice);
+  const vatRate = parseFloat(line.vatRate);
+  const lineTotal = sourceType === "bookie-old" && line.vatBase !== null
+    ? parseFloat(line.vatBase)
+    : qty * price;
+  const vatAmt = sourceType === "bookie-old" && line.storedVatAmount !== null
+    ? parseFloat(line.storedVatAmount)
+    : line.reverseCharge ? 0 : lineTotal * vatRate / 100;
+  return { lineTotal, vatAmt };
+}
+
+function calculateStoredLineAmounts(line: {
+  quantity: number;
+  unitPrice: number;
+  vatRate: number;
+}) {
+  const base = new Decimal(line.quantity.toFixed(3))
+    .mul(line.unitPrice.toFixed(4))
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const vat = base
+    .mul(line.vatRate)
+    .div(100)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  return { vatBase: base.toFixed(2), vatAmount: vat.toFixed(2) };
+}
+
+function sameInvoiceLineMoneyInputs(
+  storedLine: { quantity: string; unitPrice: string; vatRate: string },
+  requestedLine: { quantity: number; unitPrice: number; vatRate: number },
+): boolean {
+  return new Decimal(storedLine.quantity).eq(requestedLine.quantity.toFixed(3))
+    && new Decimal(storedLine.unitPrice).eq(requestedLine.unitPrice.toFixed(4))
+    && new Decimal(storedLine.vatRate).eq(requestedLine.vatRate.toFixed(2));
+}
+
 /** Pridobi polni zapis računa (header + vrstice) */
 async function fetchInvoiceWithLines(invoiceId: string) {
   const [inv] = await db
@@ -271,13 +348,7 @@ async function fetchInvoiceWithLines(invoiceId: string) {
   let totalNet = 0;
   let totalVat = 0;
   const lines = rawLines.map((l) => {
-    const qty = parseFloat(l.quantity);
-    const price = parseFloat(l.unitPrice);
-    const vatR = parseFloat(l.vatRate);
-    const lineTotal = inv.sourceType === "bookie-old" && l.vatBase !== null
-      ? parseFloat(l.vatBase) : qty * price;
-    const vatAmt = inv.sourceType === "bookie-old" && l.storedVatAmount !== null
-      ? parseFloat(l.storedVatAmount) : l.reverseCharge ? 0 : lineTotal * vatR / 100;
+    const { lineTotal, vatAmt } = invoiceLineAmounts(inv.sourceType, l);
     totalNet += lineTotal;
     totalVat += vatAmt;
     return {
@@ -842,6 +913,9 @@ router.get(
         quantity: invoiceLinesTable.quantity,
         unitPrice: invoiceLinesTable.unitPrice,
         vatRate: invoiceLinesTable.vatRate,
+        vatBase: invoiceLinesTable.vatBase,
+        storedVatAmount: invoiceLinesTable.vatAmount,
+        sourceType: invoicesTable.sourceType,
         reverseCharge: vatCodeTable.isReverseCharge,
       })
       .from(invoiceLinesTable)
@@ -855,11 +929,7 @@ router.get(
 
     const totalsMap = new Map<string, { net: number; vat: number }>();
     for (const l of linesByInvoice) {
-      const qty = parseFloat(l.quantity);
-      const price = parseFloat(l.unitPrice);
-      const vatR = parseFloat(l.vatRate);
-      const lineTotal = qty * price;
-      const vatAmt = l.reverseCharge ? 0 : lineTotal * vatR / 100;
+      const { lineTotal, vatAmt } = invoiceLineAmounts(l.sourceType, l);
       const prev = totalsMap.get(l.invoiceId) ?? { net: 0, vat: 0 };
       totalsMap.set(l.invoiceId, { net: prev.net + lineTotal, vat: prev.vat + vatAmt });
     }
@@ -2013,12 +2083,14 @@ router.patch(
           }
         }
 
-        const updated = await tx
-          .update(invoicesTable)
-          .set(updateData as any)
-          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId), eq(invoicesTable.status, "draft")))
-          .returning({ id: invoicesTable.id });
-        if (updated.length === 0) throw new Error("INVOICE_UPDATE_LOCKED");
+        if (Object.keys(updateData).length > 0) {
+          const updated = await tx
+            .update(invoicesTable)
+            .set(updateData as any)
+            .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId), eq(invoicesTable.status, "draft")))
+            .returning({ id: invoicesTable.id });
+          if (updated.length === 0) throw new Error("INVOICE_UPDATE_LOCKED");
+        }
         if (replacementSourceDocumentId) {
           await tx.update(documentsTable)
             .set({ sourceDocumentId: replacementSourceDocumentId })
@@ -2026,6 +2098,33 @@ router.patch(
         }
 
         if (lines && lines.length > 0) {
+        const storedFxAmountsBySequence = new Map<number, {
+          vatBase: string | null;
+          vatAmount: string | null;
+        }>();
+        if (isAiDocumentFx(existing.sourceType)) {
+          const existingLines = await tx
+            .select({
+              sequence: invoiceLinesTable.sequence,
+              quantity: invoiceLinesTable.quantity,
+              unitPrice: invoiceLinesTable.unitPrice,
+              vatRate: invoiceLinesTable.vatRate,
+              vatBase: invoiceLinesTable.vatBase,
+              vatAmount: invoiceLinesTable.vatAmount,
+            })
+            .from(invoiceLinesTable)
+            .where(eq(invoiceLinesTable.invoiceId, id));
+          const existingBySequence = new Map(existingLines.map(line => [line.sequence, line]));
+          lines.forEach((line, sequence) => {
+            const previous = existingBySequence.get(sequence);
+            storedFxAmountsBySequence.set(
+              sequence,
+              previous && sameInvoiceLineMoneyInputs(previous, line)
+                ? { vatBase: previous.vatBase, vatAmount: previous.vatAmount }
+                : calculateStoredLineAmounts(line),
+            );
+          });
+        }
         // Zamenjaj vrstice
         await tx.delete(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, id));
         await tx.insert(invoiceLinesTable).values(
@@ -2037,6 +2136,7 @@ router.patch(
             vatRate: l.vatRate.toFixed(2),
             vatCodeId: l.vatCodeId ?? null,
             assetType: l.assetType ?? "NONE",
+            ...(isAiDocumentFx(existing.sourceType) ? storedFxAmountsBySequence.get(i) : {}),
             accountId: l.accountId,
             sequence: i,
           })),
@@ -2151,6 +2251,8 @@ router.post(
         quantity: invoiceLinesTable.quantity,
         unitPrice: invoiceLinesTable.unitPrice,
         vatRate: invoiceLinesTable.vatRate,
+        vatBase: invoiceLinesTable.vatBase,
+        storedVatAmount: invoiceLinesTable.vatAmount,
         vatCodeId: invoiceLinesTable.vatCodeId,
         assetType: invoiceLinesTable.assetType,
         description: invoiceLinesTable.description,
@@ -2270,20 +2372,44 @@ router.post(
     }
 
     // Izračunaj zneske
-    const lineCalcs = lines.map((l) => {
-      const qty = parseFloat(l.quantity);
-      const price = parseFloat(l.unitPrice);
-      const selectedVatCode = l.vatCodeId ? selectedVatCodeById.get(l.vatCodeId) : undefined;
-      const isEuAcquisition = Boolean(selectedVatCode?.code.startsWith("EUB"));
-      // Reverse-charge supplier documents may show 0% VAT even though the
-      // FURS acquisition code specifies the domestic accounting rate.
-      const vatR = isEuAcquisition && selectedVatCode
-        ? Number(selectedVatCode.rate)
-        : parseFloat(l.vatRate);
-      const lineTotal = qty * price;
-      const vatAmt = lineTotal * vatR / 100;
-      return { ...l, lineTotal, vatAmt, grossTotal: lineTotal + (isEuAcquisition ? 0 : vatAmt), vatR, isEuAcquisition };
-    });
+    let lineCalcs: Array<(typeof lines)[number] & {
+      lineTotal: number;
+      vatAmt: number;
+      grossTotal: number;
+      vatR: number;
+      isEuAcquisition: boolean;
+    }> = [];
+    try {
+      lineCalcs = lines.map((l) => {
+        const selectedVatCode = l.vatCodeId ? selectedVatCodeById.get(l.vatCodeId) : undefined;
+        const isEuAcquisition = Boolean(selectedVatCode?.code.startsWith("EUB"));
+        // Reverse-charge supplier documents may show 0% VAT even though the
+        // FURS acquisition code specifies the domestic accounting rate.
+        const vatR = isEuAcquisition && selectedVatCode
+          ? Number(selectedVatCode.rate)
+          : parseFloat(l.vatRate);
+        const { lineTotal, vatAmt: approvedVatAmount } = invoiceLineAmounts(invoice.sourceType, l);
+        // EU acquisition VAT is self-assessed at the selected FURS rate. Other
+        // FX document lines use their accountant-approved converted tax value.
+        const vatAmt = isEuAcquisition
+          ? lineTotal * vatR / 100
+          : isAiDocumentFx(invoice.sourceType)
+            ? approvedVatAmount
+            : lineTotal * vatR / 100;
+        return {
+          ...l,
+          lineTotal,
+          vatAmt,
+          grossTotal: lineTotal + (isEuAcquisition ? 0 : vatAmt),
+          vatR,
+          isEuAcquisition,
+        };
+      });
+    } catch (error) {
+      if (!(error instanceof InvalidFxInvoiceAmountsError)) throw error;
+      res.status(400).json({ error: error.message });
+      return;
+    }
 
     const totalGross = lineCalcs.reduce((s, l) => s + l.grossTotal, 0);
     const totalNet = lineCalcs.reduce((s, l) => s + l.lineTotal, 0);
@@ -2553,11 +2679,19 @@ router.post(
       });
       // Kredit: prihodki po vrsticah
       for (const l of lineCalcs) {
+        const selectedVatCode = l.vatCodeId
+          ? selectedVatCodeById.get(l.vatCodeId)
+          : undefined;
         journalLines.push({
           accountId: l.accountId,
           side: "credit",
           amount: l.lineTotal.toFixed(2),
           description: l.description ?? null,
+          ...(isAiDocumentFx(invoice.sourceType) ? {
+            vatCodeId: selectedVatCode?.id ?? null,
+            companyVatCodeId: selectedVatCode?.companyVatCodeId ?? null,
+            vatAmount: money(l.vatAmt),
+          } : {}),
         });
       }
       // Kredit: DDV po stopnjah
@@ -2591,7 +2725,7 @@ router.post(
       let totalBase = new Decimal(0);
       let totalTax = new Decimal(0);
       for (const line of lineCalcs) {
-        const base = new Decimal(line.quantity).mul(line.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        const base = new Decimal(line.lineTotal).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
         const tax = base.mul(line.vatR).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
         totalBase = totalBase.plus(base);
         totalTax = totalTax.plus(tax);
@@ -2629,8 +2763,10 @@ router.post(
       const invoiceBucketTotals = new Map<string, { net: Decimal; vat: Decimal }>();
       const exactInvoiceLines = lineCalcs.map(line => {
         const rate = new Decimal(line.vatRate).toString();
-        const net = new Decimal(line.quantity).mul(line.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-        const vat = net.mul(rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        const net = new Decimal(line.lineTotal).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        const vat = isAiDocumentFx(invoice.sourceType)
+          ? new Decimal(line.vatAmt).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+          : net.mul(rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
         const selectedVatCode = line.vatCodeId
           ? selectedVatCodeById.get(line.vatCodeId)
           : undefined;
@@ -2694,7 +2830,9 @@ router.post(
             description: line.description ?? null,
             vatCodeId: line.vatCodeId,
             companyVatCodeId: line.companyVatCodeId,
-            vatAmount: null,
+            vatAmount: isAiDocumentFx(invoice.sourceType) && !hasPosLinks
+              ? money(line.vat)
+              : null,
           });
         }
       }
@@ -2723,7 +2861,7 @@ router.post(
             partnerId: invoice.counterpartyId,
             description: `Vstopni DDV ${rate}%`,
           });
-        } else if (!posVatLedgerLines) {
+        } else if (!posVatLedgerLines && !isAiDocumentFx(invoice.sourceType)) {
           const expenseLine = journalLines.find(line =>
             line.side === "debit" && line.vatCodeId === vatCodeId);
           if (expenseLine) expenseLine.vatAmount = money(remainderVat);

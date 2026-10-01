@@ -10084,6 +10084,52 @@ export const OcrResultSuggestedDocumentType = {
   invoice_issued: 'invoice_issued',
 } as const;
 
+export type DocumentExchangeRateSnapshotMode = typeof DocumentExchangeRateSnapshotMode[keyof typeof DocumentExchangeRateSnapshotMode];
+
+
+export const DocumentExchangeRateSnapshotMode = {
+  ecb: 'ecb',
+  manual: 'manual',
+} as const;
+
+export type DocumentExchangeRateSnapshotTargetCurrency = typeof DocumentExchangeRateSnapshotTargetCurrency[keyof typeof DocumentExchangeRateSnapshotTargetCurrency];
+
+
+export const DocumentExchangeRateSnapshotTargetCurrency = {
+  EUR: 'EUR',
+} as const;
+
+export type DocumentExchangeRateSnapshotSource = typeof DocumentExchangeRateSnapshotSource[keyof typeof DocumentExchangeRateSnapshotSource];
+
+
+export const DocumentExchangeRateSnapshotSource = {
+  ECB: 'ECB',
+  manual: 'manual',
+} as const;
+
+export interface DocumentFxTotals {
+  net: number;
+  vat: number;
+  gross: number;
+}
+
+export interface DocumentExchangeRateSnapshot {
+  mode: DocumentExchangeRateSnapshotMode;
+  sourceCurrency: string;
+  targetCurrency: DocumentExchangeRateSnapshotTargetCurrency;
+  requestedDate: string;
+  rateDate: string;
+  unitsPerEur: number;
+  source: DocumentExchangeRateSnapshotSource;
+  /** @nullable */
+  sourceUrl: string | null;
+  sourceTotals: DocumentFxTotals;
+  eurTotals: DocumentFxTotals;
+  roundingDifference: number;
+  convertedAt: string;
+  manualReason?: string;
+}
+
 export interface OcrResult {
   rawText: string;
   confidence: number;
@@ -10107,6 +10153,7 @@ export interface OcrResult {
   totalGross?: number | null;
   /** @nullable */
   currency?: string | null;
+  exchangeRate?: DocumentExchangeRateSnapshot;
   lines: ProposedLine[];
   /** @nullable */
   suggestedCounterpartyId?: string | null;
@@ -10189,6 +10236,78 @@ export interface CreateDocumentBody {
   fileSizeBytes?: number;
 }
 
+export interface DocumentFxConvertedLine {
+  quantity: number;
+  unitPrice: number;
+  vatRate: number;
+  vatBase: number;
+  vatAmount: number;
+}
+
+export type DocumentExchangeRateSelectionMode = typeof DocumentExchangeRateSelectionMode[keyof typeof DocumentExchangeRateSelectionMode];
+
+
+export const DocumentExchangeRateSelectionMode = {
+  ecb: 'ecb',
+  manual: 'manual',
+} as const;
+
+export interface DocumentExchangeRateSelection {
+  mode: DocumentExchangeRateSelectionMode;
+  requestedDate: string;
+  rateDate: string;
+  /** @exclusiveMinimum 0 */
+  unitsPerEur: number;
+  /** Explicit accountant approval of the rate and EUR preview */
+  reviewed: boolean;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  manualReason?: string;
+}
+
+export type DocumentExchangeRateQuoteMode = typeof DocumentExchangeRateQuoteMode[keyof typeof DocumentExchangeRateQuoteMode];
+
+
+export const DocumentExchangeRateQuoteMode = {
+  ecb: 'ecb',
+  manual: 'manual',
+} as const;
+
+export type DocumentExchangeRateQuoteTargetCurrency = typeof DocumentExchangeRateQuoteTargetCurrency[keyof typeof DocumentExchangeRateQuoteTargetCurrency];
+
+
+export const DocumentExchangeRateQuoteTargetCurrency = {
+  EUR: 'EUR',
+} as const;
+
+export type DocumentExchangeRateQuoteSource = typeof DocumentExchangeRateQuoteSource[keyof typeof DocumentExchangeRateQuoteSource];
+
+
+export const DocumentExchangeRateQuoteSource = {
+  ECB: 'ECB',
+  manual: 'manual',
+} as const;
+
+export interface DocumentExchangeRateQuote {
+  mode: DocumentExchangeRateQuoteMode;
+  currency: string;
+  targetCurrency: DocumentExchangeRateQuoteTargetCurrency;
+  requestedDate: string;
+  rateDate: string;
+  /** @exclusiveMinimum 0 */
+  unitsPerEur: number;
+  source: DocumentExchangeRateQuoteSource;
+  /** @nullable */
+  sourceUrl: string | null;
+  sourceTotals: DocumentFxTotals;
+  eurTotals: DocumentFxTotals;
+  convertedLines: DocumentFxConvertedLine[];
+  /** Rounded line-total sum minus directly converted source gross total, in EUR */
+  roundingDifference: number;
+}
+
 export type ConfirmDocumentBodyDocumentType = typeof ConfirmDocumentBodyDocumentType[keyof typeof ConfirmDocumentBodyDocumentType];
 
 
@@ -10221,6 +10340,7 @@ export interface ConfirmDocumentBody {
   arApAccountId?: string | null;
   /** Ali naj se avtomatično ustvari draft račun */
   createInvoice?: boolean;
+  exchangeRate?: DocumentExchangeRateSelection;
 }
 
 /**
@@ -12722,6 +12842,31 @@ export type RegisterDocumentBody = {
   mimeType: string;
   fileSizeBytes?: number;
 };
+
+export type GetDocumentExchangeRateParams = {
+/**
+ * Invoice date in YYYY-MM-DD format
+ */
+date: string;
+mode?: GetDocumentExchangeRateMode;
+/**
+ * Manual rate expressed as source-currency units for one EUR
+ * @exclusiveMinimum 0
+ */
+unitsPerEur?: number;
+/**
+ * Effective manual-rate date in YYYY-MM-DD format
+ */
+rateDate?: string;
+};
+
+export type GetDocumentExchangeRateMode = typeof GetDocumentExchangeRateMode[keyof typeof GetDocumentExchangeRateMode];
+
+
+export const GetDocumentExchangeRateMode = {
+  ecb: 'ecb',
+  manual: 'manual',
+} as const;
 
 export type GetPlateWasteOverviewParams = {
 from: string;

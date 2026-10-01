@@ -24,6 +24,14 @@ vi.mock("@workspace/api-client-react", () => ({
   useListAccounts: () => ({ data: { accounts: [] } }),
   useListPeriods: () => ({ data: { periods: [] } }),
   useListCompanyFursVatCodes: () => ({ data: { codes: [] } }),
+  useGetDocumentExchangeRate: () => ({
+    data: undefined,
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    isPlaceholderData: false,
+    refetch: vi.fn(),
+  }),
   useListVatCodes: () => ({ data: { vatCodes: [] } }),
   useGetCounterpartyAccountTemplates: () => ({
     data: { templates: [] },
@@ -41,6 +49,7 @@ vi.mock("@workspace/api-client-react", () => ({
   }),
   getListDocumentsQueryKey: vi.fn(),
   getGetDocumentQueryKey: vi.fn(),
+  getGetDocumentExchangeRateQueryKey: vi.fn(() => ["exchange-rate"]),
   getListCounterpartiesQueryKey: vi.fn(),
   getListVatCodesQueryKey: vi.fn(),
   getListCompanyFursVatCodesQueryKey: vi.fn(),
