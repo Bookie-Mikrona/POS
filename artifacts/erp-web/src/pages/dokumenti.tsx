@@ -1130,14 +1130,14 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
         {/* Left: Extracted Data Panel */}
         <Card className="shadow-none border-border">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6 flex min-w-0 flex-col gap-3">
               <h3 className="font-semibold text-lg flex items-center gap-2">
-                <FileSearch className="h-5 w-5 text-muted-foreground" />
-                Prepoznani podatki
+                <FileSearch className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 break-words">Prepoznani podatki</span>
               </h3>
-              <div className="flex items-center gap-2">
-                <span className={`text-sm font-bold ${confidenceColor}`}>{Math.round(docConfidence)}%</span>
-                <Progress value={docConfidence} className={`h-2 w-24 bg-muted ${progressColor}`} />
+              <div className="flex w-full min-w-0 items-center gap-2">
+                <span className={`shrink-0 text-sm font-bold ${confidenceColor}`}>{Math.round(docConfidence)}%</span>
+                <Progress value={docConfidence} className={`h-2 min-w-0 flex-1 bg-muted ${progressColor}`} />
               </div>
             </div>
 
