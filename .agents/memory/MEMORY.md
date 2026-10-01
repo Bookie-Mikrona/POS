@@ -153,3 +153,4 @@
 - [Oddana bilanca Bookie Old](bookie-old-oddana-bilanca.md) — oddana Bilanca in Zaključni račun sta avtoriteta; primerjaj bruto otvoritev, promet in skupaj po preslikanih kontih.
 - [Poti predstavljenih datotek](present-asset-paths.md) — za sredstva v knjižnici uporabi ASCII ime datoteke; Unicode v poti lahko odpove pri prenosu.
 - [AJPES JOLP preverjanje](ajpes-jolp-preverjanje.md) — javni JOLP lahko zahteva prijavo; številk iz zbirnih portalov ne obravnavaj kot dokazilo o razporeditvi dobička.
+- [Učni viri kontiranja](ocr-approved-learning.md) — ročno potrjena predloga je učni vir tudi pred knjiženjem; nepregledan osnutek računa ni potrjena zgodovina.

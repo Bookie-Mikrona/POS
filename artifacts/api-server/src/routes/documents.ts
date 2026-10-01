@@ -24,6 +24,7 @@ import { clerkClient } from "@clerk/express";
 import {
   db,
   documentsTable,
+  companiesTable,
   accountingRolesTable,
   counterpartiesTable,
   accountsTable,
@@ -39,6 +40,16 @@ import { anthropic } from "@workspace/integrations-anthropic-ai";
 import type { OcrResult, ProposedLine } from "@workspace/db";
 import { validateDirectPostingAccounts } from "../lib/directPostingAccountValidation";
 import { claimPurchaseSourceDocument } from "../lib/purchaseSourceDocuments";
+import {
+  classifyPartyIdentity,
+  filterSelfCounterparties,
+  findScopedCounterparty,
+  partyHasIdentity,
+  resolveDocumentParties,
+  type CompanyPartyIdentity,
+  type DocumentParty,
+  type OcrDocumentType,
+} from "../lib/documentPartyResolution";
 
 const router: IRouter = Router();
 
@@ -86,11 +97,15 @@ type SuggestionTemplateRow = {
   counterpartyId: string;
   accountId: string;
   usageCount: number | null;
+  lastLineDescription?: string | null;
 };
 
 type SuggestionBookingRow = {
   counterpartyId: string;
   accountCode: string;
+  accountId?: string;
+  lineDescription?: string;
+  invoiceLineId?: string;
 };
 
 type AssetCandidate = "OTHER_FA" | "REALESTATE";
@@ -99,6 +114,58 @@ const EU_VAT_PREFIXES = new Set([
   "EL", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO",
   "SE", "SK", "XI",
 ]);
+const MAX_PROMPT_ACCOUNTS = 160;
+const MAX_PROMPT_COUNTERPARTIES = 200;
+
+function normalizeLineDescription(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function sampleEvenly<T>(rows: T[], limit: number): T[] {
+  if (rows.length <= limit) return rows;
+  if (limit <= 1) return rows.slice(0, limit);
+  return Array.from({ length: limit }, (_, index) =>
+    rows[Math.round(index * (rows.length - 1) / (limit - 1))],
+  );
+}
+
+function selectPromptAccounts<T extends { code: string; type?: string; isActive: boolean; allowsPosting: boolean }>(accounts: T[]): T[] {
+  const postable = accounts.filter(account => account.isActive && account.allowsPosting);
+  const expenseOrAsset = postable.filter(account =>
+    account.type ? account.type === "expense" || account.type === "asset" : /^[0-6]/.test(account.code),
+  );
+  const revenue = postable.filter(account =>
+    account.type ? account.type === "revenue" : /^[78]/.test(account.code),
+  );
+  const halfLimit = Math.floor(MAX_PROMPT_ACCOUNTS / 2);
+  const selected = [
+    ...sampleEvenly(expenseOrAsset, halfLimit),
+    ...sampleEvenly(revenue, halfLimit),
+  ];
+  if (selected.length < MAX_PROMPT_ACCOUNTS) {
+    const selectedIds = new Set(selected);
+    selected.push(...postable.filter(account => !selectedIds.has(account)).slice(0, MAX_PROMPT_ACCOUNTS - selected.length));
+  }
+  return selected.sort((a, b) => a.code.localeCompare(b.code));
+}
+
+function isAccountCompatibleWithDocumentType(
+  account: { code: string; type?: string },
+  documentType: OcrDocumentType,
+): boolean {
+  if (account.type) {
+    return documentType === "invoice_issued"
+      ? account.type === "revenue"
+      : account.type === "expense" || account.type === "asset";
+  }
+  return documentType === "invoice_issued"
+    ? /^[78]/.test(account.code)
+    : /^[034]/.test(account.code);
+}
 
 type OcrCandidateLine = ProposedLine & {
   assetTypeCandidate?: AssetCandidate;
@@ -116,6 +183,11 @@ type OcrReviewResult = OcrResult & {
   counterpartyTaxId?: string;
   invoiceDate?: string;
   lines: OcrCandidateLine[];
+};
+
+type OcrDraft = Partial<OcrResult> & {
+  issuer?: DocumentParty | null;
+  recipient?: DocumentParty | null;
 };
 
 export function isEuSupplierTaxId(taxId: string | null | undefined): boolean {
@@ -155,7 +227,9 @@ export function enrichLinesWithSuggestionSource(
     }
 
     const matchingTemplate = templateRows.find(
-      t => t.counterpartyId === detectedCounterpartyId && t.accountId === accountId,
+      t => t.counterpartyId === detectedCounterpartyId
+        && t.accountId === accountId
+        && normalizeLineDescription(t.lastLineDescription) === normalizeLineDescription(line.description),
     );
     if (matchingTemplate) {
       return {
@@ -166,7 +240,9 @@ export function enrichLinesWithSuggestionSource(
     }
 
     const matchingBookings = recentBookingRows.filter(
-      b => b.counterpartyId === detectedCounterpartyId && b.accountCode === line.accountCode,
+      b => b.counterpartyId === detectedCounterpartyId
+        && b.accountCode === line.accountCode
+        && normalizeLineDescription(b.lineDescription) === normalizeLineDescription(line.description),
     );
     if (matchingBookings.length > 0) {
       return {
@@ -210,22 +286,35 @@ async function fetchFileForClaude(objectPath: string, mimeType: string): Promise
  * Pokliče Claude Vision za ekstrakcijo podatkov iz dokumenta.
  * Vrne strukturiran OcrResult.
  */
-async function runOcrWithClaude(
+export async function runOcrWithClaude(
   objectPath: string,
   mimeType: string,
   companyId: string,
 ): Promise<OcrResult> {
+  const [company] = await db.select({
+    naziv: companiesTable.naziv,
+    kratekNaziv: companiesTable.kratekNaziv,
+    podjetjeDavcna: companiesTable.podjetjeDavcna,
+    idZaDdv: companiesTable.idZaDdv,
+    maticnaStevilka: companiesTable.maticnaStevilka,
+  })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  if (!company) {
+    throw new Error(`OCR company identity not found for companyId ${companyId}`);
+  }
+  const companyIdentity: CompanyPartyIdentity = company;
+
   // Pridobi kontekst (partnerji + konte + pretekle knjižbe) za boljše predloge
   const [counterparties, accounts, vatCodes, recentBookingRows, templateRows] = await Promise.all([
     db.select({ id: counterpartiesTable.id, name: counterpartiesTable.name, taxId: counterpartiesTable.taxId })
       .from(counterpartiesTable)
-      .where(and(eq(counterpartiesTable.companyId, companyId), eq(counterpartiesTable.isActive, true)))
-      .limit(100),
-    db.select({ id: accountsTable.id, code: accountsTable.code, name: accountsTable.name, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
+      .where(and(eq(counterpartiesTable.companyId, companyId), eq(counterpartiesTable.isActive, true))),
+    db.select({ id: accountsTable.id, code: accountsTable.code, name: accountsTable.name, type: accountsTable.type, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
       .from(accountsTable)
       .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true)))
-      .orderBy(asc(accountsTable.code))
-      .limit(200),
+      .orderBy(asc(accountsTable.code)),
     db.select({
       id: vatCodeTable.id,
       code: vatCodeTable.code,
@@ -236,13 +325,16 @@ async function runOcrWithClaude(
       validTo: vatCodeTable.validTo,
     })
       .from(vatCodeTable)
-      .where(eq(vatCodeTable.direction, "IN")),
+      .where(inArray(vatCodeTable.direction, ["IN", "OUT"])),
     // Pretekle potrjene knjižbe za učenje vzorcev kontiranja po partnerjih
     db.select({
       counterpartyId: counterpartiesTable.id,
       counterpartyName: counterpartiesTable.name,
+      counterpartyTaxId: counterpartiesTable.taxId,
       invoiceType: invoicesTable.type,
+      invoiceLineId: invoiceLinesTable.id,
       lineDescription: invoiceLinesTable.description,
+      accountId: accountsTable.id,
       accountCode: accountsTable.code,
       accountName: accountsTable.name,
       vatRate: invoiceLinesTable.vatRate,
@@ -254,6 +346,7 @@ async function runOcrWithClaude(
       .where(
         and(
           eq(invoicesTable.companyId, companyId),
+          eq(counterpartiesTable.companyId, companyId),
           inArray(invoicesTable.status, ["posted", "paid"]),
         ),
       )
@@ -263,6 +356,7 @@ async function runOcrWithClaude(
     db.select({
       counterpartyId: counterpartyAccountTemplatesTable.counterpartyId,
       counterpartyName: counterpartiesTable.name,
+      counterpartyTaxId: counterpartiesTable.taxId,
       accountId: counterpartyAccountTemplatesTable.accountId,
       accountCode: accountsTable.code,
       accountName: accountsTable.name,
@@ -278,15 +372,23 @@ async function runOcrWithClaude(
         and(
           eq(counterpartyAccountTemplatesTable.companyId, companyId),
           eq(accountsTable.isActive, true),
+          eq(accountsTable.allowsPosting, true),
         ),
       )
       .orderBy(desc(counterpartyAccountTemplatesTable.usageCount))
       .limit(200),
   ]);
+  const visibleCounterparties = filterSelfCounterparties(counterparties, companyIdentity);
+  const visibleBookingRows = recentBookingRows.filter(row =>
+    classifyPartyIdentity({ name: row.counterpartyName, taxId: row.counterpartyTaxId }, companyIdentity) !== "self",
+  );
+  const visibleTemplateRows = templateRows.filter(row =>
+    classifyPartyIdentity({ name: row.counterpartyName, taxId: row.counterpartyTaxId }, companyIdentity) !== "self",
+  );
 
   // Združi shranjene predloge po partnerjih
-  const templatesByCounterparty = new Map<string, typeof templateRows>();
-  for (const row of templateRows) {
+  const templatesByCounterparty = new Map<string, typeof visibleTemplateRows>();
+  for (const row of visibleTemplateRows) {
     const existing = templatesByCounterparty.get(row.counterpartyId) ?? [];
     existing.push(row);
     templatesByCounterparty.set(row.counterpartyId, existing);
@@ -304,8 +406,8 @@ async function runOcrWithClaude(
     : null;
 
   // Združi pretekle knjižbe po partnerjih — max 5 vrstic na partnerja
-  const bookingsByCounterparty = new Map<string, typeof recentBookingRows>();
-  for (const row of recentBookingRows) {
+  const bookingsByCounterparty = new Map<string, typeof visibleBookingRows>();
+  for (const row of visibleBookingRows) {
     const existing = bookingsByCounterparty.get(row.counterpartyId) ?? [];
     if (existing.length < 5) {
       existing.push(row);
@@ -324,16 +426,28 @@ async function runOcrWithClaude(
         .join("\n\n")
     : "(še ni preteklih knjižb)";
 
-  const counterpartyList = counterparties.map(c => `- ${c.name}${c.taxId ? ` (DDV: ${c.taxId})` : ""} [id: ${c.id}]`).join("\n");
-  const accountList = accounts.map(a => `- ${a.code}: ${a.name} [id: ${a.id}]`).join("\n");
-  const vatList = vatCodes.map(v => `- ${v.code} (${v.rate}%) [id: ${v.id}]`).join("\n");
+  const counterpartyList = [...visibleCounterparties]
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    .slice(0, MAX_PROMPT_COUNTERPARTIES)
+    .map(c => `- ${c.name}${c.taxId ? ` (DDV: ${c.taxId})` : ""} [id: ${c.id}]`)
+    .join("\n");
+  const promptAccounts = selectPromptAccounts(accounts);
+  const accountList = promptAccounts.map(a => `- ${a.code}: ${a.name} [id: ${a.id}]`).join("\n");
+  const vatList = vatCodes.map(v => `- ${v.code} (${v.rate}%, ${v.direction === "IN" ? "vstopni/prejeti" : "izstopni/izdani"}) [id: ${v.id}]`).join("\n");
 
   const source = await fetchFileForClaude(objectPath, mimeType);
 
   const prompt = `Si računovodski AI asistent za slovensko dvostavno knjigovodstvo. Iz priloženega dokumenta (računa/fakturo) ekstrahiraj vse računovodske podatke in vrni IZKLJUČNO veljaven JSON brez komentarjev.
 
 KONTEKST PODJETJA:
-Partnerji v sistemu:
+Aktivno podjetje (izdajatelj lastnega izdanega računa, ne partner):
+- Naziv: ${companyIdentity.naziv}
+- Kratek naziv: ${companyIdentity.kratekNaziv ?? "–"}
+- Davčna številka: ${companyIdentity.podjetjeDavcna}
+- ID za DDV: ${companyIdentity.idZaDdv ?? "–"}
+- Matična številka: ${companyIdentity.maticnaStevilka ?? "–"}
+
+Partnerji v sistemu (aktivno podjetje je iz seznama izključeno):
 ${counterpartyList || "(ni partnerjev)"}
 
 Kontni načrt (konte za knjiženje):
@@ -349,6 +463,8 @@ PRETEKLE POTRJENE KNJIŽBE PO PARTNERJIH (sekundaren učni vzorec):
 ${pastBookingsContext}
 
 TIPIČNI VZORCI KONTIRANJA ZA GOSTINSTVO (upoštevaj pri predlogih):
+- Izdani račun kupcu za prodajo/storitev: uporabi prihodek (konto tipa revenue) iz kontnega načrta, nikoli nabavnega stroška.
+- Prejeti račun dobavitelja: uporabi ustrezen strošek, zalogo ali osnovno sredstvo glede na vsebino.
 - Prejet račun za surovine/hrano (9,5% DDV):  BREME 3100 + 1601 | DOBRO 2200
 - Prejet račun za pijačo (22% DDV):            BREME 3101 + 1600 | DOBRO 2201
 - Prejet račun za embalažo (22% DDV):          BREME 3102 + 1600 | DOBRO 2202
@@ -360,20 +476,21 @@ TIPIČNI VZORCI KONTIRANJA ZA GOSTINSTVO (upoštevaj pri predlogih):
 - DDV stopnje: hrana v lokalu 9,5% (8000), sokovi 9,5% (8003), pijača+alkohol 22% (8002), embalaža 22% (8004)
 
 NAVODILA:
-1. Prepoznaj vrsto dokumenta: invoice_received (prejet od dobavitelja) ali invoice_issued (izdan kupcu)
-2. Ekstrahiraj vse metapodatke: številka računa, datum, rok plačila, partner, naslov, DDV identifikacijska številka
-3. Ekstrahiraj vse vrstice: opis, količina, cena/enoto, stopnja DDV, osnova, znesek DDV
-4. Poišči partnerja v sistemu (fuzzy match po imenu ali DDV številki)
-5. Če je partner prepoznan in ima SHRANJENE PREDLOGE (zgoraj), OBVEZNO uporabi točno te konte — to so konte, ki jih je računovodja že potrdil za tega partnerja
-6. Če ni shranjenih predlog, preveri pretekle knjižbe (sekundarni vir)
-7. Za vsako vrstico predlagaj najprimernejši konto iz zgornjega seznama — najprej shranjene predloge, nato pretekle knjižbe, nato tipične vzorce
-8. Izračunaj skupne vsote
-9. Oceni zaupnost prepoznave (0.0-1.0) — višja zaupnost, ko se konte ujemajo s shranjenimi predlogami (max 0.98 za shranjene predloge, max 0.85 za pretekle knjižbe)
+1. Ločeno prepoznaj izdajatelja računa in prejemnika/kupca, skupaj z njunima nazivoma, davčnima ID-jema in matičnima številkama. Aktivno podjetje zgoraj ni partner: če je aktivno podjetje izdajatelj, je dokument invoice_issued in partner je prejemnik; če je aktivno podjetje prejemnik, je invoice_received in partner je izdajatelj. Primerjaj davčne in matične številke, ne sklepaj, da je podjetje partner zato, ker se pojavi na računu.
+2. Vrsto dokumenta izrazi glede na aktivno podjetje: invoice_received (aktivno podjetje je prejemnik računa dobavitelja) ali invoice_issued (aktivno podjetje je izdajatelj računa kupcu). Če sta obe strani aktivno podjetje, so podatki v konfliktu ali vloge niso jasne, vrste oziroma partnerja ne ugibaj.
+3. Ekstrahiraj številko računa, datum, rok plačila, naslov partnerja, zneske in vse vrstice.
+4. Uporabi samo predloge in pretekle knjižbe iste vrste dokumenta in z enakim oziroma res primerljivim opisom vrstice; ne prenesi konta z nepovezanega izdelka ali storitve. Izdan račun je prodaja/prihodek, prejet račun je nabava/strošek.
+5. DDV koda IN je vstopna in velja za prejeti račun, DDV koda OUT je izstopna in velja za izdani račun. Predlagaj samo kodo ustrezne smeri.
+6. Za vsako vrstico predlagaj konto iz seznama — najprej združljive shranjene predloge, nato združljive pretekle knjižbe, nato ustrezne vzorce glede na prodajo/prihodek ali nabavo/strošek.
+7. Izračunaj skupne vsote.
+8. Oceni zaupnost prepoznave (0.0-1.0) — upoštevaj samo združljive shranjene predloge.
 
 VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
 {
   "rawText": "celotno besedilo dokumenta",
   "confidence": 0.95,
+  "issuer": { "name": "Izdajatelj računa", "taxId": "SI12345678", "registrationId": "matična številka", "address": "Naslov" },
+  "recipient": { "name": "Prejemnik računa", "taxId": "SI12345678", "registrationId": "matična številka", "address": "Naslov" },
   "counterpartyName": "Ime podjetja d.o.o.",
   "counterpartyTaxId": "SI12345678",
   "counterpartyAddress": "Naslov 1, 1000 Ljubljana",
@@ -403,7 +520,7 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
   "suggestedDocumentType": "invoice_received"
 }
 
-Če nečesa ne prepoznaš, nastavi vrednost na null. Za accountId in suggestedCounterpartyId vrni točni UUID iz zgornjega seznama ali null.`;
+Če nečesa ne prepoznaš, nastavi vrednost na null. Za accountId in suggestedCounterpartyId vrni točni UUID iz zgornjega seznama ali null. Aktivno podjetje nikoli ne sme biti suggestedCounterpartyId; suggestedCounterpartyId izberi samo, če se ujema z dejansko nasprotno stranko in je ta v seznamu partnerjev.`;
 
   // Sestavi vsebinski blok glede na tip datoteke (PDF vs. slika)
   const fileBlock = source.contentType === "document"
@@ -433,7 +550,7 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     jsonStr = jsonStr.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
   }
 
-  let parsed: Partial<OcrResult>;
+  let parsed: OcrDraft;
   try {
     parsed = JSON.parse(jsonStr);
   } catch {
@@ -445,16 +562,153 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     };
   }
 
-  // Določi vir predloga za vsako vrstico (history vs pattern)
-  const detectedCounterpartyId = parsed.suggestedCounterpartyId ?? null;
+  const partyResolution = resolveDocumentParties(
+    parsed.issuer,
+    parsed.recipient,
+    companyIdentity,
+    parsed.suggestedDocumentType,
+  );
+  const documentType = partyResolution.documentType;
+  const structuredCounterparty = partyResolution.oppositeParty;
+  const oppositeStatus = documentType === "invoice_issued"
+    ? partyResolution.recipientStatus
+    : documentType === "invoice_received"
+      ? partyResolution.issuerStatus
+      : "unknown";
+  const legacyCounterparty: DocumentParty = {
+    name: parsed.counterpartyName,
+    taxId: parsed.counterpartyTaxId,
+    address: parsed.counterpartyAddress,
+  };
+  // Legacy generic model fields are only considered when role-specific data did
+  // not identify the opposite party; they must still be non-self and catalog-backed.
+  let counterparty = partyHasIdentity(structuredCounterparty) ? structuredCounterparty : undefined;
+  let scopedCounterparty = counterparty
+    ? findScopedCounterparty(counterparty, companyIdentity, visibleCounterparties)
+    : undefined;
+  if (!counterparty
+    && documentType
+    && oppositeStatus === "unknown"
+    && classifyPartyIdentity(legacyCounterparty, companyIdentity) === "other") {
+    const legacyMatch = findScopedCounterparty(legacyCounterparty, companyIdentity, visibleCounterparties);
+    if (legacyMatch) {
+      counterparty = legacyCounterparty;
+      scopedCounterparty = legacyMatch;
+    }
+  }
+  const detectedCounterpartyId = scopedCounterparty?.id ?? null;
+  const matchingTemplates = documentType
+    ? visibleTemplateRows.filter(row => row.documentType === documentType)
+    : [];
+  const matchingBookings = documentType
+    ? visibleBookingRows.filter(row =>
+        row.counterpartyId === detectedCounterpartyId
+        && row.invoiceType === (documentType === "invoice_received" ? "received" : "issued"),
+      )
+    : [];
+  const validatedModelLines = (parsed.lines ?? []).map(line => {
+    if (!documentType || partyResolution.correctedModelType) {
+      return { ...line, accountCode: undefined, accountId: undefined };
+    }
+    let account = line.accountId
+      ? accounts.find(candidate => candidate.id === line.accountId && candidate.isActive && candidate.allowsPosting)
+      : undefined;
+    if (!account && line.accountCode) {
+      const codeMatches = accounts.filter(candidate =>
+        candidate.code === line.accountCode && candidate.isActive && candidate.allowsPosting,
+      );
+      if (codeMatches.length === 1) account = codeMatches[0];
+    }
+    if (!account || !isAccountCompatibleWithDocumentType(account, documentType)) {
+      return { ...line, accountCode: undefined, accountId: undefined };
+    }
+    return { ...line, accountCode: account.code, accountId: account.id };
+  });
+
+  const needsScopedHistory = detectedCounterpartyId !== null
+    && documentType !== undefined
+    && validatedModelLines.some(line => {
+      return !line.accountId && Boolean(normalizeLineDescription(line.description));
+    });
+  const scopedHistoryRows: SuggestionBookingRow[] = needsScopedHistory && detectedCounterpartyId && documentType
+    ? await db.select({
+        counterpartyId: invoicesTable.counterpartyId,
+        invoiceLineId: invoiceLinesTable.id,
+        lineDescription: invoiceLinesTable.description,
+        accountId: accountsTable.id,
+        accountCode: accountsTable.code,
+      })
+        .from(invoiceLinesTable)
+        .innerJoin(invoicesTable, eq(invoiceLinesTable.invoiceId, invoicesTable.id))
+        .innerJoin(counterpartiesTable, eq(invoicesTable.counterpartyId, counterpartiesTable.id))
+        .innerJoin(accountsTable, eq(invoiceLinesTable.accountId, accountsTable.id))
+        .where(
+          and(
+            eq(invoicesTable.companyId, companyId),
+            eq(counterpartiesTable.companyId, companyId),
+            eq(invoicesTable.counterpartyId, detectedCounterpartyId),
+            eq(invoicesTable.type, documentType === "invoice_received" ? "received" : "issued"),
+            inArray(invoicesTable.status, ["posted", "paid"]),
+          ),
+        )
+        .orderBy(desc(invoicesTable.createdAt))
+        .limit(500)
+    : [];
+  const uniqueBookingRows = new Map<string, SuggestionBookingRow>();
+  for (const row of [...matchingBookings, ...scopedHistoryRows]) {
+    const key = row.invoiceLineId
+      ?? `${row.counterpartyId}:${row.accountCode}:${normalizeLineDescription(row.lineDescription)}`;
+    uniqueBookingRows.set(key, row);
+  }
+  const actualPartnerHistory = [...uniqueBookingRows.values()];
+  const fallbackHistoryCounts = new Map<number, number>();
+  const modelLines = validatedModelLines.map((line, lineIndex) => {
+    if (line.accountId || !documentType || !detectedCounterpartyId) return line;
+    // A full 500-row window could hide another historical account, so it cannot
+    // establish uniqueness and is deliberately not used for a deterministic fallback.
+    if (scopedHistoryRows.length >= 500) return line;
+    const sameDescriptionRows = actualPartnerHistory.filter(row =>
+      row.counterpartyId === detectedCounterpartyId
+      && normalizeLineDescription(row.lineDescription) === normalizeLineDescription(line.description),
+    );
+    const countsByAccount = new Map<string, { account: typeof accounts[number]; count: number }>();
+    for (const row of sameDescriptionRows) {
+      const account = row.accountId
+        ? accounts.find(candidate => candidate.id === row.accountId)
+        : accounts.find(candidate => candidate.code === row.accountCode);
+      if (!account
+        || !account.isActive
+        || !account.allowsPosting
+        || !isAccountCompatibleWithDocumentType(account, documentType)) continue;
+      const existing = countsByAccount.get(account.id);
+      countsByAccount.set(account.id, { account, count: (existing?.count ?? 0) + 1 });
+    }
+    if (countsByAccount.size !== 1) return line;
+    const [{ account, count }] = countsByAccount.values();
+    fallbackHistoryCounts.set(lineIndex, count);
+    return {
+      ...line,
+      accountId: account.id,
+      accountCode: account.code,
+      suggestionSource: "history" as const,
+      suggestionCount: count,
+    };
+  });
+
+  // Resolve role and direction before associating a line with learned context.
   const enrichedLines = enrichLinesWithSuggestionSource(
-    parsed.lines ?? [],
+    modelLines,
     detectedCounterpartyId,
-    templateRows,
-    recentBookingRows,
-  ).map((line) => {
-    const asset = inferAssetCandidate(line.description ?? "");
-    if (!asset.candidate) return line;
+    matchingTemplates,
+    actualPartnerHistory,
+  ).map((line, lineIndex) => {
+    const historyCount = fallbackHistoryCounts.get(lineIndex);
+    const resolvedLine = historyCount === undefined
+      ? line
+      : { ...line, suggestionSource: "history" as const, suggestionCount: historyCount };
+    if (documentType !== "invoice_received" || partyResolution.correctedModelType) return resolvedLine;
+    const asset = inferAssetCandidate(resolvedLine.description ?? "");
+    if (!asset.candidate) return resolvedLine;
     // Suggested fixed-asset accounts must be active, directly postable OS 02/04
     // accounts. In particular, never retain a proposed 4* expense account.
     const prefix = asset.candidate === "REALESTATE" ? "02" : "04";
@@ -462,17 +716,18 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
       a.code.startsWith(prefix) && a.isActive && a.allowsPosting,
     );
     return {
-      ...line,
+      ...resolvedLine,
       assetTypeCandidate: asset.candidate,
       assetTypeReason: asset.reason,
-      assetTypeOriginalAccountCode: line.accountCode ?? null,
-      assetTypeOriginalAccountId: line.accountId ?? null,
+      assetTypeOriginalAccountCode: resolvedLine.accountCode ?? null,
+      assetTypeOriginalAccountId: resolvedLine.accountId ?? null,
       accountCode: account?.code ?? undefined,
       accountId: account?.id ?? undefined,
       suggestionSource: "pattern" as const,
     };
   });
-  const euSupplier = isEuSupplierTaxId(parsed.counterpartyTaxId);
+  const counterpartyTaxId = counterparty?.taxId ?? undefined;
+  const euSupplier = documentType === "invoice_received" && isEuSupplierTaxId(counterpartyTaxId);
   const reverseChargeEvidence = /reverse charge|tax to be accounted for by the recipient|obrnjena davcna obveznost|obracun davka po 76\. clenu/i
     .test(parsed.rawText ?? rawText);
   const invoiceDate = parsed.invoiceDate?.slice(0, 10);
@@ -482,16 +737,30 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     && (!invoiceDate || code.validFrom <= invoiceDate)
     && (!invoiceDate || !code.validTo || code.validTo >= invoiceDate),
   );
+  const expectedVatDirection = documentType === "invoice_received"
+    ? "IN"
+    : documentType === "invoice_issued"
+      ? "OUT"
+      : undefined;
   const vatEnrichedLines = enrichedLines.map(line => {
-    const assetCandidate = inferAssetCandidate(line.description ?? "").candidate;
-    if (!euSupplier || (Number(line.vatRate) !== 0 && !assetCandidate)) return line;
-    if (reverseChargeEvidence && euVatCode && Number(line.vatRate) === 0) return {
-      ...line,
+    const knownVatCode = line.vatCodeId
+      ? vatCodes.find(code => code.id === line.vatCodeId)
+      : undefined;
+    const directionSafeLine = line.vatCodeId
+      && (!expectedVatDirection || !knownVatCode || knownVatCode.direction !== expectedVatDirection)
+      ? { ...line, vatCodeId: undefined, vatCodeReason: undefined }
+      : line;
+    const assetCandidate = documentType === "invoice_received"
+      ? inferAssetCandidate(line.description ?? "").candidate
+      : null;
+    if (!euSupplier || (Number(directionSafeLine.vatRate) !== 0 && !assetCandidate)) return directionSafeLine;
+    if (reverseChargeEvidence && euVatCode && Number(directionSafeLine.vatRate) === 0) return {
+      ...directionSafeLine,
       vatCodeId: euVatCode.id,
       vatCodeReason: "EU DDV-ID, 0 % DDV in izrecna navedba obrnjene davčne obveznosti; predlagana je EUB22/95.",
     };
     return {
-      ...line,
+      ...directionSafeLine,
       vatCodeReviewRequired: true,
       vatCodeReviewReason: "Prepoznan je dobaviteljev EU DDV-ID oziroma osnovno sredstvo pri EU dobavitelju. Izberite veljavno vstopno kodo EUB pred ustvarjanjem računa.",
     };
@@ -500,9 +769,9 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
   return {
     rawText: parsed.rawText ?? rawText,
     confidence: parsed.confidence ?? 0,
-    counterpartyName: parsed.counterpartyName ?? undefined,
-    counterpartyTaxId: parsed.counterpartyTaxId ?? undefined,
-    counterpartyAddress: parsed.counterpartyAddress ?? undefined,
+    counterpartyName: counterparty?.name ?? undefined,
+    counterpartyTaxId,
+    counterpartyAddress: counterparty?.address ?? undefined,
     invoiceNumber: parsed.invoiceNumber ?? undefined,
     invoiceDate: parsed.invoiceDate ?? undefined,
     dueDate: parsed.dueDate ?? undefined,
@@ -511,9 +780,9 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     totalGross: parsed.totalGross ?? undefined,
     currency: parsed.currency ?? "EUR",
     lines: vatEnrichedLines,
-    suggestedCounterpartyId: parsed.suggestedCounterpartyId ?? undefined,
-    suggestedCounterpartyName: parsed.suggestedCounterpartyName ?? undefined,
-    suggestedDocumentType: parsed.suggestedDocumentType ?? undefined,
+    suggestedCounterpartyId: scopedCounterparty?.id,
+    suggestedCounterpartyName: scopedCounterparty?.name ?? counterparty?.name ?? undefined,
+    suggestedDocumentType: documentType as OcrDocumentType | undefined,
     suggestedPeriodId: undefined,
   };
 }

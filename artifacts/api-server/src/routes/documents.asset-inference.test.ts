@@ -16,6 +16,7 @@ vi.mock("drizzle-orm", () => ({
 vi.mock("@workspace/db", () => ({
   db: {},
   documentsTable: {},
+  companiesTable: {},
   accountingRolesTable: {},
   counterpartiesTable: {},
   accountsTable: {},
@@ -38,6 +39,13 @@ vi.mock("../lib/directPostingAccountValidation", () => ({ validateDirectPostingA
 vi.mock("../lib/purchaseSourceDocuments", () => ({ claimPurchaseSourceDocument: vi.fn() }));
 
 import { inferAssetCandidate, isEuSupplierTaxId } from "./documents";
+import {
+  classifyPartyIdentity,
+  filterSelfCounterparties,
+  findScopedCounterparty,
+  normalizeTaxId,
+  resolveDocumentParties,
+} from "../lib/documentPartyResolution";
 
 describe("OCR document fixed-asset inference", () => {
   it("proposes equipment only when the line has explicit acquisition evidence", () => {
@@ -59,5 +67,99 @@ describe("OCR document fixed-asset inference", () => {
     expect(isEuSupplierTaxId("EL123456789")).toBe(true);
     expect(isEuSupplierTaxId("SI12345678")).toBe(false);
     expect(isEuSupplierTaxId("12345678")).toBe(false);
+  });
+});
+
+describe("OCR active-company party resolution", () => {
+  const company = {
+    naziv: "Mikrona d.o.o.",
+    kratekNaziv: "Mikrona",
+    podjetjeDavcna: "SI 12-345678",
+    idZaDdv: "si12345678",
+    maticnaStevilka: "123.456.789",
+  };
+
+  it("normalizes SI prefixed and bare Slovenian tax IDs, without collapsing foreign IDs", () => {
+    expect(normalizeTaxId(" si 12-345678 ")).toBe("12345678");
+    expect(normalizeTaxId("12.345.678")).toBe("12345678");
+    expect(normalizeTaxId("de 12-345678")).toBe("DE12345678");
+    expect(normalizeTaxId("AT12345678")).not.toBe(normalizeTaxId("12345678"));
+  });
+
+  it("recognizes company aliases only when party IDs are absent, and treats conflicting IDs as evidence", () => {
+    expect(classifyPartyIdentity({ name: "MIKRONA" }, company)).toBe("self");
+    expect(classifyPartyIdentity({ name: "Mikrona d.o.o.", taxId: "SI99887766" }, company)).toBe("other");
+    expect(classifyPartyIdentity({ name: "Different name", taxId: "12 345 678" }, company)).toBe("self");
+    expect(classifyPartyIdentity({ registrationId: "123456789" }, company)).toBe("self");
+    expect(classifyPartyIdentity({ taxId: "12345678", registrationId: "999999999" }, company)).toBe("conflict");
+  });
+
+  it("corrects company issuer and recipient roles and keeps both-self documents unresolved", () => {
+    const customer = { name: "Kupec d.o.o.", taxId: "DE123456789" };
+    expect(resolveDocumentParties(
+      { name: "Mikrona", taxId: "SI12345678" },
+      customer,
+      company,
+      "invoice_received",
+    )).toMatchObject({
+      documentType: "invoice_issued",
+      oppositeParty: customer,
+      correctedModelType: true,
+    });
+    expect(resolveDocumentParties(
+      { name: "Supplier d.o.o.", taxId: "AT123456789" },
+      { name: "Mikrona", registrationId: "123456789" },
+      company,
+      "invoice_issued",
+    )).toMatchObject({
+      documentType: "invoice_received",
+      correctedModelType: true,
+    });
+    const bothOwn = resolveDocumentParties(
+      { name: "Mikrona" },
+      { name: "Mikrona d.o.o." },
+      company,
+      "invoice_received",
+    );
+    expect(bothOwn.documentType).toBeUndefined();
+    expect(bothOwn.oppositeParty).toBeUndefined();
+    expect(bothOwn.ambiguous).toBe(true);
+  });
+
+  it("filters self from the catalog and never name-matches when an ID conflicts", () => {
+    const catalog = [
+      { id: "self", name: "Mikrona d.o.o.", taxId: "SI12345678" },
+      { id: "customer", name: "Kupec d.o.o.", taxId: "DE123456789" },
+      { id: "same-name-conflict", name: "Kupec d.o.o.", taxId: "AT987654321" },
+    ];
+    const visible = filterSelfCounterparties(catalog, company);
+    expect(visible.map(row => row.id)).toEqual(["customer", "same-name-conflict"]);
+    expect(findScopedCounterparty(
+      { name: "Kupec d.o.o.", taxId: "DE 123456789" },
+      company,
+      visible,
+    )?.id).toBe("customer");
+    expect(findScopedCounterparty(
+      { name: "Kupec d.o.o.", taxId: "DE000000000" },
+      company,
+      visible,
+    )).toBeUndefined();
+    expect(findScopedCounterparty({ name: "Kupec d.o.o." }, company, visible)?.id).toBe("customer");
+  });
+
+  it("does not guess a direction for unknown or conflicting roles", () => {
+    const unknownRoles = resolveDocumentParties(null, null, company, "unknown");
+    expect(unknownRoles.documentType).toBeUndefined();
+    expect(unknownRoles.oppositeParty).toBeUndefined();
+    expect(unknownRoles.ambiguous).toBe(true);
+    const conflictingRoles = resolveDocumentParties(
+      { name: "Mikrona", taxId: "SI12345678", registrationId: "999999999" },
+      { name: "Kupec", taxId: "DE123456789" },
+      company,
+      "invoice_received",
+    );
+    expect(conflictingRoles.documentType).toBeUndefined();
+    expect(conflictingRoles.oppositeParty).toBeUndefined();
+    expect(conflictingRoles.ambiguous).toBe(true);
   });
 });

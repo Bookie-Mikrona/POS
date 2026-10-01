@@ -48,7 +48,7 @@ describe("ConfirmedDocumentLines", () => {
     );
 
     expect(screen.getByText("Potrjeno kontiranje")).toBeInTheDocument();
-    expect(screen.getByText("Na podlagi 3 preteklih računov tega dobavitelja")).toBeInTheDocument();
+    expect(screen.getByText("Na podlagi 3 potrjenih kontiranj tega partnerja")).toBeInTheDocument();
     expect(screen.getByText("Tipičen vzorec kontiranja")).toBeInTheDocument();
     expect(screen.getByText("Ročna izbira")).toBeInTheDocument();
   });

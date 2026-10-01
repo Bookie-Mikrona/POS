@@ -1,0 +1,236 @@
+import "@testing-library/jest-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { DocumentReviewForm } from "./dokumenti";
+import type { DocumentRecord } from "@workspace/api-client-react";
+
+const state = vi.hoisted(() => ({
+  activeCompany: {
+    id: "company-identity-test",
+    role: "admin",
+    podjetjeDavcna: "SI12345678",
+    naziv: "Mikrona d.o.o.",
+    kratekNaziv: "Mikrona",
+  },
+  counterparties: [] as Array<Record<string, unknown>>,
+  confirmMutate: vi.fn(),
+  createCounterpartyMutate: vi.fn(),
+}));
+
+vi.mock("@clerk/react", () => ({
+  useAuth: () => ({ getToken: vi.fn(async () => null) }),
+}));
+
+vi.mock("@/contexts/CompanyContext", () => ({
+  useCompany: () => ({ activeCompany: state.activeCompany }),
+}));
+
+vi.mock("@workspace/api-client-react", () => ({
+  useListCounterparties: () => ({ data: { counterparties: state.counterparties } }),
+  useListAccounts: () => ({
+    data: {
+      accounts: [{
+        id: "account-1",
+        code: "4000",
+        name: "Storitve",
+        isActive: true,
+        allowsPosting: true,
+      }],
+    },
+  }),
+  useListPeriods: () => ({
+    data: { periods: [{ id: "period-1", name: "2026", status: "open" }] },
+  }),
+  useListCompanyFursVatCodes: () => ({ data: { codes: [] } }),
+  useGetCounterpartyAccountTemplates: () => ({
+    data: { templates: [] },
+    isLoading: false,
+    isError: false,
+  }),
+  useConfirmDocument: () => ({
+    mutate: state.confirmMutate,
+    isPending: false,
+  }),
+  useCreateCounterparty: () => ({
+    mutate: state.createCounterpartyMutate,
+    isPending: false,
+    isError: false,
+  }),
+  getListDocumentsQueryKey: vi.fn(),
+  getGetDocumentQueryKey: vi.fn(),
+  getListCounterpartiesQueryKey: vi.fn(),
+  getListCompanyFursVatCodesQueryKey: vi.fn(() => ["furs-vat-codes"]),
+}));
+
+const validLine = {
+  description: "Svetovanje",
+  quantity: 1,
+  unitPrice: 100,
+  vatRate: 22,
+  vatBase: 100,
+  vatAmount: 22,
+  confidence: 0.95,
+  accountId: "account-1",
+  accountCode: "4000",
+};
+
+function createDocument(ocrOverrides: Record<string, unknown> = {}) {
+  return {
+    id: "document-identity-test",
+    companyId: state.activeCompany.id,
+    fileName: "racun.pdf",
+    objectPath: "/objects/tests/racun.pdf",
+    mimeType: "application/pdf",
+    fileSizeBytes: 1024,
+    status: "done",
+    createdAt: "2026-09-01T08:00:00.000Z",
+    updatedAt: "2026-09-01T08:00:00.000Z",
+    ocrResult: {
+      rawText: "",
+      confidence: 1,
+      lines: [validLine],
+      ...ocrOverrides,
+    },
+  } as DocumentRecord;
+}
+
+function renderForm(doc: DocumentRecord) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <DocumentReviewForm doc={doc} />
+    </QueryClientProvider>,
+  );
+}
+
+function openSelect(trigger: HTMLElement) {
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: "mouse" });
+}
+
+beforeAll(() => {
+  HTMLElement.prototype.hasPointerCapture = () => false;
+  HTMLElement.prototype.setPointerCapture = () => undefined;
+  HTMLElement.prototype.releasePointerCapture = () => undefined;
+});
+
+beforeEach(() => {
+  state.activeCompany = {
+    id: "company-identity-test",
+    role: "admin",
+    podjetjeDavcna: "SI12345678",
+    naziv: "Mikrona d.o.o.",
+    kratekNaziv: "Mikrona",
+  };
+  state.counterparties = [];
+  state.confirmMutate.mockClear();
+  state.createCounterpartyMutate.mockClear();
+});
+
+afterEach(cleanup);
+
+describe("DocumentReviewForm — partner identity and document roles", () => {
+  it("recognizes legacy OCR for the active company, hides self-creation, and filters self from selection", () => {
+    state.counterparties = [
+      { id: "own-partner", name: "Different saved name", taxId: "12345678", type: "supplier" },
+      { id: "external-partner", name: "Zunanji partner", taxId: "87654321", type: "supplier" },
+    ];
+
+    renderForm(createDocument({
+      suggestedDocumentType: "invoice_issued",
+      counterpartyName: "Mikrona d.o.o.",
+      counterpartyTaxId: "12345678",
+      suggestedCounterpartyId: "own-partner",
+    }));
+
+    expect(screen.getByText(/AI je kot partnerja prepoznal vaše podjetje/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ustvari partnerja iz AI podatkov/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/partnerja ni v sistemu/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Potrdi in shrani/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Potrdi in shrani/ }));
+    expect(state.confirmMutate).not.toHaveBeenCalled();
+
+    const partnerSelect = screen.getAllByRole("combobox")[2];
+    openSelect(partnerSelect);
+    expect(screen.getByRole("option", { name: /Zunanji partner/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Different saved name/ })).not.toBeInTheDocument();
+  });
+
+  it("uses case- and punctuation-normalized company names only when an OCR tax ID is absent", () => {
+    state.counterparties = [
+      { id: "own-name-only", name: "mikrona", taxId: null, type: "supplier" },
+    ];
+
+    renderForm(createDocument({
+      suggestedDocumentType: "invoice_issued",
+      counterpartyName: "MIKRONA!",
+      suggestedCounterpartyId: "own-name-only",
+    }));
+
+    expect(screen.getByText(/AI je kot partnerja prepoznal vaše podjetje/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ustvari partnerja iz AI podatkov/ })).not.toBeInTheDocument();
+  });
+
+  it("leaves an unknown document type blank and blocks confirmation until selected", () => {
+    state.counterparties = [
+      { id: "known-external", name: "Zunanji partner", taxId: "87654321", type: "supplier" },
+    ];
+
+    renderForm(createDocument({
+      suggestedDocumentType: "unsupported_type",
+      counterpartyName: "Zunanji partner",
+      suggestedCounterpartyId: "known-external",
+    }));
+
+    expect(screen.getByText("Izberite tip dokumenta")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Potrdi in shrani/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Potrdi in shrani/ }));
+    expect(state.confirmMutate).not.toHaveBeenCalled();
+  });
+
+  it("creates an OCR partner as a customer for an issued invoice", () => {
+    renderForm(createDocument({
+      suggestedDocumentType: "invoice_issued",
+      counterpartyName: "Kupec d.o.o.",
+      counterpartyTaxId: "87654321",
+    }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Ustvari partnerja iz AI podatkov/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Shrani partnerja" }));
+
+    expect(state.createCounterpartyMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Kupec d.o.o.",
+          taxId: "87654321",
+          type: "customer",
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("keeps the missing external-partner action when OCR tax identity conflicts with the active company", () => {
+    renderForm(createDocument({
+      suggestedDocumentType: "invoice_received",
+      counterpartyName: "Mikrona d.o.o.",
+      counterpartyTaxId: "SI87654321",
+    }));
+
+    expect(screen.queryByText(/AI je kot partnerja prepoznal vaše podjetje/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ustvari partnerja iz AI podatkov/ })).toBeInTheDocument();
+  });
+
+  it("keeps the missing external-partner action for an ordinary unmatched counterparty", () => {
+    renderForm(createDocument({
+      suggestedDocumentType: "invoice_received",
+      counterpartyName: "Zunanji dobavitelj",
+      counterpartyTaxId: "87654321",
+    }));
+
+    expect(screen.getByText(/partnerja ni v sistemu/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ustvari partnerja iz AI podatkov/ })).toBeInTheDocument();
+  });
+});

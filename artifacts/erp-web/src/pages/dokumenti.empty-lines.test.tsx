@@ -23,6 +23,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useListCounterparties: () => ({ data: { counterparties: [] } }),
   useListAccounts: () => ({ data: { accounts: [] } }),
   useListPeriods: () => ({ data: { periods: [] } }),
+  useListCompanyFursVatCodes: () => ({ data: { codes: [] } }),
   useGetCounterpartyAccountTemplates: () => ({
     data: { templates: [] },
     isLoading: false,
@@ -39,6 +40,8 @@ vi.mock("@workspace/api-client-react", () => ({
   }),
   getListDocumentsQueryKey: vi.fn(),
   getGetDocumentQueryKey: vi.fn(),
+  getListCounterpartiesQueryKey: vi.fn(),
+  getListCompanyFursVatCodesQueryKey: vi.fn(),
 }));
 
 const emptyLinesDocument = {

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { trackEvent } from "@/lib/analytics";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
-  FileText, Upload, Loader2, FileSearch, CheckCircle2, XCircle, AlertCircle, 
+  FileText, Loader2, FileSearch, CheckCircle2, XCircle, AlertCircle, 
   Building2, AlertTriangle, FileUp, UserPlus, ChevronDown, ChevronUp,
   Eye, EyeOff, ZoomIn, ZoomOut, ExternalLink, Maximize2, X, Bookmark
 } from "lucide-react";
@@ -13,10 +12,8 @@ import { useCompany } from "@/contexts/CompanyContext";
 import {
   useListDocuments,
   useGetDocument,
-  useRegisterDocument,
   useConfirmDocument,
   useRejectDocument,
-  useRequestUploadUrl,
   useListCounterparties,
   useCreateCounterparty,
   useListAccounts,
@@ -26,6 +23,7 @@ import {
   getListDocumentsQueryKey,
   getGetDocumentQueryKey,
   getListCounterpartiesQueryKey,
+  getListCompanyFursVatCodesQueryKey,
   type DocumentRecord,
   type ProposedLine,
 } from "@workspace/api-client-react";
@@ -40,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
+import { DocumentUpload } from "@/components/documents/document-upload";
 
 function formatRelativeTime(dateString: string) {
   const date = new Date(dateString);
@@ -79,6 +78,44 @@ const formatEur = (n: number | null | undefined) => {
   return new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(n);
 };
 
+type ReviewDocumentType = "invoice_received" | "invoice_issued" | "other";
+
+function isReviewDocumentType(value: string | null | undefined): value is ReviewDocumentType {
+  return value === "invoice_received" || value === "invoice_issued" || value === "other";
+}
+
+function getPartnerTypeForDocument(documentType: string): "customer" | "supplier" {
+  return documentType === "invoice_issued" ? "customer" : "supplier";
+}
+
+function normalizeTaxId(value: string | null | undefined) {
+  const normalized = value?.trim().replace(/^SI\s*/i, "").replace(/[\s.-]/g, "");
+  return normalized && /^\d{8}$/.test(normalized) ? normalized : null;
+}
+
+function normalizeCompanyName(value: string | null | undefined) {
+  return value?.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}\s]+/gu, "") ?? "";
+}
+
+function matchesCompanyIdentity(
+  companyTaxId: string | null | undefined,
+  companyNames: Array<string | null | undefined>,
+  otherTaxId: string | null | undefined,
+  otherNames: Array<string | null | undefined>,
+) {
+  const normalizedCompanyTaxId = normalizeTaxId(companyTaxId);
+  const normalizedOtherTaxId = normalizeTaxId(otherTaxId);
+  if (normalizedCompanyTaxId && normalizedOtherTaxId) {
+    return normalizedCompanyTaxId === normalizedOtherTaxId;
+  }
+  if (companyTaxId?.trim() && otherTaxId?.trim()) return false;
+
+  const normalizedOtherNames = new Set(otherNames.map(normalizeCompanyName).filter(Boolean));
+  return companyNames
+    .map(normalizeCompanyName)
+    .some(name => name !== "" && normalizedOtherNames.has(name));
+}
+
 const STATUS_CONFIG: Record<string, { label: string, variant: "default" | "secondary" | "destructive" | "outline", colorClass?: string }> = {
   pending: { label: "V čakalni vrsti", variant: "secondary" },
   processing: { label: "Obdelujem...", variant: "outline", colorClass: "text-blue-600 border-blue-200 bg-blue-50" },
@@ -107,7 +144,9 @@ export default function Dokumenti() {
     if (!activeCompany?.id) return;
     const hasActive = documents.some(d => d.status === "pending" || d.status === "processing");
     if (hasActive) {
-      const timer = setTimeout(() => {
+      // Query structural sharing keeps `documents` unchanged while OCR is
+      // still running. A one-shot timeout would never re-arm in that case.
+      const timer = setInterval(() => {
         queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(activeCompany.id) });
         const selectedDoc = documents.find(d => d.id === selectedDocId);
         const selectedDocIsActive = selectedDoc?.status === "pending" || selectedDoc?.status === "processing";
@@ -115,70 +154,10 @@ export default function Dokumenti() {
           queryClient.invalidateQueries({ queryKey: getGetDocumentQueryKey(activeCompany.id, selectedDocId) });
         }
       }, 3000);
-      return () => clearTimeout(timer);
+      return () => clearInterval(timer);
     }
     return undefined;
   }, [documents, activeCompany?.id, queryClient, selectedDocId]);
-
-  // Upload Logic
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const requestUploadMut = useRequestUploadUrl();
-  const registerDocMut = useRegisterDocument();
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeCompany) return;
-
-    try {
-      setUploading(true);
-      // 1. Get upload URL
-      const { uploadURL, objectPath } = await requestUploadMut.mutateAsync({
-        data: { name: file.name, size: file.size, contentType: file.type }
-      });
-
-      // 2. Upload directly via PUT
-      const putRes = await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!putRes.ok) {
-        throw new Error(`Upload failed: ${putRes.statusText}`);
-      }
-
-      // 3. Register document
-      await registerDocMut.mutateAsync({
-        companyId: activeCompany.id,
-        data: {
-          objectPath,
-          fileName: file.name,
-          mimeType: file.type,
-          fileSizeBytes: file.size
-        }
-      });
-      trackEvent("document_imported", {
-        mime_type_group: file.type === "application/pdf"
-          ? "pdf"
-          : file.type.startsWith("image/") ? "image" : "other",
-        file_size_bucket: file.size < 1_000_000
-          ? "under_1mb"
-          : file.size < 5_000_000 ? "1_5mb" : "over_5mb",
-      });
-
-      // 4. Refresh list
-      queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(activeCompany.id) });
-      
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Napaka pri nalaganju datoteke.");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] gap-4">
@@ -193,21 +172,7 @@ export default function Dokumenti() {
         {/* Left Column: List */}
         <div className="w-[380px] flex flex-col border rounded-xl bg-card shadow-sm overflow-hidden shrink-0">
           <div className="p-4 border-b bg-muted/20 shrink-0">
-            <input 
-              type="file" 
-              className="hidden" 
-              ref={fileInputRef} 
-              onChange={handleFileChange}
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
-            />
-            <Button 
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm" 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || activeCompany?.role === "viewer"}
-            >
-              {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-              {uploading ? "Nalaganje..." : "Naloži dokument"}
-            </Button>
+            <DocumentUpload company={activeCompany} />
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -654,8 +619,10 @@ export function SuggestionSourceIndicator({
       <p className="text-[10px] text-emerald-700 mt-0.5 flex items-center gap-1">
         <span>✓</span>
         {count != null && count > 0
-          ? `Na podlagi ${count} preteklih ${count === 1 ? "računa" : "računov"} tega dobavitelja`
-          : "Na podlagi preteklih računov tega dobavitelja"}
+          ? count === 1
+            ? "Na podlagi 1 potrjenega kontiranja tega partnerja"
+            : `Na podlagi ${count} potrjenih kontiranj tega partnerja`
+          : "Na podlagi potrjenih kontiranj tega partnerja"}
       </p>
     );
   }
@@ -729,7 +696,23 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const isViewer = activeCompany?.role === "viewer";
 
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
-  const counterparties = counterpartiesData?.counterparties ?? [];
+  const allCounterparties = counterpartiesData?.counterparties ?? [];
+  const isActiveCompanyIdentity = (taxId: string | null | undefined, name: string | null | undefined) =>
+    !!activeCompany && matchesCompanyIdentity(
+      activeCompany.podjetjeDavcna,
+      [activeCompany.naziv, activeCompany.kratekNaziv],
+      taxId,
+      [name],
+    );
+  const counterparties = allCounterparties.filter(counterparty =>
+    !isActiveCompanyIdentity(counterparty.taxId, counterparty.name),
+  );
+  const ocrCounterpartyIsOwnCompany = !!activeCompany && matchesCompanyIdentity(
+    activeCompany.podjetjeDavcna,
+    [activeCompany.naziv, activeCompany.kratekNaziv],
+    ocr?.counterpartyTaxId,
+    [ocr?.counterpartyName],
+  );
 
   const { data: accountsData } = useListAccounts(
     activeCompany?.id ?? "",
@@ -747,23 +730,44 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const { data: fursVatCodesData } = useListCompanyFursVatCodes(
     activeCompany?.id ?? "",
     { direction: "IN" },
-    { query: { enabled: !!activeCompany?.id } },
+    {
+      query: {
+        enabled: !!activeCompany?.id,
+        queryKey: getListCompanyFursVatCodesQueryKey(activeCompany?.id ?? "", { direction: "IN" }),
+      },
+    },
   );
   const allEubVatCodes = (fursVatCodesData?.codes ?? []).filter(code => code.code.startsWith("EUB"));
 
   const confirmMut = useConfirmDocument();
   const createCounterpartyMut = useCreateCounterparty();
 
+  const initialDocumentType = isReviewDocumentType(ocr?.suggestedDocumentType)
+    ? ocr.suggestedDocumentType
+    : "";
+  const [form, setForm] = useState({
+    documentType: initialDocumentType,
+    counterpartyId: ocr?.suggestedCounterpartyId || "",
+    periodId: ocr?.suggestedPeriodId || (openPeriods.length > 0 ? openPeriods[openPeriods.length - 1].id : ""),
+    invoiceNumber: ocr?.invoiceNumber || "",
+    invoiceDate: ocr?.invoiceDate?.split("T")[0] || "",
+    dueDate: ocr?.dueDate?.split("T")[0] || "",
+    createInvoice: true
+  });
+  const selectedCounterpartyId = counterparties.some(counterparty => counterparty.id === form.counterpartyId)
+    ? form.counterpartyId
+    : "";
+
   // Mini-form for quick partner creation
   const [showCreatePartner, setShowCreatePartner] = useState(false);
   const [newPartner, setNewPartner] = useState({
     name: ocr?.counterpartyName || "",
     taxId: ocr?.counterpartyTaxId?.replace(/^SI/, "") || "",
-    type: "supplier" as "customer" | "supplier" | "both",
+    type: getPartnerTypeForDocument(initialDocumentType) as "customer" | "supplier" | "both",
   });
 
   const handleCreatePartner = () => {
-    if (!activeCompany || !newPartner.name.trim()) return;
+    if (!activeCompany || !isReviewDocumentType(form.documentType) || !newPartner.name.trim()) return;
     createCounterpartyMut.mutate(
       {
         companyId: activeCompany.id,
@@ -782,19 +786,10 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
       }
     );
   };
-
-  const [form, setForm] = useState({
-    documentType: ocr?.suggestedDocumentType || "invoice_received",
-    counterpartyId: ocr?.suggestedCounterpartyId || "",
-    periodId: ocr?.suggestedPeriodId || (openPeriods.length > 0 ? openPeriods[openPeriods.length - 1].id : ""),
-    invoiceNumber: ocr?.invoiceNumber || "",
-    invoiceDate: ocr?.invoiceDate?.split("T")[0] || "",
-    dueDate: ocr?.dueDate?.split("T")[0] || "",
-    createInvoice: true
-  });
   const invoiceVatDate = form.invoiceDate || ocr?.invoiceDate?.slice(0, 10) || "";
   const eubVatCodes = allEubVatCodes.filter(code =>
-    (!invoiceVatDate || code.validFrom <= invoiceVatDate)
+    !!code.validFrom
+    && (!invoiceVatDate || code.validFrom <= invoiceVatDate)
     && (!invoiceVatDate || !code.validTo || code.validTo >= invoiceVatDate),
   );
 
@@ -804,10 +799,10 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     isError: accountTemplatesError,
   } = useGetCounterpartyAccountTemplates(
     activeCompany?.id ?? "",
-    form.counterpartyId,
+    selectedCounterpartyId,
     {
       query: {
-        enabled: !!(activeCompany?.id && form.counterpartyId),
+        enabled: !!(activeCompany?.id && selectedCounterpartyId),
       } as any,
     },
   );
@@ -963,15 +958,14 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const progressColor = docConfidence >= 80 ? "[&>div]:bg-emerald-500" : docConfidence >= 50 ? "[&>div]:bg-amber-500" : "[&>div]:bg-red-500";
 
   const handleSubmit = () => {
-    if (!activeCompany) return;
-    if (hasNoLines) return;
+    if (!activeCompany || !isReviewDocumentType(form.documentType) || !selectedCounterpartyId || hasNoLines) return;
     
     confirmMut.mutate({
       companyId: activeCompany.id,
       id: doc.id,
       data: {
-        documentType: form.documentType as any,
-        counterpartyId: form.counterpartyId || null,
+        documentType: form.documentType,
+        counterpartyId: selectedCounterpartyId,
         periodId: form.periodId || null,
         invoiceNumber: form.invoiceNumber || null,
         invoiceDate: form.invoiceDate || null,
@@ -1118,7 +1112,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                 </Alert>
               </div>
             )}
-            {form.counterpartyId && (
+            {selectedCounterpartyId && (
               <div className="px-5 pb-3">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs">
                   <Bookmark className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
@@ -1338,9 +1332,14 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label>Tip dokumenta</Label>
-              <Select value={form.documentType} onValueChange={v => setForm(p => ({...p, documentType: v as typeof p.documentType}))}>
+              <Select value={form.documentType} onValueChange={v => {
+                setForm(p => ({ ...p, documentType: v }));
+                if (showCreatePartner) {
+                  setNewPartner(p => ({ ...p, type: getPartnerTypeForDocument(v) }));
+                }
+              }}>
                 <SelectTrigger className="bg-background">
-                  <SelectValue />
+                  <SelectValue placeholder="Izberite tip dokumenta" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="invoice_received">Prejet račun</SelectItem>
@@ -1352,7 +1351,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
             <div className="space-y-2">
               <Label>Partner <span className="text-destructive">*</span></Label>
-              <Select value={form.counterpartyId} onValueChange={v => setForm(p => ({...p, counterpartyId: v}))}>
+              <Select value={selectedCounterpartyId} onValueChange={v => setForm(p => ({...p, counterpartyId: v}))}>
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Izberite partnerja" />
                 </SelectTrigger>
@@ -1362,8 +1361,16 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                   ))}
                 </SelectContent>
               </Select>
+              {ocrCounterpartyIsOwnCompany && (
+                <Alert className="mt-1.5 py-2 px-3 border-blue-200 bg-blue-50 text-blue-900">
+                  <AlertTriangle className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                  <AlertDescription className="text-xs ml-1">
+                    AI je kot partnerja prepoznal vaše podjetje. Preverite vlogo izdajatelja in ročno izberite dejanskega partnerja; lastnega podjetja ni mogoče izbrati kot partnerja.
+                  </AlertDescription>
+                </Alert>
+              )}
               {/* Show hint when AI found a name but no matching counterparty */}
-              {!form.counterpartyId && ocr?.counterpartyName && !isViewer && (
+              {!selectedCounterpartyId && ocr?.counterpartyName && !ocrCounterpartyIsOwnCompany && !isViewer && (
                 <div className="mt-1.5">
                   <Alert className="py-2 px-3 border-amber-200 bg-amber-50 text-amber-900">
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
@@ -1376,11 +1383,13 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                     variant="outline"
                     size="sm"
                     className="mt-1.5 w-full border-dashed text-amber-700 border-amber-300 hover:bg-amber-50"
+                    disabled={!isReviewDocumentType(form.documentType)}
                     onClick={() => {
+                      if (!isReviewDocumentType(form.documentType)) return;
                       setNewPartner({
                         name: ocr.counterpartyName || "",
                         taxId: ocr.counterpartyTaxId?.replace(/^SI/, "") || "",
-                        type: "supplier",
+                        type: getPartnerTypeForDocument(form.documentType),
                       });
                       setShowCreatePartner(v => !v);
                     }}
@@ -1389,6 +1398,9 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                     Ustvari partnerja iz AI podatkov
                     {showCreatePartner ? <ChevronUp className="ml-auto h-3.5 w-3.5" /> : <ChevronDown className="ml-auto h-3.5 w-3.5" />}
                   </Button>
+                  {!isReviewDocumentType(form.documentType) && (
+                    <p className="mt-1 text-xs text-muted-foreground">Najprej izberite tip dokumenta, nato lahko ustvarite partnerja.</p>
+                  )}
 
                   {/* Inline mini create-partner form */}
                   {showCreatePartner && (
@@ -1499,8 +1511,11 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                   </AlertDescription>
                 </Alert>
               )}
-              {!form.counterpartyId && (
+              {!selectedCounterpartyId && !ocrCounterpartyIsOwnCompany && (
                 <p className="text-destructive flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" /> Partner ni izbran</p>
+              )}
+              {!isReviewDocumentType(form.documentType) && (
+                <p className="text-destructive flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" /> Tip dokumenta ni izbran</p>
               )}
               {!form.periodId && (
                 <p className="text-destructive flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" /> Obdobje ni izbrano</p>
@@ -1515,7 +1530,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
             <Button 
               size="lg" 
               onClick={handleSubmit} 
-              disabled={!form.counterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && (linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0)) || confirmMut.isPending || isViewer}
+              disabled={!isReviewDocumentType(form.documentType) || !selectedCounterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && (linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0)) || confirmMut.isPending || isViewer}
               className="bg-primary text-primary-foreground min-w-[200px]"
             >
               {confirmMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
