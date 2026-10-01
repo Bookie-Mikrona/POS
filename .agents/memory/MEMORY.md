@@ -126,7 +126,7 @@
 - [POS actor PIN brez ERP računa](pos-actor-pin.md) — natakar uporablja ID+PIN na skupni prijavi; manjkajoča actor seja ne sme blokirati vodje pri nastavitvi PIN-a.
 - [POS audit identitete](pos-audit-identitete.md) — Clerk izvajalec in natakar actor sta ločena; legacy integer stolpca ne pretipkaj.
 - [Začetne cene malic](malice-initial-prices.md) — prvo ceno skupine je dovoljeno določiti za nazaj; poznejše spremembe veljajo šele od naslednjega poslovnega dne.
-- [Priprava plačil dobaviteljem](supplier-payment-preparation.md) — računi po zapadlosti z delnimi zneski; vsota ne sme preseči stanja izbranega konta 110x.
+- [Priprava plačil dobaviteljem](supplier-payment-preparation.md) — izbor po zapadlosti in delni zneski; kritje presojaj po dejanskem stanju TRR, ne po saldu konta 110x.
 - [Evidenca bančnih izpiskov](bank-statement-evidence.md) — vsak uvoz ima glavo, vrstice in odtis datoteke; plačilo je vezano na eno bančno vrstico.
 - [Pametno OCR uparjanje](ocr-pametno-uparjanje.md) — kanonične mere naj razširijo nabor; AI sme le predlagati dovoljen ID in nikoli sam potrditi.
 - [Povratna embalaža](povratna-embalaza.md) — fizična zaloga ostane skupna, dobaviteljski kavcijski saldo pa je ločen append-only promet s snapshot vrednostjo.
