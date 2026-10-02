@@ -14907,6 +14907,8 @@ export const GetLedgerQueryParams = zod.object({
 export const GetLedgerResponse = zod.object({
   "lines": zod.array(zod.object({
   "entryId": zod.string(),
+  "isReversal": zod.boolean().describe('True for a reversal entry, not for the reversed original'),
+  "reversalOf": zod.string().nullable().describe('Original journal entry ID for a reversal, otherwise null'),
   "entryDate": zod.coerce.date(),
   "description": zod.string(),
   "reference": zod.string().nullish(),

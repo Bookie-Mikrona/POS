@@ -124,8 +124,8 @@ describe("razširljiva zgodovina bančnega konta", () => {
     ]);
     expect(panel.queryByText("KNJIŽBA-03")).not.toBeInTheDocument();
     expect(panel.getByText(/10\.\s*01\.\s*2026/)).toBeInTheDocument();
-    expect(normalizedMoney(panel.getByText("KNJIŽBA-10").parentElement?.lastElementChild?.textContent)).toBe("-12,35 €");
-    expect(normalizedMoney(panel.getByText("KNJIŽBA-09").parentElement?.lastElementChild?.textContent)).toBe("17,00 €");
+    expect(normalizedMoney(panel.getByText("KNJIŽBA-10").closest(".grid")?.lastElementChild?.textContent)).toBe("-12,35 €");
+    expect(normalizedMoney(panel.getByText("KNJIŽBA-09").closest(".grid")?.lastElementChild?.textContent)).toBe("17,00 €");
     expect(ledgerLines[0].description).toBe("KNJIŽBA-04");
     expect(ledgerLines[6].description).toBe("KNJIŽBA-10");
   });

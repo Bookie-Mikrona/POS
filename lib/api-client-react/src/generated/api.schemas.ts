@@ -9346,6 +9346,13 @@ export interface ReverseJournalEntryBody {
 
 export interface LedgerLine {
   entryId: string;
+  /** True for a reversal entry, not for the reversed original */
+  isReversal: boolean;
+  /**
+     * Original journal entry ID for a reversal, otherwise null
+     * @nullable
+     */
+  reversalOf: string | null;
   entryDate: string;
   description: string;
   /** @nullable */

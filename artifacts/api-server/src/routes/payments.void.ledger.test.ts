@@ -213,6 +213,16 @@ describe("ledger: neto saldo bančnega konta = 0 po void plačila", () => {
 
     // Pričakujemo vsaj 2 vrstici: original + storno
     expect(res.body.lines.length).toBeGreaterThanOrEqual(2);
+    const original = res.body.lines.find((line: any) => !line.isReversal);
+    const reversal = res.body.lines.find((line: any) => line.isReversal);
+    expect(original).toMatchObject({ isReversal: false, reversalOf: null });
+    expect(reversal).toMatchObject({ isReversal: true, reversalOf: original.entryId });
+
+    const recent = await supertest(app)
+      .get(`/companies/${companyId}/ledger?accountId=${bankAccountId}&recentLimit=1`)
+      .expect(200);
+    expect(recent.body.lines).toHaveLength(1);
+    expect(recent.body.lines[0]).toMatchObject({ isReversal: true, reversalOf: original.entryId });
 
     const totalDebit = parseFloat(res.body.totalDebit);
     const totalCredit = parseFloat(res.body.totalCredit);
@@ -445,6 +455,7 @@ describe("robni primer: void v drugem obdobju kot originalno plačilo", () => {
     const totalDebit = parseFloat(res.body.totalDebit);
     const totalCredit = parseFloat(res.body.totalCredit);
     // V 1. obdobju je samo original entry (DEBIT AMOUNT, status reversed)
+    expect(res.body.lines[0]).toMatchObject({ isReversal: false, reversalOf: null });
     expect(totalDebit).toBeCloseTo(AMOUNT, 1);
     expect(totalCredit).toBeCloseTo(0, 1);
   });
@@ -459,6 +470,7 @@ describe("robni primer: void v drugem obdobju kot originalno plačilo", () => {
     const totalDebit = parseFloat(res.body.totalDebit);
     const totalCredit = parseFloat(res.body.totalCredit);
     // V 2. obdobju je samo storno entry (CREDIT AMOUNT, status posted)
+    expect(res.body.lines[0]).toMatchObject({ isReversal: true, reversalOf: linkedEntryId });
     expect(totalDebit).toBeCloseTo(0, 1);
     expect(totalCredit).toBeCloseTo(AMOUNT, 1);
   });

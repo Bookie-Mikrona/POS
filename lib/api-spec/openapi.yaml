@@ -21120,6 +21120,12 @@ components:
       properties:
         entryId:
           type: string
+        isReversal:
+          type: boolean
+          description: True for a reversal entry, not for the reversed original
+        reversalOf:
+          type: ["string", "null"]
+          description: Original journal entry ID for a reversal, otherwise null
         entryDate:
           type: string
           format: date
@@ -21146,6 +21152,8 @@ components:
           description: Running balance (debit-credit cumulative)
       required:
         - entryId
+        - isReversal
+        - reversalOf
         - entryDate
         - description
         - accountId

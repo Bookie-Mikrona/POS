@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { LedgerReversalLabel } from "@/components/ledger-reversal-label";
 
 export default function GlavnaKnjiga() {
   const { activeCompany } = useCompany();
@@ -208,9 +209,12 @@ export default function GlavnaKnjiga() {
                     const running = parseFloat(line.runningBalance);
 
                     return (
-                      <TableRow key={`${line.entryId}-${i}`}>
+                      <TableRow key={`${line.entryId}-${i}`} className={line.isReversal ? "bg-amber-50/50 dark:bg-amber-950/20" : undefined}>
                         <TableCell className="font-medium whitespace-nowrap">{new Date(line.entryDate).toLocaleDateString("sl-SI")}</TableCell>
-                        <TableCell>{line.description}</TableCell>
+                        <TableCell>
+                          <div>{line.description}</div>
+                          <LedgerReversalLabel isReversal={line.isReversal} reversalOf={line.reversalOf} />
+                        </TableCell>
                         <TableCell className="text-muted-foreground">{line.reference || "-"}</TableCell>
                         <TableCell>
                           <div className="font-medium">{line.accountCode}</div>

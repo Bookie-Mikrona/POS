@@ -40,6 +40,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCompany } from "@/contexts/CompanyContext";
 import { BankBalanceReconciliation } from "@/components/bank-balance-reconciliation";
 import { useGetOpenItems, useGetAgedAnalysis, useGetBankBalance, useGetBankBalanceHistory, useGetLedger } from "@workspace/api-client-react";
+import { LedgerReversalLabel } from "@/components/ledger-reversal-label";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,10 @@ export function BankBalanceCard({ companyId, totalBalance, accounts, loading }: 
                                 return (
                                   <div key={`${line.entryId}-${index}`} className="grid grid-cols-[5.5rem_1fr_auto] gap-2 py-1.5 text-[11px]">
                                     <span className="text-muted-foreground">{formatLedgerDate(line.entryDate)}</span>
-                                    <span className="truncate" title={line.description}>{line.description}</span>
+                                    <div className="min-w-0">
+                                      <div className="truncate" title={line.description}>{line.description}</div>
+                                      <LedgerReversalLabel isReversal={line.isReversal} reversalOf={line.reversalOf} />
+                                    </div>
                                     <span className={`font-medium tabular-nums ${amount < 0 ? "text-red-600" : "text-emerald-700"}`}>
                                       {fmtEur(amount)}
                                     </span>

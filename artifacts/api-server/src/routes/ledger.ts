@@ -98,6 +98,7 @@ router.get(
         lineId: sql<string>`${journalEntryLinesTable.id}`.as("line_id"),
         createdAt: journalEntriesTable.createdAt,
         entryId: journalEntriesTable.id,
+        reversalOf: journalEntriesTable.reversalOf,
         entryDate: journalEntriesTable.entryDate,
         description: journalEntriesTable.description,
         reference: journalEntriesTable.reference,
@@ -130,6 +131,7 @@ router.get(
       const balanced = db.select({
         lineId: filtered.lineId, createdAt: filtered.createdAt,
         entryId: filtered.entryId, entryDate: filtered.entryDate,
+        reversalOf: filtered.reversalOf,
         description: filtered.description, reference: filtered.reference,
         accountId: filtered.accountId, accountCode: filtered.accountCode,
         accountName: filtered.accountName, sequence: filtered.sequence,
@@ -150,6 +152,7 @@ router.get(
       res.json({
         lines: recent.reverse().map(row => ({
           entryId: row.entryId, entryDate: row.entryDate,
+          isReversal: row.reversalOf !== null, reversalOf: row.reversalOf,
           description: row.description, reference: row.reference,
           accountId: row.accountId, accountCode: row.accountCode, accountName: row.accountName,
           debit: money(row.debit), credit: money(row.credit), runningBalance: money(row.runningBalance),
@@ -181,6 +184,8 @@ router.get(
       totalCredit += credit;
       return {
         entryId: row.entryId,
+        isReversal: row.reversalOf !== null,
+        reversalOf: row.reversalOf,
         entryDate: row.entryDate,
         description: row.description,
         reference: row.reference,
