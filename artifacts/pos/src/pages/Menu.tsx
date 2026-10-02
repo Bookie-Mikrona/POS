@@ -1729,9 +1729,19 @@ export default function Menu() {
         },
       }, {
         onSuccess: (createdArtikel) => {
-          finishSave(createdArtikel.id, "Artikel dodan", "created");
+          finishSave(createdArtikel.id,
+            createdArtikel.hasNormativ && validNormativItems.length === 0
+              ? "Artikel dodan; normativ pijače ustvarjen samodejno"
+              : "Artikel dodan", "created");
         },
-        onError: (err) => showArticleSaveError(err),
+        onError: (err) => {
+          const apiError = err as { data?: { code?: string; error?: string } };
+          if (apiError.data?.code === "AUTOMATIC_DRINK_NORMATIVE") {
+            setArtDialogTab("normativ");
+            setNormativNapaka(apiError.data.error ?? "Ročno določite normativ pijače.");
+          }
+          showArticleSaveError(err);
+        },
       });
     }
   };

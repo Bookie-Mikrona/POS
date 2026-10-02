@@ -17,6 +17,7 @@
 - [Navigacija po formah](form-navigation.md) — puščice + Enter na vseh vnosnih poljih; navFoo() helper za tabelarne forme
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
 - [Nabavna vs. prodajna DDV](nabavna-prodajna-ddv.md) — razlika je sistemska in zakonita; nikoli ne primerjaj davek z taxCategory
+- [Samodejni normativi pijač](automatic-drink-normatives.md) — novi samo prodajni alkohol/hladna pijača s prostornino dobi normativ; neznana nabavna prostornina pomeni 1 l.
 - [Purchase rate map spec](purchase-rate-map-spec.md) — spec za ERP prejemnice: DB tabela, validacija, 3 pravila (datum dobave, asimetrično opozorilo, ločena kontrola)
 - [Ljubljana timezone](ljubljana-timezone.md) — UTC+1 zima / UTC+2 poletje; doc datumi shranjeni kot UTC wall-clock, prikaz z timeZone:"UTC"
 - [KDS pravila in prikaz](kds-guides.md) — čas priprave, postaje po enoti, varni preklici, stabilnost oken ter enaki statusi na KDS in naročilih.

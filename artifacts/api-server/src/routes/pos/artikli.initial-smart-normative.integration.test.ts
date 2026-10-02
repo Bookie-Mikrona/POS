@@ -1,7 +1,7 @@
 import express from "express";
 import supertest from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 const mockCreate = vi.hoisted(() => vi.fn());
 vi.mock("@workspace/integrations-anthropic-ai", () => ({
@@ -184,6 +184,14 @@ describe("initial smart normative proposal and apply", () => {
   });
 
   afterAll(async () => {
+    // Delete recipe edges first: incoming-article FKs are RESTRICT, so relying
+    // on company cascades depends on the order articles happen to be deleted.
+    const unitIds = [enotaA, enotaB].filter(Boolean);
+    if (unitIds.length) {
+      await db.delete(normativiTable).where(inArray(normativiTable.artikelId,
+        db.select({ id: artikliTable.id }).from(artikliTable).where(inArray(artikliTable.enotaId, unitIds)),
+      ));
+    }
     if (companyId) await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
     if (foreignCompanyId) await db.delete(companiesTable).where(eq(companiesTable.id, foreignCompanyId));
     if (secretBefore === undefined) delete process.env.POS_NORMATIVE_PROPOSAL_SECRET;

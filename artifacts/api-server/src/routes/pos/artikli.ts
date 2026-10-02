@@ -20,6 +20,8 @@ import {
   normalizeArticleImage,
 } from "../../lib/article-image-normalization";
 import { isAllowedOneToOneSelfNorm, requiresClassicNormativ } from "../../lib/normativ-validation";
+import { automaticDrinkVolume } from "../../lib/drink-volume";
+import { AutomaticDrinkNormativeError, resolveAutomaticDrinkNormative } from "../../lib/automatic-drink-normative";
 import { lockPosBusinessDay } from "../../lib/pos-z-helpers";
 import { isMenuEligibleTaxCategory, normalizeAddedSugarForTaxCategory, type TaxCategory } from "../../lib/ddv-resolver";
 import { mealTypeForPizzaUpdate } from "../../lib/pizza-meal-type";
@@ -602,10 +604,15 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
   }
 
   let row: typeof artikliTable.$inferSelect;
+  const drinkVolume = parsed.data.normativItems?.length ? null : automaticDrinkVolume({
+    ime, taxCategory, nabavniArtikel, prodajniArtikel,
+    povratnaEmbalaza: parsed.data.povratnaEmbalaza,
+    drobniInventar, jePica: parsed.data.jePica || parsed.data.pripravaVrsta === "pica",
+  });
   try {
     row = await db.transaction(async (tx) => {
       await lockPosBusinessDay(tx, tenotaId);
-      if (parsed.data.normativItems) {
+      if (parsed.data.normativItems || drinkVolume) {
         await lockNormativeGraph(tx, tenotaId);
       }
       let allergenData: Partial<typeof artikliTable.$inferInsert> = {};
@@ -665,13 +672,16 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         ...allergenData,
       }).returning();
 
-      if (parsed.data.normativItems) {
+      const normativItems = drinkVolume
+        ? await resolveAutomaticDrinkNormative(tx, inserted, drinkVolume)
+        : parsed.data.normativItems;
+      if (normativItems) {
         const prepared = await prepareNormativUpdate(
           inserted.id,
           tenotaId,
           {
             expectedRevision: 1,
-            items: parsed.data.normativItems.map(item => ({
+            items: normativItems.map(item => ({
               ...item,
               vhodniArtikelId: item.vhodniArtikelId === -1 ? inserted.id : item.vhodniArtikelId,
             })),
@@ -684,6 +694,10 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
       return inserted;
     });
   } catch (error) {
+    if (error instanceof AutomaticDrinkNormativeError) {
+      res.status(422).json({ error: error.message, code: "AUTOMATIC_DRINK_NORMATIVE" });
+      return;
+    }
     if (String((error as Error).message).startsWith("ALLERGEN_INVALID:")) {
       req.log.warn({ err: error }, "Invalid article allergen profile");
       res.status(400).json({ error: "Alergenski profil ni veljaven." });
