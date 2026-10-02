@@ -1,0 +1,64 @@
+standard bančnih izpiskov in množičnih plačil v slovenskih poslovnih bankah
+
+V slovenskem bančnem prostoru in medrebančni izmenjavi podatkov za poslovne subjekte že ves čas veljajo usklajeni evropski in mednarodni standardi, temelječi na ISO 20022 XML specifikacijah za območje SEPA (Single Euro Payments Area).
+
+Podatki za bančne izpiske in množična plačila so urejeni v naslednjih standardih:
+
+1. Standard za elektronske bančne izpiske (Prejem podatkov iz banke)
+ISO 20022 XML standard (camt.053):
+To je primarni in danes edini celovit mednarodni standard za elektronske izpiske poslovnih računov, ki ga podpirajo vse slovenske poslovne banke in ga zaledni računovodski programi (ERP in glavne knjige) uporabljajo za uvoz prometa. Format omogoča strukturiran zapis postavk, stanja računa, valut, podatkov o plačnikih/prejemnikih ter sklicih.
+
+Združevanje in prenos:
+Preko poslovnih spletnih bank (npr. Hal E-Bank, NLB Proklik, spletne banke OTP banke ipd.) lahko podjetja izvažajo XML datoteke izpiskov za izbrana obdobja ter jih neposredno uvažajo v računovodsko programsko opremo.
+
+Starejši / nadomestni formati:
+V preteklosti so bili uveljavljeni tekstovni formati (npr. slovenski standard e-Izpisek ali specifični SWIFT MT940 formati), ki pa jih sodobni sistemi postopoma opuščajo v korist popolne standardizacije XML.
+
+2. Standard za množična plačila (Oddaja nalogov v banko)
+ISO 20022 XML standard (pain.001 - SEPA kreditna plačila / SMP):
+Za množično oddajo nalogov (npr. izplačilo plač, sočasno plačevanje več prejetih računov dobaviteljem) se uporablja standardizirana struktura pain.001 (natančneje sheme, kot sta pain.001.001.03 ali nadgrajene izvedenke za podporo novejšim standardom).
+
+Delovanje:
+Računovodski program ali program za plačilni promet izvozi datoteko v obliki XML, ki ustreza predpisani shemi SEPA množičnih plačil (SMP). Podjetje datoteko naloži v poslovno spletno banko, ki pred oddajo preveri njeno sintakso in pravilnost strukturiranih podatkov.
+
+Prednosti:
+Omogoča izvedbo tisoče plačil z enim samim uvozom datoteke in potrditvijo, velja pa tako za domača plačila (preko nalogov UPN) kot za čezmejna plačila znotraj območja SEPA v evrih.
+
+ali lahko oddajamo xml direktno preko webske strani bank
+
+Da, vsekakor. Oddaja oziroma uvoz XML datotek (kot so nalogov za množična plačila pain.001) prek spletnih strani oziroma spletnih bank za poslovne subjekte je povsem uveljavljen in vsakdanji postopek v slovenskem bančnem prostoru.
+
+Kako to poteka v praksi?
+Izvoz iz računovodskega programa: V svojem programu (glavni knjigi ali plačilnem prometu) pripravite nalog za množično plačilo (npr. zbirni nalog za plačilo vseh zapadelih obveznosti do dobaviteljev) in ga izvozite v predpisani ISO 20022 XML format (standard SEPA za plačila). Datoteko shranite na svoj računalnik.
+
+Prijava v poslovno spletno banko: Prijavite se v svojo poslovno spletno banko (npr. Hal E-Bank, NLB Proklik, spletno banko OTP banke, SkB, Intesa Sanpaolo itd.).
+
+Uvoz datoteke (Upload): V meniju za plačila poiščete opcijo, kot je "Uvoz nalogov", "Uvoz XML" ali "SEPA uvoz datotek".
+
+Pregled in podpis: Sistem banke bo datoteko prebral, preveril njeno veljavnost glede na predpisano shemo in prikazal vsebino posameznih plačil. Po pregledu nalog e-podpišete z vašim varnostnim medijem (digitalnim certifikatom / tokenom) in oddate v izvedbo.
+
+Pomembne prednosti in posebnosti:
+Avtomatska kontrola: Spletne banke pred potrditvijo preverijo sintakso XML datoteke. Če pride do napake (npr. napačen zapis IBAN-a ali neveljaven sklic), vas banka na to opozori, še preden sredstva zapustijo račun.
+
+Alternativa preko bančnih programov: Velika podjetja in računovodski servisi, ki delajo z več bankami hkrati, pogosto uporabljajo namenske bančne programe (npr. Hal E-Bank namizno aplikacijo), kjer se prav tako uvaža enotna XML datoteka, ki nato posreduje naloge v izbrane banke.
+
+standard xml pri vseh bankag?
+
+Da, standard je v osnovi enoten za vse slovenske (in celo evropske) banke, saj v celoti temelji na evropskih direktivah za območje SEPA ter mednarodnem standardu ISO 20022 XML. Vendar pa v praksi obstajajo nekatere manjše posebnosti in nianse:
+
+1. Kaj je povsod enako (Enotni standard)?
+Shema in struktura: Osnovna sintaksa za množična plačila (pain.001) in bančne izpiske (camt.053) je po vsej Evropi (in v Sloveniji) enaka. To pomeni, da lahko računovodski program izvozi enotno XML datoteko, ki jo tehnično razumejo praktično vse banke (NLB, OTP banka, Sparkasse, Intesa Sanpaolo, Unicredit itd.).
+
+Ključni podatki: Podatki o plačniku, prejemniku (IBAN, BIC/SWIFT), zneskih, valutah in strukturiranih sklicih (npr. model in sklic po standardu SI00 ali referenca na račun) so povsod zapisani na enak način.
+
+2. Kje se banke vseeno razlikujejo (Specifične zahteve)?
+Kljub enotnemu ISO standardu posamezne banke včasih uveljavljajo svoje tehnične omejitve ali specifične validacije:
+
+Različice XML shem (Verzije): Nekatere banke že podpirajo novejše revizije shem (npr. pain.001.001.09), medtem ko druge še vedno precej strogo preverjajo starejše verzije (npr. pain.001.001.03). Računovodski programi imajo zato v nastavitvah pogosto možnost izbire "profila" za posamezno banko.
+
+Dolžina in nabor znakov: Nekatere banke so bolj stroge glede uporabe šumnikov (čšž) ali posebnih znakov v namenih plačila. Če XML vsebuje napačne znake, spletna banka datoteko ob uvozu zavrne z opozorilom o napaki v shemi.
+
+Dodatne kontrole v spletnih bankah: Vsaka banka ima vgrajene svoje varnostne in poslovne kontrole (npr. preverjanje obstoja določenih vrst transakcij, limiti za množična plačila), ki lahko vplivajo na to, ali bo uvoženi XML takoj sprejet v podpis ali pa bo zahteval ročne popravke.
+
+Nasvet za prakso:
+Pred prvim večjim množičnim uvozom izvoza iz novega računovodskega programa ali za novo banko je vedno priporočljivo narediti testni uvoz z manjšim zneskom (ali enim samim nalogom), da preverite, ali spletna izbrana banka datoteko brez težav sprejme in pravilno prebere podatke.

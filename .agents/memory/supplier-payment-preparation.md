@@ -20,3 +20,9 @@ Priprava plačil mora vključevati še odprte postavke iz prejšnjih poslovnih l
 **Why:** Uporabnikov dodatni referenčni posnetek stare forme kaže postavke iz prejšnjih let ob aktivnem tekočem letu ter ločene stolpce »Znesek«, »Plačilo« in oznako prenosa. Skupni znesek obveznosti je lahko nenulsk, znesek izbranega prenosa pa nič.
 
 **How to apply:** Filtra aktivnega poslovnega leta ne uporabi kot privzeto omejitev odprtih obveznosti. Vsoto za XML računaj iz uporabnikovih izbranih plačilnih zneskov, ne iz celotnih odprtih zneskov prikazanih postavk.
+
+Pri preverjanju bančnega XML upoštevaj OTP banko, vendar brez dokaza ne predpostavljaj določenega bančnega programa ali podpore za posamezno različico `pain.001`.
+
+**Why:** Uporabnik je 2026-10-02 kot banko navedel OTP, konkretnega bančnega programa pa ni potrdil. Priloženo pojasnilo opisuje ročni uvoz XML in ločeno podpisovanje, ne neposredne povezave z banko.
+
+**How to apply:** Lokalna veljavnost XML po shemi še ni potrditev sprejema pri OTP. Za bančno potrditev je potreben dejanski pregled uvoženega paketa brez podpisovanja ali izvršitve plačil.
