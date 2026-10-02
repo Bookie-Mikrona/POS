@@ -20,3 +20,9 @@ Ko je Izdaja vključena, postajni `bump` pomeni samo »pripravljeno«, fizična 
 **Why:** Potrditev posamezne postaje ni dokaz, da je gost dejansko prejel celotno naročilo. Enotni dogodek Izdaje mora ostati zanesljiva revizijska sled tudi ob ponovitvah zahtev, osvežitvah in sočasnih spremembah.
 
 **How to apply:** Predaja in vse poti, ki dodajajo, spreminjajo, premikajo ali brišejo postavke, morajo uporabljati isti order-scoped transakcijski lock. Dogodek predaje je append-only; brez Izdaje ostane stari `bump → ack` tok.
+
+Embalaža in potrošni material se praviloma ne smeta prikazovati kot samostojni nalogi na KDS. Uporabnik je kot primere navedel posodo za hrano, aluminijasto folijo in škatlo za pico.
+
+**Why:** To niso jedi za pripravo; odsotnost pravila usmerjanja ne pomeni, da jih je treba poslati na privzeto kuhinjsko postajo.
+
+**How to apply:** Pri spremembah usmerjanja loči izključitev iz KDS od manjkajočega pravila. Izključeni artikli ne sodijo niti med nerazporejene artikle niti med samostojne naloge priprave.
