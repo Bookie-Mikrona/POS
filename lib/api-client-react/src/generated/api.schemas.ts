@@ -125,6 +125,108 @@ export interface AjpesProfileAssessment {
   sources: string[];
 }
 
+export interface AjpesProfitProposal {
+  /** @maxLength 20000 */
+  text: string;
+  /** @maxLength 250 */
+  preparedBy: string;
+  /** @maxLength 10 */
+  preparedDate: string;
+}
+
+export interface AjpesProfitDecision {
+  /** @maxLength 20000 */
+  text: string;
+  /** @maxLength 250 */
+  adoptedBy: string;
+  /** @maxLength 10 */
+  adoptedDate: string;
+  /** @maxLength 250 */
+  reference: string;
+  adopted: boolean;
+}
+
+export interface AjpesSimplifiedStatement {
+  /** @maxLength 5000 */
+  text: string;
+  /** @maxLength 250 */
+  signatory: string;
+  /** @maxLength 10 */
+  date: string;
+  confirmed: boolean;
+}
+
+export interface AjpesAnnualNarrative {
+  /** @maxLength 50000 */
+  accountingPolicies: string;
+  /** @maxLength 50000 */
+  explanations: string;
+  /** @maxLength 12000 */
+  disclosure4: string;
+  /** @maxLength 12000 */
+  disclosure5: string;
+  /** @maxLength 12000 */
+  disclosure6: string;
+  /** @maxLength 12000 */
+  disclosure10: string;
+  historicalCostConfirmed: boolean;
+  profitProposal: AjpesProfitProposal;
+  profitDecision: AjpesProfitDecision;
+  simplifiedStatement: AjpesSimplifiedStatement;
+}
+
+/**
+ * Server-owned approval of the exact publication snapshot; ignored in draft settings input.
+ */
+export interface AjpesPublicationReview {
+  fingerprint: string;
+  reviewedBy: string;
+  reviewedAt: string;
+}
+
+export type AjpesPublicationDocumentStatus = typeof AjpesPublicationDocumentStatus[keyof typeof AjpesPublicationDocumentStatus];
+
+
+export const AjpesPublicationDocumentStatus = {
+  present: 'present',
+  missing: 'missing',
+  not_required: 'not_required',
+} as const;
+
+export interface AjpesPublicationDocument {
+  code: string;
+  label: string;
+  status: AjpesPublicationDocumentStatus;
+}
+
+export interface AjpesPublicationSection {
+  code: string;
+  label: string;
+  text: string;
+}
+
+export type AjpesPublicationAssessmentMode = typeof AjpesPublicationAssessmentMode[keyof typeof AjpesPublicationAssessmentMode];
+
+
+export const AjpesPublicationAssessmentMode = {
+  notes: 'notes',
+  micro: 'micro',
+  unknown: 'unknown',
+} as const;
+
+export interface AjpesPublicationAssessment {
+  rulesVersion: string;
+  supported: boolean;
+  mode: AjpesPublicationAssessmentMode;
+  ready: boolean;
+  reviewed: boolean;
+  canExport: boolean;
+  contentFingerprint: string;
+  documents: AjpesPublicationDocument[];
+  sections: AjpesPublicationSection[];
+  issues: AjpesReportIssue[];
+}
+
 export type AjpesAnnualSettingsMappings = {[key: string]: string};
 
 export type AjpesAnnualSettingsMappingReasons = {[key: string]: string};
@@ -143,6 +245,8 @@ export interface AjpesAnnualSettings {
   excludedEntryIds: string[];
   metadata: AjpesAnnualSettingsMetadata;
   profile?: AjpesAnnualProfile;
+  narrative?: AjpesAnnualNarrative;
+  publicationReview?: AjpesPublicationReview;
 }
 
 export interface AjpesAnnualDraftInput {
@@ -151,6 +255,8 @@ export interface AjpesAnnualDraftInput {
   settings: AjpesAnnualSettings;
   /** @nullable */
   reviewedFingerprint?: string | null;
+  /** @nullable */
+  publicationReviewedFingerprint?: string | null;
 }
 
 export type AjpesAnnualExportInputFormat = typeof AjpesAnnualExportInputFormat[keyof typeof AjpesAnnualExportInputFormat];
@@ -160,6 +266,7 @@ export const AjpesAnnualExportInputFormat = {
   xlsx: 'xlsx',
   pdf: 'pdf',
   xml: 'xml',
+  'publication-pdf': 'publication-pdf',
 } as const;
 
 export interface AjpesAnnualExportInput {
@@ -230,6 +337,7 @@ export interface AjpesAnnualReport {
   journals: AjpesJournalChoice[];
   issues: AjpesReportIssue[];
   profileAssessment?: AjpesProfileAssessment;
+  publicationAssessment?: AjpesPublicationAssessment;
 }
 
 export type CreditNotePackagingDocumentsResponseDocumentsItem = {

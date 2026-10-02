@@ -36,6 +36,38 @@ export const getAjpesAnnualReportResponseSettingsProfilePreviousYearExceptionMax
 
 export const getAjpesAnnualReportResponseSettingsProfileConfirmationBasisMax = 4096;
 
+export const getAjpesAnnualReportResponseSettingsNarrativeAccountingPoliciesMax = 50000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeExplanationsMax = 50000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeDisclosure4Max = 12000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeDisclosure5Max = 12000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeDisclosure6Max = 12000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeDisclosure10Max = 12000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeProfitProposalTextMax = 20000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeProfitProposalPreparedByMax = 250;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeProfitProposalPreparedDateMax = 10;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeProfitDecisionTextMax = 20000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeProfitDecisionAdoptedByMax = 250;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeProfitDecisionAdoptedDateMax = 10;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeProfitDecisionReferenceMax = 250;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementTextMax = 5000;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementSignatoryMax = 250;
+
+export const getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementDateMax = 10;
+
 
 
 export const GetAjpesAnnualReportResponse = zod.object({
@@ -85,7 +117,39 @@ export const GetAjpesAnnualReportResponse = zod.object({
   "specialRegime": zod.enum(['unknown', 'yes', 'no']),
   "confirmationBasis": zod.string().max(getAjpesAnnualReportResponseSettingsProfileConfirmationBasisMax),
   "confirmed": zod.boolean()
-}).optional()
+}).optional(),
+  "narrative": zod.object({
+  "accountingPolicies": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeAccountingPoliciesMax),
+  "explanations": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeExplanationsMax),
+  "disclosure4": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeDisclosure4Max),
+  "disclosure5": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeDisclosure5Max),
+  "disclosure6": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeDisclosure6Max),
+  "disclosure10": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeDisclosure10Max),
+  "historicalCostConfirmed": zod.boolean(),
+  "profitProposal": zod.object({
+  "text": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeProfitProposalTextMax),
+  "preparedBy": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeProfitProposalPreparedByMax),
+  "preparedDate": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeProfitProposalPreparedDateMax)
+}),
+  "profitDecision": zod.object({
+  "text": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeProfitDecisionTextMax),
+  "adoptedBy": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeProfitDecisionAdoptedByMax),
+  "adoptedDate": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeProfitDecisionAdoptedDateMax),
+  "reference": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeProfitDecisionReferenceMax),
+  "adopted": zod.boolean()
+}),
+  "simplifiedStatement": zod.object({
+  "text": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementTextMax),
+  "signatory": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementSignatoryMax),
+  "date": zod.string().max(getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementDateMax),
+  "confirmed": zod.boolean()
+})
+}).optional(),
+  "publicationReview": zod.object({
+  "fingerprint": zod.string(),
+  "reviewedBy": zod.string(),
+  "reviewedAt": zod.string()
+}).optional().describe('Server-owned approval of the exact publication snapshot; ignored in draft settings input.')
 }),
   "revision": zod.number(),
   "sourceFingerprint": zod.string(),
@@ -157,6 +221,30 @@ export const GetAjpesAnnualReportResponse = zod.object({
   "blocking": zod.boolean()
 })),
   "sources": zod.array(zod.string())
+}).optional(),
+  "publicationAssessment": zod.object({
+  "rulesVersion": zod.string(),
+  "supported": zod.boolean(),
+  "mode": zod.enum(['notes', 'micro', 'unknown']),
+  "ready": zod.boolean(),
+  "reviewed": zod.boolean(),
+  "canExport": zod.boolean(),
+  "contentFingerprint": zod.string(),
+  "documents": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['present', 'missing', 'not_required'])
+})),
+  "sections": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "text": zod.string()
+})),
+  "issues": zod.array(zod.object({
+  "code": zod.string(),
+  "message": zod.string(),
+  "blocking": zod.boolean()
+}))
 }).optional()
 })
 
@@ -190,6 +278,38 @@ export const saveAjpesAnnualReportBodySettingsProfileSizeBasisMax = 4096;
 export const saveAjpesAnnualReportBodySettingsProfilePreviousYearExceptionMax = 4096;
 
 export const saveAjpesAnnualReportBodySettingsProfileConfirmationBasisMax = 4096;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeAccountingPoliciesMax = 50000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeExplanationsMax = 50000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeDisclosure4Max = 12000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeDisclosure5Max = 12000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeDisclosure6Max = 12000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeDisclosure10Max = 12000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeProfitProposalTextMax = 20000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeProfitProposalPreparedByMax = 250;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeProfitProposalPreparedDateMax = 10;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeProfitDecisionTextMax = 20000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeProfitDecisionAdoptedByMax = 250;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeProfitDecisionAdoptedDateMax = 10;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeProfitDecisionReferenceMax = 250;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementTextMax = 5000;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementSignatoryMax = 250;
+
+export const saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementDateMax = 10;
 
 
 
@@ -232,9 +352,42 @@ export const SaveAjpesAnnualReportBody = zod.object({
   "specialRegime": zod.enum(['unknown', 'yes', 'no']),
   "confirmationBasis": zod.string().max(saveAjpesAnnualReportBodySettingsProfileConfirmationBasisMax),
   "confirmed": zod.boolean()
-}).optional()
+}).optional(),
+  "narrative": zod.object({
+  "accountingPolicies": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeAccountingPoliciesMax),
+  "explanations": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeExplanationsMax),
+  "disclosure4": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeDisclosure4Max),
+  "disclosure5": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeDisclosure5Max),
+  "disclosure6": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeDisclosure6Max),
+  "disclosure10": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeDisclosure10Max),
+  "historicalCostConfirmed": zod.boolean(),
+  "profitProposal": zod.object({
+  "text": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeProfitProposalTextMax),
+  "preparedBy": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeProfitProposalPreparedByMax),
+  "preparedDate": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeProfitProposalPreparedDateMax)
 }),
-  "reviewedFingerprint": zod.string().nullish()
+  "profitDecision": zod.object({
+  "text": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeProfitDecisionTextMax),
+  "adoptedBy": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeProfitDecisionAdoptedByMax),
+  "adoptedDate": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeProfitDecisionAdoptedDateMax),
+  "reference": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeProfitDecisionReferenceMax),
+  "adopted": zod.boolean()
+}),
+  "simplifiedStatement": zod.object({
+  "text": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementTextMax),
+  "signatory": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementSignatoryMax),
+  "date": zod.string().max(saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementDateMax),
+  "confirmed": zod.boolean()
+})
+}).optional(),
+  "publicationReview": zod.object({
+  "fingerprint": zod.string(),
+  "reviewedBy": zod.string(),
+  "reviewedAt": zod.string()
+}).optional().describe('Server-owned approval of the exact publication snapshot; ignored in draft settings input.')
+}),
+  "reviewedFingerprint": zod.string().nullish(),
+  "publicationReviewedFingerprint": zod.string().nullish()
 })
 
 export const saveAjpesAnnualReportResponseSettingsProfileCurrentCriteriaAssetsMax = 32;
@@ -254,6 +407,38 @@ export const saveAjpesAnnualReportResponseSettingsProfileSizeBasisMax = 4096;
 export const saveAjpesAnnualReportResponseSettingsProfilePreviousYearExceptionMax = 4096;
 
 export const saveAjpesAnnualReportResponseSettingsProfileConfirmationBasisMax = 4096;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeAccountingPoliciesMax = 50000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeExplanationsMax = 50000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeDisclosure4Max = 12000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeDisclosure5Max = 12000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeDisclosure6Max = 12000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeDisclosure10Max = 12000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeProfitProposalTextMax = 20000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeProfitProposalPreparedByMax = 250;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeProfitProposalPreparedDateMax = 10;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeProfitDecisionTextMax = 20000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeProfitDecisionAdoptedByMax = 250;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeProfitDecisionAdoptedDateMax = 10;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeProfitDecisionReferenceMax = 250;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementTextMax = 5000;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementSignatoryMax = 250;
+
+export const saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementDateMax = 10;
 
 
 
@@ -304,7 +489,39 @@ export const SaveAjpesAnnualReportResponse = zod.object({
   "specialRegime": zod.enum(['unknown', 'yes', 'no']),
   "confirmationBasis": zod.string().max(saveAjpesAnnualReportResponseSettingsProfileConfirmationBasisMax),
   "confirmed": zod.boolean()
-}).optional()
+}).optional(),
+  "narrative": zod.object({
+  "accountingPolicies": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeAccountingPoliciesMax),
+  "explanations": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeExplanationsMax),
+  "disclosure4": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeDisclosure4Max),
+  "disclosure5": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeDisclosure5Max),
+  "disclosure6": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeDisclosure6Max),
+  "disclosure10": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeDisclosure10Max),
+  "historicalCostConfirmed": zod.boolean(),
+  "profitProposal": zod.object({
+  "text": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeProfitProposalTextMax),
+  "preparedBy": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeProfitProposalPreparedByMax),
+  "preparedDate": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeProfitProposalPreparedDateMax)
+}),
+  "profitDecision": zod.object({
+  "text": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeProfitDecisionTextMax),
+  "adoptedBy": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeProfitDecisionAdoptedByMax),
+  "adoptedDate": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeProfitDecisionAdoptedDateMax),
+  "reference": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeProfitDecisionReferenceMax),
+  "adopted": zod.boolean()
+}),
+  "simplifiedStatement": zod.object({
+  "text": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementTextMax),
+  "signatory": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementSignatoryMax),
+  "date": zod.string().max(saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementDateMax),
+  "confirmed": zod.boolean()
+})
+}).optional(),
+  "publicationReview": zod.object({
+  "fingerprint": zod.string(),
+  "reviewedBy": zod.string(),
+  "reviewedAt": zod.string()
+}).optional().describe('Server-owned approval of the exact publication snapshot; ignored in draft settings input.')
 }),
   "revision": zod.number(),
   "sourceFingerprint": zod.string(),
@@ -376,6 +593,30 @@ export const SaveAjpesAnnualReportResponse = zod.object({
   "blocking": zod.boolean()
 })),
   "sources": zod.array(zod.string())
+}).optional(),
+  "publicationAssessment": zod.object({
+  "rulesVersion": zod.string(),
+  "supported": zod.boolean(),
+  "mode": zod.enum(['notes', 'micro', 'unknown']),
+  "ready": zod.boolean(),
+  "reviewed": zod.boolean(),
+  "canExport": zod.boolean(),
+  "contentFingerprint": zod.string(),
+  "documents": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['present', 'missing', 'not_required'])
+})),
+  "sections": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "text": zod.string()
+})),
+  "issues": zod.array(zod.object({
+  "code": zod.string(),
+  "message": zod.string(),
+  "blocking": zod.boolean()
+}))
 }).optional()
 })
 
@@ -391,7 +632,7 @@ export const ExportAjpesAnnualReportParams = zod.object({
 })
 
 export const ExportAjpesAnnualReportBody = zod.object({
-  "format": zod.enum(['xlsx', 'pdf', 'xml']),
+  "format": zod.enum(['xlsx', 'pdf', 'xml', 'publication-pdf']),
   "sourceFingerprint": zod.string()
 })
 

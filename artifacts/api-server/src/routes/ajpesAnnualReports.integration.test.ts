@@ -370,7 +370,18 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
 
   it("handles concurrent revision writes, reviews the source fingerprint and exports JOLP XLSX/PDF and official XML", async () => {
     asOwner();
-    const payload = { revision: 0, settings, reviewedFingerprint: null };
+    const payload = {
+      revision: 0,
+      settings: {
+        ...settings,
+        publicationReview: {
+          fingerprint: "attacker-controlled",
+          reviewedBy: "attacker",
+          reviewedAt: "2000-01-01T00:00:00.000Z",
+        },
+      },
+      reviewedFingerprint: null,
+    };
     const initialWrites = await Promise.all([
       supertest(app).put(routePath(companyId, 2025)).send(payload),
       supertest(app).put(routePath(companyId, 2025)).send(payload),
@@ -391,7 +402,10 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
       eq(annualReportsTable.year, 2025),
     ));
     expect(persisted).toMatchObject({ revision: 1, settings });
+    expect(persisted!.settings).not.toHaveProperty("publicationReview");
     expect(saved.body.settings).toMatchObject(settings);
+    expect(saved.body.settings).not.toHaveProperty("publicationReview");
+    expect(saved.body.publicationAssessment).toBeDefined();
     expect(saved.body.aopRows).toHaveLength(263);
     expect(saved.body.aopRows.find((row: any) => row.code === bankAop)).toMatchObject({
       current: "2866.75",
@@ -424,7 +438,18 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
     await supertest(app).put(routePath(companyId, 2025)).send(payload).expect(409);
     asViewer();
     await supertest(app).get(routePath(companyId, 2025)).expect(200);
+    await supertest(app).put(routePath(companyId, 2025)).send({
+      revision: reviewedReport.revision,
+      settings,
+      reviewedFingerprint: reviewedReport.sourceFingerprint,
+      publicationReviewedFingerprint: reviewedReport.sourceFingerprint,
+    }).expect(403);
 
+    asOwner();
+    await supertest(app).post(`${routePath(companyId, 2025)}/export`).send({
+      format: "publication-pdf",
+      sourceFingerprint: reviewedReport.sourceFingerprint,
+    }).expect(422);
     const xlsx = await supertest(app).post(`${routePath(companyId, 2025)}/export`)
       .buffer().parse(binaryParser).send({
         format: "xlsx",
@@ -470,6 +495,134 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
     expect(exportedAops).toEqual(AJPES_GD_AOP_CATALOG_2025.aops.map((row) => row.id));
     expect(xmlText).toContain(`<AOP ID="${bankAop}"><PODATEK TIP="T">2866.75</PODATEK><PODATEK TIP="P">10.00</PODATEK></AOP>`);
 
+    const approvalDate = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Ljubljana" });
+    const publicationSettings = {
+      ...settings,
+      narrative: {
+        accountingPolicies: "Družba uporablja izvirno vrednost in dosledno računovodsko usmeritev.",
+        explanations: "Pojasnilo k izkazom za poslovno leto.",
+        disclosure4: "",
+        disclosure5: "",
+        disclosure6: "",
+        disclosure10: "",
+        historicalCostConfirmed: false,
+        profitProposal: {
+          text: "Predlaga se prenos čistega dobička v druge rezerve.",
+          preparedBy: "Računovodja",
+          preparedDate: approvalDate,
+        },
+        profitDecision: {
+          text: "Skupščina je predlog sprejela.",
+          adoptedBy: "Skupščina",
+          adoptedDate: approvalDate,
+          reference: "Sklep 1/2026",
+          adopted: true,
+        },
+        simplifiedStatement: {
+          text: "",
+          signatory: "",
+          date: "",
+          confirmed: false,
+        },
+      },
+    };
+    const incompleteSettings = {
+      ...publicationSettings,
+      narrative: { ...publicationSettings.narrative, explanations: "" },
+    };
+    const incompleteDraft = await supertest(app).put(routePath(companyId, 2025)).send({
+      revision: reviewedReport.revision,
+      settings: incompleteSettings,
+      reviewedFingerprint: null,
+    }).expect(200);
+    expect(incompleteDraft.body.publicationAssessment.ready).toBe(false);
+    await supertest(app).put(routePath(companyId, 2025)).send({
+      revision: incompleteDraft.body.revision,
+      settings: incompleteSettings,
+      reviewedFingerprint: incompleteDraft.body.sourceFingerprint,
+      publicationReviewedFingerprint: incompleteDraft.body.sourceFingerprint,
+    }).expect(422);
+    const narrativeDraft = await supertest(app).put(routePath(companyId, 2025)).send({
+      revision: incompleteDraft.body.revision,
+      settings: publicationSettings,
+      reviewedFingerprint: null,
+    }).expect(200);
+    expect(narrativeDraft.body.canExport).toBe(false);
+    expect(narrativeDraft.body.publicationAssessment.ready).toBe(true);
+    expect(narrativeDraft.body.publicationAssessment.canExport).toBe(false);
+    const numericNarrativeReview = await supertest(app).put(routePath(companyId, 2025)).send({
+      revision: narrativeDraft.body.revision,
+      settings: publicationSettings,
+      reviewedFingerprint: narrativeDraft.body.sourceFingerprint,
+      publicationReviewedFingerprint: null,
+    }).expect(200);
+    expect(numericNarrativeReview.body.canExport).toBe(true);
+    expect(numericNarrativeReview.body.publicationAssessment.canExport).toBe(false);
+    const numericNarrativeXml = await supertest(app).post(`${routePath(companyId, 2025)}/export`)
+      .buffer().parse(binaryParser).send({
+        format: "xml",
+        sourceFingerprint: numericNarrativeReview.body.sourceFingerprint,
+      }).expect(200);
+    const numericNarrativeXmlText = (numericNarrativeXml.body as Buffer).toString("utf8");
+    expect(numericNarrativeXmlText).not.toContain("<Pojasnila>");
+    expect(numericNarrativeXmlText).not.toContain("Skupščina je predlog sprejela.");
+    const publicationReviewed = await supertest(app).put(routePath(companyId, 2025)).send({
+      revision: numericNarrativeReview.body.revision,
+      settings: publicationSettings,
+      reviewedFingerprint: numericNarrativeReview.body.sourceFingerprint,
+      publicationReviewedFingerprint: numericNarrativeReview.body.sourceFingerprint,
+    }).expect(200);
+    expect(publicationReviewed.body).toMatchObject({
+      reviewed: true,
+      canExport: true,
+      publicationAssessment: { ready: true, reviewed: true, canExport: true },
+    });
+    expect(publicationReviewed.body.settings.publicationReview).toMatchObject({
+      fingerprint: publicationReviewed.body.sourceFingerprint,
+      reviewedBy: roles.owner,
+    });
+    expect(Number.isNaN(Date.parse(publicationReviewed.body.settings.publicationReview.reviewedAt))).toBe(false);
+    reviewedReport = publicationReviewed.body;
+    const [publicationRecord] = await db.select({ settings: annualReportsTable.settings })
+      .from(annualReportsTable).where(and(
+        eq(annualReportsTable.companyId, companyId),
+        eq(annualReportsTable.year, 2025),
+      ));
+    expect(publicationRecord!.settings.publicationReview).toMatchObject({
+      fingerprint: publicationReviewed.body.sourceFingerprint,
+      reviewedBy: roles.owner,
+    });
+    const publicationAudits = await db.select({ action: auditLogTable.action, payload: auditLogTable.payload })
+      .from(auditLogTable).where(and(
+        eq(auditLogTable.companyId, companyId),
+        eq(auditLogTable.action, "publication_review"),
+      ));
+    expect(publicationAudits).toHaveLength(1);
+    expect(publicationAudits[0]!.payload).toMatchObject({
+      settings: { publicationReview: { fingerprint: publicationReviewed.body.sourceFingerprint } },
+    });
+    const publicationPdf = await supertest(app).post(`${routePath(companyId, 2025)}/export`)
+      .buffer().parse(binaryParser).send({
+        format: "publication-pdf",
+        sourceFingerprint: publicationReviewed.body.sourceFingerprint,
+      }).expect(200);
+    expect(publicationPdf.headers["content-type"]).toContain("application/pdf");
+    expect(publicationPdf.headers["content-disposition"])
+      .toContain('filename="ajpes-2025-publication.pdf"');
+    expect(publicationPdf.headers["x-ajpes-export-notice"])
+      .toContain("not a filing and contains no digital signature");
+    expect((publicationPdf.body as Buffer).subarray(0, 5).toString()).toBe("%PDF-");
+    const publicationXml = await supertest(app).post(`${routePath(companyId, 2025)}/export`)
+      .buffer().parse(binaryParser).send({
+        format: "xml",
+        sourceFingerprint: publicationReviewed.body.sourceFingerprint,
+      }).expect(200);
+    const publicationXmlText = (publicationXml.body as Buffer).toString("utf8");
+    expect(publicationXmlText).toContain("<Pojasnila>Pojasnilo k izkazom za poslovno leto.</Pojasnila>");
+    expect(publicationXmlText).toContain("Pripravljavec: Računovodja");
+    expect(publicationXmlText).toContain("Sklep 1/2026");
+    expect(publicationXmlText).toContain("Skupščina je predlog sprejela.");
+
     // Another fake fiscal year has a confirmed draft: XLSX/PDF remain supported,
     // while the route must not claim the official XML has been verified for it.
     asOwner();
@@ -492,6 +645,12 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
     }).expect(200);
     expect(nextConfirmed.body.canExport).toBe(true);
     expect(nextConfirmed.body.canExportXml).toBe(false);
+    expect(nextConfirmed.body.publicationAssessment.supported).toBe(false);
+    expect(nextConfirmed.body.publicationAssessment.canExport).toBe(false);
+    await supertest(app).post(`${routePath(companyId, 2026)}/export`).send({
+      format: "publication-pdf",
+      sourceFingerprint: nextConfirmed.body.sourceFingerprint,
+    }).expect(422);
     for (const format of ["xlsx", "pdf"] as const) {
       const response = await supertest(app).post(`${routePath(companyId, 2026)}/export`)
         .buffer().parse(binaryParser).send({
@@ -524,12 +683,34 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
     const fresh = await supertest(app).get(routePath(companyId, 2025)).expect(200);
     expect(fresh.body.canExport).toBe(false);
     expect(fresh.body.reviewed).toBe(false);
+    expect(fresh.body.publicationAssessment.canExport).toBe(false);
     await supertest(app).post(`${routePath(companyId, 2025)}/export`).send({
       format: "xlsx",
+      sourceFingerprint: reviewedReport.sourceFingerprint,
+    }).expect(409);
+    await supertest(app).post(`${routePath(companyId, 2025)}/export`).send({
+      format: "publication-pdf",
       sourceFingerprint: reviewedReport.sourceFingerprint,
     }).expect(409);
     await db.update(journalEntryLinesTable).set({ amount: changedLineAmount })
       .where(eq(journalEntryLinesTable.id, changedLineId));
     changedLineId = "";
+
+    const editedSettings = {
+      ...reviewedReport.settings,
+      narrative: {
+        ...reviewedReport.settings.narrative,
+        explanations: "Urejeno po pregledu; zahteva nov pregled za objavo.",
+      },
+    };
+    const edited = await supertest(app).put(routePath(companyId, 2025)).send({
+      revision: reviewedReport.revision,
+      settings: editedSettings,
+      reviewedFingerprint: null,
+    }).expect(200);
+    expect(edited.body.sourceFingerprint).not.toBe(reviewedReport.sourceFingerprint);
+    expect(edited.body.settings.publicationReview.fingerprint).toBe(reviewedReport.sourceFingerprint);
+    expect(edited.body.publicationAssessment.reviewed).toBe(false);
+    expect(edited.body.publicationAssessment.canExport).toBe(false);
   });
 });

@@ -26,3 +26,9 @@ Pri letnih profilih je velikost dokumentirana presoja računovodje. Samodejni pr
 **Why:** Velikost, posebni režimi in izjeme lahko zahtevajo večletno presojo ter dejstva zunaj glavne knjige. Prva izvedba namerno zahteva dokazno podlago, namesto da bi iz nepopolnih podatkov ustvarila lažno gotovost.
 
 **How to apply:** Pri poznejši avtomatizaciji predloge velikosti loči od potrjenih ugotovitev in preveri pravila za posamezni letnik ter izjeme. Ohrani dokumentirano pot za novo ustanovljene družbe in druge upravičene posebnosti.
+
+Priprava pojasnil in predaja javnega poročila sta ločeni od statistične predložitve. Odsotnost javnoobjavnih besedil sama po sebi ne sme preprečiti veljavnega samostojnega statističnega izvoza.
+
+**Why:** Gre za različna namena in različna dokazila. Poenostavljena skupna predložitev ni dovoljenje, da osnutek sklepa ali klik računovodje predstavljamo kot podpis ali dejansko oddajo.
+
+**How to apply:** Pri razširitvah javnega paketa ohrani ločeno potrditev njegove vsebine in preveri manjkajoče dejanske priloge za posebne profile. Ne ustvarjaj elektronskega podpisa, sprejetja sklepa ali potrdila oddaje zgolj iz prisotnosti besedila.

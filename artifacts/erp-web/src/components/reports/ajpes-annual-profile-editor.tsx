@@ -9,7 +9,7 @@ const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
 const PURPOSE: Record<string, string> = { statistics: "Statistika", publication: "Objava", periodic: "Obdobno poročanje" };
 const STATUS: Record<string, string> = { required: "Obvezno", conditional: "Pogojno", not_required: "Ni obvezno" };
 
-function navKey(e: React.KeyboardEvent<HTMLElement>) {
+export function navKey(e: React.KeyboardEvent<HTMLElement>) {
   const t = e.target as HTMLElement;
   const tag = t.tagName;
   if (tag === "TEXTAREA" || tag === "BUTTON") return;
@@ -134,7 +134,7 @@ export function ProfileEditor({ report, draft, viewer, dirty, patch }: {
                     <span className="font-medium">{o.label}</span>
                     <Badge variant="outline">{PURPOSE[o.purpose] ?? o.purpose}</Badge>
                     <Badge variant={o.status === "required" ? "default" : "secondary"}>{STATUS[o.status] ?? o.status}</Badge>
-                    <span className="text-xs text-muted-foreground">{o.available ? "Številčni izpis v katalogu je na voljo" : "Priprava v poznejši fazi"}</span>
+                    <span className="text-xs text-muted-foreground">{!o.available ? "Poznejša faza" : o.purpose === "publication" ? "Priprava besedil je na voljo" : o.purpose === "statistics" ? "Številčni izpis v katalogu je na voljo" : "Na voljo"}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{o.explanation}</p>
                 </li>

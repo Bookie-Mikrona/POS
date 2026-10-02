@@ -1,4 +1,4 @@
-import type { AjpesAnnualSettings } from "@workspace/api-client-react";
+import type { AjpesAnnualNarrative, AjpesAnnualSettings } from "@workspace/api-client-react";
 
 const NUM_RE = /^-?\d+([.,]\d+)?$/;
 export function defaultAjpesYear(now = new Date()): number {
@@ -49,6 +49,7 @@ export function cleanSettings(draft: AjpesAnnualSettings): AjpesAnnualSettings {
   const metadata: Record<string, string> = {};
   for (const [k, v] of Object.entries(draft.metadata)) if (v !== "") metadata[k] = v;
   const out: AjpesAnnualSettings = { ...draft, mappings, currentValues: clean(draft.currentValues), previousValues: clean(draft.previousValues), metadata };
+  delete out.publicationReview;
   if (draft.profile) {
     const c = (x: { assets: string; revenue: string; employees: string }) => ({
       assets: normalizeAmount(x.assets) ?? "", revenue: normalizeAmount(x.revenue) ?? "", employees: normalizeAmount(x.employees) ?? "",
@@ -67,4 +68,38 @@ export function invalidInputs(draft: AjpesAnnualSettings): string[] {
     for (const g of ["currentCriteria", "previousCriteria"] as const)
       for (const [k, v] of Object.entries(draft.profile[g])) if (String(v).trim() !== "" && !/^\d{1,13}(\.\d{1,2})?$/.test(normalizeAmount(String(v)) ?? "x")) bad.push(`profile:${g}.${k}`);
   return bad;
+}
+
+export function emptyNarrative(): AjpesAnnualNarrative {
+  return {
+    accountingPolicies: "", explanations: "", disclosure4: "", disclosure5: "", disclosure6: "", disclosure10: "",
+    historicalCostConfirmed: false,
+    profitProposal: { text: "", preparedBy: "", preparedDate: "" },
+    profitDecision: { text: "", adoptedBy: "", adoptedDate: "", reference: "", adopted: false },
+    simplifiedStatement: { text: "", signatory: "", date: "", confirmed: false },
+  };
+}
+
+type TextKey = "accountingPolicies" | "explanations" | "disclosure4" | "disclosure5" | "disclosure6" | "disclosure10";
+
+/** Edits narrative; any decision/statement edit resets its own confirmation. publicationReview is server-owned and dropped. */
+export function changeNarrative(
+  s: AjpesAnnualSettings,
+  change: { text?: Partial<Record<TextKey, string>>; historicalCostConfirmed?: boolean; proposal?: Partial<AjpesAnnualNarrative["profitProposal"]>; decision?: Partial<AjpesAnnualNarrative["profitDecision"]>; statement?: Partial<AjpesAnnualNarrative["simplifiedStatement"]> },
+): AjpesAnnualSettings {
+  const n = { ...emptyNarrative(), ...(s.narrative ?? {}) };
+  const out: AjpesAnnualNarrative = { ...n, ...(change.text ?? {}) };
+  if (change.historicalCostConfirmed !== undefined) out.historicalCostConfirmed = change.historicalCostConfirmed;
+  if (change.proposal) out.profitProposal = { ...n.profitProposal, ...change.proposal };
+  if (change.decision) {
+    const onlyAdopted = Object.keys(change.decision).every((k) => k === "adopted");
+    out.profitDecision = { ...n.profitDecision, ...change.decision, adopted: onlyAdopted ? !!change.decision.adopted : false };
+  }
+  if (change.statement) {
+    const onlyConf = Object.keys(change.statement).every((k) => k === "confirmed");
+    out.simplifiedStatement = { ...n.simplifiedStatement, ...change.statement, confirmed: onlyConf ? !!change.statement.confirmed : false };
+  }
+  const { publicationReview: _drop, ...rest } = s;
+  void _drop;
+  return { ...rest, narrative: out };
 }

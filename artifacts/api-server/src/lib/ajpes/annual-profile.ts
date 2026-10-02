@@ -44,7 +44,7 @@ export interface AjpesProfileAssessment {
 
 // Size is an accountant's documented conclusion, not a one-year heuristic.
 // This phase supports the existing GD catalog; it does not manufacture other forms.
-export const AJPES_PROFILE_RULES_VERSION = "gd-profile-2026-10-02";
+export const AJPES_PROFILE_RULES_VERSION = "gd-profile-texts-2026-10-02";
 export function assessAjpesProfile(
   profile: AjpesAnnualProfile | undefined, year: number,
   metadata: Record<string, string> = {},
@@ -114,17 +114,19 @@ export function assessAjpesProfile(
   const required = p && ["doo", "dd"].includes(p.legalForm) ? "required" : "conditional";
   const decision = (value?: ProfileDecision) => value === "yes" ? "required" : value === "no" ? "not_required" : "conditional";
   const numericAvailable = supported && year === 2025;
+  const publicationAvailable = numericAvailable && p?.auditRequired === "no" &&
+    p.consolidationRequired === "no" && p.groupMember === "no";
   for (const [code, label] of [
     ["bs", "Bilanca stanja s primerjalnim letom"], ["ipi", "Izkaz poslovnega izida s primerjalnim letom"],
     ["profit", "Podatki bilančnega dobička / izgube"], ["definition", "Opredelitev družbe in podatki o zaposlenih"],
   ]) add(code, label, "statistics", required, numericAvailable, "Obstoječi številčni katalog GD 2025; obvezne vrednosti in kontrole so v predogledu AOP.");
   add("foreign", "Dodatni podatki o poslovanju s tujino", "statistics", decision(p?.foreignOperations), numericAvailable, "NAVO1119, 4. točka; obseg določa dejansko poslovanje z nerezidenti.");
-  add("public_report", "Letno poročilo za javno objavo", "publication", required, false, "Številčni PDF/XLSX je pregled izkazov, ne celovit dokument za javno objavo (faza B).");
-  add("notes", "Pojasnila k izkazom", "publication", p?.microRegime === "yes" ? "not_required" : p?.microRegime === "no" ? required : "conditional", false, "Za običajni režim se pripravi v fazi B; poseben mikro režim zahteva druga razkritja.");
-  add("micro", "Predpisana mikro razkritja ob bilanci", "publication", decision(p?.microRegime), false, "Mikro režim ni oprostitev vseh razkritij; ZGD-1, 70.a člen (faza B).");
-  add("profit_proposal", "Predlog razporeditve dobička / obravnavanja izgube", "publication", required, false, "Ločen dokument; številčni izkaz bilančnega dobička ga ne nadomesti (faza B).");
-  add("profit_adopted", "Sprejeta razporeditev dobička / obravnavanje izgube", "publication", required, false, "Dejanski sklep pristojnega organa, brez vnaprejšnje potrditve (faza B).");
-  add("statement", "Izjava za poenostavljeno predložitev", "publication", decision(p?.simplifiedSubmission), false, "Izbira profila ni podpis izjave in ne dokazuje predložitve AJPES (faza B/C).");
+  add("public_report", "Letno poročilo za javno objavo", "publication", required, publicationAvailable, "Ločen PDF z izkazi in potrjenimi besedili za običajne samostojne nerevidirane družbe 2025. Predaja zahteva pregled celotnega posnetka; izvoz ni podpis ali oddaja.");
+  add("notes", "Pojasnila k izkazom", "publication", p?.microRegime === "yes" ? "not_required" : p?.microRegime === "no" ? required : "conditional", numericAvailable, "Urejevalnik računovodskih usmeritev in zahtevanih pojasnil po ZGD-1/SRS; računovodja preveri vsebino.");
+  add("micro", "Predpisana mikro razkritja ob bilanci", "publication", decision(p?.microRegime), numericAvailable, "70.a člen: razkritja iz 4., 5., 6. in 10. točke 69/2 ob bilanci ter vrednotenje po izvirni vrednosti. Prazno ni potrjena odsotnost postavk.");
+  add("profit_proposal", "Predlog razporeditve dobička / obravnavanja izgube", "publication", required, numericAvailable, "Ločen predlog z datumom in pripravljavcem; številčni izkaz bilančnega dobička ga ne nadomesti.");
+  add("profit_adopted", "Sprejeta razporeditev dobička / obravnavanje izgube", "publication", required, numericAvailable, "Besedilo dejanskega sklepa, organ, datum, oznaka in izrecna potrditev sprejetja. Osnutek ni sprejeti sklep.");
+  add("statement", "Izjava za poenostavljeno predložitev", "publication", decision(p?.simplifiedSubmission), numericAvailable, "Urejevalnik besedila upravičene izjave; potrditev besedila ni elektronski podpis ali dokazilo predložitve AJPES.");
   add("audit", "Revizija / preiskava in pripadajoče poročilo", "publication", decision(p?.auditRequired), false, "Priloži se dejansko revizorjevo poročilo; obveznost presodi računovodja.");
   const extended = !p || p.size === "unknown" || p.specialRegime !== "no" || p.listed !== "no"
     ? "conditional" : ["medium", "large"].includes(p.size) ? "required" : "not_required";

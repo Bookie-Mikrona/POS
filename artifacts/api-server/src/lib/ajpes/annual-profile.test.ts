@@ -114,11 +114,14 @@ describe("AJPES annual company profile", () => {
       .toContainEqual(expect.objectContaining({ code: "profile_metadata_conflict", blocking: true }));
     expect(assessAjpesProfile(validProfile(), 2025, { size: "3", accountingMethod: "2" }).issues).toEqual([]);
   });
-  it("does not represent numerical previews as public publication or successful submission", () => {
+  it("exposes separate publication content preparation, not submission or signature", () => {
     const result = assessAjpesProfile(validProfile(), 2025);
     expect(result.obligations.find(o => o.code === "public_report")).toMatchObject({
-      purpose: "publication", status: "required", available: false,
+      purpose: "publication", status: "required", available: true,
     });
-    expect(result.obligations.find(o => o.code === "statement")).toMatchObject({ status: "required", available: false });
+    expect(result.obligations.find(o => o.code === "statement")).toMatchObject({ status: "required", available: true });
+    expect(result.obligations.find(o => o.code === "statement")?.explanation).toContain("ni elektronski podpis");
+    expect(assessAjpesProfile(validProfile({ auditRequired: "yes", simplifiedSubmission: "no" }), 2025)
+      .obligations.find(o => o.code === "public_report")?.available).toBe(false);
   });
 });

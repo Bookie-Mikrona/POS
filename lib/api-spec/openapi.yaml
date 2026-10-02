@@ -11224,6 +11224,80 @@ components:
         obligations: {type: array, items: {$ref: "#/components/schemas/AjpesReportingObligation"}}
         issues: {type: array, items: {$ref: "#/components/schemas/AjpesReportIssue"}}
         sources: {type: array, items: {type: string}}
+    AjpesProfitProposal:
+      type: object
+      required: [text, preparedBy, preparedDate]
+      properties:
+        text: {type: string, maxLength: 20000}
+        preparedBy: {type: string, maxLength: 250}
+        preparedDate: {type: string, maxLength: 10}
+    AjpesProfitDecision:
+      type: object
+      required: [text, adoptedBy, adoptedDate, reference, adopted]
+      properties:
+        text: {type: string, maxLength: 20000}
+        adoptedBy: {type: string, maxLength: 250}
+        adoptedDate: {type: string, maxLength: 10}
+        reference: {type: string, maxLength: 250}
+        adopted: {type: boolean}
+    AjpesSimplifiedStatement:
+      type: object
+      required: [text, signatory, date, confirmed]
+      properties:
+        text: {type: string, maxLength: 5000}
+        signatory: {type: string, maxLength: 250}
+        date: {type: string, maxLength: 10}
+        confirmed: {type: boolean}
+    AjpesAnnualNarrative:
+      type: object
+      required: [accountingPolicies, explanations, disclosure4, disclosure5, disclosure6, disclosure10, historicalCostConfirmed, profitProposal, profitDecision, simplifiedStatement]
+      properties:
+        accountingPolicies: {type: string, maxLength: 50000}
+        explanations: {type: string, maxLength: 50000}
+        disclosure4: {type: string, maxLength: 12000}
+        disclosure5: {type: string, maxLength: 12000}
+        disclosure6: {type: string, maxLength: 12000}
+        disclosure10: {type: string, maxLength: 12000}
+        historicalCostConfirmed: {type: boolean}
+        profitProposal: {$ref: "#/components/schemas/AjpesProfitProposal"}
+        profitDecision: {$ref: "#/components/schemas/AjpesProfitDecision"}
+        simplifiedStatement: {$ref: "#/components/schemas/AjpesSimplifiedStatement"}
+    AjpesPublicationReview:
+      type: object
+      description: Server-owned approval of the exact publication snapshot; ignored in draft settings input.
+      required: [fingerprint, reviewedBy, reviewedAt]
+      properties:
+        fingerprint: {type: string}
+        reviewedBy: {type: string}
+        reviewedAt: {type: string}
+    AjpesPublicationDocument:
+      type: object
+      required: [code, label, status]
+      properties:
+        code: {type: string}
+        label: {type: string}
+        status: {type: string, enum: [present, missing, not_required]}
+    AjpesPublicationSection:
+      type: object
+      required: [code, label, text]
+      properties:
+        code: {type: string}
+        label: {type: string}
+        text: {type: string}
+    AjpesPublicationAssessment:
+      type: object
+      required: [rulesVersion, supported, mode, ready, reviewed, canExport, contentFingerprint, documents, sections, issues]
+      properties:
+        rulesVersion: {type: string}
+        supported: {type: boolean}
+        mode: {type: string, enum: [notes, micro, unknown]}
+        ready: {type: boolean}
+        reviewed: {type: boolean}
+        canExport: {type: boolean}
+        contentFingerprint: {type: string}
+        documents: {type: array, items: {$ref: "#/components/schemas/AjpesPublicationDocument"}}
+        sections: {type: array, items: {$ref: "#/components/schemas/AjpesPublicationSection"}}
+        issues: {type: array, items: {$ref: "#/components/schemas/AjpesReportIssue"}}
     AjpesAnnualSettings:
       type: object
       required: [mappings, mappingReasons, currentValues, previousValues, excludedEntryIds, metadata]
@@ -11237,6 +11311,8 @@ components:
           type: object
           additionalProperties: {type: string}
         profile: {$ref: "#/components/schemas/AjpesAnnualProfile"}
+        narrative: {$ref: "#/components/schemas/AjpesAnnualNarrative"}
+        publicationReview: {$ref: "#/components/schemas/AjpesPublicationReview"}
     AjpesAnnualDraftInput:
       type: object
       required: [revision, settings]
@@ -11244,11 +11320,12 @@ components:
         revision: {type: integer, minimum: 0}
         settings: {$ref: "#/components/schemas/AjpesAnnualSettings"}
         reviewedFingerprint: {type: [string, "null"]}
+        publicationReviewedFingerprint: {type: [string, "null"]}
     AjpesAnnualExportInput:
       type: object
       required: [format, sourceFingerprint]
       properties:
-        format: {type: string, enum: [xlsx, pdf, xml]}
+        format: {type: string, enum: [xlsx, pdf, xml, publication-pdf]}
         sourceFingerprint: {type: string}
     AjpesAnnualCompany:
       type: object
@@ -11328,6 +11405,7 @@ components:
         journals: {type: array, items: {$ref: "#/components/schemas/AjpesJournalChoice"}}
         issues: {type: array, items: {$ref: "#/components/schemas/AjpesReportIssue"}}
         profileAssessment: {$ref: "#/components/schemas/AjpesProfileAssessment"}
+        publicationAssessment: {$ref: "#/components/schemas/AjpesPublicationAssessment"}
     CreditNotePackagingDocumentsResponse:
       type: object
       required: [documents]

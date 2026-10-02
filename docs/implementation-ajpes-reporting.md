@@ -2,7 +2,7 @@
 
 Datum: 2. 10. 2026  
 Produkt: Bookie ERP  
-Status: letni profili in določitev obsega prve faze so implementirani; naslednje faze ostajajo načrt. Brez neposredne oddaje AJPES.
+Status: letni profili in besedilni paket za običajne samostojne nerevidirane družbe so implementirani; dokazila predložitve in posebni paketi ostajajo načrt. Brez neposredne oddaje AJPES.
 
 ## 1. Cilj
 
@@ -19,7 +19,7 @@ Prva izvedba je namenjena običajnim mikro in majhnim gospodarskim družbam. Dru
 
 Obstajajo izračuni bilance stanja in izkaza poslovnega izida, katalog AOP, podatki bilančnega dobička/izgube, podatki o poslovanju s tujino ter PDF/XLSX povzetka JOLP.
 
-Uradni XML je trenutno preverjen za poslovno leto 2025. Pojasnila, razkritja, razporeditev dobička in celovita evidenca predložitve še niso povezani v zaključen uporabniški postopek.
+Uradni XML je trenutno preverjen za poslovno leto 2025. Pojasnila, mikro razkritja, predlog in sprejeti sklep ter besedilo izjave so povezani z letnim osnutkom. Dokazila dejanske predložitve še niso vključena.
 
 Obstoječe pravilne izračune in predloge se nadgradi, ne zamenja z vzporednim sistemom.
 
@@ -31,7 +31,21 @@ Odločitve o posebnem mikro režimu, reviziji/preiskavi, skupini, konsolidaciji,
 
 Program predlaga ločen seznam statističnih, javnoobjavnih in periodičnih obveznosti ter pokaže, kateri deli so dejansko pripravljeni in kateri zahtevajo poznejšo fazo. Nepopoln, nepodprt ali neskladen profil blokira potrditev pregleda in izvoz. Spremembe razveljavijo star pregled.
 
-Prvi podprti profil: običajne mikro in majhne d.o.o./d.d. po SRS s koledarskim poslovnim letom. Drugi subjekti se lahko evidentirajo kot osnutek, vendar ne dobijo samodejne podpore izvoza GD. Preverjeni uradni katalog/XML ostaja **2025**; drugi letniki imajo samo informativni številčni pregled. PDF/XLSX nista celovito letno poročilo za javno objavo. Potrditev profila ni podpis izjave ali dokazilo predložitve.
+Prvi podprti profil: običajne mikro in majhne d.o.o./d.d. po SRS s koledarskim poslovnim letom. Drugi subjekti se lahko evidentirajo kot osnutek, vendar ne dobijo samodejne podpore izvoza GD. Preverjeni uradni katalog/XML ostaja **2025**; drugi letniki imajo samo informativni številčni pregled. Obstoječi številčni PDF/XLSX nista celovito letno poročilo za javno objavo. Potrditev profila ni podpis izjave ali dokazilo predložitve.
+
+### Izvedeni besedilni paket
+
+V zavihku **Besedila** se shranjujejo računovodske usmeritve in pojasnila ali štiri posebna mikro razkritja (4., 5., 6. in 10. točka 69/2 ZGD-1). Pri posebnem mikro režimu je potrebna izrecna potrditev vrednotenja po izvirni vrednosti. Razkritja v dokumentu sledijo bilanci stanja, ne izkazu poslovnega izida. Navadna mikro družba brez posebnega režima še vedno uporablja navadna pojasnila.
+
+Predlog vsebuje besedilo, pripravljavca in datum; dejanski sklep ločeno vsebuje besedilo, pristojni organ, datum, oznako in izrecno potrditev sprejetja. Prazna polja niso izjave o odsotnosti postavk. Datumi morajo biti dejanski, po koncu poročanega obdobja, ne v prihodnosti, sprejeti sklep pa ne sme predhoditi pripadajočemu predlogu.
+
+Pri izbrani upravičeni poenostavitvi je na voljo urejanje besedila izjave z datumom, podpisnikom in potrditvijo. Potrditev besedila v programu ni elektronski podpis in ne dokazuje oddaje; podpis in oddaja se opravita ločeno.
+
+Besedilni paket ima lasten strežniško potrjen odtis in revizijsko sled. **Shrani in potrdi besedilni paket** potrdi številčni in besedilni posnetek po sveži kontroli. Sprememba besedil, profila, številk ali glavne knjige zahteva nov pregled; izvajalca in čas potrditve določi strežnik.
+
+**PDF letnega poročila z besedili** združi izkaze in potrebna potrjena besedila za samostojne nerevidirane mikro/majhne družbe 2025. Za članice skupin, konsolidacijo, revizijo/preiskavo in druge posebne profile celovit paket ni dovoljen brez dejanskih zahtevanih dodatnih poročil. Besedila se lahko shranijo kot osnutek.
+
+Manjkajoča besedila blokirajo izvoz tega dokumenta, ne samostojnih številčnih/statističnih izvozov. XML vključuje podprta besedilna polja samo po potrditvi točnega besedilnega paketa. Izjava se ne dodaja kot izmišljen XML element. Prenos datoteke ne šteje kot oddaja AJPES.
 
 ## 3. Profil podjetja in obveznosti
 
@@ -64,7 +78,7 @@ Ročni popravki se hranijo ločeno od izračuna, z razlogom in revizijsko sledjo
 
 ## 5. Pojasnila, razkritja in razporeditev dobička
 
-Predviden je urejevalnik besedil in prilog, vezan na podjetje in leto:
+Implementiran je urejevalnik besedil, vezan na podjetje in leto; datotečne priloge ostajajo ločen nadaljnji sklop:
 
 - računovodske usmeritve in zahtevana pojasnila pomembnih postavk;
 - ustrezna razkritja za konkretni režim družbe;
@@ -135,7 +149,7 @@ Predpisani roki se vodijo po profilu in letu. Za običajno koledarsko leto se up
 
 Faza A: letni profili, aktualni katalog, dopolnitev obstoječih številčnih poročil in kontrole.
 
-Faza B: pojasnila/mikro razkritja, razporeditev dobička, izjave in celovit dokument.
+Faza B: implementirana pojasnila/mikro razkritja, predlog in dejanski sklep, besedilo izjave in dokument za prvi podprti samostojni nerevidirani profil. Datotečne priloge in posebni paketi niso nadomeščeni z ustvarjenimi besedili.
 
 Faza C: izvozi, dokazila predložitve in preverjanje aktualnega letnika.
 

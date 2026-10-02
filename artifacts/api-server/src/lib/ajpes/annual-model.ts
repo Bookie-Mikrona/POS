@@ -8,6 +8,15 @@ import type {
   AjpesAnnualProfile,
   AjpesProfileAssessment,
 } from "./annual-profile";
+import {
+  AJPES_PUBLICATION_RULES_VERSION,
+  assessAjpesPublication,
+} from "./annual-publication";
+import type {
+  AjpesAnnualNarrative,
+  AjpesPublicationAssessment,
+  AjpesPublicationReview,
+} from "./annual-publication";
 import jolpDefinition from "./jolp-definition.json";
 
 export type { AjpesAnnualProfile } from "./annual-profile";
@@ -61,6 +70,8 @@ export interface AjpesAnnualSettings {
   excludedEntryIds: string[];
   metadata: Record<string, string>;
   profile?: AjpesAnnualProfile;
+  narrative?: AjpesAnnualNarrative;
+  publicationReview?: AjpesPublicationReview;
 }
 
 export interface AjpesSource {
@@ -122,6 +133,7 @@ export interface AjpesAnnualReport {
   journals: AjpesJournalChoice[];
   issues: AjpesReportIssue[];
   profileAssessment: AjpesProfileAssessment;
+  publicationAssessment: AjpesPublicationAssessment;
 }
 
 interface JolpDefinitionRow {
@@ -186,15 +198,19 @@ function stableJson(value: unknown): string {
 }
 
 function fingerprint(source: AjpesSource, aopRows: AjpesAopRow[]): string {
+  // Review metadata is server-owned and must not be part of the content it
+  // approves. The narrative and publication rules version are part of it.
+  const { publicationReview: _publicationReview, ...reviewableSettings } = source.settings;
   const input = {
     catalogVersion: createHash("sha256")
       .update(stableJson(AJPES_GD_AOP_CATALOG_2025))
       .digest("hex"),
     profileRulesVersion: AJPES_PROFILE_RULES_VERSION,
+    publicationRulesVersion: AJPES_PUBLICATION_RULES_VERSION,
     year: source.year,
     company: source.company,
     accounts: source.accounts,
-    settings: source.settings,
+    settings: reviewableSettings,
     sourceVersion: source.sourceVersion,
     hasCurrent: source.hasCurrent,
     hasPrevious: source.hasPrevious,
@@ -446,6 +462,17 @@ function sanitizeSettings(settings: AjpesAnnualSettings): AjpesAnnualSettings {
         currentCriteria: { ...settings.profile.currentCriteria },
         previousCriteria: { ...settings.profile.previousCriteria },
       },
+    } : {}),
+    ...(settings?.narrative ? {
+      narrative: {
+        ...settings.narrative,
+        profitProposal: { ...settings.narrative.profitProposal },
+        profitDecision: { ...settings.narrative.profitDecision },
+        simplifiedStatement: { ...settings.narrative.simplifiedStatement },
+      },
+    } : {}),
+    ...(settings?.publicationReview ? {
+      publicationReview: { ...settings.publicationReview },
     } : {}),
   };
 }
@@ -1172,6 +1199,14 @@ export function buildAjpesAnnualReport(
   const reviewed = source.reviewedFingerprint === sourceFingerprint;
   const hasBlockingIssues = issues.some((issue) => issue.blocking);
   const canExport = reviewed && !hasBlockingIssues;
+  const publicationAssessment = assessAjpesPublication({
+    year: source.year,
+    settings,
+    profileAssessment,
+    sourceFingerprint,
+    numericReviewed: reviewed,
+    numericBlocked: hasBlockingIssues,
+  });
   const completeCatalog =
     aopRows.length === AJPES_GD_AOP_CATALOG_2025.metadata.catalogueRows &&
     aopRows.every((row, index) => row.code === CATALOG[index]?.id);
@@ -1198,6 +1233,7 @@ export function buildAjpesAnnualReport(
     })),
     issues,
     profileAssessment,
+    publicationAssessment,
   };
 }
 

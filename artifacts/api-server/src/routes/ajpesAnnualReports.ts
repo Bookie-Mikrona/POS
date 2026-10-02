@@ -6,10 +6,15 @@ import {
   SaveAjpesAnnualReportBody, ExportAjpesAnnualReportBody,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
-import { buildAjpesAnnualReport, type AjpesAnnualReport } from "../lib/ajpes/annual-model";
+import {
+  buildAjpesAnnualReport,
+  type AjpesAnnualReport,
+  type AjpesAnnualSettings,
+} from "../lib/ajpes/annual-model";
 import { loadAjpesAnnualReport, loadAjpesSource, AjpesReportError } from "../lib/ajpes/load-annual-report";
 import { generateJolpPdf, generateJolpXlsx } from "../lib/ajpes/jolp-renderers";
 import { generateAjpesXml } from "../lib/ajpes/xml";
+import { generateAjpesPublicationPdf } from "../lib/ajpes/publication-pdf";
 
 const router: IRouter = Router();
 const base = "/companies/:companyId/reports/ajpes/:year";
@@ -26,6 +31,22 @@ function renderInput(report: AjpesAnnualReport) {
     ...row, current: amount(row.current), previous: amount(row.previous),
   }));
   return { ...report, balanceSheet: rows(report.balanceSheet), incomeStatement: rows(report.incomeStatement) };
+}
+
+function publicationXmlNotes(report: AjpesAnnualReport) {
+  const sectionText = (code: string) => report.publicationAssessment.sections.find(section =>
+    section.code.toLowerCase().replace(/[^a-z0-9]/g, "") === code.toLowerCase().replace(/[^a-z0-9]/g, ""),
+  )?.text;
+  const profitProposal = sectionText("profit_proposal");
+  const adoptedDecision = sectionText("profit_adopted");
+  return {
+    explanations: sectionText("explanations"),
+    disclosure4: sectionText("disclosure4"),
+    disclosure5: sectionText("disclosure5"),
+    disclosure6: sectionText("disclosure6"),
+    disclosure10: sectionText("disclosure10"),
+    profitAllocationProposal: [profitProposal, adoptedDecision].filter(Boolean).join("\n\n"),
+  };
 }
 
 async function access(req: Request, res: Response, write = false) {
@@ -96,8 +117,18 @@ router.put(base, requireAuth, async (req, res): Promise<void> => {
       if ((existing?.revision ?? 0) !== body.revision) {
         throw new AjpesReportError(409, "Osnutek je medtem spremenil drug uporabnik. Osvežite poročilo.");
       }
+      const existingSettings = existing
+        ? SaveAjpesAnnualReportBody.shape.settings.safeParse(existing.settings)
+        : null;
+      const { publicationReview: _untrustedPublicationReview, ...submittedSettings } = body.settings;
+      const settings: AjpesAnnualSettings = {
+        ...submittedSettings,
+        ...(existingSettings?.success && existingSettings.data.publicationReview
+          ? { publicationReview: { ...existingSettings.data.publicationReview } }
+          : {}),
+      };
       const source = await loadAjpesSource(tx, scope.companyId, scope.year, {
-        settings: body.settings, revision: body.revision, reviewedFingerprint: null,
+        settings, revision: body.revision, reviewedFingerprint: null,
       });
       const fresh = buildAjpesAnnualReport(source);
       if (body.reviewedFingerprint) {
@@ -108,11 +139,44 @@ router.put(base, requireAuth, async (req, res): Promise<void> => {
           throw new AjpesReportError(422, "Poročila z blokirajočimi opozorili ni mogoče potrditi.");
         }
       }
+      let savedSettings = settings;
+      const publicationFingerprint = body.publicationReviewedFingerprint;
+      if (publicationFingerprint === null) {
+        const { publicationReview: _clearReview, ...withoutPublicationReview } = settings;
+        savedSettings = withoutPublicationReview;
+      } else if (publicationFingerprint !== undefined) {
+        if (publicationFingerprint !== fresh.sourceFingerprint) {
+          throw new AjpesReportError(409, "Vsebina poročila se je spremenila. Osvežite predogled pred potrditvijo za objavo.");
+        }
+        const hasBodyNumericApproval = body.reviewedFingerprint === fresh.sourceFingerprint;
+        const mayKeepExistingNumericApproval = body.reviewedFingerprint === undefined &&
+          existing?.reviewedFingerprint === fresh.sourceFingerprint;
+        if ((!hasBodyNumericApproval && !mayKeepExistingNumericApproval) ||
+          fresh.issues.some(i => i.blocking)) {
+          throw new AjpesReportError(422, "Pred potrditvijo objave najprej potrdite numerični pregled in odpravite blokirajoča opozorila.");
+        }
+        if (!fresh.publicationAssessment.ready || !fresh.publicationAssessment.supported) {
+          throw new AjpesReportError(422, "Vsebina poročila za javno objavo ni popolna ali podprta.");
+        }
+        savedSettings = {
+          ...settings,
+          publicationReview: {
+            fingerprint: fresh.sourceFingerprint,
+            reviewedBy: scope.actor,
+            reviewedAt: new Date().toISOString(),
+          },
+        };
+      }
       const revision = body.revision + 1;
+      const preserveNumericApproval = publicationFingerprint !== undefined &&
+        publicationFingerprint !== null && body.reviewedFingerprint === undefined &&
+        existing?.reviewedFingerprint === fresh.sourceFingerprint;
       const fields = {
-        settings: body.settings, revision, updatedBy: scope.actor, updatedAt: new Date(),
-        reviewedFingerprint: body.reviewedFingerprint ?? null,
-        reviewedBy: body.reviewedFingerprint ? scope.actor : null,
+        settings: { ...savedSettings }, revision, updatedBy: scope.actor, updatedAt: new Date(),
+        reviewedFingerprint: body.reviewedFingerprint ??
+          (preserveNumericApproval ? existing!.reviewedFingerprint : null),
+        reviewedBy: body.reviewedFingerprint ? scope.actor
+          : preserveNumericApproval ? existing!.reviewedBy : null,
       };
       const [record] = existing
         ? await tx.update(annualReportsTable).set(fields)
@@ -123,10 +187,14 @@ router.put(base, requireAuth, async (req, res): Promise<void> => {
       // Saving financial reporting inputs and their audit is one transaction.
       await tx.insert(auditLogTable).values({
         companyId: scope.companyId, entityType: "annual_report", entityId: record.id,
-        action: body.reviewedFingerprint ? "review" : "update", changedBy: scope.actor,
-        payload: { year: scope.year, revision, settings: body.settings, sourceFingerprint: fresh.sourceFingerprint },
+        action: publicationFingerprint !== undefined && publicationFingerprint !== null
+          ? "publication_review" : body.reviewedFingerprint ? "review" : "update",
+        changedBy: scope.actor,
+        payload: { year: scope.year, revision, settings: savedSettings, sourceFingerprint: fresh.sourceFingerprint },
       });
-      return buildAjpesAnnualReport({ ...source, revision, reviewedFingerprint: record.reviewedFingerprint });
+      return buildAjpesAnnualReport({
+        ...source, settings: savedSettings, revision, reviewedFingerprint: record.reviewedFingerprint,
+      });
     }, { isolationLevel: "repeatable read" });
     res.setHeader("Cache-Control", "no-store");
     res.json(GetAjpesAnnualReportResponse.parse(saved));
@@ -143,10 +211,15 @@ router.post(`${base}/export`, requireAuth, async (req, res): Promise<void> => {
     if (report.sourceFingerprint !== parsed.data.sourceFingerprint) {
       throw new AjpesReportError(409, "Glavna knjiga ali osnutek se je spremenil. Osvežite in ponovno potrdite pregled.");
     }
-    if (!report.canExport) {
+    const format = parsed.data.format;
+    if (format === "publication-pdf") {
+      if (!report.publicationAssessment.canExport ||
+        report.settings.publicationReview?.fingerprint !== report.sourceFingerprint) {
+        throw new AjpesReportError(422, "Za izvoz dokumenta za objavo potrdite popolno vsebino za točno trenutni pregled.");
+      }
+    } else if (!report.canExport) {
       throw new AjpesReportError(422, "Pred izvozom shranite in potrdite pregled ter odpravite blokirajoča opozorila.");
     }
-    const format = parsed.data.format;
     let bytes: Buffer;
     let mime: string;
     if (format === "xlsx") {
@@ -154,6 +227,9 @@ router.post(`${base}/export`, requireAuth, async (req, res): Promise<void> => {
       mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     } else if (format === "pdf") {
       bytes = await generateJolpPdf(renderInput(report));
+      mime = "application/pdf";
+    } else if (format === "publication-pdf") {
+      bytes = await generateAjpesPublicationPdf(report);
       mime = "application/pdf";
     } else {
       if (!report.canExportXml || report.year !== 2025) {
@@ -182,6 +258,14 @@ router.post(`${base}/export`, requireAuth, async (req, res): Promise<void> => {
         },
         current: Object.fromEntries(report.aopRows.map(r => [r.code, r.current])),
         previous: Object.fromEntries(report.aopRows.map(r => [r.code, r.previous])),
+        ...(report.publicationAssessment.canExport &&
+          report.settings.publicationReview?.fingerprint === report.sourceFingerprint
+          ? {
+              notes: {
+                ...publicationXmlNotes(report),
+              },
+            }
+          : {}),
       });
       bytes = Buffer.from(xml, "utf8"); mime = "application/xml; charset=utf-8";
     }
@@ -189,9 +273,14 @@ router.post(`${base}/export`, requireAuth, async (req, res): Promise<void> => {
     res.setHeader("Content-Type", mime);
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="ajpes-${scope.year}${format === "xml" ? "" : "-numeric-preview"}.${format}"`,
+      `attachment; filename="ajpes-${scope.year}${format === "xml" ? "" : format === "publication-pdf" ? "-publication" : "-numeric-preview"}.${format === "publication-pdf" ? "pdf" : format}"`,
     );
-    if (format !== "xml") {
+    if (format === "publication-pdf") {
+      res.setHeader(
+        "X-AJPES-Export-Notice",
+        "Prepared publication document only; not a filing and contains no digital signature.",
+      );
+    } else if (format !== "xml") {
       res.setHeader(
         "X-AJPES-Export-Notice",
         "Numerical preview only; not a complete annual report for public publication.",

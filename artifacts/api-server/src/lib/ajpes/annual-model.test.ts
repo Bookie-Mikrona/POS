@@ -282,6 +282,131 @@ describe("AJPES annual report model", () => {
     expect(changed.canExport).toBe(false);
   });
 
+  it("always assesses publication separately while preserving numeric-only review and excluding reviewer metadata from the fingerprint", () => {
+    const source = fixture();
+    const draft = buildAjpesAnnualReport(source);
+    const numericallyReviewed = buildAjpesAnnualReport({
+      ...source,
+      reviewedFingerprint: draft.sourceFingerprint,
+    });
+    expect(numericallyReviewed.canExport).toBe(true);
+    expect(numericallyReviewed.publicationAssessment).toBeDefined();
+    expect(numericallyReviewed.publicationAssessment.canExport).toBe(false);
+
+    const withServerReview = buildAjpesAnnualReport({
+      ...source,
+      settings: {
+        ...source.settings,
+        publicationReview: {
+          fingerprint: draft.sourceFingerprint,
+          reviewedBy: "server-reviewer",
+          reviewedAt: "2025-01-01T00:00:00.000Z",
+        },
+      },
+      reviewedFingerprint: draft.sourceFingerprint,
+    });
+    expect(withServerReview.sourceFingerprint).toBe(draft.sourceFingerprint);
+    expect(withServerReview.canExport).toBe(true);
+    expect(withServerReview.publicationAssessment.canExport).toBe(false);
+  });
+
+  it("keeps missing publication-only notes, adopted decisions, dates, and simplified statements out of numerical blockers", () => {
+    const completeNarrative = {
+      accountingPolicies: "Usmeritve potrjene.",
+      explanations: "Pojasnila potrjena.",
+      disclosure4: "",
+      disclosure5: "",
+      disclosure6: "",
+      disclosure10: "",
+      historicalCostConfirmed: false,
+      profitProposal: {
+        text: "Predlog razporeditve.",
+        preparedBy: "Računovodja",
+        preparedDate: "2026-01-10",
+      },
+      profitDecision: {
+        text: "Sklep o razporeditvi.",
+        adoptedBy: "Skupščina",
+        adoptedDate: "2026-01-11",
+        reference: "Sklep 1/2026",
+        adopted: true,
+      },
+      simplifiedStatement: { text: "", signatory: "", date: "", confirmed: false },
+    };
+    const scenarios = [
+      (source: AjpesSource) => { source.settings.narrative = undefined; },
+      (source: AjpesSource) => {
+        source.settings.narrative = { ...completeNarrative, explanations: "" };
+      },
+      (source: AjpesSource) => {
+        source.settings.narrative = {
+          ...completeNarrative,
+          profitDecision: { ...completeNarrative.profitDecision, adopted: false },
+        };
+      },
+      (source: AjpesSource) => {
+        source.settings.narrative = {
+          ...completeNarrative,
+          profitProposal: { ...completeNarrative.profitProposal, preparedDate: "2025-12-30" },
+        };
+      },
+      (source: AjpesSource) => {
+        source.settings.profile = { ...profile2025, simplifiedSubmission: "yes" };
+        source.settings.narrative = completeNarrative;
+      },
+    ];
+    for (const makeIncomplete of scenarios) {
+      const source = fixture();
+      makeIncomplete(source);
+      const report = reportWithReview(source);
+      expect(report.canExport).toBe(true);
+      expect(report.publicationAssessment.ready).toBe(false);
+      expect(report.publicationAssessment.canExport).toBe(false);
+      expect(report.publicationAssessment.issues.some(issue => issue.blocking)).toBe(true);
+      expect(report.issues.some(issue => issue.code.startsWith("publication_"))).toBe(false);
+    }
+  });
+
+  it("keeps audit, group, consolidation, and non-2025 publication scope gates separate from numerical approval", () => {
+    const profileScopeCases = [
+      (profile: typeof profile2025) => ({ ...profile, auditRequired: "yes" as const }),
+      (profile: typeof profile2025) => ({ ...profile, groupMember: "yes" as const }),
+      (profile: typeof profile2025) => ({
+        ...profile,
+        groupMember: "yes" as const,
+        consolidationRequired: "yes" as const,
+      }),
+    ];
+    for (const adjustProfile of profileScopeCases) {
+      const source = fixture();
+      source.settings.profile = adjustProfile(profile2025);
+      const report = reportWithReview(source);
+      expect(report.canExport).toBe(true);
+      expect(report.publicationAssessment.supported).toBe(false);
+      expect(report.publicationAssessment.ready).toBe(false);
+    }
+
+    const nextYear = fixture({
+      year: 2026,
+      settings: {
+        ...fixture().settings,
+        profile: {
+          ...profile2025,
+          periodStart: "2026-01-01",
+          periodEnd: "2026-12-31",
+        },
+      },
+    });
+    const nextYearDraft = buildAjpesAnnualReport(nextYear);
+    const nextYearReviewed = buildAjpesAnnualReport({
+      ...nextYear,
+      reviewedFingerprint: nextYearDraft.sourceFingerprint,
+    });
+    expect(nextYearReviewed.canExport).toBe(true);
+    expect(nextYearReviewed.publicationAssessment.supported).toBe(false);
+    expect(nextYearReviewed.publicationAssessment.ready).toBe(false);
+  });
+
   it("includes a confirmed profile assessment, blocks missing or unknown profiles, and invalidates review on profile edits", () => {
     const source = fixture();
     const draft = buildAjpesAnnualReport(source);

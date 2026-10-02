@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PrepEditor, ManualGrid } from "./ajpes-annual-report-editor";
 import { ProfileEditor } from "./ajpes-annual-profile-editor";
+import { NarrativeEditor, PublicationPreview } from "./ajpes-annual-narrative-editor";
 import { Statement, Explanation } from "./ajpes-annual-report-preview";
 import { cleanSettings, defaultAjpesYear, emptyAjpesSettings, errMsg, invalidInputs } from "./ajpes-annual-report-model";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +91,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
           return;
         }
         try {
-          final = (await save.mutateAsync({ companyId, year, data: { revision: final.revision, settings: final.settings, reviewedFingerprint: final.sourceFingerprint } })) as AjpesAnnualReport;
+          final = (await save.mutateAsync({ companyId, year, data: { revision: final.revision, settings: cleanSettings(final.settings), reviewedFingerprint: final.sourceFingerprint } })) as AjpesAnnualReport;
           qc.setQueryData(queryKey, final);
           setDraft(final.settings);
         } catch (e2) {
@@ -106,7 +107,42 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
     } finally { setBusy(null); }
   }
 
-  async function doExport(format: "xlsx" | "pdf" | "xml") {
+  const pub = report?.publicationAssessment;
+  const pubBlockedPre = !pub || !pub.supported || (!dirty && (blocking.length > 0 || !pub.ready));
+  async function doPublicationReview() {
+    if (!report || viewer || !yearValid || pubBlockedPre) return;
+    if (invalidKeys.length) { setMsg({ kind: "err", text: "Popravite neveljavne vnose (številke ali razlogi za ignoriranje)." }); return; }
+    setBusy("pubreview"); setMsg(null);
+    try {
+      const saved = (await save.mutateAsync({ companyId, year, data: { revision: report.revision, settings: cleanSettings(draft), reviewedFingerprint: null } })) as AjpesAnnualReport;
+      qc.setQueryData(queryKey, saved); setDraft(saved.settings); setDirty(false); setStaleNotice(false);
+      const fa = saved.publicationAssessment;
+      if (!fa || !fa.supported || saved.issues.some((i) => i.blocking)) {
+        setMsg({ kind: "err", text: "Osnutek je shranjen, vendar besedilnega paketa ni mogoče potrditi: ni podprt ali obstajajo blokirajoča opozorila." });
+        return;
+      }
+      if (!fa.ready) {
+        const list = [...fa.documents.filter((d) => d.status === "missing").map((d) => `${d.label}: manjka`), ...fa.issues.map((i) => i.message)];
+        setMsg({ kind: "err", text: `Osnutek je shranjen, besedilni paket pa je nepopoln in ga ni mogoče potrditi.${list.length ? ` ${list.join("; ")}.` : ""}` });
+        return;
+      }
+      try {
+        const done = (await save.mutateAsync({ companyId, year, data: { revision: saved.revision, settings: cleanSettings(saved.settings), reviewedFingerprint: saved.sourceFingerprint, publicationReviewedFingerprint: fa.contentFingerprint } })) as AjpesAnnualReport;
+        qc.setQueryData(queryKey, done); setDraft(done.settings);
+        setMsg(done.publicationAssessment?.reviewed
+          ? { kind: "ok", text: "Besedilni paket je shranjen in potrjen." }
+          : { kind: "err", text: "Osnutek je shranjen, strežnik pa besedilnega paketa ni potrdil." });
+      } catch (e2) {
+        setMsg({ kind: "err", text: `Osnutek je shranjen, potrditev besedilnega paketa ni uspela: ${errMsg(e2)}` });
+        if ((e2 as { status?: number })?.status === 409) await q.refetch();
+      }
+    } catch (e) {
+      setMsg({ kind: "err", text: errMsg(e) });
+      if ((e as { status?: number })?.status === 409) { setDirty(false); await q.refetch(); }
+    } finally { setBusy(null); }
+  }
+
+  async function doExport(format: "xlsx" | "pdf" | "xml" | "publication-pdf") {
     if (!report || !yearValid) return;
     setBusy(format); setMsg(null);
     try {
@@ -129,7 +165,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") ?? "";
       const m = /filename\*=UTF-8''([^;]+)/i.exec(cd) ?? /filename="?([^";]+)"?/i.exec(cd);
-      let name = `ajpes-${year}.${format}`;
+      let name = format === "publication-pdf" ? `ajpes-${year}-besedila.pdf` : `ajpes-${year}.${format}`;
       if (m) { try { name = decodeURIComponent(m[1]); } catch { name = m[1]; } }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
@@ -149,6 +185,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
 
   const exportBlocked = !yearValid || dirty || !report.canExport || missingReg;
   const xmlBlocked = !yearValid || dirty || !report.canExportXml || missingReg;
+  const pubExportBlocked = !yearValid || dirty || !pub?.canExport || missingReg;
   const xmlNote = !report.supportedXmlYears.includes(year) ? `XML je podprt samo za leto ${report.supportedXmlYears.join(", ")}.` : null;
 
   return (
@@ -174,13 +211,19 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={report.reviewed && !dirty ? "default" : "secondary"}>
-          {dirty ? "Neshranjene spremembe" : report.reviewed ? "Pregledano" : "Ni pregledano"}
+          {dirty ? "Neshranjene spremembe" : report.reviewed ? "Številke pregledane" : "Številke niso pregledane"}
+        </Badge>
+        <Badge data-testid="badge-pub" variant={pub?.reviewed && !dirty ? "default" : "secondary"}>
+          {dirty ? "Besedila neshranjena" : pub?.reviewed ? (pub.canExport ? "Besedila potrjena, izvoz mogoč" : "Besedila potrjena") : pub?.supported === false ? "Besedila: izvoz ni podprt" : "Besedila niso potrjena"}
         </Badge>
         <span className="text-xs text-muted-foreground">Revizija {report.revision}</span>
         {viewer && <span className="text-xs text-muted-foreground">Način samo za branje</span>}
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex w-full flex-wrap gap-2 md:w-auto">
           <Button size="sm" variant="outline" disabled={!yearValid || viewer || !dirty || busy !== null} onClick={() => doSave(false)}>
             {busy === "save" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}Shrani osnutek
+          </Button>
+          <Button size="sm" variant="outline" data-testid="button-pub-review" disabled={!yearValid || viewer || busy !== null || pubBlockedPre} onClick={() => doPublicationReview()}>
+            {busy === "pubreview" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}Shrani in potrdi besedilni paket
           </Button>
           <Button size="sm" disabled={!yearValid || viewer || busy !== null || (!dirty && blocking.length > 0) || (!dirty && report.reviewed)} onClick={() => doSave(true)}>
             {busy === "review" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}Shrani in potrdi pregled
@@ -193,6 +236,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
         <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="prep">Priprava</TabsTrigger>
           <TabsTrigger value="profile">Profil</TabsTrigger>
+          <TabsTrigger value="notes">Besedila</TabsTrigger>
           <TabsTrigger value="manual">Ročni vnos AOP</TabsTrigger>
           <TabsTrigger value="preview">Predogled</TabsTrigger>
           <TabsTrigger value="export">Izvoz</TabsTrigger>
@@ -206,6 +250,10 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
           <ProfileEditor report={report} draft={draft} viewer={viewer} dirty={dirty} patch={patch} />
         </TabsContent>
 
+        <TabsContent value="notes" className="mt-0">
+          <NarrativeEditor report={report} draft={draft} viewer={viewer} dirty={dirty} patch={patch} />
+        </TabsContent>
+
         <TabsContent value="manual" className="mt-0">
           <ManualGrid report={report} draft={draft} viewer={viewer} year={year} patch={patch} />
         </TabsContent>
@@ -214,6 +262,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
           <Statement title="Bilanca stanja" rows={report.balanceSheet} year={year} />
           <Statement title="Izkaz poslovnega izida" rows={report.incomeStatement} year={year} />
           <Explanation report={report} />
+          <PublicationPreview report={report} />
         </TabsContent>
 
         <TabsContent value="export" className="mt-0 space-y-3">
@@ -230,8 +279,14 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
               {busy === "xml" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}XML (AJPES)
             </Button>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" data-testid="button-publication-pdf" disabled={pubExportBlocked || busy !== null} onClick={() => doExport("publication-pdf")}>
+              {busy === "publication-pdf" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}PDF letnega poročila z besedili
+            </Button>
+            <span className="text-xs text-muted-foreground">{pub?.supported === false ? "Izvoz besedil za ta profil ali leto ni podprt." : dirty ? "Shranite in potrdite besedila." : !pub?.canExport ? "Besedilni paket še ni potrjen ali ni popoln." : "Potrjen paket je pripravljen za izvoz."}</span>
+          </div>
           {xmlNote && <p className="text-xs text-muted-foreground">{xmlNote}</p>}
-          <p className="text-xs text-muted-foreground">PDF in XLSX vsebujeta samo številčne izkaze; nista popolno javno letno poročilo. Izvoz ni oddaja pri AJPES.</p>
+          <p className="text-xs text-muted-foreground">Številčna PDF in XLSX sta samo številčna predogleda; nista popolno javno letno poročilo. Izvoz ni oddaja pri AJPES.</p>
         </TabsContent>
       </Tabs>
     </div>
