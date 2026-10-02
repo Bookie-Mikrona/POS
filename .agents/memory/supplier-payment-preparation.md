@@ -14,3 +14,9 @@ Končni uporabniški postopek je izbor odprtih obveznosti vseh dobaviteljev, dol
 **Why:** Uporabnik je 2026-10-02 s posnetkom stare forme pojasnil, da banki odda izbrane naloge z enim prenosom; ne zahteva neposrednega bančnega API-ja. Izbira TRR mora veljati tudi v izvoženi datoteki, ne zgolj v zaslonski kontroli sredstev.
 
 **How to apply:** Notranji ločeni osnutki po dobaviteljih ne smejo uporabnika prisiliti v ločene prenose za vsak nalog. Izvoz in uvoz nalogov še ne dokazujeta izvršenega plačila in ne smeta sama zapreti obveznosti; poravnavo potrdi ločen postopek na podlagi dejanske izvedbe oziroma bančnega izpiska.
+
+Priprava plačil mora vključevati še odprte postavke iz prejšnjih poslovnih let, ne samo postavk aktivnega leta. Ločeno prikaži celotni odprti znesek postavke in predlagani znesek plačila ter seštevke vseh prikazanih obveznosti, obveznosti do izbranega datuma zapadlosti in nalogov, izbranih za prenos.
+
+**Why:** Uporabnikov dodatni referenčni posnetek stare forme kaže postavke iz prejšnjih let ob aktivnem tekočem letu ter ločene stolpce »Znesek«, »Plačilo« in oznako prenosa. Skupni znesek obveznosti je lahko nenulsk, znesek izbranega prenosa pa nič.
+
+**How to apply:** Filtra aktivnega poslovnega leta ne uporabi kot privzeto omejitev odprtih obveznosti. Vsoto za XML računaj iz uporabnikovih izbranih plačilnih zneskov, ne iz celotnih odprtih zneskov prikazanih postavk.
