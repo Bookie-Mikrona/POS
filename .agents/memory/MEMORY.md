@@ -156,3 +156,4 @@
 - [Vrstni red apply_patch](apply-patch-hunk-order.md) — odseke iste datoteke razvrsti od začetka proti koncu; obratni vrstni red lahko zavrne pravilen kontekst.
 - [Recharts tooltip testiranje](recharts-tooltip-testing.md) — jsdom brez dejanske postavitve lahko ne sproži hover tooltipa; preveri vezavo kategorijske osi in oznake.
 - [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.
+- [Stabilnost KDS pregleda](kds-dialog-stability.md) — osveževanje zaloge v odprtem pregledu ne sme dodajati statusnega besedila, ki premika okvir.

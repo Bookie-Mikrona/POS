@@ -255,7 +255,6 @@ function PreparedAvailabilityOverview({
   loading,
   error,
   offline,
-  isFetching,
   onRetry,
   canRetry,
 }: {
@@ -263,7 +262,6 @@ function PreparedAvailabilityOverview({
   loading: boolean;
   error: boolean;
   offline: boolean;
-  isFetching: boolean;
   onRetry: () => void;
   canRetry: boolean;
 }) {
@@ -303,7 +301,6 @@ function PreparedAvailabilityOverview({
       {items.some(item => item.availableBySize) && <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950" data-testid="text-shared-prepared-stock">
         Zaloga je skupna. Kapacitete male, normalne in družinske pice porabljajo iste sestavine, zato jih ne seštevajte.
       </p>}
-      {isFetching && <p className="text-xs text-muted-foreground" role="status" data-testid="status-prepared-availability-refreshing">Osvežujem zalogo…</p>}
       {items.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground" data-testid="status-prepared-availability-empty">V dnevni evidenci za ta poslovni dan ni pripravljenih jedi.</p>
       ) : (
@@ -408,7 +405,6 @@ export function PreparedAvailabilityToolbar({
             loading={resolvedLoading}
             error={resolvedError}
             offline={resolvedOffline}
-            isFetching={isFetching}
             onRetry={onRetry}
             canRetry={canRetry}
           />

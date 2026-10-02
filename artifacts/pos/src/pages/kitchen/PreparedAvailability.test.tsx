@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Artikel, PreparedFoodAvailability } from "@workspace/api-client-react";
 import {
@@ -157,6 +157,19 @@ describe("KDS prepared-food availability badge helpers", () => {
 });
 
 describe("PreparedAvailabilityToolbar", () => {
+  it("keeps the open dialog content stable during background refreshes", () => {
+    const { rerender } = render(<PreparedAvailabilityToolbar state={readyState} />);
+    fireEvent.click(screen.getByRole("button", { name: /Razpoložljivost/i }));
+    const dialog = screen.getByRole("dialog");
+    const initialContent = dialog.innerHTML;
+    rerender(<PreparedAvailabilityToolbar state={readyState} isFetching />);
+    expect(within(dialog).queryByText(/Osvežujem/i)).not.toBeInTheDocument();
+    expect(dialog.innerHTML).toBe(initialContent);
+    expect(screen.getByTestId("status-kitchen-stock-refreshing")).toBeInTheDocument();
+    rerender(<PreparedAvailabilityToolbar state={readyState} />);
+    expect(dialog.innerHTML).toBe(initialContent);
+  });
+
   it("shows only meals listed in daily evidence, not the full prepared/composite catalogue", () => {
     render(<PreparedAvailabilityToolbar state={readyState} />);
     fireEvent.click(screen.getByRole("button", { name: /Razpoložljivost/i }));
