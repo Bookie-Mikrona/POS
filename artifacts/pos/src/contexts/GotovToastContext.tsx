@@ -1,4 +1,5 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
+import { createReadyNotificationSound } from "@/lib/readyNotificationSound";
 
 export type GotovToastItem = {
   id: string;
@@ -67,12 +68,24 @@ export function GotovToastProvider({ children }: { children: React.ReactNode }) 
   }, [scheduleMinimize]);
 
   useEffect(() => {
+    const sound = createReadyNotificationSound();
+    const unlockSound = () => { void sound.unlock(); };
     function onEvent(e: Event) {
       const detail = (e as CustomEvent<Omit<GotovToastItem, "phase" | "arrivedAt">>).detail;
       addToast(detail);
+      void sound.play();
     }
+    window.addEventListener("pointerdown", unlockSound, true);
+    window.addEventListener("keydown", unlockSound, true);
     window.addEventListener("gotov-toast", onEvent);
-    return () => window.removeEventListener("gotov-toast", onEvent);
+    return () => {
+      window.removeEventListener("pointerdown", unlockSound, true);
+      window.removeEventListener("keydown", unlockSound, true);
+      window.removeEventListener("gotov-toast", onEvent);
+      sound.dispose();
+      for (const timer of timersRef.current.values()) clearTimeout(timer);
+      timersRef.current.clear();
+    };
   }, [addToast]);
 
   return (

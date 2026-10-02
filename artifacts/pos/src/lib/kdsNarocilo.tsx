@@ -5,6 +5,7 @@ import { QrGostStaffInfo } from "@/components/QrGostStaffInfo";
 
 export type KdsNarocilo = {
   id: number;
+  ustvarjeno?: string | null;
   nacin?: string | null;
   vir?: string | null;
   nacinIzpolnitve?: string | null;
@@ -102,7 +103,14 @@ export function sortKdsNarocila<T extends KdsNarocilo>(narocila: T[]): T[] {
     if (isTelefonskoNarocilo(narocilo) && getKdsTarget(narocilo)) phones.push(narocilo);
     else tables.push(narocilo);
   }
-  phones.sort((a, b) => new Date(getKdsTarget(a)!.iso).getTime() - new Date(getKdsTarget(b)!.iso).getTime());
+  phones.sort((a, b) => new Date(getKdsTarget(a)!.iso).getTime() - new Date(getKdsTarget(b)!.iso).getTime() || a.id - b.id);
+  // Readiness and the oldest remaining item change on every bump. Neither
+  // belongs in the card's sort key while the operator is tapping its items.
+  tables.sort((a, b) => {
+    const aTime = a.ustvarjeno ? Date.parse(a.ustvarjeno) : NaN;
+    const bTime = b.ustvarjeno ? Date.parse(b.ustvarjeno) : NaN;
+    return (Number.isFinite(aTime) ? aTime : 0) - (Number.isFinite(bTime) ? bTime : 0) || a.id - b.id;
+  });
   return [...phones, ...tables];
 }
 

@@ -27,6 +27,16 @@ const dostava = {
 describe("KDS telefonska naročila", () => {
   afterEach(() => vi.useRealTimers());
 
+  it("keeps table positions when readiness or the oldest pending item changes", () => {
+    const first = { id: 8, ustvarjeno: "2026-08-24T10:00:00Z", najstarejsiMs: 1, pripravljeno: false };
+    const second = { id: 7, ustvarjeno: "2026-08-24T10:01:00Z", najstarejsiMs: 2, pripravljeno: false };
+    expect(sortKdsNarocila([second, first]).map(order => order.id)).toEqual([8, 7]);
+    expect(sortKdsNarocila([
+      second, { ...first, najstarejsiMs: NOW, pripravljeno: true },
+    ]).map(order => order.id)).toEqual([8, 7]);
+    expect(sortKdsNarocila([{ ...second, najstarejsiMs: 0 }, first]).map(order => order.id)).toEqual([8, 7]);
+  });
+
   it("izpiše enotne oznake Miza, Prevzem in Dostava", () => {
     expect(getKdsTypeLabel(miza)).toBe("Miza Terasa 3");
     expect(getKdsTypeLabel(prevzem)).toBe("Prevzem");

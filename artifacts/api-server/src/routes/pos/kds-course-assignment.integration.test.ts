@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import express from "express";
 import supertest from "supertest";
@@ -12,6 +12,7 @@ import {
 import kdsRouter from "./kds";
 import { includedKdsTicket } from "../../lib/kds-exclusion";
 import { isDispatchEligible } from "../../lib/kds-dispatch";
+import * as sse from "../../lib/pos-sse";
 import {
   consumeBatchCourseClarificationAssignments, consumeCourseClarificationAssignment,
   signCourseClarificationToken, verifyCourseClarificationToken,
@@ -20,6 +21,7 @@ import {
 const run = Math.random().toString(36).slice(2, 10);
 let companyId: string, enotaId: number, artikelId: number, stationId: number, secondStationId: number, natakarId: number;
 const orders: number[] = [];
+afterEach(() => vi.restoreAllMocks());
 
 async function order() {
   const [row] = await db.insert(narocilaTable).values({ enotaId, stevilkaNarocila: 700000 + orders.length }).returning({ id: narocilaTable.id });
@@ -83,6 +85,80 @@ afterAll(async () => {
 });
 
 describe("assignKdsCourse PostgreSQL integration", () => {
+  function appForUnit(unitId = enotaId) {
+    const app = express();
+    app.use(express.json(), (req, _res, next) => { (req as any).enotaId = unitId; next(); }, kdsRouter);
+    return app;
+  }
+
+  it("notifies the food's ordering device once, not the KDS device, after commit", async () => {
+    const notify = vi.spyOn(sse, "broadcastToDevice");
+    const narociloId = await order();
+    const postavka = await line(narociloId, { napravaId: `waiter-${run}`, opomba: "Brez čebule" });
+    const nalog = await ticket(narociloId, postavka.id);
+    const app = appForUnit();
+    await supertest(app).post(`/kds/nalogi/${nalog.id}/bump`).set("X-Naprava-Id", "kitchen-device")
+      .send({ idempotencyKey: `notify-${run}` }).expect(200);
+    expect(notify).toHaveBeenCalledExactlyOnceWith(enotaId, `waiter-${run}`, "postavkaPripravljena", expect.objectContaining({
+      postavkaId: postavka.id, narociloId, ime: postavka.ime, opomba: "Brez čebule",
+      vir: "kuhinja", notificationId: `kds-ready-${nalog.id}`,
+    }));
+    await supertest(app).post(`/kds/nalogi/${nalog.id}/bump`).send({ idempotencyKey: `notify-${run}` }).expect(200);
+    await supertest(app).post(`/kds/nalogi/${nalog.id}/ack`).send({ idempotencyKey: `ack-notify-${run}` }).expect(200);
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it("notifies drink readiness only within its originating unit and device", async () => {
+    const notify = vi.spyOn(sse, "broadcastToDevice");
+    const narociloId = await order();
+    const postavka = await line(narociloId, { napravaId: `bar-waiter-${run}` });
+    const nalog = await ticket(narociloId, postavka.id, { postajaId: secondStationId });
+    await supertest(appForUnit(enotaId + 999999)).post(`/kds/nalogi/${nalog.id}/bump`)
+      .send({ idempotencyKey: `drink-wrong-unit-${run}` }).expect(404);
+    expect(notify).not.toHaveBeenCalled();
+    await supertest(appForUnit()).post(`/kds/nalogi/${nalog.id}/bump`)
+      .send({ idempotencyKey: `drink-${run}` }).expect(200);
+    expect(notify).toHaveBeenCalledExactlyOnceWith(enotaId, `bar-waiter-${run}`, "postavkaPripravljena",
+      expect.objectContaining({ postavkaId: postavka.id, vir: "tocilnica" }));
+  });
+
+  it("waits for all stations, including held tickets, before announcing readiness", async () => {
+    const notify = vi.spyOn(sse, "broadcastToDevice");
+    const narociloId = await order();
+    const postavka = await line(narociloId, { napravaId: `multi-${run}` });
+    const kitchen = await ticket(narociloId, postavka.id);
+    const bar = await ticket(narociloId, postavka.id, { postajaId: secondStationId, stanje: "zadrzano" });
+    const app = appForUnit();
+    await supertest(app).post(`/kds/nalogi/${kitchen.id}/bump`).send({ idempotencyKey: `partial-${run}` }).expect(200);
+    expect(notify).not.toHaveBeenCalled();
+    await db.update(kdsNalogiTable).set({ stanje: "aktivno" }).where(eq(kdsNalogiTable.id, bar.id));
+    await supertest(app).post(`/kds/nalogi/${bar.id}/bump`).send({ idempotencyKey: `final-${run}` }).expect(200);
+    expect(notify).toHaveBeenCalledExactlyOnceWith(enotaId, `multi-${run}`, "postavkaPripravljena",
+      expect.objectContaining({ postavkaId: postavka.id, vir: "kuhinja" }));
+  });
+
+  it("announces concurrent completion once and never broadcasts unknown origins", async () => {
+    const notify = vi.spyOn(sse, "broadcastToDevice");
+    const narociloId = await order();
+    const postavka = await line(narociloId, { napravaId: `concurrent-${run}` });
+    const kitchen = await ticket(narociloId, postavka.id);
+    const bar = await ticket(narociloId, postavka.id, { postajaId: secondStationId });
+    const app = appForUnit();
+    await Promise.all([kitchen, bar].map(nalog => supertest(app).post(`/kds/nalogi/${nalog.id}/bump`)
+      .send({ idempotencyKey: `concurrent-${nalog.id}-${run}` }).expect(200)));
+    expect(notify).toHaveBeenCalledOnce();
+    notify.mockClear();
+    const unknown = await line(narociloId, { napravaId: null });
+    const unknownTicket = await ticket(narociloId, unknown.id);
+    const broadcast = vi.spyOn(sse, "broadcastToUnit");
+    await supertest(app).post(`/kds/nalogi/${unknownTicket.id}/bump`).send({ idempotencyKey: `unknown-${run}` }).expect(200);
+    expect(notify).not.toHaveBeenCalled();
+    expect(broadcast).not.toHaveBeenCalledWith(enotaId, "postavkaPripravljena", expect.anything());
+    const historical = await ticket(narociloId, unknown.id, { postavkaId: null });
+    await supertest(app).post(`/kds/nalogi/${historical.id}/bump`).send({ idempotencyKey: `historical-${run}` }).expect(200);
+    expect(notify).not.toHaveBeenCalled();
+  });
+
   it("izključitev skrije stare naloge, ne ustvari novih in ne blokira izdaje; ponovni vklop ohrani zgodovino", async () => {
     const app = express();
     app.use((req, _res, next) => { (req as any).enotaId = enotaId; next(); });

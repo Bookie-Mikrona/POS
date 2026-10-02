@@ -13,6 +13,7 @@ import { choosePreparationStations, planStandardKdsDisplays, preparationStationT
 import { ensureKdsUnitConfiguration } from "../../lib/kds-unit-configuration";
 import { isDispatchEligible, lockKdsOrder } from "../../lib/kds-dispatch";
 import { includedKdsTicket } from "../../lib/kds-exclusion";
+import { getKdsReadyNotification, sendKdsReadyNotification } from "../../lib/kds-ready-notification";
 import {
   CreateKdsMapiranjeBody, CreateKdsPostajaBody, CreateKdsPrikazovalnikBody,
   SetKdsPrikazovalnikNarocnineBody, UpdateKdsNastavitveBody, UpdateKdsPostajaBody,
@@ -768,6 +769,7 @@ async function transition(req: any, res: any, tip: "bump" | "ack") {
     if (settings?.dispatchOmogocen) { res.status(409).json({ error: "V enoti z izdajo se nalogi predajo na ravni naročila." }); return; }
   }
   let changed = false;
+  let readyNotification: Awaited<ReturnType<typeof getKdsReadyNotification>> = null;
   try {
     await db.transaction(async (tx) => {
       await lockKdsOrder(tx, ticket.narociloId);
@@ -797,6 +799,7 @@ async function transition(req: any, res: any, tip: "bump" | "ack") {
       await tx.insert(kdsDogodkiTable).values({
         nalogId: id, zaporedje: Number(sequence.rows[0]?.next ?? 1), tip, idempotencyKey: key,
       });
+      if (tip === "bump") readyNotification = await getKdsReadyNotification(tx, current);
       changed = true;
     });
   } catch (error) {
@@ -811,6 +814,7 @@ async function transition(req: any, res: any, tip: "bump" | "ack") {
     throw error;
   }
   if (changed) {
+    if (readyNotification) sendKdsReadyNotification(enotaId, readyNotification);
     broadcastToUnit(enotaId, "update", { type: "kds" });
   }
   const events = await db.select().from(kdsDogodkiTable).where(eq(kdsDogodkiTable.nalogId, id)).orderBy(asc(kdsDogodkiTable.zaporedje));

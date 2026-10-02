@@ -361,14 +361,6 @@ function KdsKitchenView({
         .sort((a, b) => {
           const nalogiA = kdsZaToNarocilo.filter(x => x.postavkaId === a.id);
           const nalogiB = kdsZaToNarocilo.filter(x => x.postavkaId === b.id);
-          if (barOnly) {
-            const priority = (nalogiA.some(n => n.stanje === "aktivno") ? 0 : nalogiA.some(n => n.stanje === "zadrzano") ? 1 : 2)
-              - (nalogiB.some(n => n.stanje === "aktivno") ? 0 : nalogiB.some(n => n.stanje === "zadrzano") ? 1 : 2);
-            if (priority !== 0) return priority;
-          }
-          const aDone = nalogiA.length > 0 && nalogiA.every(n => n.stanje === "bumped" || n.stanje === "ack");
-          const bDone = nalogiB.length > 0 && nalogiB.every(n => n.stanje === "bumped" || n.stanje === "ack");
-          if (aDone !== bDone) return aDone ? 1 : -1;
           const aCourse = nalogiA[0]?.courseNumber ?? 0;
           const bCourse = nalogiB[0]?.courseNumber ?? 0;
           if (aCourse !== bCourse) return aCourse - bCourse;
@@ -403,15 +395,7 @@ function KdsKitchenView({
     .filter((n): n is NonNullable<typeof n> => n !== null && n.topPostavke.length > 0)
     .sort((a, b) => a.najstarejsiMs - b.najstarejsiMs);
 
-  // A bar operator must see a pour that has just been FIRED before held or
-  // already served tickets, even when another ticket is older.
-  const odprta = barOnly
-    ? [...odprtaPoStarosti].sort((a, b) => {
-      const aActive = a.kdsZaToNarocilo.some(n => n.stanje === "aktivno");
-      const bActive = b.kdsZaToNarocilo.some(n => n.stanje === "aktivno");
-      return aActive === bActive ? a.najstarejsiMs - b.najstarejsiMs : aActive ? -1 : 1;
-    })
-    : sortKdsNarocila(odprtaPoStarosti);
+  const odprta = sortKdsNarocila(odprtaPoStarosti);
 
   function handleBump(nalog: KdsNalog, e: React.MouseEvent) {
     e.stopPropagation();
@@ -919,9 +903,6 @@ function LegacyKitchenView() {
           && p.kategorijaId != null
           && hranaIds.has(p.kategorijaId))
         .sort((a, b) => {
-          const aDone = !!a.pripravljeno;
-          const bDone = !!b.pripravljeno;
-          if (aDone !== bDone) return aDone ? 1 : -1;
           return new Date(a.ustvarjeno).getTime() - new Date(b.ustvarjeno).getTime();
         });
       const childMap = new Map<number, typeof vsePostavke>();

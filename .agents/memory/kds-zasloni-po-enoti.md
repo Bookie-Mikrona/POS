@@ -49,4 +49,4 @@ Na zaslonih točilnice in kuhinje naročila ne kažejo samodejnih oznak alergeno
 
 **Why:** Uporabnik je alergene na točilnici označil kot nepomembne in pozneje izrecno opozoril, da so v kuhinjskem KDS še vedno prikazani. Postaja točilnice je že razvidna iz zaslona.
 
-**How to apply:** To je omejitev prikaza točilnice, ne brisanje podatkov. Alergenska opozorila v kuhinji in na zaslonu pic ter operativna stanja priprave ohrani.
+**How to apply:** To je omejitev prikaza, ne brisanje podatkov. Samodejne oznake alergenov skrij na točilnici in v kuhinjskem KDS; ohrani ročne opombe, prehranske omejitve in operativna stanja priprave.
