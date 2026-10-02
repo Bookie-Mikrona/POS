@@ -3279,16 +3279,6 @@ export default function Order() {
                         </button>
                       )}
                     </div>
-                    {kdsStatus.statuses.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pl-5" data-testid={`order-item-kds-status-${postavka.id}`}>
-                        {kdsStatus.statuses.map(status => (
-                          <span key={status.id} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${status.badgeClassName}`}>
-                            {status.stationName && `${status.stationName}: `}{status.label}
-                            {status.minutes != null && ` · ${status.minutes} min`}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                     {/* Opomba vrstica */}
                     {postavka.opomba && (
                       <div className="flex items-center gap-1 pl-5 pr-1">
@@ -3306,7 +3296,7 @@ export default function Order() {
                       </div>
                     )}
                     {/* Vrstica 2: gumbi za količino + cena */}
-                    <div className="flex items-center gap-0.5 pl-5">
+                    <div className="flex items-center gap-0.5 pl-5" data-testid={`order-item-quantity-${postavka.id}`}>
                       {!jeRacunana && !jeVecHodniMeni && (
                         <Button
                           variant="outline"
@@ -3331,6 +3321,16 @@ export default function Order() {
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
+                      )}
+                      {kdsStatus.statuses.length > 0 && (
+                        <div className="flex min-w-0 flex-1 flex-wrap gap-1 ml-1" data-testid={`order-item-kds-status-${postavka.id}`}>
+                          {kdsStatus.statuses.map(status => (
+                            <span key={status.id} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${status.badgeClassName}`}>
+                              {status.stationName && `${status.stationName}: `}{status.label}
+                              {status.minutes != null && ` · ${status.minutes} min`}
+                            </span>
+                          ))}
+                        </div>
                       )}
                       <span className="hidden sm:flex flex-col items-start ml-1 leading-none">
                         {hasDiscount && (

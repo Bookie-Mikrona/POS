@@ -39,8 +39,9 @@ describe("shared KDS and order item colors", () => {
     expect(getKdsItemAppearance(ticket(90, "zadrzano"), false, now))
       .toMatchObject({ label: "Na čakanju", minutes: null, className: expect.stringContaining("bg-slate-100") });
     expect(getKdsItemAppearance(ticket(90, "bumped"), false, now))
-      .toMatchObject({ label: "Pripravljeno", minutes: null, className: expect.stringContaining("bg-emerald-100") });
+      .toMatchObject({ label: "Pripravljeno", minutes: null, className: expect.stringContaining("bg-blue-100") });
     expect(getKdsItemAppearance(ticket(90, "ack"), false, now)?.label).toBe("Predano");
+    expect(getKdsItemAppearance(ticket(90, "ack"), false, now)?.className).toContain("bg-emerald-100");
   });
 
   it("matches the special bar preparation color", () => {
@@ -69,7 +70,7 @@ describe("shared KDS and order item colors", () => {
 
   it("retains ready color after completed tickets leave the live endpoint", () => {
     expect(getOrderItemKdsStatuses(3, [], [station], now, "2026-10-03T11:59:00Z").className)
-      .toContain("bg-emerald-100");
+      .toContain("bg-blue-100");
   });
 
   it("supports string gateway line identifiers", () => {

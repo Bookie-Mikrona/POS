@@ -300,9 +300,11 @@ describe("Order — pica BREZ modifikatorske skupine (modSkupine=[])", () => {
     const view = render(<Wrapper qc={qc}><Order /></Wrapper>);
     expect(await screen.findByTestId("order-item-7")).toHaveClass("bg-red-100");
     expect(screen.getByTestId("order-item-kds-status-7")).toHaveTextContent("Pica: V pripravi");
+    expect(screen.getByTestId("order-item-quantity-7"))
+      .toContainElement(screen.getByTestId("order-item-kds-status-7"));
     mockKdsState.nalogi = [{ ...mockKdsState.nalogi[0], stanje: "bumped" }];
     view.rerender(<Wrapper qc={qc}><Order /></Wrapper>);
-    expect(screen.getByTestId("order-item-7")).toHaveClass("bg-emerald-100");
+    expect(screen.getByTestId("order-item-7")).toHaveClass("bg-blue-100");
     expect(screen.getByTestId("order-item-kds-status-7")).toHaveTextContent("Pripravljeno");
   });
 

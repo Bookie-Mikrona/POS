@@ -84,7 +84,7 @@ export type KdsHeaderPostavka = {
 };
 
 /** Header data is derived only from the order lines visible to this KDS card. */
-export function getKdsHeaderWarnings(postavke: readonly KdsHeaderPostavka[], showAllergens = true): {
+export function getKdsHeaderWarnings(postavke: readonly KdsHeaderPostavka[], showAllergens = false): {
   guestCount: number | null;
   allergens: string[];
   traces: string[];
@@ -531,7 +531,7 @@ function KdsKitchenView({
           <span className="text-gray-400">&gt;20 min</span>
         </div>
         <div className="flex items-center gap-1.5 whitespace-nowrap">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
           <span className="text-gray-400">Pripravljeno (Bumped)</span>
         </div>
         <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -565,7 +565,7 @@ function KdsKitchenView({
             const imaFallback = narocilo.kdsZaToNarocilo.some(n => n.uporabljenFallback);
             const nextCourses = getNextKdsCoursesToFire(narocilo.kdsZaToNarocilo);
             const courseGroups = groupKdsNalogiByCourse(narocilo.kdsZaToNarocilo, barOnly);
-            const headerWarnings = getKdsHeaderWarnings(narocilo.topPostavke, !barOnly);
+            const headerWarnings = getKdsHeaderWarnings(narocilo.topPostavke);
             const hasActiveBarCourse = barOnly && narocilo.kdsZaToNarocilo.some(n => n.stanje === "aktivno");
 
             return (
@@ -586,23 +586,11 @@ function KdsKitchenView({
                     itemCount={narocilo.topPostavke.length}
                     pripravljeno={vsePripravljeno}
                   />
-                  {(headerWarnings.guestCount != null || headerWarnings.allergens.length > 0 || headerWarnings.traces.length > 0 || narocilo.opomba) && (
+                  {(headerWarnings.guestCount != null || narocilo.opomba) && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {headerWarnings.guestCount != null && (
                         <Badge variant="outline" className="border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[10px] font-extrabold text-blue-800">
                           Gostje: {headerWarnings.guestCount}
-                        </Badge>
-                      )}
-                      {headerWarnings.allergens.length > 0 && (
-                        <Badge variant="outline" className="border-red-400 bg-red-100 px-1.5 py-0.5 text-[10px] font-extrabold text-red-900">
-                          <AlertTriangle className="mr-1 h-3 w-3" />
-                          Alergeni: {headerWarnings.allergens.join(", ")}
-                        </Badge>
-                      )}
-                      {headerWarnings.traces.length > 0 && (
-                        <Badge variant="outline" className="border-orange-400 bg-orange-100 px-1.5 py-0.5 text-[10px] font-extrabold text-orange-900">
-                          <AlertTriangle className="mr-1 h-3 w-3" />
-                          Sledi: {headerWarnings.traces.join(", ")}
                         </Badge>
                       )}
                       {narocilo.opomba && (
@@ -631,6 +619,8 @@ function KdsKitchenView({
                           const p = narocilo.topPostavke.find(postavka => postavka.id === nalog.postavkaId);
                           if (!p) return [];
                            const done = nalog.stanje === "bumped" || nalog.stanje === "ack";
+                           const doneText = nalog.stanje === "bumped" ? "text-blue-900" : "text-emerald-900";
+                           const doneMuted = nalog.stanje === "bumped" ? "text-blue-700" : "text-emerald-700";
                            const held = nalog.stanje === "zadrzano";
                            const statusLabel = getKdsStationStatusLabel(nalog, barOnly);
                            const pairedFoodName = barOnly ? getPairedFoodName(p, narocilo.postavke ?? []) : undefined;
@@ -653,8 +643,8 @@ function KdsKitchenView({
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-baseline gap-2">
-                                   <span className={`text-sm font-semibold leading-tight ${held ? "text-slate-600" : done ? "text-emerald-900" : "text-gray-900"}`}>{p.ime}</span>
-                                   <span className={`font-bold text-xs shrink-0 ${held ? "text-slate-500" : done ? "text-emerald-700" : "text-gray-500"}`}>×{p.kolicina}</span>
+                                   <span className={`text-sm font-semibold leading-tight ${held ? "text-slate-600" : done ? doneText : "text-gray-900"}`}>{p.ime}</span>
+                                   <span className={`font-bold text-xs shrink-0 ${held ? "text-slate-500" : done ? doneMuted : "text-gray-500"}`}>×{p.kolicina}</span>
                                 </div>
                                  {showPreparedAvailability && (
                                    <KitchenAvailabilityBadge line={p} state={preparedAvailability.state} />
@@ -664,7 +654,7 @@ function KdsKitchenView({
                                       barOnly && nalog.stanje === "aktivno"
                                         ? "bg-fuchsia-700 text-white animate-pulse"
                                         : held ? "bg-slate-200 text-slate-700"
-                                          : done ? "bg-emerald-200 text-emerald-800"
+                                          : done ? getKdsItemAppearance(nalog, barOnly)?.badgeClassName
                                             : "bg-orange-100 text-orange-800"
                                     }`}>
                                       {statusLabel}
@@ -677,12 +667,12 @@ function KdsKitchenView({
                                     </div>
                                   )}
                                 {p.opomba && (
-                                   <span className={`text-xs italic leading-snug block mt-0.5 ${held ? "text-slate-500" : done ? "text-emerald-800" : "text-gray-600"}`}>↳ {p.opomba}</span>
+                                   <span className={`text-xs italic leading-snug block mt-0.5 ${held ? "text-slate-500" : done ? doneMuted : "text-gray-600"}`}>↳ {p.opomba}</span>
                                 )}
                                 {otroci.map(d => {
                                   const childLine = narocilo.postavke?.find(line => line.id === d.id);
                                   return (
-                                    <div key={d.id} className={`text-xs font-medium leading-tight mt-0.5 ${d.depth === 1 ? "pl-4" : ""} ${held ? "text-slate-500" : done ? "text-emerald-700" : "text-orange-700"}`}>
+                                    <div key={d.id} className={`text-xs font-medium leading-tight mt-0.5 ${d.depth === 1 ? "pl-4" : ""} ${held ? "text-slate-500" : done ? doneMuted : "text-orange-700"}`}>
                                       {d.depth === 1 ? "↳ " : "+ "}{d.ime}
                                       {showPreparedAvailability && childLine?.modifikatorId != null && (
                                         <KitchenModifierAvailabilityBadge modifierId={childLine.modifikatorId} state={preparedAvailability.state} />
@@ -692,7 +682,7 @@ function KdsKitchenView({
                                 })}
                                  {!barOnly && itemNalogi.length > 1 && (
                                   <div className="mt-1">
-                                    <Badge variant="outline" className={`text-[9px] uppercase font-bold border-0 bg-black/5 ${done ? "text-emerald-700" : "text-gray-600"}`}>
+                                    <Badge variant="outline" className={`text-[9px] uppercase font-bold border-0 bg-black/5 ${done ? doneMuted : "text-gray-600"}`}>
                                       {postaje.find(x => x.id === nalog.postajaId)?.ime || "Neznana postaja"}
                                     </Badge>
                                   </div>
@@ -706,7 +696,7 @@ function KdsKitchenView({
                                   </div>
                                 )}
                                 {isWaitingForDispatch && (
-                                  <div className="mt-1.5 text-[10px] font-bold text-emerald-800 bg-emerald-200/50 inline-block px-1.5 py-0.5 rounded">
+                                  <div className="mt-1.5 text-[10px] font-bold text-blue-800 bg-blue-200/50 inline-block px-1.5 py-0.5 rounded">
                                     Čaka na izdajo
                                   </div>
                                 )}
@@ -716,7 +706,7 @@ function KdsKitchenView({
                               </div>
                               <div className="flex flex-col items-end gap-1.5 shrink-0">
                                  {done ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                  <CheckCircle2 className={`h-4 w-4 ${doneMuted}`} />
                                  ) : held ? (
                                    <span className="text-[10px] font-bold uppercase text-slate-500">HOLD</span>
                                 ) : (
@@ -728,7 +718,7 @@ function KdsKitchenView({
                                  {!held && <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={`h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-1.5 right-1.5 ${done ? "text-emerald-700 hover:text-emerald-900 hover:bg-emerald-200" : "text-gray-500 hover:text-gray-700 hover:bg-black/5"}`}
+                                  className={`h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-1.5 right-1.5 ${done ? `${doneMuted} hover:bg-black/5` : "text-gray-500 hover:text-gray-700 hover:bg-black/5"}`}
                                   onClick={(e) => { e.stopPropagation(); setHistoryNalog(nalog); }}
                                   title="Zgodovina naloga"
                                 >
@@ -999,7 +989,7 @@ function LegacyKitchenView() {
           <span className="text-gray-400">&gt;20 min</span>
         </div>
         <div className="flex items-center gap-1.5 whitespace-nowrap">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
           <span className="text-gray-400">Pripravljeno</span>
         </div>
       </div>
@@ -1040,7 +1030,7 @@ function LegacyKitchenView() {
                           onClick={() => handleToggle(narocilo.id, p.id, p.pripravljeno ?? null)}
                           className={`rounded-md px-2.5 py-2 cursor-pointer select-none transition-all active:scale-[0.98] ${
                             done
-                              ? "bg-emerald-100 border-l-2 border-l-emerald-500 opacity-75"
+                              ? "bg-blue-100 border-l-2 border-l-blue-500 opacity-75"
                               : itemBg(mins)
                           }`}
                         >
@@ -1067,7 +1057,7 @@ function LegacyKitchenView() {
                               })}
                             </div>
                             {done ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <CheckCircle2 className="h-4 w-4 text-blue-500 shrink-0" />
                             ) : (
                               <span className={`flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 tabular-nums ${itemBadge(mins)}`}>
                                 <Clock className="h-3 w-3" />

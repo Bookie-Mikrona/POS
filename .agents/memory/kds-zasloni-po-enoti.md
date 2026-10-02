@@ -45,8 +45,8 @@ Razpoložljivost pripravljenih jedi v kuhinji mora slediti naboru jedi iz dnevne
 
 **How to apply:** Uporabi poslovni dan strežnika in dnevno evidenco. Jedi z ničelno razpoložljivostjo ne izloči zgolj zato, ker so že porabljene.
 
-Na zaslonu točilnice naročila ne kažejo alergenov ali njihovih sledi niti ponavljajoče oznake postaje ob vsakem artiklu.
+Na zaslonih točilnice in kuhinje naročila ne kažejo samodejnih oznak alergenov ali njihovih sledi. Točilnica tudi ne kaže ponavljajoče oznake postaje ob vsakem artiklu. Podatke o alergenih ohrani; ročne opombe in prehranske omejitve ostanejo vidne.
 
-**Why:** Uporabnik je alergene na tem zaslonu označil kot nepomembne, postaja pa je že razvidna iz zaslona.
+**Why:** Uporabnik je alergene na točilnici označil kot nepomembne in pozneje izrecno opozoril, da so v kuhinjskem KDS še vedno prikazani. Postaja točilnice je že razvidna iz zaslona.
 
 **How to apply:** To je omejitev prikaza točilnice, ne brisanje podatkov. Alergenska opozorila v kuhinji in na zaslonu pic ter operativna stanja priprave ohrani.

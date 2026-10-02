@@ -24,8 +24,10 @@ export function getKdsItemAppearance(nalog: KdsNalog, barOnly = false, now = Dat
     label: "Na čakanju", minutes: null, priority: 1,
   };
   if (nalog.stanje === "bumped" || nalog.stanje === "ack") return {
-    className: "bg-emerald-100 border-l-2 border-l-emerald-500 opacity-80",
-    badgeClassName: "bg-emerald-600 text-white",
+    className: nalog.stanje === "bumped"
+      ? "bg-blue-100 border-l-2 border-l-blue-500 opacity-80"
+      : "bg-emerald-100 border-l-2 border-l-emerald-500 opacity-80",
+    badgeClassName: nalog.stanje === "bumped" ? "bg-blue-600 text-white" : "bg-emerald-600 text-white",
     label: nalog.stanje === "ack" ? "Predano" : "Pripravljeno",
     minutes: null, priority: 0,
   };
@@ -58,8 +60,8 @@ export function getOrderItemKdsStatuses(
     });
   if (!statuses.length && pripravljeno) {
     statuses.push({
-      className: "bg-emerald-100 border-l-2 border-l-emerald-500 opacity-80",
-      badgeClassName: "bg-emerald-600 text-white",
+      className: "bg-blue-100 border-l-2 border-l-blue-500 opacity-80",
+      badgeClassName: "bg-blue-600 text-white",
       label: "Pripravljeno", minutes: null, priority: 0, id: 0, stationName: "",
     });
   }
