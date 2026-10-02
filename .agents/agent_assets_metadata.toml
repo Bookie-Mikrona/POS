@@ -1271,3 +1271,17 @@ mtime_ms = 1790721112039
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/a1dfd770-4c4d-4e55-b0d5-a1fd2fb38314/6ec5a2fc-00d4-435a-90e0-b1ae97112d00"
 storage_version_token = "1790721138129767"
 content_type = "text/csv"
+
+[[outputs]]
+id = "Z9VMyLlY0FMCAZApLeVpB"
+uri = "file://docs/bookie-erp-implementation-draft.html"
+type = "html"
+title = "Bookie ERP — osnutek implementacije"
+description = "Celoten osnutek: kartice partnerjev, zapiranja, zbirni promet, paketna bančna plačila, zgodovinski podatki ter ločene dopolnitve AJPES/FURS. Dokument je pripravljen tudi za tisk."
+logical_id = "982612a7-2237-48d9-bbe1-4e71d766f7e0"
+content_hash = "sha256:c5512d368abe39836c43f8ee064a48d35916060a11a00710ca7f7a701d06bccb"
+size = 20579
+mtime_ms = 1790917282188
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/982612a7-2237-48d9-bbe1-4e71d766f7e0/5407fbc7-e554-472b-b6cf-7e04d651abad"
+storage_version_token = "1790917282911417"
+content_type = "text/html"
