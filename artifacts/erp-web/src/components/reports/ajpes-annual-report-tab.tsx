@@ -13,6 +13,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PrepEditor, ManualGrid } from "./ajpes-annual-report-editor";
+import { ProfileEditor } from "./ajpes-annual-profile-editor";
 import { Statement, Explanation } from "./ajpes-annual-report-preview";
 import { cleanSettings, defaultAjpesYear, emptyAjpesSettings, errMsg, invalidInputs } from "./ajpes-annual-report-model";
 import { Badge } from "@/components/ui/badge";
@@ -81,12 +82,23 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
     try {
       const saved = await save.mutateAsync({ companyId, year, data: { revision: report.revision, settings: cleanSettings(draft), reviewedFingerprint: null } });
       let final = saved as AjpesAnnualReport;
-      if (review) {
-        if (final.issues.some((i) => i.blocking)) throw new Error("Poročila ni mogoče potrditi: obstajajo blokirajoče opozorilo.");
-        final = (await save.mutateAsync({ companyId, year, data: { revision: final.revision, settings: final.settings, reviewedFingerprint: final.sourceFingerprint } })) as AjpesAnnualReport;
-      }
       qc.setQueryData(queryKey, final);
       setDraft(final.settings); setDirty(false); setStaleNotice(false);
+      if (review) {
+        if (final.issues.some((i) => i.blocking)) {
+          setMsg({ kind: "err", text: "Osnutek je shranjen, vendar pregleda ni mogoče potrditi: obstajajo blokirajoča opozorila." });
+          return;
+        }
+        try {
+          final = (await save.mutateAsync({ companyId, year, data: { revision: final.revision, settings: final.settings, reviewedFingerprint: final.sourceFingerprint } })) as AjpesAnnualReport;
+          qc.setQueryData(queryKey, final);
+          setDraft(final.settings);
+        } catch (e2) {
+          setMsg({ kind: "err", text: `Osnutek je shranjen, potrditev pregleda ni uspela: ${errMsg(e2)}` });
+          if ((e2 as { status?: number })?.status === 409) await q.refetch();
+          return;
+        }
+      }
       setMsg({ kind: "ok", text: review ? "Poročilo je shranjeno in potrjeno." : "Osnutek shranjen. Pred izvozom je potreben ponoven pregled." });
     } catch (e) {
       setMsg({ kind: "err", text: errMsg(e) });
@@ -178,8 +190,9 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
       {msg && <p role="status" className={`text-sm ${msg.kind === "err" ? "text-destructive" : "text-emerald-700 dark:text-emerald-400"}`}>{msg.text}</p>}
 
       <Tabs defaultValue="prep" className="space-y-4">
-        <TabsList>
+        <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="prep">Priprava</TabsTrigger>
+          <TabsTrigger value="profile">Profil</TabsTrigger>
           <TabsTrigger value="manual">Ročni vnos AOP</TabsTrigger>
           <TabsTrigger value="preview">Predogled</TabsTrigger>
           <TabsTrigger value="export">Izvoz</TabsTrigger>
@@ -187,6 +200,10 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
 
         <TabsContent value="prep" className="mt-0 space-y-6">
           <PrepEditor report={report} draft={draft} viewer={viewer} year={year} patch={patch} />
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-0">
+          <ProfileEditor report={report} draft={draft} viewer={viewer} dirty={dirty} patch={patch} />
         </TabsContent>
 
         <TabsContent value="manual" className="mt-0">
@@ -214,6 +231,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
             </Button>
           </div>
           {xmlNote && <p className="text-xs text-muted-foreground">{xmlNote}</p>}
+          <p className="text-xs text-muted-foreground">PDF in XLSX vsebujeta samo številčne izkaze; nista popolno javno letno poročilo. Izvoz ni oddaja pri AJPES.</p>
         </TabsContent>
       </Tabs>
     </div>

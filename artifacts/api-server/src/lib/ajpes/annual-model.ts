@@ -1,6 +1,16 @@
 import { createHash } from "node:crypto";
 import { AJPES_GD_AOP_CATALOG_2025 } from "./aopCatalog2025";
+import {
+  AJPES_PROFILE_RULES_VERSION,
+  assessAjpesProfile,
+} from "./annual-profile";
+import type {
+  AjpesAnnualProfile,
+  AjpesProfileAssessment,
+} from "./annual-profile";
 import jolpDefinition from "./jolp-definition.json";
+
+export type { AjpesAnnualProfile } from "./annual-profile";
 
 export interface AjpesAnnualCompany {
   name: string;
@@ -50,6 +60,7 @@ export interface AjpesAnnualSettings {
   previousValues: Record<string, string>;
   excludedEntryIds: string[];
   metadata: Record<string, string>;
+  profile?: AjpesAnnualProfile;
 }
 
 export interface AjpesSource {
@@ -110,6 +121,7 @@ export interface AjpesAnnualReport {
   accounts: AjpesAccountRow[];
   journals: AjpesJournalChoice[];
   issues: AjpesReportIssue[];
+  profileAssessment: AjpesProfileAssessment;
 }
 
 interface JolpDefinitionRow {
@@ -178,6 +190,7 @@ function fingerprint(source: AjpesSource, aopRows: AjpesAopRow[]): string {
     catalogVersion: createHash("sha256")
       .update(stableJson(AJPES_GD_AOP_CATALOG_2025))
       .digest("hex"),
+    profileRulesVersion: AJPES_PROFILE_RULES_VERSION,
     year: source.year,
     company: source.company,
     accounts: source.accounts,
@@ -427,6 +440,13 @@ function sanitizeSettings(settings: AjpesAnnualSettings): AjpesAnnualSettings {
       ? [...settings.excludedEntryIds]
       : [],
     metadata: copyRecord(settings?.metadata),
+    ...(settings?.profile ? {
+      profile: {
+        ...settings.profile,
+        currentCriteria: { ...settings.profile.currentCriteria },
+        previousCriteria: { ...settings.profile.previousCriteria },
+      },
+    } : {}),
   };
 }
 
@@ -1094,6 +1114,12 @@ export function buildAjpesAnnualReport(
   const issues: AjpesReportIssue[] = [];
   assertDefinitionIntegrity(issues);
   checkSourceAndSettings(source, settings, issues);
+  const profileAssessment = assessAjpesProfile(
+    settings.profile,
+    source.year,
+    settings.metadata,
+  );
+  issues.push(...profileAssessment.issues);
 
   const currentMapped = new Set<string>();
   const previousMapped = new Set<string>();
@@ -1171,6 +1197,7 @@ export function buildAjpesAnnualReport(
       ...journal,
     })),
     issues,
+    profileAssessment,
   };
 }
 

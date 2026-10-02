@@ -5,6 +5,126 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export type AjpesAnnualProfileLegalForm = typeof AjpesAnnualProfileLegalForm[keyof typeof AjpesAnnualProfileLegalForm];
+
+
+export const AjpesAnnualProfileLegalForm = {
+  unknown: 'unknown',
+  doo: 'doo',
+  dd: 'dd',
+  sp: 'sp',
+  cooperative: 'cooperative',
+  other: 'other',
+} as const;
+
+export type AjpesAnnualProfileFramework = typeof AjpesAnnualProfileFramework[keyof typeof AjpesAnnualProfileFramework];
+
+
+export const AjpesAnnualProfileFramework = {
+  unknown: 'unknown',
+  SRS: 'SRS',
+  IFRS: 'IFRS',
+} as const;
+
+export type AjpesAnnualProfileSize = typeof AjpesAnnualProfileSize[keyof typeof AjpesAnnualProfileSize];
+
+
+export const AjpesAnnualProfileSize = {
+  unknown: 'unknown',
+  micro: 'micro',
+  small: 'small',
+  medium: 'medium',
+  large: 'large',
+} as const;
+
+export interface AjpesSizeCriteria {
+  /** @maxLength 32 */
+  assets: string;
+  /** @maxLength 32 */
+  revenue: string;
+  /** @maxLength 32 */
+  employees: string;
+}
+
+export type AjpesProfileDecision = typeof AjpesProfileDecision[keyof typeof AjpesProfileDecision];
+
+
+export const AjpesProfileDecision = {
+  unknown: 'unknown',
+  yes: 'yes',
+  no: 'no',
+} as const;
+
+export interface AjpesAnnualProfile {
+  legalForm: AjpesAnnualProfileLegalForm;
+  framework: AjpesAnnualProfileFramework;
+  size: AjpesAnnualProfileSize;
+  periodStart: string;
+  periodEnd: string;
+  currentCriteria: AjpesSizeCriteria;
+  previousCriteria: AjpesSizeCriteria;
+  /** @maxLength 4096 */
+  sizeBasis: string;
+  /** @maxLength 4096 */
+  previousYearException: string;
+  microRegime: AjpesProfileDecision;
+  auditRequired: AjpesProfileDecision;
+  groupMember: AjpesProfileDecision;
+  consolidationRequired: AjpesProfileDecision;
+  simplifiedSubmission: AjpesProfileDecision;
+  foreignOperations: AjpesProfileDecision;
+  sfrRequired: AjpesProfileDecision;
+  cppsRequired: AjpesProfileDecision;
+  listed: AjpesProfileDecision;
+  specialRegime: AjpesProfileDecision;
+  /** @maxLength 4096 */
+  confirmationBasis: string;
+  confirmed: boolean;
+}
+
+export type AjpesReportingObligationPurpose = typeof AjpesReportingObligationPurpose[keyof typeof AjpesReportingObligationPurpose];
+
+
+export const AjpesReportingObligationPurpose = {
+  statistics: 'statistics',
+  publication: 'publication',
+  periodic: 'periodic',
+} as const;
+
+export type AjpesReportingObligationStatus = typeof AjpesReportingObligationStatus[keyof typeof AjpesReportingObligationStatus];
+
+
+export const AjpesReportingObligationStatus = {
+  required: 'required',
+  conditional: 'conditional',
+  not_required: 'not_required',
+} as const;
+
+export interface AjpesReportingObligation {
+  code: string;
+  label: string;
+  purpose: AjpesReportingObligationPurpose;
+  status: AjpesReportingObligationStatus;
+  available: boolean;
+  explanation: string;
+}
+
+export interface AjpesReportIssue {
+  code: string;
+  message: string;
+  blocking: boolean;
+}
+
+export interface AjpesProfileAssessment {
+  rulesVersion: string;
+  catalogYear: number;
+  supported: boolean;
+  confirmed: boolean;
+  obligations: AjpesReportingObligation[];
+  issues: AjpesReportIssue[];
+  sources: string[];
+}
+
 export type AjpesAnnualSettingsMappings = {[key: string]: string};
 
 export type AjpesAnnualSettingsMappingReasons = {[key: string]: string};
@@ -22,6 +142,7 @@ export interface AjpesAnnualSettings {
   previousValues: AjpesAnnualSettingsPreviousValues;
   excludedEntryIds: string[];
   metadata: AjpesAnnualSettingsMetadata;
+  profile?: AjpesAnnualProfile;
 }
 
 export interface AjpesAnnualDraftInput {
@@ -92,12 +213,6 @@ export interface AjpesJournalChoice {
   description: string;
 }
 
-export interface AjpesReportIssue {
-  code: string;
-  message: string;
-  blocking: boolean;
-}
-
 export interface AjpesAnnualReport {
   year: number;
   company: AjpesAnnualCompany;
@@ -114,6 +229,7 @@ export interface AjpesAnnualReport {
   accounts: AjpesAccountRow[];
   journals: AjpesJournalChoice[];
   issues: AjpesReportIssue[];
+  profileAssessment?: AjpesProfileAssessment;
 }
 
 export type CreditNotePackagingDocumentsResponseDocumentsItem = {

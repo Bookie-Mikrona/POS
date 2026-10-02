@@ -11168,6 +11168,62 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    AjpesAnnualProfile:
+      type: object
+      required: [legalForm, framework, size, periodStart, periodEnd, currentCriteria, previousCriteria, sizeBasis, previousYearException, microRegime, auditRequired, groupMember, consolidationRequired, simplifiedSubmission, foreignOperations, sfrRequired, cppsRequired, listed, specialRegime, confirmationBasis, confirmed]
+      properties:
+        legalForm: {type: string, enum: [unknown, doo, dd, sp, cooperative, other]}
+        framework: {type: string, enum: [unknown, SRS, IFRS]}
+        size: {type: string, enum: [unknown, micro, small, medium, large]}
+        periodStart: {type: string}
+        periodEnd: {type: string}
+        currentCriteria: {$ref: "#/components/schemas/AjpesSizeCriteria"}
+        previousCriteria: {$ref: "#/components/schemas/AjpesSizeCriteria"}
+        sizeBasis: {type: string, maxLength: 4096}
+        previousYearException: {type: string, maxLength: 4096}
+        microRegime: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        auditRequired: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        groupMember: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        consolidationRequired: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        simplifiedSubmission: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        foreignOperations: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        sfrRequired: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        cppsRequired: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        listed: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        specialRegime: {$ref: "#/components/schemas/AjpesProfileDecision"}
+        confirmationBasis: {type: string, maxLength: 4096}
+        confirmed: {type: boolean}
+    AjpesProfileDecision:
+      type: string
+      enum: [unknown, yes, no]
+    AjpesSizeCriteria:
+      type: object
+      required: [assets, revenue, employees]
+      properties:
+        assets: {type: string, maxLength: 32}
+        revenue: {type: string, maxLength: 32}
+        employees: {type: string, maxLength: 32}
+    AjpesReportingObligation:
+      type: object
+      required: [code, label, purpose, status, available, explanation]
+      properties:
+        code: {type: string}
+        label: {type: string}
+        purpose: {type: string, enum: [statistics, publication, periodic]}
+        status: {type: string, enum: [required, conditional, not_required]}
+        available: {type: boolean}
+        explanation: {type: string}
+    AjpesProfileAssessment:
+      type: object
+      required: [rulesVersion, catalogYear, supported, confirmed, obligations, issues, sources]
+      properties:
+        rulesVersion: {type: string}
+        catalogYear: {type: integer}
+        supported: {type: boolean}
+        confirmed: {type: boolean}
+        obligations: {type: array, items: {$ref: "#/components/schemas/AjpesReportingObligation"}}
+        issues: {type: array, items: {$ref: "#/components/schemas/AjpesReportIssue"}}
+        sources: {type: array, items: {type: string}}
     AjpesAnnualSettings:
       type: object
       required: [mappings, mappingReasons, currentValues, previousValues, excludedEntryIds, metadata]
@@ -11180,6 +11236,7 @@ components:
         metadata:
           type: object
           additionalProperties: {type: string}
+        profile: {$ref: "#/components/schemas/AjpesAnnualProfile"}
     AjpesAnnualDraftInput:
       type: object
       required: [revision, settings]
@@ -11270,6 +11327,7 @@ components:
         accounts: {type: array, items: {$ref: "#/components/schemas/AjpesAccountRow"}}
         journals: {type: array, items: {$ref: "#/components/schemas/AjpesJournalChoice"}}
         issues: {type: array, items: {$ref: "#/components/schemas/AjpesReportIssue"}}
+        profileAssessment: {$ref: "#/components/schemas/AjpesProfileAssessment"}
     CreditNotePackagingDocumentsResponse:
       type: object
       required: [documents]

@@ -20,3 +20,9 @@ Popoln številčni katalog za državno statistiko ni sam po sebi popolno letno p
 **Why:** AJPES loči statistično predložitev od javne objave. Navodilo NAVO1119, zlasti 6. točka, dopušča mikro režim z razkritji ob bilanci namesto običajnih pojasnil; poenostavljena skupna predložitev zahteva ustrezno izjavo.
 
 **How to apply:** Pri razširitvah letnega zaključka preveri obveznosti po vrsti in režimu družbe ter pokritost besedilnih prilog, ne zgolj XML sheme. Uradna podlaga: https://pisrs.si/pregledPredpisa?id=NAVO1119 in aktualni ZGD-1; preverjeno 2026-10-02.
+
+Pri letnih profilih je velikost dokumentirana presoja računovodje. Samodejni predlog obsega poročil ne sme postati samodejna pravna klasifikacija iz enega leta ali iz stare oznake podjetja.
+
+**Why:** Velikost, posebni režimi in izjeme lahko zahtevajo večletno presojo ter dejstva zunaj glavne knjige. Prva izvedba namerno zahteva dokazno podlago, namesto da bi iz nepopolnih podatkov ustvarila lažno gotovost.
+
+**How to apply:** Pri poznejši avtomatizaciji predloge velikosti loči od potrjenih ugotovitev in preveri pravila za posamezni letnik ter izjeme. Ohrani dokumentirano pot za novo ustanovljene družbe in druge upravičene posebnosti.

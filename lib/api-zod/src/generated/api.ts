@@ -18,6 +18,26 @@ export const GetAjpesAnnualReportParams = zod.object({
   "year": zod.coerce.number().min(getAjpesAnnualReportPathYearMin).max(getAjpesAnnualReportPathYearMax)
 })
 
+export const getAjpesAnnualReportResponseSettingsProfileCurrentCriteriaAssetsMax = 32;
+
+export const getAjpesAnnualReportResponseSettingsProfileCurrentCriteriaRevenueMax = 32;
+
+export const getAjpesAnnualReportResponseSettingsProfileCurrentCriteriaEmployeesMax = 32;
+
+export const getAjpesAnnualReportResponseSettingsProfilePreviousCriteriaAssetsMax = 32;
+
+export const getAjpesAnnualReportResponseSettingsProfilePreviousCriteriaRevenueMax = 32;
+
+export const getAjpesAnnualReportResponseSettingsProfilePreviousCriteriaEmployeesMax = 32;
+
+export const getAjpesAnnualReportResponseSettingsProfileSizeBasisMax = 4096;
+
+export const getAjpesAnnualReportResponseSettingsProfilePreviousYearExceptionMax = 4096;
+
+export const getAjpesAnnualReportResponseSettingsProfileConfirmationBasisMax = 4096;
+
+
+
 export const GetAjpesAnnualReportResponse = zod.object({
   "year": zod.number(),
   "company": zod.object({
@@ -34,7 +54,38 @@ export const GetAjpesAnnualReportResponse = zod.object({
   "currentValues": zod.record(zod.string(), zod.string()),
   "previousValues": zod.record(zod.string(), zod.string()),
   "excludedEntryIds": zod.array(zod.string()),
-  "metadata": zod.record(zod.string(), zod.string())
+  "metadata": zod.record(zod.string(), zod.string()),
+  "profile": zod.object({
+  "legalForm": zod.enum(['unknown', 'doo', 'dd', 'sp', 'cooperative', 'other']),
+  "framework": zod.enum(['unknown', 'SRS', 'IFRS']),
+  "size": zod.enum(['unknown', 'micro', 'small', 'medium', 'large']),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "currentCriteria": zod.object({
+  "assets": zod.string().max(getAjpesAnnualReportResponseSettingsProfileCurrentCriteriaAssetsMax),
+  "revenue": zod.string().max(getAjpesAnnualReportResponseSettingsProfileCurrentCriteriaRevenueMax),
+  "employees": zod.string().max(getAjpesAnnualReportResponseSettingsProfileCurrentCriteriaEmployeesMax)
+}),
+  "previousCriteria": zod.object({
+  "assets": zod.string().max(getAjpesAnnualReportResponseSettingsProfilePreviousCriteriaAssetsMax),
+  "revenue": zod.string().max(getAjpesAnnualReportResponseSettingsProfilePreviousCriteriaRevenueMax),
+  "employees": zod.string().max(getAjpesAnnualReportResponseSettingsProfilePreviousCriteriaEmployeesMax)
+}),
+  "sizeBasis": zod.string().max(getAjpesAnnualReportResponseSettingsProfileSizeBasisMax),
+  "previousYearException": zod.string().max(getAjpesAnnualReportResponseSettingsProfilePreviousYearExceptionMax),
+  "microRegime": zod.enum(['unknown', 'yes', 'no']),
+  "auditRequired": zod.enum(['unknown', 'yes', 'no']),
+  "groupMember": zod.enum(['unknown', 'yes', 'no']),
+  "consolidationRequired": zod.enum(['unknown', 'yes', 'no']),
+  "simplifiedSubmission": zod.enum(['unknown', 'yes', 'no']),
+  "foreignOperations": zod.enum(['unknown', 'yes', 'no']),
+  "sfrRequired": zod.enum(['unknown', 'yes', 'no']),
+  "cppsRequired": zod.enum(['unknown', 'yes', 'no']),
+  "listed": zod.enum(['unknown', 'yes', 'no']),
+  "specialRegime": zod.enum(['unknown', 'yes', 'no']),
+  "confirmationBasis": zod.string().max(getAjpesAnnualReportResponseSettingsProfileConfirmationBasisMax),
+  "confirmed": zod.boolean()
+}).optional()
 }),
   "revision": zod.number(),
   "sourceFingerprint": zod.string(),
@@ -86,7 +137,27 @@ export const GetAjpesAnnualReportResponse = zod.object({
   "code": zod.string(),
   "message": zod.string(),
   "blocking": zod.boolean()
-}))
+})),
+  "profileAssessment": zod.object({
+  "rulesVersion": zod.string(),
+  "catalogYear": zod.number(),
+  "supported": zod.boolean(),
+  "confirmed": zod.boolean(),
+  "obligations": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "purpose": zod.enum(['statistics', 'publication', 'periodic']),
+  "status": zod.enum(['required', 'conditional', 'not_required']),
+  "available": zod.boolean(),
+  "explanation": zod.string()
+})),
+  "issues": zod.array(zod.object({
+  "code": zod.string(),
+  "message": zod.string(),
+  "blocking": zod.boolean()
+})),
+  "sources": zod.array(zod.string())
+}).optional()
 })
 
 
@@ -102,6 +173,24 @@ export const SaveAjpesAnnualReportParams = zod.object({
 
 export const saveAjpesAnnualReportBodyRevisionMin = 0;
 
+export const saveAjpesAnnualReportBodySettingsProfileCurrentCriteriaAssetsMax = 32;
+
+export const saveAjpesAnnualReportBodySettingsProfileCurrentCriteriaRevenueMax = 32;
+
+export const saveAjpesAnnualReportBodySettingsProfileCurrentCriteriaEmployeesMax = 32;
+
+export const saveAjpesAnnualReportBodySettingsProfilePreviousCriteriaAssetsMax = 32;
+
+export const saveAjpesAnnualReportBodySettingsProfilePreviousCriteriaRevenueMax = 32;
+
+export const saveAjpesAnnualReportBodySettingsProfilePreviousCriteriaEmployeesMax = 32;
+
+export const saveAjpesAnnualReportBodySettingsProfileSizeBasisMax = 4096;
+
+export const saveAjpesAnnualReportBodySettingsProfilePreviousYearExceptionMax = 4096;
+
+export const saveAjpesAnnualReportBodySettingsProfileConfirmationBasisMax = 4096;
+
 
 
 export const SaveAjpesAnnualReportBody = zod.object({
@@ -112,10 +201,61 @@ export const SaveAjpesAnnualReportBody = zod.object({
   "currentValues": zod.record(zod.string(), zod.string()),
   "previousValues": zod.record(zod.string(), zod.string()),
   "excludedEntryIds": zod.array(zod.string()),
-  "metadata": zod.record(zod.string(), zod.string())
+  "metadata": zod.record(zod.string(), zod.string()),
+  "profile": zod.object({
+  "legalForm": zod.enum(['unknown', 'doo', 'dd', 'sp', 'cooperative', 'other']),
+  "framework": zod.enum(['unknown', 'SRS', 'IFRS']),
+  "size": zod.enum(['unknown', 'micro', 'small', 'medium', 'large']),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "currentCriteria": zod.object({
+  "assets": zod.string().max(saveAjpesAnnualReportBodySettingsProfileCurrentCriteriaAssetsMax),
+  "revenue": zod.string().max(saveAjpesAnnualReportBodySettingsProfileCurrentCriteriaRevenueMax),
+  "employees": zod.string().max(saveAjpesAnnualReportBodySettingsProfileCurrentCriteriaEmployeesMax)
+}),
+  "previousCriteria": zod.object({
+  "assets": zod.string().max(saveAjpesAnnualReportBodySettingsProfilePreviousCriteriaAssetsMax),
+  "revenue": zod.string().max(saveAjpesAnnualReportBodySettingsProfilePreviousCriteriaRevenueMax),
+  "employees": zod.string().max(saveAjpesAnnualReportBodySettingsProfilePreviousCriteriaEmployeesMax)
+}),
+  "sizeBasis": zod.string().max(saveAjpesAnnualReportBodySettingsProfileSizeBasisMax),
+  "previousYearException": zod.string().max(saveAjpesAnnualReportBodySettingsProfilePreviousYearExceptionMax),
+  "microRegime": zod.enum(['unknown', 'yes', 'no']),
+  "auditRequired": zod.enum(['unknown', 'yes', 'no']),
+  "groupMember": zod.enum(['unknown', 'yes', 'no']),
+  "consolidationRequired": zod.enum(['unknown', 'yes', 'no']),
+  "simplifiedSubmission": zod.enum(['unknown', 'yes', 'no']),
+  "foreignOperations": zod.enum(['unknown', 'yes', 'no']),
+  "sfrRequired": zod.enum(['unknown', 'yes', 'no']),
+  "cppsRequired": zod.enum(['unknown', 'yes', 'no']),
+  "listed": zod.enum(['unknown', 'yes', 'no']),
+  "specialRegime": zod.enum(['unknown', 'yes', 'no']),
+  "confirmationBasis": zod.string().max(saveAjpesAnnualReportBodySettingsProfileConfirmationBasisMax),
+  "confirmed": zod.boolean()
+}).optional()
 }),
   "reviewedFingerprint": zod.string().nullish()
 })
+
+export const saveAjpesAnnualReportResponseSettingsProfileCurrentCriteriaAssetsMax = 32;
+
+export const saveAjpesAnnualReportResponseSettingsProfileCurrentCriteriaRevenueMax = 32;
+
+export const saveAjpesAnnualReportResponseSettingsProfileCurrentCriteriaEmployeesMax = 32;
+
+export const saveAjpesAnnualReportResponseSettingsProfilePreviousCriteriaAssetsMax = 32;
+
+export const saveAjpesAnnualReportResponseSettingsProfilePreviousCriteriaRevenueMax = 32;
+
+export const saveAjpesAnnualReportResponseSettingsProfilePreviousCriteriaEmployeesMax = 32;
+
+export const saveAjpesAnnualReportResponseSettingsProfileSizeBasisMax = 4096;
+
+export const saveAjpesAnnualReportResponseSettingsProfilePreviousYearExceptionMax = 4096;
+
+export const saveAjpesAnnualReportResponseSettingsProfileConfirmationBasisMax = 4096;
+
+
 
 export const SaveAjpesAnnualReportResponse = zod.object({
   "year": zod.number(),
@@ -133,7 +273,38 @@ export const SaveAjpesAnnualReportResponse = zod.object({
   "currentValues": zod.record(zod.string(), zod.string()),
   "previousValues": zod.record(zod.string(), zod.string()),
   "excludedEntryIds": zod.array(zod.string()),
-  "metadata": zod.record(zod.string(), zod.string())
+  "metadata": zod.record(zod.string(), zod.string()),
+  "profile": zod.object({
+  "legalForm": zod.enum(['unknown', 'doo', 'dd', 'sp', 'cooperative', 'other']),
+  "framework": zod.enum(['unknown', 'SRS', 'IFRS']),
+  "size": zod.enum(['unknown', 'micro', 'small', 'medium', 'large']),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "currentCriteria": zod.object({
+  "assets": zod.string().max(saveAjpesAnnualReportResponseSettingsProfileCurrentCriteriaAssetsMax),
+  "revenue": zod.string().max(saveAjpesAnnualReportResponseSettingsProfileCurrentCriteriaRevenueMax),
+  "employees": zod.string().max(saveAjpesAnnualReportResponseSettingsProfileCurrentCriteriaEmployeesMax)
+}),
+  "previousCriteria": zod.object({
+  "assets": zod.string().max(saveAjpesAnnualReportResponseSettingsProfilePreviousCriteriaAssetsMax),
+  "revenue": zod.string().max(saveAjpesAnnualReportResponseSettingsProfilePreviousCriteriaRevenueMax),
+  "employees": zod.string().max(saveAjpesAnnualReportResponseSettingsProfilePreviousCriteriaEmployeesMax)
+}),
+  "sizeBasis": zod.string().max(saveAjpesAnnualReportResponseSettingsProfileSizeBasisMax),
+  "previousYearException": zod.string().max(saveAjpesAnnualReportResponseSettingsProfilePreviousYearExceptionMax),
+  "microRegime": zod.enum(['unknown', 'yes', 'no']),
+  "auditRequired": zod.enum(['unknown', 'yes', 'no']),
+  "groupMember": zod.enum(['unknown', 'yes', 'no']),
+  "consolidationRequired": zod.enum(['unknown', 'yes', 'no']),
+  "simplifiedSubmission": zod.enum(['unknown', 'yes', 'no']),
+  "foreignOperations": zod.enum(['unknown', 'yes', 'no']),
+  "sfrRequired": zod.enum(['unknown', 'yes', 'no']),
+  "cppsRequired": zod.enum(['unknown', 'yes', 'no']),
+  "listed": zod.enum(['unknown', 'yes', 'no']),
+  "specialRegime": zod.enum(['unknown', 'yes', 'no']),
+  "confirmationBasis": zod.string().max(saveAjpesAnnualReportResponseSettingsProfileConfirmationBasisMax),
+  "confirmed": zod.boolean()
+}).optional()
 }),
   "revision": zod.number(),
   "sourceFingerprint": zod.string(),
@@ -185,7 +356,27 @@ export const SaveAjpesAnnualReportResponse = zod.object({
   "code": zod.string(),
   "message": zod.string(),
   "blocking": zod.boolean()
-}))
+})),
+  "profileAssessment": zod.object({
+  "rulesVersion": zod.string(),
+  "catalogYear": zod.number(),
+  "supported": zod.boolean(),
+  "confirmed": zod.boolean(),
+  "obligations": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "purpose": zod.enum(['statistics', 'publication', 'periodic']),
+  "status": zod.enum(['required', 'conditional', 'not_required']),
+  "available": zod.boolean(),
+  "explanation": zod.string()
+})),
+  "issues": zod.array(zod.object({
+  "code": zod.string(),
+  "message": zod.string(),
+  "blocking": zod.boolean()
+})),
+  "sources": zod.array(zod.string())
+}).optional()
 })
 
 

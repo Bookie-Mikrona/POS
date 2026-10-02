@@ -48,7 +48,14 @@ export function cleanSettings(draft: AjpesAnnualSettings): AjpesAnnualSettings {
   for (const [k, v] of Object.entries(draft.mappings)) if (v) mappings[k] = v;
   const metadata: Record<string, string> = {};
   for (const [k, v] of Object.entries(draft.metadata)) if (v !== "") metadata[k] = v;
-  return { ...draft, mappings, currentValues: clean(draft.currentValues), previousValues: clean(draft.previousValues), metadata };
+  const out: AjpesAnnualSettings = { ...draft, mappings, currentValues: clean(draft.currentValues), previousValues: clean(draft.previousValues), metadata };
+  if (draft.profile) {
+    const c = (x: { assets: string; revenue: string; employees: string }) => ({
+      assets: normalizeAmount(x.assets) ?? "", revenue: normalizeAmount(x.revenue) ?? "", employees: normalizeAmount(x.employees) ?? "",
+    });
+    out.profile = { ...draft.profile, currentCriteria: c(draft.profile.currentCriteria), previousCriteria: c(draft.profile.previousCriteria) };
+  }
+  return out;
 }
 
 export function invalidInputs(draft: AjpesAnnualSettings): string[] {
@@ -56,5 +63,8 @@ export function invalidInputs(draft: AjpesAnnualSettings): string[] {
   for (const k of ["currentValues", "previousValues"] as const)
     for (const [code, v] of Object.entries(draft[k])) if (v.trim() !== "" && normalizeAmount(v) === null) bad.push(`${k}:${code}`);
   for (const [id, c] of Object.entries(draft.mappings)) if (c === "ignore" && !(draft.mappingReasons[id] ?? "").trim()) bad.push(`reason:${id}`);
+  if (draft.profile)
+    for (const g of ["currentCriteria", "previousCriteria"] as const)
+      for (const [k, v] of Object.entries(draft.profile[g])) if (String(v).trim() !== "" && !/^\d{1,13}(\.\d{1,2})?$/.test(normalizeAmount(String(v)) ?? "x")) bad.push(`profile:${g}.${k}`);
   return bad;
 }

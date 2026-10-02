@@ -21,6 +21,30 @@ const allPreviousEditableLeaves = Object.fromEntries(
     .map((row) => [row.id, "0.00"] as const),
 );
 
+const profile2025 = {
+  legalForm: "doo" as const,
+  framework: "SRS" as const,
+  size: "small" as const,
+  periodStart: "2025-01-01",
+  periodEnd: "2025-12-31",
+  currentCriteria: { assets: "2866.75", revenue: "0.00", employees: "1" },
+  previousCriteria: { assets: "0.00", revenue: "0.00", employees: "1" },
+  sizeBasis: "Majhna družba je potrjena po presoji meril za tekoče in predhodno poslovno leto.",
+  previousYearException: "",
+  microRegime: "no" as const,
+  auditRequired: "no" as const,
+  groupMember: "no" as const,
+  consolidationRequired: "no" as const,
+  simplifiedSubmission: "no" as const,
+  foreignOperations: "no" as const,
+  sfrRequired: "no" as const,
+  cppsRequired: "no" as const,
+  listed: "no" as const,
+  specialRegime: "no" as const,
+  confirmationBasis: "Podatki in statusi preverjeni z dokumentacijo za leti 2024 in 2025; računovodja izrecno potrjuje profil.",
+  confirmed: true,
+};
+
 function fixture(overrides: Partial<AjpesSource> = {}): AjpesSource {
   return {
     year: 2025,
@@ -77,7 +101,8 @@ function fixture(overrides: Partial<AjpesSource> = {}): AjpesSource {
       currentValues: { ...allConfirmedStatistics },
       previousValues: { ...allConfirmedStatistics },
       excludedEntryIds: [],
-      metadata: { previousDataMode: "ledger" },
+      metadata: { previousDataMode: "ledger", accountingMethod: "2", size: "3" },
+      profile: { ...profile2025 },
     },
     revision: 1,
     hasCurrent: true,
@@ -255,6 +280,57 @@ describe("AJPES annual report model", () => {
     const changed = buildAjpesAnnualReport(edited);
     expect(changed.reviewed).toBe(false);
     expect(changed.canExport).toBe(false);
+  });
+
+  it("includes a confirmed profile assessment, blocks missing or unknown profiles, and invalidates review on profile edits", () => {
+    const source = fixture();
+    const draft = buildAjpesAnnualReport(source);
+    expect(draft.profileAssessment.supported).toBe(true);
+    expect(draft.profileAssessment.confirmed).toBe(true);
+    expect(draft.issues.filter((issue) => issue.code.startsWith("profile_"))).toEqual([]);
+
+    const reviewed = buildAjpesAnnualReport({
+      ...source,
+      reviewedFingerprint: draft.sourceFingerprint,
+    });
+    expect(reviewed.canExport).toBe(true);
+
+    const editedProfile = buildAjpesAnnualReport({
+      ...source,
+      settings: {
+        ...source.settings,
+        profile: { ...profile2025, confirmationBasis: "Spremenjena podlaga." },
+      },
+      reviewedFingerprint: draft.sourceFingerprint,
+    });
+    expect(editedProfile.reviewed).toBe(false);
+    expect(editedProfile.canExport).toBe(false);
+
+    const missing = buildAjpesAnnualReport({
+      ...source,
+      settings: { ...source.settings, profile: undefined },
+    });
+    expect(missing.issues.some((issue) => issue.code === "profile_missing")).toBe(true);
+    expect(missing.canExport).toBe(false);
+
+    const unsupported = buildAjpesAnnualReport({
+      ...source,
+      settings: {
+        ...source.settings,
+        profile: { ...profile2025, legalForm: "sp" },
+      },
+    });
+    expect(unsupported.profileAssessment.supported).toBe(false);
+    expect(unsupported.issues.some((issue) => issue.code === "profile_unsupported")).toBe(true);
+    expect(unsupported.canExport).toBe(false);
+  });
+
+  it("blocks profile and numeric metadata conflicts", () => {
+    const source = fixture();
+    source.settings.metadata.size = "4";
+    const report = reportWithReview(source);
+    expect(report.issues.some((issue) => issue.code === "profile_metadata_conflict")).toBe(true);
+    expect(report.canExport).toBe(false);
   });
 
   it("blocks missing manual AOP values, invalid decimals, and unknown AOP inputs", () => {

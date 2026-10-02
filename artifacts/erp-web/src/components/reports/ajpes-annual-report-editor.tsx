@@ -73,17 +73,8 @@ export function PrepEditor({ report, draft, viewer, year, patch }: {
                 <Input id={`m-${k}`} disabled={viewer} value={draft.metadata[k] ?? ""} onChange={(e) => patch((s) => ({ ...s, metadata: { ...s.metadata, [k]: e.target.value } }))} />
               </div>
             ))}
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1" htmlFor="m-size">Velikost družbe</label>
-              <select id="m-size" disabled={viewer} className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={draft.metadata.size ?? ""} onChange={(e) => patch((s) => ({ ...s, metadata: { ...s.metadata, size: e.target.value } }))}>
-                <option value="">Ni izbrano</option>{SIZES.map(([v, l]) => <option key={v} value={v}>{v} – {l}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1" htmlFor="m-am">Računovodski standard</label>
-              <select id="m-am" disabled={viewer} className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={draft.metadata.accountingMethod ?? ""} onChange={(e) => patch((s) => ({ ...s, metadata: { ...s.metadata, accountingMethod: e.target.value } }))}>
-                <option value="">Ni izbrano</option>{METHODS.map(([v, l]) => <option key={v} value={v}>{v} – {l}</option>)}
-              </select>
+            <div className="sm:col-span-2 text-xs text-muted-foreground" data-testid="legacy-readonly">
+              Velikost: {SIZES.find(([v]) => v === draft.metadata.size)?.[1] ?? "ni določena"} · Standard: {METHODS.find(([v]) => v === draft.metadata.accountingMethod)?.[1] ?? "ni določen"}. Vrednosti se urejajo v zavihku Profil.
             </div>
             <div className="sm:col-span-2">
               <label className="text-xs text-muted-foreground block mb-1" htmlFor="m-prev">Podatki prejšnjega leta</label>

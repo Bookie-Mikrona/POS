@@ -2,7 +2,7 @@
 
 Datum: 2. 10. 2026  
 Produkt: Bookie ERP  
-Status: načrt prihodnje implementacije, brez sprememb programa ali finančnih podatkov.
+Status: letni profili in določitev obsega prve faze so implementirani; naslednje faze ostajajo načrt. Brez neposredne oddaje AJPES.
 
 ## 1. Cilj
 
@@ -22,6 +22,16 @@ Obstajajo izračuni bilance stanja in izkaza poslovnega izida, katalog AOP, poda
 Uradni XML je trenutno preverjen za poslovno leto 2025. Pojasnila, razkritja, razporeditev dobička in celovita evidenca predložitve še niso povezani v zaključen uporabniški postopek.
 
 Obstoječe pravilne izračune in predloge se nadgradi, ne zamenja z vzporednim sistemom.
+
+### Izvedeni del prve faze
+
+V **Poročila → Letno poročilo AJPES → Profil** je profil vezan na izbrano podjetje in leto ter shranjen z obstoječim letnim osnutkom in revizijsko sledjo. Vsebuje pravno obliko, okvir, velikost, poslovno obdobje, merila tekočega in prejšnjega leta, podlago za velikost, dokumentirano izjemo prejšnjega leta ter izrecno potrditev računovodje.
+
+Odločitve o posebnem mikro režimu, reviziji/preiskavi, skupini, konsolidaciji, poenostavitvi, tujini, SFR, ČPPS, organiziranem trgu in posebnem statusu razlikujejo »ni ocenjeno«, »da« in »ne«. Velikost je dokumentirana ugotovitev računovodje, ne avtomatičen sklep iz enega leta. Stare nastavitve niso samodejno potrjen profil.
+
+Program predlaga ločen seznam statističnih, javnoobjavnih in periodičnih obveznosti ter pokaže, kateri deli so dejansko pripravljeni in kateri zahtevajo poznejšo fazo. Nepopoln, nepodprt ali neskladen profil blokira potrditev pregleda in izvoz. Spremembe razveljavijo star pregled.
+
+Prvi podprti profil: običajne mikro in majhne d.o.o./d.d. po SRS s koledarskim poslovnim letom. Drugi subjekti se lahko evidentirajo kot osnutek, vendar ne dobijo samodejne podpore izvoza GD. Preverjeni uradni katalog/XML ostaja **2025**; drugi letniki imajo samo informativni številčni pregled. PDF/XLSX nista celovito letno poročilo za javno objavo. Potrditev profila ni podpis izjave ali dokazilo predložitve.
 
 ## 3. Profil podjetja in obveznosti
 

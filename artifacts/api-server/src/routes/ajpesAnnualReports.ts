@@ -160,6 +160,13 @@ router.post(`${base}/export`, requireAuth, async (req, res): Promise<void> => {
         throw new AjpesReportError(400, "Uradni XML je preverjen za AJPES letno poročilo 2025.");
       }
       const metadata = report.settings.metadata;
+      const profile = report.settings.profile;
+      const profileAccountingMethod = profile?.framework === "SRS" ? 2
+        : profile?.framework === "IFRS" ? 1 : undefined;
+      const profileSize = profile?.size === "micro" ? 4
+        : profile?.size === "small" ? 3
+          : profile?.size === "medium" ? 2
+            : profile?.size === "large" ? 1 : undefined;
       const xml = generateAjpesXml({
         year: 2025,
         company: {
@@ -167,8 +174,10 @@ router.post(`${base}/export`, requireAuth, async (req, res): Promise<void> => {
           name: report.company.name, registeredOffice: `${report.company.street}, ${report.company.postalCode} ${report.company.city}`.trim(),
           accountablePerson: metadata.accountablePerson, phone: metadata.phone,
           contactEmail: metadata.contactEmail, portalEmail: metadata.portalEmail, manager: metadata.manager,
-          accountingMethod: metadata.accountingMethod ? Number(metadata.accountingMethod) as 1 | 2 : undefined,
-          size: metadata.size ? Number(metadata.size) as 1 | 2 | 3 | 4 : undefined,
+          accountingMethod: profileAccountingMethod ??
+            (metadata.accountingMethod ? Number(metadata.accountingMethod) as 1 | 2 : undefined),
+          size: profileSize ??
+            (metadata.size ? Number(metadata.size) as 1 | 2 | 3 | 4 : undefined),
           periodStart: "2025-01-01", periodEnd: "2025-12-31",
         },
         current: Object.fromEntries(report.aopRows.map(r => [r.code, r.current])),
@@ -178,7 +187,16 @@ router.post(`${base}/export`, requireAuth, async (req, res): Promise<void> => {
     }
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", mime);
-    res.setHeader("Content-Disposition", `attachment; filename="ajpes-${scope.year}.${format}"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="ajpes-${scope.year}${format === "xml" ? "" : "-numeric-preview"}.${format}"`,
+    );
+    if (format !== "xml") {
+      res.setHeader(
+        "X-AJPES-Export-Notice",
+        "Numerical preview only; not a complete annual report for public publication.",
+      );
+    }
     res.send(bytes);
   } catch (err) { fail(req, res, err); }
 });

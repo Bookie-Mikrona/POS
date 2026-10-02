@@ -58,6 +58,32 @@ let capitalAop: string;
 let changedLineId: string;
 let changedLineAmount: string;
 
+function confirmedProfile(year: number) {
+  return {
+    legalForm: "doo",
+    framework: "SRS",
+    size: "small",
+    periodStart: `${year}-01-01`,
+    periodEnd: `${year}-12-31`,
+    currentCriteria: { assets: "2866.75", revenue: "0.00", employees: "1" },
+    previousCriteria: { assets: "10.00", revenue: "0.00", employees: "1" },
+    sizeBasis: "Majhna družba potrjena po presoji meril za tekoče in predhodno poslovno leto.",
+    previousYearException: "",
+    microRegime: "no",
+    auditRequired: "no",
+    groupMember: "no",
+    consolidationRequired: "no",
+    simplifiedSubmission: "no",
+    foreignOperations: "no",
+    sfrRequired: "no",
+    cppsRequired: "no",
+    listed: "no",
+    specialRegime: "no",
+    confirmationBasis: "Dokumentacija za obe poslovni leti pregledana; računovodja izrecno potrjuje profil.",
+    confirmed: true,
+  };
+}
+
 function asOwner() {
   authState.userId = roles.owner;
 }
@@ -308,14 +334,13 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
       excludedEntryIds: [closeEntryIds[2024], closeEntryIds[2025]],
       metadata: {
         previousDataMode: "ledger",
-        accountingMethod: "2",
-        size: "4",
         accountablePerson: "Testna odgovorna oseba",
         phone: "+38610000000",
         contactEmail: "test@example.invalid",
         portalEmail: "test@example.invalid",
         manager: "Testni direktor",
       },
+      profile: confirmedProfile(2025),
     };
     const body = { revision: 0, settings, reviewedFingerprint: null };
 
@@ -327,6 +352,12 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
       .expect(400);
     await supertest(app).put(routePath(companyId, 2025))
       .send({ ...body, settings: { ...settings, currentValues: { ...settings.currentValues, "005": "1.001" } } })
+      .expect(400);
+    await supertest(app).put(routePath(companyId, 2025))
+      .send({
+        ...body,
+        settings: { ...settings, profile: { ...confirmedProfile(2025), legalForm: "company" } },
+      })
       .expect(400);
     const noDraft = await db.select({ id: annualReportsTable.id })
       .from(annualReportsTable).where(and(
@@ -400,7 +431,8 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
         sourceFingerprint: reviewedReport.sourceFingerprint,
       }).expect(200);
     expect(xlsx.headers["content-type"]).toContain("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    expect(xlsx.headers["content-disposition"]).toContain('filename="ajpes-2025.xlsx"');
+    expect(xlsx.headers["content-disposition"]).toContain('filename="ajpes-2025-numeric-preview.xlsx"');
+    expect(xlsx.headers["x-ajpes-export-notice"]).toContain("not a complete annual report");
     const workbook = new ExcelJS.Workbook();
     const xlsxBytes = Uint8Array.from(xlsx.body as Buffer);
     await workbook.xlsx.load(xlsxBytes.buffer as ArrayBuffer);
@@ -419,7 +451,8 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
         sourceFingerprint: reviewedReport.sourceFingerprint,
       }).expect(200);
     expect(pdf.headers["content-type"]).toContain("application/pdf");
-    expect(pdf.headers["content-disposition"]).toContain('filename="ajpes-2025.pdf"');
+    expect(pdf.headers["content-disposition"]).toContain('filename="ajpes-2025-numeric-preview.pdf"');
+    expect(pdf.headers["x-ajpes-export-notice"]).toContain("not a complete annual report");
     expect((pdf.body as Buffer).subarray(0, 5).toString()).toBe("%PDF-");
 
     const xml = await supertest(app).post(`${routePath(companyId, 2025)}/export`)
@@ -432,7 +465,7 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
     const xmlText = (xml.body as Buffer).toString("utf8");
     expect(xmlText).toContain("<OSN_Maticna_stevilka>1111111000</OSN_Maticna_stevilka>");
     expect(xmlText).toContain("<OSN_Racunovodimo>2</OSN_Racunovodimo>");
-    expect(xmlText).toContain("<OSN_Velikost>4</OSN_Velikost>");
+    expect(xmlText).toContain("<OSN_Velikost>3</OSN_Velikost>");
     const exportedAops = [...xmlText.matchAll(/<AOP ID="(\d+)">/g)].map((match) => match[1]);
     expect(exportedAops).toEqual(AJPES_GD_AOP_CATALOG_2025.aops.map((row) => row.id));
     expect(xmlText).toContain(`<AOP ID="${bankAop}"><PODATEK TIP="T">2866.75</PODATEK><PODATEK TIP="P">10.00</PODATEK></AOP>`);
@@ -445,6 +478,7 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
       ...settings,
       excludedEntryIds: [closeEntryIds[2025]],
       ...requestedManualValues(nextYear.body.issues, 2025),
+      profile: confirmedProfile(2026),
     };
     const nextSaved = await supertest(app).put(routePath(companyId, 2026)).send({
       revision: 0,
@@ -464,7 +498,7 @@ describe.sequential("AJPES annual reports routes and JOLP export", () => {
           format,
           sourceFingerprint: nextConfirmed.body.sourceFingerprint,
         }).expect(200);
-      expect(response.headers["content-disposition"]).toContain(`filename="ajpes-2026.${format}"`);
+      expect(response.headers["content-disposition"]).toContain(`filename="ajpes-2026-numeric-preview.${format}"`);
     }
     await supertest(app).post(`${routePath(companyId, 2026)}/export`)
       .send({ format: "xml", sourceFingerprint: nextConfirmed.body.sourceFingerprint }).expect(400);
