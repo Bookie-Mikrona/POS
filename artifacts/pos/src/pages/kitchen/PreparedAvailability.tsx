@@ -174,7 +174,10 @@ export function useKitchenPreparedAvailability(enabled: boolean) {
       availability: availabilityQuery.data,
       articles: articlesQuery.data,
       dailyArticleIds: dailyQuery.data
-        ?.filter(row => row.businessDate === businessDate)
+        // Daily response validation coerces dates; JSON emits midnight ISO
+        // timestamps, while availability returns the YYYY-MM-DD business day.
+        // Compare calendar dates without converting them to the browser timezone.
+        ?.filter(row => row.businessDate.slice(0, 10) === businessDate)
         .map(row => row.artikelId),
       loading: queryEnabled && (availabilityQuery.isLoading || articlesQuery.isLoading
         || (!!businessDate && dailyQuery.isLoading)),

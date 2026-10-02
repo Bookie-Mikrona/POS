@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasActivePosUnit } from "@/lib/posUnitContext";
 
 export interface HappyHourStatus {
   aktiven: boolean;
@@ -22,23 +24,31 @@ const HappyHourContext = createContext<HappyHourCtx | null>(null);
 const BASE = import.meta.env.BASE_URL as string;
 
 export function HappyHourProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const enabled = hasActivePosUnit(user);
   const [status, setStatus] = useState<HappyHourStatus | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetch_ = useCallback(async () => {
+    if (!enabled) return;
     try {
       const r = await fetch(`${BASE}api/happy-hour`, { credentials: "include" });
       if (r.ok) setStatus(await r.json());
     } catch { /* ignore */ }
-  }, []);
+  }, [enabled, user?.enotaId]);
 
   useEffect(() => {
+    if (!enabled) {
+      setStatus(null);
+      return;
+    }
     void fetch_();
     const id = setInterval(fetch_, 30_000);
     return () => clearInterval(id);
-  }, [fetch_]);
+  }, [enabled, fetch_]);
 
   const setRocno = useCallback(async (rocno: "auto" | "on" | "off") => {
+    if (!enabled) throw new Error("Izberite aktivno POS enoto.");
     setLoading(true);
     try {
       const r = await fetch(`${BASE}api/happy-hour`, {
@@ -51,7 +61,7 @@ export function HappyHourProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   return (
     <HappyHourContext.Provider value={{ status, loading, setRocno, refresh: fetch_ }}>

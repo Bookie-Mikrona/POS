@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasActivePosUnit } from "@/lib/posUnitContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -575,6 +576,30 @@ function PodjetjaView() {
 // ── EpostaView ───────────────────────────────────────────────────────────────
 
 function EpostaView() {
+  const { user } = useAuth();
+  if (!hasActivePosUnit(user)) {
+    return (
+      <div className="max-w-3xl mx-auto p-4 md:p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>E-pošta</CardTitle>
+            <CardDescription>Nastavitve pošiljanja e-pošte so vezane na POS enoto.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground" role="status">
+              Platformna prijava nima aktivne POS enote. E-poštne nastavitve uredite
+              z operativno POS prijavo v izbrani enoti pod Nastavitve → E-pošta.
+              Nastavitve posamezne enote niso nastavitve e-pošte celotne platforme.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  return <UnitEpostaView />;
+}
+
+function UnitEpostaView() {
   const { toast } = useToast();
   const [pageLoading, setPageLoading] = useState(true);
   const [saving, setSaving] = useState(false);

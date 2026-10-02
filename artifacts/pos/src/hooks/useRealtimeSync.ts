@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { getNapravaId } from "@/lib/naprava";
 import { useNastavitve } from "@/contexts/NastavitveContext";
+import { hasActivePosUnit } from "@/lib/posUnitContext";
 
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
@@ -11,7 +12,7 @@ export function useRealtimeSync() {
   const toastTocilnicaAktiven = nastavitve?.toastTocilnicaAktiven ?? true;
 
   useEffect(() => {
-    if (!user || user.moraZamenjatiGeslo) return;
+    if (!user || !hasActivePosUnit(user) || user.moraZamenjatiGeslo) return;
 
     let es: EventSource | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -125,5 +126,6 @@ export function useRealtimeSync() {
     user?.enotaId,
     user?.id,
     user?.moraZamenjatiGeslo,
+    user?.vloga,
   ]);
 }

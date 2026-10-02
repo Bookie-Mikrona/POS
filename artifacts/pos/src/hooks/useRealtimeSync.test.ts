@@ -53,6 +53,7 @@ describe("useRealtimeSync", () => {
     mockUseAuth.mockReturnValue({
       user: {
         id: 1,
+        enotaId: 1,
         username: "test",
         ime: "Test",
         vloga: "blagajnik",
@@ -74,6 +75,7 @@ describe("useRealtimeSync", () => {
     mockUseAuth.mockReturnValue({
       user: {
         id: 1,
+        enotaId: 1,
         username: "test",
         ime: "Test",
         vloga: "blagajnik",
@@ -96,6 +98,7 @@ describe("useRealtimeSync", () => {
     mockUseAuth.mockReturnValue({
       user: {
         id: 1,
+        enotaId: 1,
         username: "test",
         ime: "Test",
         vloga: "blagajnik",
@@ -134,6 +137,7 @@ describe("useRealtimeSync", () => {
     mockUseAuth.mockReturnValue({
       user: {
         id: 1, username: "test", ime: "Test", vloga: "blagajnik",
+        enotaId: 1,
         podjetjeDavcna: "12345678", moraZamenjatiGeslo: false,
       },
       loading: false, login: vi.fn(), updateUser: vi.fn(), logout: vi.fn(),
@@ -178,6 +182,7 @@ describe("useRealtimeSync", () => {
   it("ob odjavi zapre EventSource, ob ponovni prijavi ustvari novega", () => {
     const activeUser = {
       id: 1,
+      enotaId: 1,
       username: "test",
       ime: "Test",
       vloga: "blagajnik" as const,
@@ -238,6 +243,7 @@ describe("useRealtimeSync", () => {
   it("ob napaki (npr. 401) zapre EventSource in ne ustvari novega do ponovne prijave", () => {
     const activeUser = {
       id: 1,
+      enotaId: 1,
       username: "test",
       ime: "Test",
       vloga: "blagajnik" as const,
@@ -297,5 +303,33 @@ describe("useRealtimeSync", () => {
 
     expect(EventSourceSpy).toHaveBeenCalledTimes(2);
     expect(secondInstance.close).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { vloga: "superadmin", enotaId: undefined },
+    { vloga: "superadmin", enotaId: 1 },
+    { vloga: "admin", enotaId: undefined },
+  ])("ne odpre toka v neoperativnem kontekstu $vloga/$enotaId", (context) => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 1, username: "test", ime: "Test", podjetjeDavcna: "12345678",
+        moraZamenjatiGeslo: false, ...context },
+      loading: false, login: vi.fn(), updateUser: vi.fn(), logout: vi.fn(),
+    });
+    renderHook(() => useRealtimeSync());
+    expect(EventSourceSpy).not.toHaveBeenCalled();
+  });
+
+  it("zapre operativni tok ob prehodu v SuperAdmin kontekst", () => {
+    const session = {
+      user: { id: 1, username: "test", ime: "Test", podjetjeDavcna: "12345678",
+        vloga: "admin", enotaId: 1, moraZamenjatiGeslo: false },
+      loading: false, login: vi.fn(), updateUser: vi.fn(), logout: vi.fn(),
+    };
+    mockUseAuth.mockReturnValue(session);
+    const { rerender } = renderHook(() => useRealtimeSync());
+    mockUseAuth.mockReturnValue({ ...session, user: { ...session.user, vloga: "superadmin" } });
+    rerender();
+    expect(esInstance.close).toHaveBeenCalledOnce();
+    expect(EventSourceSpy).toHaveBeenCalledOnce();
   });
 });

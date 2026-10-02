@@ -47,6 +47,7 @@ import NotFound from "@/pages/not-found";
 import { AuthProvider, useAuth, type PosAuthStatus } from "@/contexts/AuthContext";
 import { setNapravaIdGetter } from "@workspace/api-client-react";
 import { getNapravaId } from "@/lib/naprava";
+import { hasActivePosUnit } from "@/lib/posUnitContext";
 setNapravaIdGetter(getNapravaId);
 
 const clerkPubKey = publishableKeyFromHost(
@@ -472,8 +473,9 @@ function Layout({ children }: { children: React.ReactNode }) {
   const { nastavitve } = useNastavitve();
 
   const enotaId = user?.enotaId;
+  const activePosUnit = hasActivePosUnit(user);
   const keyKdsNastavitve = enotaId ? [...getGetKdsNastavitveQueryKey(), enotaId] : getGetKdsNastavitveQueryKey();
-  const { data: kdsNastavitve } = useGetKdsNastavitve({ query: { queryKey: keyKdsNastavitve, enabled: !!enotaId } });
+  const { data: kdsNastavitve } = useGetKdsNastavitve({ query: { queryKey: keyKdsNastavitve, enabled: activePosUnit } });
 
   const [simDatum, setSimDatum] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -504,6 +506,10 @@ function Layout({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!activePosUnit) {
+      setSimDatum(null);
+      return;
+    }
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     const fetchSim = () => {
       fetch(`${base}/api/sim`, { credentials: "include" })
@@ -520,7 +526,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       window.removeEventListener("focus", fetchSim);
       window.removeEventListener("pos:sim-changed", fetchSim);
     };
-  }, []);
+  }, [activePosUnit, enotaId]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -788,11 +794,13 @@ function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
-        <CertExpiryBanner />
-        <FursNapakaRetryBanner />
-        <VoucherDeliveryAlertBanner />
-        <OfflineFiscalQueueStatus />
-        <LocalGatewayStatusBanner />
+        {activePosUnit && <>
+          <CertExpiryBanner />
+          <FursNapakaRetryBanner />
+          <VoucherDeliveryAlertBanner />
+          <OfflineFiscalQueueStatus />
+          <LocalGatewayStatusBanner />
+        </>}
         {!isSuperAdmin && <CtiDohodniKlicPopup />}
         {simDatum && !isCheckoutPage && (
           <Link href="/simulacija" className="block">
@@ -818,8 +826,8 @@ function Layout({ children }: { children: React.ReactNode }) {
       <div className="pos-page-content flex-1 min-h-0 min-w-0 flex flex-col">
         {children}
       </div>
-      <PosSyncStatus />
-      <QuickSwitch />
+      {activePosUnit && <PosSyncStatus />}
+      {activePosUnit && <QuickSwitch />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden bg-background border-t safe-area-inset-bottom">
@@ -837,7 +845,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <span className="text-[10px] font-medium">{item.shortLabel}</span>
             </Link>
           ))}
-          {!isSuperAdmin && <HappyHourToggle />}
+          {activePosUnit && <HappyHourToggle />}
 
           <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
             <SheetTrigger asChild>
@@ -943,7 +951,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
         </nav>
-        <AgentLauncher />
+        {activePosUnit && <AgentLauncher />}
         <AboutProgramDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </div>
   );
@@ -1034,18 +1042,42 @@ export function PosPageRoutes() {
   );
 }
 
+export function PosOperationalProviders({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.vloga === "superadmin") return <>{children}</>;
+  return (
+    <GatewayOfflineProvider>
+      <BlagajnaProvider>
+        <HappyHourProvider>{children}</HappyHourProvider>
+      </BlagajnaProvider>
+    </GatewayOfflineProvider>
+  );
+}
+
+export function PosDeviceProviders({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.vloga === "superadmin") return <>{children}</>;
+  return (
+    <>
+      <RealtimeSync />
+      <NapravaProvider>
+        <AutoStartProvider>
+          <ZamenjajGesloOverlay />
+          {children}
+        </AutoStartProvider>
+      </NapravaProvider>
+    </>
+  );
+}
+
 function ProtectedRouter() {
   return (
     <NastavitveProvider>
-      <RealtimeSync />
-      <NapravaProvider>
-      <AutoStartProvider>
-      <ZamenjajGesloOverlay />
-      <Layout>
-        <PosPageRoutes />
-      </Layout>
-      </AutoStartProvider>
-      </NapravaProvider>
+      <PosDeviceProviders>
+        <Layout>
+          <PosPageRoutes />
+        </Layout>
+      </PosDeviceProviders>
     </NastavitveProvider>
   );
 }
@@ -1215,18 +1247,19 @@ export function PosAuthProblem({
 export function AuthGate() {
   const { user, loading, authStatus, logout } = useAuth();
   const [location, setLocation] = useLocation();
+  const needsPlatformRedirect = user?.vloga === "superadmin"
+    && location !== "/superadmin" && !location.startsWith("/superadmin/");
 
-  // Varnostna mreža za rob primer: vloga postane superadmin med aktivno sejo
-  // (Clerk session refresh, ko location ni "/"). Sinhrono varovalo spodaj pokrije
-  // glavni primer (prijava/pristanek na "/"), useEffect pa edge case.
+  // Platformni kontekst nima operativnih POS providerjev. Tudi star POS URL
+  // ali sprememba vloge med sejo mora zato ostati na platformnih straneh.
   useEffect(() => {
     if (loading || !user) return;
-    if (user.vloga === "superadmin" && (location === "/" || location === "/login")) {
+    if (needsPlatformRedirect) {
       window.location.replace(`${basePath}/superadmin`);
     } else if (location === "/login") {
       setLocation("/");
     }
-  }, [user, loading, location, setLocation]);
+  }, [user, loading, location, setLocation, needsPlatformRedirect]);
 
   if (loading) {
     return (
@@ -1239,7 +1272,7 @@ export function AuthGate() {
   // Sinhrono varovalo — steče MED renderom, preden POS Layout dobi priložnost za izris.
   // window.location.replace znotraj renderja je nameren "escape iz Reacta" za navigacijo;
   // PreusmeritevZaslon zagotovi, da brskalnik ne naslika ničesar iz POS-a.
-  if (user?.vloga === "superadmin" && (location === "/" || location === "/login")) {
+  if (needsPlatformRedirect) {
     window.location.replace(`${basePath}/superadmin`);
     return <PreusmeritevZaslon />;
   }
@@ -1273,15 +1306,11 @@ function App() {
         <TooltipProvider>
           <GotovToastProvider>
             <AuthProvider>
-              <GatewayOfflineProvider>
-                <BlagajnaProvider>
-                  <HappyHourProvider>
+              <PosOperationalProviders>
                     <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
                       <AppRouter />
                     </WouterRouter>
-                  </HappyHourProvider>
-                </BlagajnaProvider>
-              </GatewayOfflineProvider>
+              </PosOperationalProviders>
             </AuthProvider>
             <Toaster />
             <GotovToastSystem />

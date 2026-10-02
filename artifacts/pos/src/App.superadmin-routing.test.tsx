@@ -97,7 +97,7 @@ describe("POS SuperAdmin route registrations", () => {
 });
 
 describe("authenticated SuperAdmin entry into POS", () => {
-  it.each(["/pos", "/pos/", "/pos/login"])(
+  it.each(["/pos", "/pos/", "/pos/login", "/pos/meni", "/pos/nastavitve"])(
     "keeps the document redirect inside /pos from %s",
     (path) => {
       const replace = captureDocumentRedirect(path);

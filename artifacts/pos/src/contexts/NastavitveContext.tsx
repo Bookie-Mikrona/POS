@@ -1,6 +1,8 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { useGetNastavitve, getGetNastavitveQueryKey } from "@workspace/api-client-react";
 import type { Nastavitve } from "@workspace/api-client-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasActivePosUnit } from "@/lib/posUnitContext";
 
 interface NastavitveCtx {
   nastavitve: Nastavitve | undefined;
@@ -10,6 +12,18 @@ interface NastavitveCtx {
 const NastavitveContext = createContext<NastavitveCtx | null>(null);
 
 export function NastavitveProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  if (!hasActivePosUnit(user)) {
+    return (
+      <NastavitveContext.Provider value={{ nastavitve: undefined, nastavitveLoading: false }}>
+        {children}
+      </NastavitveContext.Provider>
+    );
+  }
+  return <ActiveNastavitveProvider>{children}</ActiveNastavitveProvider>;
+}
+
+function ActiveNastavitveProvider({ children }: { children: ReactNode }) {
   const { data: nastavitve, isLoading: nastavitveLoading } = useGetNastavitve({
     query: {
       queryKey: getGetNastavitveQueryKey(),
