@@ -25,13 +25,17 @@ const cardProps = {
 
 // The ledger contract returns chronological rows; the preview shows the last
 // seven newest-first, without reversing the shared query-cache array in place.
-const ledgerLines = Object.freeze(Array.from({ length: 10 }, (_, index) => ({
+// The bounded API already returns its seven-row tail, chronologically.
+const ledgerLines = Object.freeze(Array.from({ length: 7 }, (_, offset) => {
+  const index = offset + 3;
+  return ({
   entryId: `entry-${index + 1}`,
   entryDate: `2026-01-${String(index + 1).padStart(2, "0")}`,
   description: `KNJIŽBA-${String(index + 1).padStart(2, "0")}`,
   debit: index === 9 ? "0.00" : "17.00",
   credit: index === 9 ? "12.35" : "0.00",
-})));
+  });
+}));
 
 function renderCard() {
   return render(createElement(BankBalanceCard, cardProps));
@@ -90,7 +94,7 @@ describe("razširljiva zgodovina bančnega konta", () => {
     expect(button).toHaveAttribute("aria-controls", `bank-ledger-${ACCOUNT_A}`);
     expect(within(accountPanel(ACCOUNT_A)).getByText("KNJIŽBA-10")).toBeInTheDocument();
     expect(ledgerMock).toHaveBeenLastCalledWith(
-      COMPANY_ID, { accountId: ACCOUNT_A }, { query: { enabled: true } },
+      COMPANY_ID, { accountId: ACCOUNT_A, recentLimit: 7 }, { query: { enabled: true } },
     );
 
     fireEvent.click(button);
@@ -116,8 +120,8 @@ describe("razširljiva zgodovina bančnega konta", () => {
     expect(panel.getByText(/10\.\s*01\.\s*2026/)).toBeInTheDocument();
     expect(normalizedMoney(panel.getByText("KNJIŽBA-10").parentElement?.lastElementChild?.textContent)).toBe("-12,35 €");
     expect(normalizedMoney(panel.getByText("KNJIŽBA-09").parentElement?.lastElementChild?.textContent)).toBe("17,00 €");
-    expect(ledgerLines[0].description).toBe("KNJIŽBA-01");
-    expect(ledgerLines[9].description).toBe("KNJIŽBA-10");
+    expect(ledgerLines[0].description).toBe("KNJIŽBA-04");
+    expect(ledgerLines[6].description).toBe("KNJIŽBA-10");
   });
 
   it("pri izboru drugega konta zapre prvega in pokaže samo knjižbe drugega", () => {
@@ -137,7 +141,7 @@ describe("razširljiva zgodovina bančnega konta", () => {
     expect(within(accountPanel(ACCOUNT_B)).getByText("KNJIŽBA DRUGEGA TRR")).toBeInTheDocument();
     expect(screen.queryByText("KNJIŽBA-10")).not.toBeInTheDocument();
     expect(ledgerMock).toHaveBeenLastCalledWith(
-      COMPANY_ID, { accountId: ACCOUNT_B }, { query: { enabled: true } },
+      COMPANY_ID, { accountId: ACCOUNT_B, recentLimit: 7 }, { query: { enabled: true } },
     );
   });
 

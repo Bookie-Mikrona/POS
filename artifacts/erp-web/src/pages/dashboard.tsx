@@ -74,10 +74,10 @@ export function BankBalanceCard({ companyId, totalBalance, accounts, loading }: 
   const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
   const { data: ledgerData, isLoading: ledgerLoading, isError: ledgerError } = useGetLedger(
     companyId,
-    expandedAccountId ? { accountId: expandedAccountId } : {},
+    expandedAccountId ? { accountId: expandedAccountId, recentLimit: 7 } : {},
     { query: { enabled: !!companyId && !!expandedAccountId } as any },
   );
-  const recentLines = (ledgerData?.lines ?? []).slice(-7).reverse();
+  const recentLines = [...(ledgerData?.lines ?? [])].reverse();
 
   return (
     <Card className="shadow-sm border-border/60">

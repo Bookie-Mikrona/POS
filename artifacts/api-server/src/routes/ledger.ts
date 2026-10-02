@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, asc, like, or } from "drizzle-orm";
+import { eq, and, gte, lte, asc, desc, sql, like, or } from "drizzle-orm";
+import Decimal from "decimal.js";
 import {
   db,
   journalEntriesTable,
@@ -64,6 +65,13 @@ router.get(
     if (!ok) return;
 
     const { accountId, periodId, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
+    const rawLimit = req.query.recentLimit;
+    if (rawLimit !== undefined && (typeof rawLimit !== "string" || !/^[1-9]\d*$/.test(rawLimit)
+      || Number(rawLimit) > 100)) {
+      res.status(400).json({ error: "recentLimit mora biti celo število med 1 in 100." });
+      return;
+    }
+    const recentLimit = rawLimit === undefined ? undefined : Number(rawLimit);
 
     // Gradi filter pogoje
     // Vključimo tako "posted" kot "reversed" vnose, da se storno in original
@@ -83,8 +91,10 @@ router.get(
     if (accountId) lineConditions.push(eq(journalEntryLinesTable.accountId, accountId));
 
     // En JOIN query za vse
-    const rows = await db
+    const query = db
       .select({
+        lineId: sql<string>`${journalEntryLinesTable.id}`.as("line_id"),
+        createdAt: journalEntriesTable.createdAt,
         entryId: journalEntriesTable.id,
         entryDate: journalEntriesTable.entryDate,
         description: journalEntriesTable.description,
@@ -107,11 +117,52 @@ router.get(
           and(...entryConditions),
           lineConditions.length > 0 ? and(...lineConditions) : undefined,
         ),
-      )
-      .orderBy(
+      );
+
+    if (recentLimit !== undefined) {
+      const filtered = query.as("filtered_ledger");
+      const debit = sql`case when ${filtered.side} = 'debit' then ${filtered.amount} else 0 end`;
+      const credit = sql`case when ${filtered.side} = 'credit' then ${filtered.amount} else 0 end`;
+      // Windows see the complete filtered history BEFORE the outer LIMIT.
+      // Only the small tail reaches Node/the client; balances do not restart at zero.
+      const balanced = db.select({
+        lineId: filtered.lineId, createdAt: filtered.createdAt,
+        entryId: filtered.entryId, entryDate: filtered.entryDate,
+        description: filtered.description, reference: filtered.reference,
+        accountId: filtered.accountId, accountCode: filtered.accountCode,
+        accountName: filtered.accountName, sequence: filtered.sequence,
+        debit: sql<string>`${debit}`.as("debit"),
+        credit: sql<string>`${credit}`.as("credit"),
+        runningBalance: sql<string>`sum(${debit} - ${credit}) over (
+          order by ${filtered.entryDate}, ${filtered.createdAt}, ${filtered.sequence}, ${filtered.lineId}
+          rows between unbounded preceding and current row
+        )`.as("running_balance"),
+        totalDebit: sql<string>`sum(${debit}) over ()`.as("total_debit"),
+        totalCredit: sql<string>`sum(${credit}) over ()`.as("total_credit"),
+      }).from(filtered).as("balanced_ledger");
+      const recent = await db.select().from(balanced).orderBy(
+        desc(balanced.entryDate), desc(balanced.createdAt),
+        desc(balanced.sequence), desc(balanced.lineId),
+      ).limit(recentLimit);
+      const money = (value: string) => new Decimal(value).toFixed(2);
+      res.json({
+        lines: recent.reverse().map(row => ({
+          entryId: row.entryId, entryDate: row.entryDate,
+          description: row.description, reference: row.reference,
+          accountId: row.accountId, accountCode: row.accountCode, accountName: row.accountName,
+          debit: money(row.debit), credit: money(row.credit), runningBalance: money(row.runningBalance),
+        })),
+        totalDebit: money(recent[0]?.totalDebit ?? "0"),
+        totalCredit: money(recent[0]?.totalCredit ?? "0"),
+      });
+      return;
+    }
+
+    const rows = await query.orderBy(
         asc(journalEntriesTable.entryDate),
         asc(journalEntriesTable.createdAt),
         asc(journalEntryLinesTable.sequence),
+        asc(journalEntryLinesTable.id),
       );
 
     // Izračunaj tekoče stanje (running balance: debit - credit)

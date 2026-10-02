@@ -14213,18 +14213,23 @@ export const GetBankBalanceResponse = zod.object({
 
 
 /**
- * Returns posted journal entry lines for the given filters, with running balance.
+ * Returns posted and reversed journal entry lines for the given filters, with running balance. Without recentLimit, returns the full ledger. With recentLimit, returns only the latest matching lines in chronological order; running balances and totals still cover all matching history.
  * @summary General ledger — movements per account
  */
 export const GetLedgerParams = zod.object({
   "companyId": zod.coerce.string()
 })
 
+export const getLedgerQueryRecentLimitMax = 100;
+
+
+
 export const GetLedgerQueryParams = zod.object({
   "accountId": zod.coerce.string().optional().describe('Filter by account UUID'),
   "periodId": zod.coerce.string().optional(),
   "dateFrom": zod.date().optional(),
-  "dateTo": zod.date().optional()
+  "dateTo": zod.date().optional(),
+  "recentLimit": zod.coerce.number().min(1).max(getLedgerQueryRecentLimitMax).optional().describe('Return only the latest N matching lines, retaining full filtered running balances and totals.')
 })
 
 export const GetLedgerResponse = zod.object({

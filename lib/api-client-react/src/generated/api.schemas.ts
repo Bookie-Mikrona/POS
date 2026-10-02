@@ -13404,6 +13404,12 @@ accountId?: string;
 periodId?: string;
 dateFrom?: string;
 dateTo?: string;
+/**
+ * Return only the latest N matching lines, retaining full filtered running balances and totals.
+ * @minimum 1
+ * @maximum 100
+ */
+recentLimit?: number;
 };
 
 export type GetBalanceSheetParams = {

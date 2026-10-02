@@ -27706,7 +27706,7 @@ export const getGetLedgerUrl = (companyId: string,
 }
 
 /**
- * Returns posted journal entry lines for the given filters, with running balance.
+ * Returns posted and reversed journal entry lines for the given filters, with running balance. Without recentLimit, returns the full ledger. With recentLimit, returns only the latest matching lines in chronological order; running balances and totals still cover all matching history.
  * @summary General ledger — movements per account
  */
 export const getLedger = async (companyId: string,
