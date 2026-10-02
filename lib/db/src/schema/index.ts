@@ -19,6 +19,7 @@ export * from "./bookie-old-bank-ap-closings";
 export * from "./partner-ledger-settlements";
 export * from "./bank-statements";
 export * from "./payments";
+export * from "./payment-ledger-allocations";
 export * from "./payment-batches";
 export * from "./vat-codes";
 export * from "./vat-code";

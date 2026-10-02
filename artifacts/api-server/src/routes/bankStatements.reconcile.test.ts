@@ -13,6 +13,11 @@ vi.mock("../middlewares/requireAuth", () => ({
   },
 }));
 
+vi.mock("../lib/native-payment-allocations", () => ({
+  lockNativeSourceLines: vi.fn(async () => undefined),
+  validateNativeAllocations: vi.fn(async () => []),
+}));
+
 vi.mock("@workspace/db", () => {
   const tables = new Map<string, any>();
   const table = (name: string) => {
@@ -66,6 +71,7 @@ vi.mock("@workspace/db", () => {
     bookieOldBankApClosingsTable: table("bookieOldBankApClosings"),
     invoiceLinesTable: table("invoiceLines"),
     paymentAllocationsTable: table("paymentAllocations"),
+    paymentLedgerAllocationsTable: table("paymentLedgerAllocations"),
     paymentsTable: table("payments"),
     accountingRolesTable: table("accountingRoles"),
     accountsTable: table("accounts"),
@@ -94,7 +100,14 @@ vi.mock("drizzle-orm", () => ({
 import express from "express";
 import supertest from "supertest";
 import router from "./bankStatements";
-import { auditLogTable, journalEntriesTable, journalEntryLinesTable, paymentBatchItemsTable, paymentsTable } from "@workspace/db";
+import {
+  auditLogTable,
+  journalEntriesTable,
+  journalEntryLinesTable,
+  paymentBatchItemsTable,
+  paymentLedgerAllocationsTable,
+  paymentsTable,
+} from "@workspace/db";
 
 const app = express();
 app.use(express.json());
@@ -194,7 +207,8 @@ describe("bank statement reconciliation transaction", () => {
         bankStatementLineId: null, counterpartyId: "partner", periodId: "period",
         arApAccountId: "ap", notes: null, createdBy: "user",
       }],
-      [{ id: "allocation-1", amount: "100.00", invoiceId: "invoice-1" }],
+      [{ id: "allocation-1", amount: "40.00", invoiceId: "invoice-1" }],
+      [{ id: "ledger-allocation-1", amount: "60.00", journalLineId: "native-line-1" }],
       [{ id: "invoice-1" }],
       [{ id: "item-1", batchId: "batch-1", instruction: { paymentId, amount: "100.00" } }],
       [{ lifecycleStatus: "partially_executed" }, { lifecycleStatus: "ready" }],
@@ -219,6 +233,17 @@ describe("bank statement reconciliation transaction", () => {
       item.table === String(paymentBatchItemsTable.id ?? paymentBatchItemsTable)
       && item.values.paymentId === "remainder-payment-id"
       && item.values.batchId === "batch-1",
+    )).toBe(true);
+    expect(dbState.updates.some(item =>
+      item.table === String(paymentLedgerAllocationsTable.id ?? paymentLedgerAllocationsTable)
+      && item.values.allocatedAmount === "20.00",
+    )).toBe(true);
+    expect(dbState.inserts.some(item =>
+      item.table === String(paymentLedgerAllocationsTable.id ?? paymentLedgerAllocationsTable)
+      && Array.isArray(item.values)
+      && item.values.some((allocation: any) => allocation.paymentId === "remainder-payment-id"
+        && allocation.journalLineId === "native-line-1"
+        && allocation.allocatedAmount === "40.00"),
     )).toBe(true);
     expect(dbState.inserts.some(item =>
       item.table === String(journalEntriesTable.id ?? journalEntriesTable)

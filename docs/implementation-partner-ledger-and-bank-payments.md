@@ -318,3 +318,21 @@ Podrobni nadaljnji osnutki:
 5. Prednostni obseg AJPES/FURS glede na ciljne vrste podjetij; pogojnih obrazcev ne uvajamo kot obveznost vseh uporabnikov.
 
 Te odločitve ne preprečujejo priprave podatkovnega izračuna in vmesnika kartice, preprečujejo pa samovoljno spreminjanje finančnih podatkov oziroma razglasitev nepreverjene združljivosti z bankami.
+
+## 14. Skupni pregled računov in postavk glavne knjige
+
+Odprte postavke in starostna analiza uporabljajo skupni pregled, ki poleg računov vključuje knjižene partnerske postavke na saldakontnih kontih brez povezane evidence računa. Kartica ostaja podrobni prikaz istih izvornih knjižb in učinkov zapiranja.
+
+- Izvor je jasno označen: **račun** ali **postavka GK**. Postavka GK ne ustvarja nadomestnega računa.
+- Prikazani so ločeni odprti debet, odprti kredit in njuna razlika. Razlika ni dokaz, da so posamezne postavke zaprte.
+- Postavka, že predstavljena z računom, se ne doda še enkrat kot samostojna postavka GK.
+- Otvoritve in osnutki se ne ponudijo kot tekoče postavke za zapiranje ali plačilo.
+- Pri manjkajočem datumu zapadlosti se pokaže **Brez zapadlosti**. Starostna analiza tak znesek vodi ločeno, ne z izmišljenim datumom.
+- V pripravo običajnega izplačila sodijo ustrezne odprte kreditne obveznosti; v pripravo prejema ustrezne odprte debetne terjatve. Nasprotno usmerjene postavke ostanejo vidne za pregled, ne postanejo samodejni plačilni nalogi.
+- Skupni paket lahko vsebuje račun in postavko GK. Nezdružljiva bančna navodila še vedno pomenijo ločene naloge znotraj istega XML.
+- Priprava osnutka ali izvoz XML rezervira izbrani znesek, ne zapre obveznosti. Zapiranje sledi knjiženju dejanskega plačila.
+- Delna bančna izvedba ohrani izvedeni del in preostanek v ločenem osnutku. Preklic neizvedenega naloga sprosti rezervacijo brez storna denarnih knjižb.
+- Storno knjiženega plačila ohrani sled ponovnega odpiranja in njegove nasprotne knjižbe; ne ustvari dodatne navidezne obveznosti.
+- Posebni pregled študentskih subvencij ostaja vezan na preverjeno identiteto njegovih računov in enot; vanj se ne vključujejo nepovezane splošne knjižbe GK.
+
+Ta dopolnitev ne pomeni samodejne dopolnitve stare poslovne zgodovine, knjiženja osnutkov ali potrjenega sprejema XML pri banki.

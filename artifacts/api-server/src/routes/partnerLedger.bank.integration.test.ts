@@ -34,7 +34,9 @@ import {
   journalEntriesTable,
   journalEntryLinesTable,
   paymentAllocationsTable,
+  paymentLedgerAllocationsTable,
   paymentBatchesTable,
+  paymentBatchItemsTable,
   paymentsTable,
   pool,
   partnerSettlementEventsTable,
@@ -182,6 +184,9 @@ let externalReopenInvoiceId: string;
 let externalReopenInvoiceLineId: string;
 let externalReopenPaymentId: string;
 let externalReopenPaymentEntryId: string;
+let nativePayableAccountId: string;
+let nativePayableLineId: string;
+let nativeCounterLineId: string;
 
 beforeAll(async () => {
   const [company] = await db.insert(companiesTable).values({
@@ -233,6 +238,20 @@ beforeAll(async () => {
     iban: "GB29NWBK60161331926819",
     trr: [{ iban: "GB29NWBK60161331926819", bic: "NWBKGB2L" }],
   });
+  const [nativePayableAccount] = await db.insert(accountsTable).values({
+    companyId, code: "2299", name: `TEST native payable ${RUN_ID}`, type: "liability", isOpenItem: true,
+  }).returning({ id: accountsTable.id });
+  nativePayableAccountId = nativePayableAccount.id;
+  const nativePayable = await createJournalLine({
+    companyId, periodId, accountId: nativePayableAccountId, partnerId: supplierId,
+    side: "credit", amount: 120, date: "2025-03-01", reference: `TEST-NATIVE-${RUN_ID}`,
+  });
+  const nativeCounter = await createJournalLine({
+    companyId, periodId, accountId: nativePayableAccountId, partnerId: supplierId,
+    side: "debit", amount: 120, date: "2025-03-02", reference: `TEST-NATIVE-COUNTER-${RUN_ID}`,
+  });
+  nativePayableLineId = nativePayable.lineId;
+  nativeCounterLineId = nativeCounter.lineId;
 
   const turnoverDebit = await createJournalLine({
     companyId, periodId, accountId: ledgerAccountId, partnerId: customerId,
@@ -1119,5 +1138,259 @@ describe("partner ledger through bank payment journey (real dev DB)", () => {
       .expect("Content-Type", /application\/pdf/);
     expect(Buffer.isBuffer(turnoverPdf.body)).toBe(true);
     expect(turnoverPdf.body.subarray(0, 5).toString("ascii")).toBe("%PDF-");
+  });
+
+  it("prepares, exports, partially executes, posts, voids and reserves a native GL payable", async () => {
+    const nativeReference = `TEST-NATIVE-${RUN_ID}`;
+    const [mixedInvoice] = await db.insert(invoicesTable).values({
+      companyId,
+      type: "received",
+      counterpartyId: supplierId,
+      periodId,
+      invoiceNumber: `TEST-MIXED-${RUN_ID}`,
+      invoiceDate: "2025-03-01",
+      dueDate: "2025-03-31",
+      destinationIban: "DE89370400440532013000",
+      paymentReference: nativeReference,
+      // Match the native source's remittance purpose so both allocations form
+      // one legitimate SEPA instruction/payment in direct batch preparation.
+      paymentPurpose: nativeReference,
+      status: "posted",
+      arApAccountId: nativePayableAccountId,
+      createdBy: TEST_CLERK_USER_ID,
+    }).returning({ id: invoicesTable.id });
+    await db.insert(invoiceLinesTable).values({
+      invoiceId: mixedInvoice.id,
+      description: "TEST mixed native batch invoice",
+      quantity: "1.000",
+      unitPrice: "50.0000",
+      vatRate: "0.00",
+      accountId: expenseAccountId,
+    });
+    const batchResponse = expectStatus(await supertest(app)
+      .post(`/companies/${companyId}/payment-batches`)
+      .send({
+        bankAccountId: selectedBankAccountId,
+        periodId,
+        paymentDate: "2025-03-12",
+        idempotencyKey: `native-batch-${RUN_ID}`,
+        proposedPayments: [{
+          counterpartyId: supplierId,
+          arApAccountId: nativePayableAccountId,
+          allocations: [
+            { invoiceId: mixedInvoice.id, amount: 50 },
+            { journalLineId: nativePayableLineId, amount: 50 },
+          ],
+        }],
+      }), 201);
+    const batchId = batchResponse.body.batchId as string;
+    expect(batchResponse.body.payments).toHaveLength(1);
+    const firstPaymentId = batchResponse.body.payments[0].id as string;
+    expect(batchResponse.body.payments.reduce(
+      (sum: number, payment: any) => sum + Number(payment.amount),
+      0,
+    )).toBe(100);
+    expect(batchResponse.body.payments[0].ledgerAllocations).toMatchObject([
+      { journalLineId: nativePayableLineId, allocatedAmount: "50.00" },
+    ]);
+    expect(batchResponse.body.payments[0].allocations).toMatchObject([
+      { invoiceId: mixedInvoice.id, allocatedAmount: "50.00" },
+    ]);
+
+    const exported = await supertest(app)
+      .get(`/companies/${companyId}/payment-batches/${batchId}/sepa.xml`)
+      .expect(200)
+      .expect("Content-Type", /application\/xml/);
+    expect(exported.text).toContain("DE89370400440532013000");
+    expect(exported.text).toContain(nativeReference);
+
+    const reservedClose = await supertest(app)
+      .post(`/companies/${companyId}/partner-settlements`)
+      .send({
+        allocations: [{ sourceLineId: nativePayableLineId, targetLineId: nativeCounterLineId, amount: 80 }],
+        effectiveDate: "2025-03-12",
+        idempotencyKey: `native-reservation-close-${RUN_ID}`,
+        reason: "TEST close must preserve native payment reservation",
+      });
+    expectStatus(reservedClose, 409);
+
+    const [statement] = await db.insert(bankStatementsTable).values({
+      companyId,
+      bankAccountId: selectedBankAccountId,
+      sourceIban: "GB29NWBK60161331926819",
+      statementNumber: `TEST-NATIVE-EXEC-${RUN_ID}`,
+      statementDate: "2025-03-12",
+      periodFrom: "2025-03-12",
+      periodTo: "2025-03-12",
+      openingBalance: "1000.00",
+      closingBalance: "925.00",
+      currency: "EUR",
+      sourceFilename: `TEST-NATIVE-EXEC-${RUN_ID}.csv`,
+      sourceSha256: `test-native-exec-${RUN_ID}`,
+      createdBy: TEST_CLERK_USER_ID,
+    }).returning({ id: bankStatementsTable.id });
+    const [bankLine] = await db.insert(bankStatementLinesTable).values({
+      statementId: statement.id,
+      transactionKey: `native-exec-${RUN_ID}`,
+      lineNumber: 1,
+      bookingDate: "2025-03-12",
+      amount: "-75.00",
+      currency: "EUR",
+      reference: nativeReference,
+    }).returning({ id: bankStatementLinesTable.id });
+    await supertest(app)
+      .post(`/companies/${companyId}/bank-statements/lines/${bankLine.id}/reconcile`)
+      .send({ paymentId: firstPaymentId })
+      .expect(200);
+
+    const batchItems = await db.select({
+      paymentId: paymentBatchItemsTable.paymentId,
+      lifecycleStatus: paymentBatchItemsTable.lifecycleStatus,
+    }).from(paymentBatchItemsTable).where(eq(paymentBatchItemsTable.batchId, batchId));
+    const remainderItem = batchItems.find(item => item.paymentId !== firstPaymentId);
+    expect(batchItems.find(item => item.paymentId === firstPaymentId)?.lifecycleStatus).toBe("partially_executed");
+    expect(remainderItem).toBeDefined();
+    const partialLedger = await db.select({
+      paymentId: paymentLedgerAllocationsTable.paymentId,
+      allocatedAmount: paymentLedgerAllocationsTable.allocatedAmount,
+    }).from(paymentLedgerAllocationsTable).where(inArray(
+      paymentLedgerAllocationsTable.paymentId,
+      [firstPaymentId, remainderItem!.paymentId],
+    ));
+    expect(partialLedger.find(row => row.paymentId === firstPaymentId)?.allocatedAmount).toBe("25.00");
+    expect(partialLedger.find(row => row.paymentId === remainderItem!.paymentId)?.allocatedAmount).toBe("25.00");
+    const splitInvoiceAllocations = await db.select({
+      paymentId: paymentAllocationsTable.paymentId,
+      allocatedAmount: paymentAllocationsTable.allocatedAmount,
+    }).from(paymentAllocationsTable).where(inArray(paymentAllocationsTable.paymentId, [firstPaymentId, remainderItem!.paymentId]));
+    expect(splitInvoiceAllocations.find(row => row.paymentId === firstPaymentId)?.allocatedAmount).toBe("50.00");
+    expect(splitInvoiceAllocations.find(row => row.paymentId === remainderItem!.paymentId)).toBeUndefined();
+
+    await supertest(app).post(`/companies/${companyId}/payments/${firstPaymentId}/post`).send({}).expect(200);
+    const closeEvents = await db.select().from(partnerSettlementEventsTable).where(and(
+      eq(partnerSettlementEventsTable.companyId, companyId),
+      eq(partnerSettlementEventsTable.sourceLineId, nativePayableLineId),
+      eq(partnerSettlementEventsTable.eventType, "close"),
+    ));
+    expect(closeEvents.some(event => event.amount === "25.00" && event.targetLineId !== null)).toBe(true);
+    await supertest(app).post(`/companies/${companyId}/payments/${firstPaymentId}/void`)
+      .send({ reason: "TEST native posted payment reversal", periodId }).expect(200);
+    const reopenEvents = await db.select().from(partnerSettlementEventsTable).where(and(
+      eq(partnerSettlementEventsTable.companyId, companyId),
+      eq(partnerSettlementEventsTable.sourceLineId, nativePayableLineId),
+      eq(partnerSettlementEventsTable.eventType, "reopen"),
+    ));
+    expect(reopenEvents).toHaveLength(1);
+
+    await supertest(app).post(`/companies/${companyId}/payment-batches/${batchId}/lifecycle`)
+      .send({
+        action: "cancel",
+        reason: "TEST release native unexecuted remainder",
+        paymentIds: [remainderItem!.paymentId],
+        confirmExportedRisk: true,
+      }).expect(200);
+    const released = await supertest(app)
+      .post(`/companies/${companyId}/payment-batches`)
+      .send({
+        bankAccountId: selectedBankAccountId,
+        periodId,
+        paymentDate: "2025-03-12",
+        cutoffDate: "2025-03-12",
+        idempotencyKey: `native-released-capacity-${RUN_ID}`,
+        proposedPayments: [{
+          counterpartyId: supplierId,
+          arApAccountId: nativePayableAccountId,
+          allocations: [{ journalLineId: nativePayableLineId, amount: 80 }],
+        }],
+      });
+    expectStatus(released, 201);
+    const finalCard = await supertest(app).get(`/companies/${companyId}/partner-ledger`)
+      .query({ partnerId: supplierId, accountId: nativePayableAccountId, dateTo: "9999-12-31" }).expect(200);
+    const sourceLine = finalCard.body.lines.find((line: any) => line.lineId === nativePayableLineId);
+    expect(sourceLine.openCredit).toBe("120.00");
+    expect(sourceLine.closings.some((event: any) => event.type === "reopen" && event.amount === "25.00")).toBe(true);
+    const [postedMixed] = await db.select({
+      linkedEntryId: paymentsTable.linkedEntryId,
+    }).from(paymentsTable).where(eq(paymentsTable.id, firstPaymentId));
+    const [mixedReversal] = await db.select({ id: journalEntriesTable.id })
+      .from(journalEntriesTable).where(eq(journalEntriesTable.reversalOf, postedMixed.linkedEntryId!));
+    const mixedPairLines = await db.select({ id: journalEntryLinesTable.id })
+      .from(journalEntryLinesTable).where(and(
+        inArray(journalEntryLinesTable.entryId, [postedMixed.linkedEntryId!, mixedReversal.id]),
+        eq(journalEntryLinesTable.accountId, nativePayableAccountId),
+        eq(journalEntryLinesTable.partnerId, supplierId),
+      ));
+    expect(mixedPairLines).toHaveLength(2);
+    expect(mixedPairLines.every(({ id }) => {
+      const line = finalCard.body.lines.find((cardLine: any) => cardLine.lineId === id);
+      return line && line.openDebit === "0.00" && line.openCredit === "0.00";
+    })).toBe(true);
+    const previousDate = new Date(`${reopenEvents[0]!.effectiveDate}T00:00:00.000Z`);
+    previousDate.setUTCDate(previousDate.getUTCDate() - 1);
+    const previousAsOfDate = previousDate.toISOString().slice(0, 10);
+    const mixedAsOfExecution = await supertest(app).get(`/companies/${companyId}/partner-ledger`)
+      .query({ partnerId: supplierId, accountId: nativePayableAccountId, dateTo: previousAsOfDate }).expect(200);
+    const expectedHistoricalSourceOpen = previousAsOfDate >= "2025-03-12" ? "95.00" : "120.00";
+    expect(mixedAsOfExecution.body.lines.find((line: any) => line.lineId === nativePayableLineId).openCredit)
+      .toBe(expectedHistoricalSourceOpen);
+    const unifiedOpenItems = await supertest(app).get(`/companies/${companyId}/open-items`)
+      .query({ counterpartyId: supplierId, accountId: nativePayableAccountId, type: "received", asOfDate: "9999-12-31" })
+      .expect(200);
+    expect(unifiedOpenItems.body.items.find((item: any) => item.journalLineId === nativePayableLineId)?.remainingAmount).toBe("120.00");
+    expect(unifiedOpenItems.body.items.some((item: any) => mixedPairLines.some(line => line.id === item.journalLineId))).toBe(false);
+
+    const fullNativeSource = await createJournalLine({
+      companyId, periodId, accountId: nativePayableAccountId, partnerId: supplierId,
+      side: "credit", amount: 40, date: "2025-03-06", reference: `TEST-NATIVE-FULL-${RUN_ID}`,
+    });
+    const fullPayment = await supertest(app).post(`/companies/${companyId}/payments`).send({
+      counterpartyId: supplierId,
+      periodId,
+      direction: "outbound",
+      paymentDate: "2025-03-12",
+      amount: 40,
+      bankAccountId: selectedBankAccountId,
+      arApAccountId: nativePayableAccountId,
+      reference: `TEST-NATIVE-FULL-${RUN_ID}`,
+      ledgerAllocations: [{ journalLineId: fullNativeSource.lineId, allocatedAmount: 40 }],
+    }).expect(201);
+    const fullPaymentId = fullPayment.body.id as string;
+    await supertest(app).post(`/companies/${companyId}/payments/${fullPaymentId}/post`).send({}).expect(200);
+    const fullPostedCard = await supertest(app).get(`/companies/${companyId}/partner-ledger`)
+      .query({ partnerId: supplierId, accountId: nativePayableAccountId, dateTo: "2025-03-12" }).expect(200);
+    expect(fullPostedCard.body.lines.find((line: any) => line.lineId === fullNativeSource.lineId).openCredit).toBe("0.00");
+    await supertest(app).post(`/companies/${companyId}/payments/${fullPaymentId}/void`)
+      .send({ reason: "TEST fully allocated native payment reversal", periodId }).expect(200);
+    const fullVoidedCard = await supertest(app).get(`/companies/${companyId}/partner-ledger`)
+      .query({ partnerId: supplierId, accountId: nativePayableAccountId, dateTo: "9999-12-31" }).expect(200);
+    const fullSourceBalance = fullVoidedCard.body.lines.find((line: any) => line.lineId === fullNativeSource.lineId);
+    expect(fullSourceBalance.openCredit).toBe("40.00");
+    const fullOpenItems = await supertest(app).get(`/companies/${companyId}/open-items`)
+      .query({ counterpartyId: supplierId, accountId: nativePayableAccountId, type: "received", asOfDate: "9999-12-31" })
+      .expect(200);
+    expect(fullOpenItems.body.items.find((item: any) => item.journalLineId === fullNativeSource.lineId)?.remainingAmount)
+      .toBe(fullSourceBalance.openCredit);
+  });
+
+  it("serializes concurrent native draft reservations on the same GL source", async () => {
+    const source = await createJournalLine({
+      companyId, periodId, accountId: nativePayableAccountId, partnerId: supplierId,
+      side: "credit", amount: 50, date: "2025-03-05", reference: `TEST-NATIVE-RACE-${RUN_ID}`,
+    });
+    const requests = ["A", "B"].map(label => supertest(app)
+      .post(`/companies/${companyId}/payments`)
+      .send({
+        counterpartyId: supplierId,
+        periodId,
+        direction: "outbound",
+        paymentDate: "2025-03-12",
+        amount: 40,
+        bankAccountId: selectedBankAccountId,
+        arApAccountId: nativePayableAccountId,
+        reference: `TEST-NATIVE-RACE-${label}-${RUN_ID}`,
+        ledgerAllocations: [{ journalLineId: source.lineId, allocatedAmount: 40 }],
+      }));
+    const results = await Promise.all(requests);
+    expect(results.map(result => result.status).sort()).toEqual([201, 409]);
   });
 });

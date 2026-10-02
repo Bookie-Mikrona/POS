@@ -21966,6 +21966,11 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/PaymentAllocationRecord"
+            ledgerAllocations:
+              type: array
+              description: Allocations to real partner GL lines; never substitute invoice records.
+              items:
+                $ref: "#/components/schemas/PaymentLedgerAllocationRecord"
           required:
             - allocations
     ListPaymentsResponse:
@@ -22042,10 +22047,12 @@ components:
       required: [bankAccountId, idempotencyKey]
     PaymentBatchProposedAllocation:
       type: object
+      description: Exactly one of invoiceId or journalLineId is required; the server validates the target atomically.
       properties:
         invoiceId: { type: string }
+        journalLineId: { type: string }
         amount: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
-      required: [invoiceId, amount]
+      required: [amount]
     CreatePaymentBatchResponse:
       type: object
       properties:
@@ -22208,6 +22215,25 @@ components:
       required:
         - invoiceId
         - allocatedAmount
+    PaymentLedgerAllocationRecord:
+      type: object
+      properties:
+        id: { type: string }
+        paymentId: { type: string }
+        journalLineId: { type: string }
+        allocatedAmount: { type: string }
+        entryId: { type: string }
+        reference: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        documentDate: { type: [string, "null"], format: date }
+        accountCode: { type: string }
+      required: [id, paymentId, journalLineId, allocatedAmount]
+    PaymentLedgerAllocationInput:
+      type: object
+      properties:
+        journalLineId: { type: string }
+        allocatedAmount: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+      required: [journalLineId, allocatedAmount]
     CreatePaymentBody:
       type: object
       properties:
@@ -22246,6 +22272,11 @@ components:
           items:
             $ref: "#/components/schemas/PaymentAllocationBody"
           description: Optional allocations; can also be added after creation
+        ledgerAllocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentLedgerAllocationInput"
+          description: Optional allocations to posted GL-only partner items, alongside invoice allocations.
       required:
         - counterpartyId
         - periodId
@@ -22268,12 +22299,38 @@ components:
     OpenItem:
       type: object
       properties:
+        id:
+          type: string
+          description: Stable item identity; invoice ID or ledger-prefixed journal-line ID.
+        sourceKind:
+          type: string
+          enum: [invoice, ledger]
+        sourceId:
+          type: string
+        journalLineId:
+          type: string
+        entryId:
+          type: string
+        side:
+          type: string
+          enum: [debit, credit]
+        paymentDirection:
+          type: [string, "null"]
+          enum: [inbound, outbound, null]
+          description: Null for a GL item not eligible for ordinary receipt/supplier payment.
+        reference:
+          type: [string, "null"]
+        description:
+          type: [string, "null"]
+        accountCode:
+          type: string
         activePaymentBatchId:
           type: string
           nullable: true
-          description: Active batch reserving this invoice; prevent selecting it again.
+          description: Active batch reserving this invoice or GL item; prevent selecting it again.
         invoiceId:
-          type: string
+          type: [string, "null"]
+          description: Null for native GL-only items; no invoice is fabricated.
         invoiceNumber:
           type: string
         invoiceDate:
@@ -22301,6 +22358,12 @@ components:
           type: string
         remainingAmount:
           type: string
+        openDebit:
+          type: string
+          description: Open amount on the debit side; not netted against credit items.
+        openCredit:
+          type: string
+          description: Open amount on the credit side; not netted against debit items.
         daysOverdue:
           type: integer
           description: Days past due date (0 if not yet due)
@@ -22331,6 +22394,12 @@ components:
             $ref: "#/components/schemas/OpenItem"
         totalRemaining:
           type: string
+        totalOpenDebit:
+          type: string
+          description: Total open debit of the selected items.
+        totalOpenCredit:
+          type: string
+          description: Total open credit of the selected items.
       required:
         - items
         - totalRemaining
@@ -22344,6 +22413,9 @@ components:
         current:
           type: string
           description: Not yet due
+        undated:
+          type: string
+          description: GL open amount without a documented maturity date; not assigned an invented due date.
         bucket1to30:
           type: string
           description: 1-30 days overdue

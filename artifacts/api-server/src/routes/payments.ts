@@ -5,6 +5,7 @@ import {
   db,
   paymentsTable,
   paymentAllocationsTable,
+  paymentLedgerAllocationsTable,
   counterpartiesTable,
   accountingPeriodsTable,
   accountsTable,
@@ -24,6 +25,7 @@ import {
   bankAccountMetadataTable,
   paymentBatchesTable,
   paymentBatchItemsTable,
+  partnerSettlementEventsTable,
 } from "@workspace/db";
 import {
   CreatePaymentBody,
@@ -32,6 +34,14 @@ import {
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { getLatestBankStatementBalance } from "../lib/bankStatementBalances";
 import { buildSepaBatchXml, type SepaTransactionInstruction } from "./payments.sepa";
+import { lockNativeSourceLines, validateNativeAllocations } from "../lib/native-payment-allocations";
+import { loadUnifiedOpenItems } from "../lib/partner-open-items";
+import { invoiceClosingTotals } from "../lib/invoice-closing-totals";
+import Decimal from "decimal.js";
+import { openItemAgedBucket } from "../lib/partner-open-items";
+import { activeSettlementAmounts } from "../lib/partner-ledger-calculator";
+
+export { invoiceClosingTotals };
 
 const router: IRouter = Router();
 
@@ -141,6 +151,13 @@ async function calcAllocated(paymentIds: string[]): Promise<Map<string, number>>
     .groupBy(paymentAllocationsTable.paymentId);
   const map = new Map<string, number>();
   for (const r of rows) map.set(r.paymentId, parseFloat(r.total ?? "0"));
+  const ledgerRows = await db.select({
+    paymentId: paymentLedgerAllocationsTable.paymentId,
+    total: sql<string>`SUM(${paymentLedgerAllocationsTable.allocatedAmount})`,
+  }).from(paymentLedgerAllocationsTable)
+    .where(inArray(paymentLedgerAllocationsTable.paymentId, paymentIds))
+    .groupBy(paymentLedgerAllocationsTable.paymentId);
+  for (const row of ledgerRows) map.set(row.paymentId, (map.get(row.paymentId) ?? 0) + parseFloat(row.total ?? "0"));
   return map;
 }
 
@@ -193,13 +210,31 @@ async function fetchPaymentWithAllocations(paymentId: string) {
     .orderBy(asc(invoicesTable.invoiceDate));
 
   const allocatedTotal = allocRows.reduce((s, r) => s + parseFloat(r.allocatedAmount), 0);
+  const ledgerAllocRows = await db.select({
+    id: paymentLedgerAllocationsTable.id,
+    paymentId: paymentLedgerAllocationsTable.paymentId,
+    journalLineId: paymentLedgerAllocationsTable.journalLineId,
+    allocatedAmount: paymentLedgerAllocationsTable.allocatedAmount,
+    entryId: journalEntriesTable.id,
+    reference: journalEntriesTable.reference,
+    description: journalEntryLinesTable.description,
+    documentDate: journalEntriesTable.documentDate,
+    accountCode: accountsTable.code,
+  }).from(paymentLedgerAllocationsTable)
+    .innerJoin(journalEntryLinesTable, eq(journalEntryLinesTable.id, paymentLedgerAllocationsTable.journalLineId))
+    .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+    .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+    .where(eq(paymentLedgerAllocationsTable.paymentId, paymentId))
+    .orderBy(asc(journalEntriesTable.documentDate), asc(journalEntryLinesTable.id));
+  const ledgerAllocatedTotal = ledgerAllocRows.reduce((sum, row) => sum + parseFloat(row.allocatedAmount), 0);
   const payAmount = parseFloat(pay.amount);
 
   return {
     ...pay,
-    allocatedAmount: allocatedTotal.toFixed(2),
-    unallocatedAmount: (payAmount - allocatedTotal).toFixed(2),
+    allocatedAmount: (allocatedTotal + ledgerAllocatedTotal).toFixed(2),
+    unallocatedAmount: (payAmount - allocatedTotal - ledgerAllocatedTotal).toFixed(2),
     allocations: allocRows,
+    ledgerAllocations: ledgerAllocRows,
   };
 }
 
@@ -326,6 +361,29 @@ router.get(
 
     const paymentIds = rows.map((r) => r.id);
     const allocMap = await calcAllocated(paymentIds);
+    const ledgerRows = paymentIds.length ? await db.select({
+      id: paymentLedgerAllocationsTable.id,
+      paymentId: paymentLedgerAllocationsTable.paymentId,
+      journalLineId: paymentLedgerAllocationsTable.journalLineId,
+      allocatedAmount: paymentLedgerAllocationsTable.allocatedAmount,
+      entryId: journalEntriesTable.id,
+      reference: journalEntriesTable.reference,
+      description: journalEntryLinesTable.description,
+      documentDate: journalEntriesTable.documentDate,
+      accountCode: accountsTable.code,
+    }).from(paymentLedgerAllocationsTable)
+      .innerJoin(journalEntryLinesTable, eq(journalEntryLinesTable.id, paymentLedgerAllocationsTable.journalLineId))
+      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+      .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+      .where(inArray(paymentLedgerAllocationsTable.paymentId, paymentIds))
+      .orderBy(asc(journalEntriesTable.documentDate), asc(journalEntryLinesTable.id)) : [];
+    const ledgerAllocationsByPayment = new Map<string, typeof ledgerRows>();
+    for (const allocation of ledgerRows) {
+      ledgerAllocationsByPayment.set(allocation.paymentId, [
+        ...(ledgerAllocationsByPayment.get(allocation.paymentId) ?? []),
+        allocation,
+      ]);
+    }
 
     const payments = rows.map((p) => {
       const allocated = allocMap.get(p.id) ?? 0;
@@ -334,6 +392,7 @@ router.get(
         ...p,
         allocatedAmount: allocated.toFixed(2),
         unallocatedAmount: (total - allocated).toFixed(2),
+        ledgerAllocations: ledgerAllocationsByPayment.get(p.id) ?? [],
       };
     });
 
@@ -363,6 +422,24 @@ router.post(
     }
 
     const { counterpartyId, periodId, direction, amount, bankAccountId, arApAccountId, reference, notes, allocations } = parsed.data;
+    const ledgerAllocationsRaw = (req.body as any)?.ledgerAllocations;
+    if (ledgerAllocationsRaw != null && !Array.isArray(ledgerAllocationsRaw)) {
+      res.status(400).json({ error: "ledgerAllocations mora biti seznam knjižbenih vrstic in zneskov" });
+      return;
+    }
+    const ledgerAllocations: Array<{ journalLineId: string; allocatedAmount: number }> = ledgerAllocationsRaw ?? [];
+    if (ledgerAllocations.some((item) => !item || typeof item.journalLineId !== "string"
+      || typeof item.allocatedAmount !== "number" || !Number.isFinite(item.allocatedAmount)
+      || item.allocatedAmount <= 0 || Math.abs(item.allocatedAmount * 100 - Math.round(item.allocatedAmount * 100)) > 0.00001)
+      || new Set(ledgerAllocations.map(item => item.journalLineId)).size !== ledgerAllocations.length) {
+      res.status(400).json({ error: "Vsaka ledgerAllocations dodelitev potrebuje enoličen journalLineId in pozitiven znesek z največ dvema decimalkama" });
+      return;
+    }
+    if (ledgerAllocations.reduce((sum, item) => sum + item.allocatedAmount, 0)
+      + (allocations ?? []).reduce((sum, item) => sum + item.allocatedAmount, 0) > amount + 0.005) {
+      res.status(400).json({ error: "Skupna vsota faktur in knjižbenih poravnav presega znesek plačila" });
+      return;
+    }
     const paymentDate = (parsed.data.paymentDate as unknown as Date).toISOString().slice(0, 10);
     // `force` is not in the Zod schema intentionally — it's an override flag for duplicate detection
     const force = (req.body as any).force === true;
@@ -613,7 +690,16 @@ router.post(
       }
     }
 
-    const paymentId = await db.transaction(async (tx) => {
+    let paymentId: string;
+    try {
+    paymentId = await db.transaction(async (tx) => {
+      if (ledgerAllocations.length) {
+        await lockNativeSourceLines(tx as unknown as typeof db, companyId, ledgerAllocations.map(item => item.journalLineId));
+        await validateNativeAllocations(tx as unknown as typeof db, {
+          companyId, partnerId: counterpartyId, accountId: arApAccountId, paymentDirection: direction,
+          allocations: ledgerAllocations, asOfDate: paymentDate,
+        });
+      }
       const [newPay] = await tx.insert(paymentsTable).values({
         companyId,
         counterpartyId,
@@ -638,6 +724,13 @@ router.post(
           })),
         );
       }
+      if (ledgerAllocations.length) {
+        await tx.insert(paymentLedgerAllocationsTable).values(ledgerAllocations.map(item => ({
+          paymentId: newPay.id,
+          journalLineId: item.journalLineId,
+          allocatedAmount: item.allocatedAmount.toFixed(2),
+        })));
+      }
 
       await tx.insert(auditLogTable).values({
         companyId,
@@ -645,11 +738,15 @@ router.post(
         entityId: newPay.id,
         action: "create",
         changedBy: authReq.clerkUserId,
-        payload: { direction, amount, allocationCount: allocations?.length ?? 0 },
+        payload: { direction, amount, allocationCount: allocations?.length ?? 0, ledgerAllocationCount: ledgerAllocations.length },
       });
 
       return newPay.id;
     });
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : "Plačila ni bilo mogoče ustvariti" });
+      return;
+    }
 
     const result = await fetchPaymentWithAllocations(paymentId);
     res.status(201).json(result);
@@ -829,6 +926,11 @@ router.post(
 
     if (!payment) { res.status(404).json({ error: "Plačilo ni najdeno" }); return; }
     if (payment.status !== "draft") {
+      if (payment.status === "posted") {
+        const replayed = await fetchPaymentWithAllocations(id);
+        res.json(replayed);
+        return;
+      }
       res.status(400).json({ error: "Samo osnutke plačil je mogoče knjižiti" });
       return;
     }
@@ -880,6 +982,9 @@ router.post(
         .for("update")
         .limit(1);
 
+      if (lockedPayment?.status === "posted") {
+        return;
+      }
       if (!lockedPayment || lockedPayment.status !== "draft") {
         throw Object.assign(new Error("Samo osnutke plačil je mogoče knjižiti"), { statusCode: 400 });
       }
@@ -892,6 +997,37 @@ router.post(
         })
         .from(paymentAllocationsTable)
         .where(eq(paymentAllocationsTable.paymentId, id));
+      const ledgerAllocsToPost = await tx.select({
+        id: paymentLedgerAllocationsTable.id,
+        journalLineId: paymentLedgerAllocationsTable.journalLineId,
+        allocatedAmount: paymentLedgerAllocationsTable.allocatedAmount,
+      }).from(paymentLedgerAllocationsTable)
+        .where(eq(paymentLedgerAllocationsTable.paymentId, id))
+        .orderBy(asc(paymentLedgerAllocationsTable.journalLineId));
+
+      const totalAllocatedCents = [
+        ...allocsToPost.map(row => Math.round(Number(row.allocatedAmount) * 100)),
+        ...ledgerAllocsToPost.map(row => Math.round(Number(row.allocatedAmount) * 100)),
+      ].reduce((sum, cents) => sum + cents, 0);
+      if (totalAllocatedCents > Math.round(Number(payment.amount) * 100)) {
+        throw Object.assign(new Error("Skupne dodelitve presegajo znesek plačila"), { statusCode: 400 });
+      }
+
+      if (ledgerAllocsToPost.length) {
+        await lockNativeSourceLines(tx as unknown as typeof db, companyId, ledgerAllocsToPost.map(row => row.journalLineId));
+        await validateNativeAllocations(tx as unknown as typeof db, {
+          companyId,
+          partnerId: payment.counterpartyId,
+          accountId: payment.arApAccountId,
+          paymentDirection: payment.direction,
+          allocations: ledgerAllocsToPost.map(row => ({
+            journalLineId: row.journalLineId,
+            allocatedAmount: Number(row.allocatedAmount),
+          })),
+          asOfDate: payment.paymentDate,
+          excludePaymentId: id,
+        });
+      }
 
       if (allocsToPost.length > 0) {
         const invoiceIds = allocsToPost.map((a) => a.invoiceId);
@@ -1031,7 +1167,7 @@ router.post(
         createdBy: authReq.clerkUserId,
       }).returning({ id: journalEntriesTable.id });
 
-      await tx.insert(journalEntryLinesTable).values(
+      const createdJournalLines = await tx.insert(journalEntryLinesTable).values(
         journalLines.map((l, i) => ({
           entryId: entry.id,
           accountId: l.accountId,
@@ -1041,7 +1177,30 @@ router.post(
           sequence: i,
           partnerId: l.partnerId ?? null,
         })),
-      );
+      ).returning({
+        id: journalEntryLinesTable.id,
+        accountId: journalEntryLinesTable.accountId,
+        side: journalEntryLinesTable.side,
+        partnerId: journalEntryLinesTable.partnerId,
+      });
+      if (ledgerAllocsToPost.length) {
+        const counterpart = createdJournalLines.find(line =>
+          line.accountId === payment.arApAccountId && line.partnerId === payment.counterpartyId);
+        if (!counterpart) throw Object.assign(new Error("Plačilni konto nima ustrezne partnerske knjižbene vrstice"), { statusCode: 400 });
+        await tx.insert(partnerSettlementEventsTable).values(ledgerAllocsToPost.map(allocation => ({
+          companyId,
+          partnerId: payment.counterpartyId,
+          accountId: payment.arApAccountId,
+          sourceLineId: allocation.journalLineId,
+          targetLineId: counterpart.id,
+          eventType: "close" as const,
+          amount: allocation.allocatedAmount,
+          effectiveDate: payment.paymentDate,
+          idempotencyKey: `payment-native-close:${id}:${allocation.id}`,
+          reason: `Posted payment ${id}`,
+          actorId: authReq.clerkUserId,
+        })));
+      }
 
       await tx.update(paymentsTable)
         .set({ status: "posted", linkedEntryId: entry.id })
@@ -1060,6 +1219,10 @@ router.post(
       // Poslovne napake iz transakcije (z lastnostjo statusCode) → 400
       if (err?.statusCode === 400) {
         res.status(400).json({ error: err.message });
+        return;
+      }
+      if (err?.statusCode === 409 || err?.status === 409) {
+        res.status(409).json({ error: err.message });
         return;
       }
       throw err; // nepričakovane napake → 500
@@ -1099,6 +1262,10 @@ router.post(
         periodId: paymentsTable.periodId,
         paymentDate: paymentsTable.paymentDate,
         linkedEntryId: paymentsTable.linkedEntryId,
+        counterpartyId: paymentsTable.counterpartyId,
+        arApAccountId: paymentsTable.arApAccountId,
+        direction: paymentsTable.direction,
+        amount: paymentsTable.amount,
         reference: paymentsTable.reference,
       })
       .from(paymentsTable)
@@ -1125,10 +1292,16 @@ router.post(
       .select({ invoiceId: paymentAllocationsTable.invoiceId })
       .from(paymentAllocationsTable)
       .where(eq(paymentAllocationsTable.paymentId, id));
+    const ledgerAllocs = await db.select({
+      id: paymentLedgerAllocationsTable.id,
+      journalLineId: paymentLedgerAllocationsTable.journalLineId,
+      allocatedAmount: paymentLedgerAllocationsTable.allocatedAmount,
+    }).from(paymentLedgerAllocationsTable).where(eq(paymentLedgerAllocationsTable.paymentId, id));
 
     if (payment.linkedEntryId) {
       const origLines = await db
         .select({
+          id: journalEntryLinesTable.id,
           accountId: journalEntryLinesTable.accountId,
           side: journalEntryLinesTable.side,
           amount: journalEntryLinesTable.amount,
@@ -1141,10 +1314,30 @@ router.post(
         .orderBy(asc(journalEntryLinesTable.sequence));
 
       await db.transaction(async (tx) => {
+        const [lockedPayment] = await tx.select({ status: paymentsTable.status })
+          .from(paymentsTable)
+          .where(and(eq(paymentsTable.id, id), eq(paymentsTable.companyId, companyId)))
+          .for("update").limit(1);
+        if (!lockedPayment || lockedPayment.status !== "posted") {
+          throw Object.assign(new Error("Plačilo je bilo medtem že razveljavljeno"), { statusCode: 409 });
+        }
+        const originalPaymentCounterpart = ledgerAllocs.length
+          ? origLines.find(line => line.accountId === payment.arApAccountId && line.partnerId === payment.counterpartyId)
+          : undefined;
+        if (ledgerAllocs.length && !originalPaymentCounterpart) {
+          throw Object.assign(new Error("Plačilu manjka partnerska vrstica za native GL poravnave"), { statusCode: 409 });
+        }
+        if (ledgerAllocs.length) {
+          await lockNativeSourceLines(tx as unknown as typeof db, companyId, [
+            ...ledgerAllocs.map(row => row.journalLineId),
+            originalPaymentCounterpart!.id,
+          ]);
+        }
+        const voidDate = new Date().toISOString().slice(0, 10);
         const [reversalEntry] = await tx.insert(journalEntriesTable).values({
           companyId,
           periodId: targetPeriodId,
-          entryDate: new Date().toISOString().slice(0, 10),
+          entryDate: voidDate,
           description: `STORNO plačila${payment.reference ? ` (${payment.reference})` : ""}`,
           reference: payment.reference ?? null,
           status: "posted",
@@ -1152,7 +1345,7 @@ router.post(
           createdBy: authReq.clerkUserId,
         }).returning({ id: journalEntriesTable.id });
 
-        await tx.insert(journalEntryLinesTable).values(
+        const reversalLines = await tx.insert(journalEntryLinesTable).values(
           origLines.map((l) => ({
             entryId: reversalEntry.id,
             accountId: l.accountId,
@@ -1162,15 +1355,85 @@ router.post(
             sequence: l.sequence,
             partnerId: l.partnerId,
           })),
-        );
+        ).returning({
+          id: journalEntryLinesTable.id,
+          accountId: journalEntryLinesTable.accountId,
+          partnerId: journalEntryLinesTable.partnerId,
+        });
 
         await tx.update(journalEntriesTable)
           .set({ status: "reversed" })
           .where(eq(journalEntriesTable.id, payment.linkedEntryId!));
 
-        await tx.update(paymentsTable)
-          .set({ status: "void" })
-          .where(eq(paymentsTable.id, id));
+        if (ledgerAllocs.length) {
+          const closeKeys = ledgerAllocs.map(row => `payment-native-close:${id}:${row.id}`);
+          const closes = await tx.select().from(partnerSettlementEventsTable).where(and(
+            eq(partnerSettlementEventsTable.companyId, companyId),
+            inArray(partnerSettlementEventsTable.idempotencyKey, closeKeys),
+            eq(partnerSettlementEventsTable.eventType, "close"),
+          ));
+          if (closes.length !== ledgerAllocs.length) {
+            throw Object.assign(new Error("Manjka izvorno zapiranje knjižbene dodelitve plačila"), { statusCode: 409 });
+          }
+          await tx.insert(partnerSettlementEventsTable).values(closes.map(close => ({
+            companyId,
+            partnerId: close.partnerId,
+            accountId: close.accountId,
+            sourceLineId: close.sourceLineId,
+            targetLineId: close.targetLineId,
+            eventType: "reopen" as const,
+            amount: close.amount,
+             effectiveDate: voidDate,
+            closeEventId: close.id,
+            idempotencyKey: `payment-native-reopen:${id}:${close.id}`,
+            reason: parsed.data.reason,
+            actorId: authReq.clerkUserId,
+          })));
+          await tx.update(paymentsTable)
+            .set({ status: "void" })
+            .where(eq(paymentsTable.id, id));
+          const reversalPaymentCounterpart = reversalLines.find(line =>
+            line.accountId === payment.arApAccountId && line.partnerId === payment.counterpartyId);
+          if (!reversalPaymentCounterpart) {
+            throw Object.assign(new Error("Razveljavitvi plačila manjka partnerska protiknjižba"), { statusCode: 409 });
+          }
+          const lineEvents = await tx.select().from(partnerSettlementEventsTable).where(and(
+            eq(partnerSettlementEventsTable.companyId, companyId),
+            or(
+              eq(partnerSettlementEventsTable.sourceLineId, originalPaymentCounterpart!.id),
+              eq(partnerSettlementEventsTable.targetLineId, originalPaymentCounterpart!.id),
+            ),
+            lte(partnerSettlementEventsTable.effectiveDate, voidDate),
+          ));
+          const active = activeSettlementAmounts(lineEvents, voidDate);
+          const used = [...active.entries()].reduce((sum, [eventId, remaining]) => {
+            const close = lineEvents.find(event => event.id === eventId);
+            return close && (close.sourceLineId === originalPaymentCounterpart!.id
+              || close.targetLineId === originalPaymentCounterpart!.id) ? sum.plus(remaining) : sum;
+          }, new Decimal(0));
+          if (used.plus(payment.amount).gt(new Decimal(originalPaymentCounterpart!.amount).abs().plus("0.005"))) {
+            throw Object.assign(new Error("Razveljavitev ne more zapreti partnerskih vrstic plačila zaradi že uporabljenega ostanka"), { statusCode: 409 });
+          }
+          await tx.insert(partnerSettlementEventsTable).values({
+            companyId,
+            partnerId: payment.counterpartyId,
+            accountId: payment.arApAccountId,
+            sourceLineId: originalPaymentCounterpart!.id,
+            targetLineId: reversalPaymentCounterpart.id,
+            eventType: "close",
+            amount: payment.amount,
+            effectiveDate: voidDate,
+            idempotencyKey: `payment-native-void-counterpart:${id}`,
+            reason: parsed.data.reason,
+            actorId: authReq.clerkUserId,
+          });
+          // The status update above removes any invoice-allocation closings from
+          // the voided draft's read model. Native close/reopen rows stay append-only.
+        } else {
+          await tx.update(paymentsTable)
+            .set({ status: "void" })
+            .where(eq(paymentsTable.id, id));
+        }
 
         await tx.insert(auditLogTable).values({
           companyId,
@@ -1377,7 +1640,7 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
   const proposedPayments: Array<{
     counterpartyId: string;
     arApAccountId: string;
-    allocations: Array<{ invoiceId: string; amount: number }>;
+    allocations: Array<{ invoiceId?: string; journalLineId?: string; amount: number }>;
   }> | undefined = Array.isArray(req.body?.proposedPayments) ? req.body.proposedPayments : undefined;
   const periodId: string | undefined = req.body?.periodId;
   const paymentDate: string | undefined = req.body?.paymentDate;
@@ -1405,7 +1668,11 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
       counterpartyId: group?.counterpartyId,
       arApAccountId: group?.arApAccountId,
       allocations: Array.isArray(group?.allocations)
-        ? group.allocations.map(allocation => ({ invoiceId: allocation?.invoiceId, amount: allocation?.amount })).sort((a, b) => String(a.invoiceId).localeCompare(String(b.invoiceId)))
+        ? group.allocations.map(allocation => ({
+          invoiceId: allocation?.invoiceId,
+          journalLineId: allocation?.journalLineId,
+          amount: allocation?.amount,
+        })).sort((a, b) => `${a.invoiceId ?? ""}/${a.journalLineId ?? ""}`.localeCompare(`${b.invoiceId ?? ""}/${b.journalLineId ?? ""}`))
         : group?.allocations,
     })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
     canonicalRequest = JSON.stringify({ mode: "direct", bankAccountId, periodId, paymentDate, cutoffDate: cutoffDate ?? null, proposedPayments: canonicalGroups });
@@ -1474,7 +1741,8 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
         }
 
         type ProposedGroup = NonNullable<typeof proposedPayments>[number];
-        const supplied: Array<{ group: ProposedGroup; invoiceId: string; cents: number }> = [];
+        type SuppliedAllocation = { group: ProposedGroup; invoiceId?: string; journalLineId?: string; cents: number };
+        const supplied: SuppliedAllocation[] = [];
         const suppliedIds = new Set<string>();
         for (const group of proposedPayments!) {
           if (!group || typeof group.counterpartyId !== "string" || typeof group.arApAccountId !== "string"
@@ -1482,30 +1750,42 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
             throw Object.assign(new Error("Vsaka predlagana skupina potrebuje dobavitelja, konto obveznosti in dodelitve"), { status: 400 });
           }
           const [apAccount] = await tx.select({
-            code: accountsTable.code, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting,
+            code: accountsTable.code, type: accountsTable.type, isOpenItem: accountsTable.isOpenItem,
+            isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting,
           }).from(accountsTable).where(and(
             eq(accountsTable.id, group.arApAccountId), eq(accountsTable.companyId, companyId),
           )).limit(1);
+          const containsInvoice = group.allocations.some(allocation => typeof allocation?.invoiceId === "string");
           if (!apAccount || !apAccount.isActive || apAccount.allowsPosting === false
-            || (!apAccount.code.startsWith("22") && !apAccount.code.startsWith("43"))) {
+            || (containsInvoice
+              ? (!apAccount.code.startsWith("22") && !apAccount.code.startsWith("43"))
+              : (apAccount.type !== "liability" || !apAccount.isOpenItem))) {
             throw Object.assign(new Error("Konto obveznosti ni aktiven/knjižljiv ali ni konto dobaviteljev"), { status: 400 });
           }
           for (const allocation of group.allocations) {
-            if (typeof allocation?.invoiceId !== "string" || typeof allocation.amount !== "number"
+            const hasInvoice = typeof allocation?.invoiceId === "string";
+            const hasLedger = typeof allocation?.journalLineId === "string";
+            if (hasInvoice === hasLedger || typeof allocation.amount !== "number"
               || !Number.isFinite(allocation.amount) || allocation.amount <= 0
               || Math.abs(allocation.amount * 100 - Math.round(allocation.amount * 100)) > 0.00001) {
-              throw Object.assign(new Error("Vsaka dodelitev mora vsebovati račun in pozitiven znesek z največ dvema decimalkama"), { status: 400 });
+              throw Object.assign(new Error("Vsaka dodelitev mora vsebovati natanko invoiceId ali journalLineId ter pozitiven znesek z največ dvema decimalkama"), { status: 400 });
             }
-            if (suppliedIds.has(allocation.invoiceId)) {
-              throw Object.assign(new Error("Isti račun je mogoče vključiti samo enkrat v neposredno pripravo paketa"), { status: 409 });
+            const key = hasInvoice ? `invoice:${allocation.invoiceId}` : `ledger:${allocation.journalLineId}`;
+            if (suppliedIds.has(key)) {
+              throw Object.assign(new Error("Isto odprto postavko je mogoče vključiti samo enkrat v neposredno pripravo paketa"), { status: 409 });
             }
-            suppliedIds.add(allocation.invoiceId);
-            supplied.push({ group, invoiceId: allocation.invoiceId, cents: Math.round(allocation.amount * 100) });
+            suppliedIds.add(key);
+            supplied.push({
+              group,
+              ...(hasInvoice ? { invoiceId: allocation.invoiceId } : { journalLineId: allocation.journalLineId }),
+              cents: Math.round(allocation.amount * 100),
+            });
           }
         }
 
-        const invoiceIds = [...suppliedIds].sort();
-        const invoiceRows = await tx.select({
+        const invoiceIds = supplied.filter(item => item.invoiceId).map(item => item.invoiceId!).sort();
+        const nativeLineIds = supplied.filter(item => item.journalLineId).map(item => item.journalLineId!).sort();
+        const invoiceRows = invoiceIds.length ? await tx.select({
           id: invoicesTable.id,
           counterpartyId: invoicesTable.counterpartyId,
           counterpartyName: counterpartiesTable.name,
@@ -1527,11 +1807,11 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
         }).from(invoicesTable).innerJoin(counterpartiesTable, eq(counterpartiesTable.id, invoicesTable.counterpartyId))
           .where(and(eq(invoicesTable.companyId, companyId), inArray(invoicesTable.id, invoiceIds)))
           .orderBy(asc(invoicesTable.id))
-          .for("update");
+          .for("update") : [];
         if (invoiceRows.length !== invoiceIds.length) throw Object.assign(new Error("Ena ali več izbranih računov ni najdenih v tem podjetju"), { status: 404 });
         const invoiceById = new Map(invoiceRows.map(row => [row.id, row]));
-        for (const selection of supplied) {
-          const invoice = invoiceById.get(selection.invoiceId)!;
+        for (const selection of supplied.filter(item => item.invoiceId)) {
+          const invoice = invoiceById.get(selection.invoiceId!)!;
           if (invoice.invoiceType !== "received" || !["posted", "paid"].includes(invoice.status)
             || !invoice.counterpartyActive || (invoice.counterpartyType !== "supplier" && invoice.counterpartyType !== "both")
             || invoice.counterpartyId !== selection.group.counterpartyId
@@ -1542,14 +1822,43 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
             throw Object.assign(new Error(`Račun ${invoice.invoiceNumber} zapade po izbranem datumu omejitve`), { status: 400 });
           }
         }
-        const [grossRows, sourceTotals] = await Promise.all([
+        const nativeItemsByLine = new Map<string, Awaited<ReturnType<typeof loadUnifiedOpenItems>>["items"][number]>();
+        if (nativeLineIds.length) {
+          await lockNativeSourceLines(tx as unknown as typeof db, companyId, nativeLineIds);
+          const nativeGroups = new Map<string, { partnerId: string; accountId: string; allocations: Array<{ journalLineId: string; allocatedAmount: number }> }>();
+          for (const selection of supplied.filter(item => item.journalLineId)) {
+            const key = `${selection.group.counterpartyId}/${selection.group.arApAccountId}`;
+            const group = nativeGroups.get(key) ?? {
+              partnerId: selection.group.counterpartyId,
+              accountId: selection.group.arApAccountId,
+              allocations: [],
+            };
+            group.allocations.push({ journalLineId: selection.journalLineId!, allocatedAmount: selection.cents / 100 });
+            nativeGroups.set(key, group);
+          }
+          for (const group of nativeGroups.values()) {
+            const checked = await validateNativeAllocations(tx as unknown as typeof db, {
+              companyId,
+              partnerId: group.partnerId,
+              accountId: group.accountId,
+              paymentDirection: "outbound",
+              allocations: group.allocations,
+              asOfDate: paymentDate!,
+            });
+            for (const { item } of checked) nativeItemsByLine.set(item.journalLineId!, item);
+          }
+          if (nativeLineIds.some(lineId => nativeItemsByLine.get(lineId)?.sourceKind !== "ledger")) {
+            throw Object.assign(new Error("Izbrani GL vir mora biti odprta knjižena postavka, ne vrstica računa"), { status: 409 });
+          }
+        }
+        const [grossRows, sourceTotals] = invoiceIds.length ? await Promise.all([
           tx.select({
             invoiceId: invoiceLinesTable.invoiceId,
             gross: sql<string>`COALESCE(SUM(COALESCE(${invoiceLinesTable.vatBase}::numeric + ${invoiceLinesTable.vatAmount}::numeric, (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100))), 0)`,
           }).from(invoiceLinesTable).where(inArray(invoiceLinesTable.invoiceId, invoiceIds)).groupBy(invoiceLinesTable.invoiceId),
           tx.select({ id: invoicesTable.id, gross: invoicesTable.historicalGross }).from(invoicesTable)
             .where(and(eq(invoicesTable.companyId, companyId), inArray(invoicesTable.id, invoiceIds))),
-        ]);
+        ]) : [[], []];
         const grossCents = new Map(grossRows.map(row => [row.invoiceId, Math.round(Number(row.gross) * 100)]));
         for (const invoice of sourceTotals) {
           if ((grossCents.get(invoice.id) ?? 0) <= 0 && invoice.gross) grossCents.set(invoice.id, Math.round(Number(invoice.gross) * 100));
@@ -1557,14 +1866,16 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
         const closureTotals = await invoiceClosingTotals(companyId, invoiceIds, paymentDate!, tx as unknown as typeof db);
         const closedCents = new Map([...closureTotals].map(([id, amount]) => [id, Math.round(amount * 100)]));
         const selectedCents = new Map<string, number>();
-        for (const selection of supplied) selectedCents.set(selection.invoiceId, (selectedCents.get(selection.invoiceId) ?? 0) + selection.cents);
+        for (const selection of supplied.filter(item => item.invoiceId)) {
+          selectedCents.set(selection.invoiceId!, (selectedCents.get(selection.invoiceId!) ?? 0) + selection.cents);
+        }
         for (const invoiceId of invoiceIds) {
           const remaining = (grossCents.get(invoiceId) ?? 0) - (closedCents.get(invoiceId) ?? 0);
           if ((selectedCents.get(invoiceId) ?? 0) > remaining) {
             throw Object.assign(new Error(`Izbrani znesek za račun ${invoiceById.get(invoiceId)!.invoiceNumber} presega odprti ostanek`), { status: 409 });
           }
         }
-        const activeInvoiceBatch = await tx.select({ invoiceId: paymentAllocationsTable.invoiceId })
+        const activeInvoiceBatch = invoiceIds.length ? await tx.select({ invoiceId: paymentAllocationsTable.invoiceId })
           .from(paymentAllocationsTable)
           .innerJoin(paymentBatchItemsTable, eq(paymentBatchItemsTable.paymentId, paymentAllocationsTable.paymentId))
           .innerJoin(paymentBatchesTable, eq(paymentBatchesTable.id, paymentBatchItemsTable.batchId))
@@ -1573,28 +1884,63 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
             isNull(paymentBatchItemsTable.releasedAt),
             eq(paymentBatchItemsTable.lifecycleStatus, "ready"),
             inArray(paymentBatchesTable.status, ["ready", "exported", "partially_executed"]),
-          )).limit(1);
+          )).limit(1) : [];
         if (activeInvoiceBatch.length) throw Object.assign(new Error("Ena ali več postavk je že vključena v aktiven paket"), { status: 409 });
 
-        const paymentGroups = new Map<string, { proposed: ProposedGroup; items: typeof supplied; amountCents: number }>();
+        const recipients = nativeLineIds.length ? await tx.select({
+          id: counterpartiesTable.id,
+          name: counterpartiesTable.name,
+          type: counterpartiesTable.type,
+          isActive: counterpartiesTable.isActive,
+          iban: counterpartiesTable.iban,
+          trr: counterpartiesTable.trr,
+          bic: counterpartiesTable.eRacunBic,
+        }).from(counterpartiesTable).where(and(
+          eq(counterpartiesTable.companyId, companyId),
+          inArray(counterpartiesTable.id, [...new Set(supplied.filter(item => item.journalLineId).map(item => item.group.counterpartyId))]),
+        )) : [];
+        const recipientById = new Map(recipients.map(row => [row.id, row]));
+        const paymentGroups = new Map<string, {
+          proposed: ProposedGroup;
+          items: typeof supplied;
+          amountCents: number;
+          instruction: { iban: string; bic: string; reference: string | null; model: string | null; purpose: string | null; creditorName: string };
+        }>();
         for (const selection of supplied) {
-          const invoice = invoiceById.get(selection.invoiceId)!;
-          const beneficiaryIban = normalizeIban(invoice.destinationIban || invoice.counterpartyIban || invoice.counterpartyTrr?.[0]?.iban);
-          const beneficiaryBic = String(invoice.destinationBic || invoice.counterpartyBic
-            || invoice.counterpartyTrr?.find(item => normalizeIban(item.iban) === beneficiaryIban)?.bic || "").replace(/\s+/g, "").toUpperCase();
-          if (!isValidIban(beneficiaryIban)) throw Object.assign(new Error(`Račun ${invoice.invoiceNumber} nima veljavnega prejemnikovega IBAN-a`), { status: 400 });
-          const reference = invoice.paymentReference || invoice.invoiceNumber;
+          const invoice = selection.invoiceId ? invoiceById.get(selection.invoiceId)! : null;
+          const nativeItem = selection.journalLineId ? nativeItemsByLine.get(selection.journalLineId)! : null;
+          const recipient = invoice ? null : recipientById.get(selection.group.counterpartyId);
+          if (!invoice && (!recipient || (recipient.type !== "supplier" && recipient.type !== "both") || !recipient.isActive)) {
+            throw Object.assign(new Error("Prejemnik izbrane odprte postavke ni aktiven dobavitelj"), { status: 409 });
+          }
+          const recipientTrr = invoice?.counterpartyTrr ?? recipient?.trr;
+          const counterpartyIban = invoice?.counterpartyIban ?? recipient?.iban;
+          const counterpartyBic = invoice?.counterpartyBic ?? recipient?.bic;
+          const recipientName = invoice?.counterpartyName ?? recipient?.name ?? "";
+          const beneficiaryIban = normalizeIban(invoice?.destinationIban || counterpartyIban || recipientTrr?.[0]?.iban);
+          const beneficiaryBic = String(invoice?.destinationBic || counterpartyBic
+            || recipientTrr?.find((item: any) => normalizeIban(item.iban) === beneficiaryIban)?.bic || "").replace(/\s+/g, "").toUpperCase();
+          const reference = invoice ? (invoice.paymentReference || invoice.invoiceNumber) : (nativeItem?.reference || null);
+          const model = invoice?.paymentModel || null;
+          const purpose = invoice
+            ? (invoice.paymentPurpose || null)
+            : (nativeItem?.description ? nativeItem.description.slice(0, 140) : `Plačilo ${recipientName}`);
+          if (!isValidIban(beneficiaryIban)) throw Object.assign(new Error(`Postavka ${invoice?.invoiceNumber ?? nativeItem?.invoiceNumber} nima veljavnega prejemnikovega IBAN-a`), { status: 400 });
           const key = JSON.stringify([
             selection.group.counterpartyId, selection.group.arApAccountId, beneficiaryIban, beneficiaryBic,
-            invoice.paymentModel || null, reference, invoice.paymentPurpose || null,
+            model, reference, purpose,
           ]);
-          const group = paymentGroups.get(key) ?? { proposed: selection.group, items: [], amountCents: 0 };
+          const group = paymentGroups.get(key) ?? {
+            proposed: selection.group,
+            items: [],
+            amountCents: 0,
+            instruction: { iban: beneficiaryIban, bic: beneficiaryBic, reference, model, purpose, creditorName: recipientName },
+          };
           group.items.push(selection);
           group.amountCents += selection.cents;
           paymentGroups.set(key, group);
         }
         for (const group of paymentGroups.values()) {
-          const firstInvoice = invoiceById.get(group.items[0]!.invoiceId)!;
           const [payment] = await tx.insert(paymentsTable).values({
             companyId,
             counterpartyId: group.proposed.counterpartyId,
@@ -1602,16 +1948,23 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
             direction: "outbound",
             paymentDate: paymentDate!,
             amount: (group.amountCents / 100).toFixed(2),
-            reference: firstInvoice.paymentReference || firstInvoice.invoiceNumber,
+            reference: group.instruction.reference || `Plačilo ${group.instruction.creditorName}`,
             bankAccountId,
             arApAccountId: group.proposed.arApAccountId,
             status: "draft",
-            notes: firstInvoice.paymentPurpose,
+            notes: group.instruction.purpose,
             createdBy: authReq.clerkUserId,
           }).returning({ id: paymentsTable.id });
-          await tx.insert(paymentAllocationsTable).values(group.items.map(item => ({
+          const invoiceGroupItems = group.items.filter(item => item.invoiceId);
+          if (invoiceGroupItems.length) await tx.insert(paymentAllocationsTable).values(invoiceGroupItems.map(item => ({
             paymentId: payment.id,
-            invoiceId: item.invoiceId,
+            invoiceId: item.invoiceId!,
+            allocatedAmount: (item.cents / 100).toFixed(2),
+          })));
+          const nativeGroupItems = group.items.filter(item => item.journalLineId);
+          if (nativeGroupItems.length) await tx.insert(paymentLedgerAllocationsTable).values(nativeGroupItems.map(item => ({
+            paymentId: payment.id,
+            journalLineId: item.journalLineId!,
             allocatedAmount: (item.cents / 100).toFixed(2),
           })));
           effectivePaymentIds.push(payment.id);
@@ -1655,6 +2008,13 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
           .orderBy(asc(invoicesTable.id))
           .for("update");
       }
+      const sourceLedgerAllocations = await tx.select({
+        journalLineId: paymentLedgerAllocationsTable.journalLineId,
+      }).from(paymentLedgerAllocationsTable).where(inArray(paymentLedgerAllocationsTable.paymentId, effectivePaymentIds));
+      const nativeLineIdsForDrafts = [...new Set(sourceLedgerAllocations.map(row => row.journalLineId))].sort();
+      if (nativeLineIdsForDrafts.length) {
+        await lockNativeSourceLines(tx as unknown as typeof db, companyId, nativeLineIdsForDrafts);
+      }
       const requestedByInvoice = new Map<string, number>();
       let cents = 0;
       for (const payment of payments) {
@@ -1668,10 +2028,20 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
         }).from(paymentAllocationsTable).innerJoin(invoicesTable, and(
           eq(invoicesTable.id, paymentAllocationsTable.invoiceId), eq(invoicesTable.companyId, companyId),
         )).where(eq(paymentAllocationsTable.paymentId, payment.id));
-        if (!allocated.length) throw Object.assign(new Error(`Plačilo ${payment.id} nima dodeljenih računov`), { status: 400 });
-        const allocatedCents = allocated.reduce((sum, item) => sum + Math.round(Number(item.allocatedAmount) * 100), 0);
+        const ledgerAllocated = await tx.select({
+          id: paymentLedgerAllocationsTable.id,
+          journalLineId: paymentLedgerAllocationsTable.journalLineId,
+          allocatedAmount: paymentLedgerAllocationsTable.allocatedAmount,
+        }).from(paymentLedgerAllocationsTable)
+          .where(eq(paymentLedgerAllocationsTable.paymentId, payment.id))
+          .orderBy(asc(paymentLedgerAllocationsTable.journalLineId));
+        if (!allocated.length && !ledgerAllocated.length) {
+          throw Object.assign(new Error(`Plačilo ${payment.id} nima dodeljenih odprtih postavk`), { status: 400 });
+        }
+        const allocatedCents = allocated.reduce((sum, item) => sum + Math.round(Number(item.allocatedAmount) * 100), 0)
+          + ledgerAllocated.reduce((sum, item) => sum + Math.round(Number(item.allocatedAmount) * 100), 0);
         if (allocatedCents !== Math.round(Number(payment.amount) * 100)) {
-          throw Object.assign(new Error(`Znesek plačila ${payment.id} mora biti v celoti dodeljen računom pred izvozom`), { status: 409 });
+          throw Object.assign(new Error(`Znesek plačila ${payment.id} mora biti v celoti dodeljen odprtim postavkam pred izvozom`), { status: 409 });
         }
         if (new Set(allocated.map(row => row.invoiceId)).size !== allocated.length) {
           throw Object.assign(new Error("Osnutek vsebuje podvojeno dodelitev istega računa"), { status: 409 });
@@ -1684,16 +2054,38 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
           invoiceIds.add(item.invoiceId);
           requestedByInvoice.set(item.invoiceId, (requestedByInvoice.get(item.invoiceId) ?? 0) + Math.round(Number(item.allocatedAmount) * 100));
         }
-        const destIbans = [...new Set(allocated.map(row => normalizeIban(row.destinationIban || payment.counterpartyIban || payment.counterpartyTrr?.[0]?.iban)).filter(Boolean))];
-        if (destIbans.length !== 1 || !isValidIban(destIbans[0]!)) {
+        const nativeChecked = ledgerAllocated.length ? await validateNativeAllocations(tx as unknown as typeof db, {
+          companyId,
+          partnerId: payment.counterpartyId,
+          accountId: payment.arApAccountId,
+          paymentDirection: "outbound",
+          allocations: ledgerAllocated.map(item => ({
+            journalLineId: item.journalLineId,
+            allocatedAmount: Number(item.allocatedAmount),
+          })),
+          asOfDate: payment.paymentDate,
+          excludePaymentId: payment.id,
+        }) : [];
+        const nativeItemByLine = new Map(nativeChecked.map(({ item }) => [item.journalLineId!, item]));
+        const destIbans = allocated.map(row => normalizeIban(row.destinationIban || payment.counterpartyIban || payment.counterpartyTrr?.[0]?.iban)).filter(Boolean);
+        if (ledgerAllocated.length) destIbans.push(normalizeIban(payment.counterpartyIban || payment.counterpartyTrr?.[0]?.iban));
+        const uniqueDestIbans = [...new Set(destIbans.filter(Boolean))];
+        if (uniqueDestIbans.length !== 1 || !isValidIban(uniqueDestIbans[0]!)) {
           throw Object.assign(new Error(`Za plačilo ${payment.id} manjka veljaven enoličen ciljni IBAN`), { status: 400 });
         }
-        const instructionsForIban = allocated.filter(row => normalizeIban(row.destinationIban || payment.counterpartyIban || payment.counterpartyTrr?.[0]?.iban) === destIbans[0]);
-        const refs = [...new Set(instructionsForIban.map(item => item.paymentReference || item.invoiceNumber))];
+        const beneficiaryIban = uniqueDestIbans[0]!;
+        const instructionsForIban = allocated.filter(row => normalizeIban(row.destinationIban || payment.counterpartyIban || payment.counterpartyTrr?.[0]?.iban) === beneficiaryIban);
+        const refs = [...new Set([
+          ...instructionsForIban.map(item => item.paymentReference || item.invoiceNumber),
+          ...ledgerAllocated.map(item => nativeItemByLine.get(item.journalLineId)?.reference).filter((value): value is string => Boolean(value)),
+        ])];
         const models = [...new Set(instructionsForIban.map(item => item.paymentModel).filter(Boolean))];
-        const purposes = [...new Set(instructionsForIban.map(item => item.paymentPurpose).filter(Boolean))];
+        const purposes = [...new Set([
+          ...instructionsForIban.map(item => item.paymentPurpose).filter(Boolean),
+          ...ledgerAllocated.map(item => nativeItemByLine.get(item.journalLineId)?.description).filter(Boolean),
+        ])];
         const bicValues = [...new Set(instructionsForIban.map(item =>
-          String(item.destinationBic || payment.counterpartyBic || payment.counterpartyTrr?.find(entry => normalizeIban(entry.iban) === destIbans[0])?.bic || "")
+          String(item.destinationBic || payment.counterpartyBic || payment.counterpartyTrr?.find(entry => normalizeIban(entry.iban) === beneficiaryIban)?.bic || "")
             .replace(/\s+/g, "").toUpperCase(),
         ).filter(Boolean))];
         if (refs.length > 1 || models.length > 1 || purposes.length > 1 || bicValues.length > 1) {
@@ -1702,11 +2094,11 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
         const value = Number(payment.amount);
         if (!Number.isFinite(value) || value <= 0) throw Object.assign(new Error("Znesek plačila ni veljaven"), { status: 400 });
         cents += Math.round(value * 100);
-        const bic = instructionsForIban.find(item => normalizeIban(item.destinationIban) === destIbans[0])?.destinationBic
-          || payment.counterpartyBic || payment.counterpartyTrr?.find(item => normalizeIban(item.iban) === destIbans[0])?.bic;
+        const bic = instructionsForIban.find(item => normalizeIban(item.destinationIban) === beneficiaryIban)?.destinationBic
+          || payment.counterpartyBic || payment.counterpartyTrr?.find(item => normalizeIban(item.iban) === beneficiaryIban)?.bic;
         const instruction: SepaTransactionInstruction = {
           paymentId: payment.id, amount: value.toFixed(2), executionDate: payment.paymentDate,
-          creditorName: payment.counterpartyName, creditorIban: destIbans[0]!, creditorBic: bic,
+          creditorName: payment.counterpartyName, creditorIban: beneficiaryIban, creditorBic: bic,
           reference: refs[0] ?? null,
           model: models.length === 1 ? models[0] : null,
           purpose: purposes.join("; ") || payment.notes || payment.reference,
@@ -1905,304 +2297,6 @@ router.get("/companies/:companyId/payment-batches/:batchId/sepa.xml", requireAut
   }
 });
 
-// ─── GET /companies/:companyId/open-items ─────────────────────────────────────
-// Legacy AR evidence uses M/D/YYYY; validated AP snapshots use ISO dates. The
-// sourceAsOf value is snapshot provenance only, not the closing's effective date.
-function validOldRecordedDate(value: string): string | null {
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (iso) return validOldRecordedDate(`${iso[2]}/${iso[3]}/${iso[1]}`);
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
-  if (!match) return null;
-  const month = Number(match[1]); const day = Number(match[2]); const year = Number(match[3]);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) return null;
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-export async function invoiceClosingTotals(
-  companyId: string,
-  invoiceIds: string[],
-  asOfDate: string,
-  executor: typeof db = db,
-): Promise<Map<string, number>> {
-  if (invoiceIds.length === 0) return new Map();
-  const {
-    activeSettlementAmounts,
-  } = await import("../lib/partner-ledger-calculator");
-  const {
-    partnerSettlementEventsTable, bookieOldBankApClosingsTable, bankStatementLinesTable,
-    bankStatementsTable, bookieOldNativeLedgerEvidenceTable,
-  } = await import("@workspace/db");
-  type Evidence = import("../lib/partner-ledger-calculator").SettlementMovement;
-  const events: Evidence[] = [];
-  const invoiceById = new Map<string, { entryId: string | null; accountId: string; partnerId: string }>();
-  const invoiceRows = await executor.select({
-    id: invoicesTable.id, entryId: invoicesTable.linkedEntryId,
-    accountId: invoicesTable.arApAccountId, partnerId: invoicesTable.counterpartyId,
-    type: invoicesTable.type, sourceType: invoicesTable.sourceType,
-    historicalGross: invoicesTable.historicalGross, status: invoicesTable.status,
-  }).from(invoicesTable).where(and(eq(invoicesTable.companyId, companyId), inArray(invoicesTable.id, invoiceIds)));
-  for (const row of invoiceRows) invoiceById.set(row.id, { entryId: row.entryId, accountId: row.accountId, partnerId: row.partnerId });
-  const entryIds = [...new Set(invoiceRows.flatMap((row) => row.entryId ? [row.entryId] : []))];
-  const invoiceLine = new Map<string, string>();
-  const lineToInvoice = new Map<string, string>();
-  const invoiceNativeLineIds = new Map<string, string[]>();
-  const importedGlLines = new Map<string, { id: string; entryId: string; partnerId: string | null }>();
-  if (entryIds.length) {
-    const glRows = await executor.select({
-      id: journalEntryLinesTable.id, entryId: journalEntryLinesTable.entryId,
-      accountId: journalEntryLinesTable.accountId, partnerId: journalEntryLinesTable.partnerId,
-      description: journalEntryLinesTable.description,
-    }).from(journalEntryLinesTable).innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-      .where(and(eq(journalEntriesTable.companyId, companyId), inArray(journalEntryLinesTable.entryId, entryIds)));
-    for (const line of glRows) {
-      const sourceId = line.description?.match(/\[Bookie Old GLAVNA #(\d+)/)?.[1];
-      if (sourceId) importedGlLines.set(sourceId, line);
-    }
-    for (const invoice of invoiceRows) {
-      const lines = glRows.filter((row) => row.entryId === invoice.entryId && row.accountId === invoice.accountId && row.partnerId === invoice.partnerId);
-      const line = lines[0];
-      if (line) {
-        invoiceLine.set(invoice.id, line.id);
-        invoiceNativeLineIds.set(invoice.id, lines.map((item) => item.id));
-        for (const item of lines) lineToInvoice.set(item.id, invoice.id);
-      }
-    }
-  }
-  const allocations = await executor.select({
-    id: paymentAllocationsTable.id, invoiceId: paymentAllocationsTable.invoiceId, paymentId: paymentsTable.id,
-    allocatedAmount: paymentAllocationsTable.allocatedAmount, paymentDate: paymentsTable.paymentDate,
-  }).from(paymentAllocationsTable).innerJoin(paymentsTable, eq(paymentsTable.id, paymentAllocationsTable.paymentId))
-    .where(and(inArray(paymentAllocationsTable.invoiceId, invoiceIds), eq(paymentsTable.companyId, companyId),
-      eq(paymentsTable.status, "posted"), lte(paymentsTable.paymentDate, asOfDate)));
-  const allocationByInvoice = new Map<string, typeof allocations>();
-  for (const allocation of allocations) allocationByInvoice.set(allocation.invoiceId, [...(allocationByInvoice.get(allocation.invoiceId) ?? []), allocation]);
-  for (const allocation of allocations) {
-    events.push({ id: `payment-allocation:${allocation.id}`, sourceLineId: allocation.invoiceId, amount: allocation.allocatedAmount,
-      effectiveDate: allocation.paymentDate, eventType: "close" });
-  }
-  const arRows = await executor.select({ invoiceId: bookieOldArSettlementsTable.invoiceId, sourceLineId: bookieOldArSettlementsTable.sourceLineId, evidence: bookieOldArSettlementsTable.evidence })
-    .from(bookieOldArSettlementsTable).where(and(eq(bookieOldArSettlementsTable.companyId, companyId),
-      inArray(bookieOldArSettlementsTable.invoiceId, invoiceIds)));
-  const legacyArIds: string[] = [];
-  const legacySourceIds = new Set<string>();
-  for (const row of arRows) for (const closing of row.evidence ?? []) {
-    const date = validOldRecordedDate(closing.recordedDate);
-    if (!date || date > asOfDate || !(Number(closing.amount) > 0)) continue;
-    const duplicate = allocationByInvoice.get(row.invoiceId)?.some((allocation) =>
-      allocation.paymentDate === date && Number(allocation.allocatedAmount) === Number(closing.amount));
-    const id = `bookie-old-ar:${companyId}:${closing.closingId}`;
-    if (legacySourceIds.has(id)) continue;
-    legacySourceIds.add(id);
-    legacyArIds.push(id);
-    if (!duplicate) events.push({ id, sourceLineId: row.invoiceId, amount: closing.amount, effectiveDate: date, eventType: "close" });
-  }
-  const apRows = await executor.select({
-    invoiceId: bookieOldBankApClosingsTable.invoiceId, closingId: bookieOldBankApClosingsTable.closingId,
-    statementId: bookieOldBankApClosingsTable.statementId, sourceBankLineId: bookieOldBankApClosingsTable.sourceBankLineId,
-    amount: bookieOldBankApClosingsTable.amount, recordedDate: bookieOldBankApClosingsTable.recordedDate,
-  }).from(bookieOldBankApClosingsTable).where(and(eq(bookieOldBankApClosingsTable.companyId, companyId),
-    inArray(bookieOldBankApClosingsTable.invoiceId, invoiceIds), lte(bookieOldBankApClosingsTable.recordedDate, asOfDate)));
-  const sourceIds = [...new Set(apRows.map((row) => row.sourceBankLineId))];
-  const statementIds = [...new Set(apRows.map((row) => row.statementId))];
-  const bankLines = sourceIds.length ? await executor.select({
-    id: bankStatementLinesTable.id, statementId: bankStatementLinesTable.statementId,
-    transactionKey: bankStatementLinesTable.transactionKey,
-  }).from(bankStatementLinesTable).innerJoin(bankStatementsTable, eq(bankStatementsTable.id, bankStatementLinesTable.statementId))
-    .where(and(eq(bankStatementsTable.companyId, companyId), inArray(bankStatementLinesTable.statementId, statementIds),
-      inArray(bankStatementLinesTable.transactionKey, sourceIds))) : [];
-  const bankLineToSource = new Map(bankLines.map((row) => [`${row.statementId}:${row.transactionKey}`, row.id]));
-  const sourceBankIds = [...new Set(bankLines.map((row) => row.id))];
-  const linkedPaymentRows = sourceBankIds.length ? await executor.select({
-    id: paymentsTable.id, bankLineId: paymentsTable.bankStatementLineId,
-  }).from(paymentsTable).where(and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.status, "posted"),
-    inArray(paymentsTable.bankStatementLineId, sourceBankIds))) : [];
-  for (const row of apRows) {
-    const bankLineId = bankLineToSource.get(`${row.statementId}:${row.sourceBankLineId}`);
-    const paymentId = linkedPaymentRows.find((payment) => payment.bankLineId === bankLineId)?.id;
-    const duplicate = paymentId && allocationByInvoice.get(row.invoiceId)?.some((allocation) =>
-      allocation.paymentId === paymentId && Number(allocation.allocatedAmount) === Number(row.amount));
-    const id = `bookie-old-ap:${companyId}:${row.closingId}`;
-    if (legacySourceIds.has(id)) continue;
-    legacySourceIds.add(id);
-    if (!duplicate) events.push({ id, sourceLineId: row.invoiceId, amount: row.amount, effectiveDate: row.recordedDate, eventType: "close" });
-  }
-  // Supplier snapshots include old bank, cash and offsetting links. They are
-  // evidence of existing postings, not new payments. Reuse the bank-evidence
-  // identity so the overlapping 2026 statement links are counted only once.
-  const historicalAp = await executor.select({
-    invoiceId: bookieOldApSettlementsTable.invoiceId,
-    sourceLineId: bookieOldApSettlementsTable.sourceLineId,
-    evidence: bookieOldApSettlementsTable.evidence,
-  }).from(bookieOldApSettlementsTable).where(and(
-    eq(bookieOldApSettlementsTable.companyId, companyId),
-    inArray(bookieOldApSettlementsTable.invoiceId, invoiceIds),
-  ));
-  const coveredApInvoices = new Set(historicalAp.map(row => row.invoiceId));
-  const missingApEvidence = invoiceRows.filter(row =>
-    row.type === "received" && row.sourceType === "bookie-old" && Number(row.historicalGross) > 0
-    && (row.status === "posted" || row.status === "paid") && !coveredApInvoices.has(row.id));
-  if (missingApEvidence.length) {
-    throw Object.assign(new Error(
-      `Za ${missingApEvidence.length} zgodovinskih prejetih računov manjkajo preverjena dokazila zapiranj. Odprte obveznosti niso potrjene.`,
-    ), { status: 409, statusCode: 409 });
-  }
-  for (const row of historicalAp) {
-    const original = importedGlLines.get(row.sourceLineId);
-    const invoice = invoiceById.get(row.invoiceId);
-    if (original && original.entryId === invoice?.entryId && original.partnerId === invoice.partnerId) {
-      const previous = invoiceLine.get(row.invoiceId);
-      if (previous && previous !== original.id) lineToInvoice.delete(previous);
-      invoiceLine.set(row.invoiceId, original.id);
-      lineToInvoice.set(original.id, row.invoiceId);
-      invoiceNativeLineIds.set(row.invoiceId, [
-        ...new Set([...(invoiceNativeLineIds.get(row.invoiceId) ?? []), original.id]),
-      ]);
-    }
-    for (const closing of row.evidence ?? []) {
-      const date = validOldRecordedDate(closing.recordedDate);
-      const id = `bookie-old-ap:${companyId}:${closing.closingId}`;
-      if (!date || date > asOfDate || !(Number(closing.amount) > 0) || legacySourceIds.has(id)) continue;
-      legacySourceIds.add(id);
-      events.push({ id, sourceLineId: row.invoiceId, amount: closing.amount,
-        effectiveDate: date, eventType: "close" });
-    }
-  }
-  const nativeInvoiceLineIds = [...new Set([...invoiceNativeLineIds.values()].flat())];
-  if (nativeInvoiceLineIds.length) {
-    const nativeEvidenceRows = await executor.select({
-      nativeLineId: bookieOldNativeLedgerEvidenceTable.nativeLineId,
-      originalClosings: bookieOldNativeLedgerEvidenceTable.originalClosings,
-    }).from(bookieOldNativeLedgerEvidenceTable).where(and(
-      eq(bookieOldNativeLedgerEvidenceTable.companyId, companyId),
-      inArray(bookieOldNativeLedgerEvidenceTable.nativeLineId, nativeInvoiceLineIds),
-    ));
-    type NativeClosing = (typeof nativeEvidenceRows)[number]["originalClosings"][number];
-    type NativeClosingGroup = { closing: NativeClosing; invoiceIds: Set<string> };
-    const invoiceByNativeLine = new Map<string, string>();
-    for (const [invoiceId, nativeIds] of invoiceNativeLineIds) {
-      for (const nativeId of nativeIds) invoiceByNativeLine.set(nativeId, invoiceId);
-    }
-    const nativeClosings = new Map<string, NativeClosingGroup>();
-    for (const row of nativeEvidenceRows) {
-      const invoiceId = invoiceByNativeLine.get(row.nativeLineId);
-      if (!invoiceId) continue;
-      for (const closing of row.originalClosings ?? []) {
-        if (!(Number(closing.amount) > 0)) continue;
-        const prior = nativeClosings.get(closing.closingId);
-        if (prior) {
-          if (prior.closing.sourceLineId !== closing.sourceLineId ||
-              prior.closing.otherSourceLineId !== closing.otherSourceLineId ||
-              Number(prior.closing.amount) !== Number(closing.amount)) {
-            throw new Error(`Izvorni ZAPIRANJE ID ${closing.closingId} ima nasprotujoče invoice dokaze.`);
-          }
-          prior.invoiceIds.add(invoiceId);
-        } else nativeClosings.set(closing.closingId, { closing, invoiceIds: new Set([invoiceId]) });
-      }
-    }
-    const pairKey = (left: string, right: string, amount: string | number) =>
-      `${[left, right].sort().join(":")}:${Number(amount).toFixed(2)}`;
-    const coveredPairs = new Map<string, Set<string>>();
-    for (const row of arRows) {
-      for (const closing of row.evidence ?? []) {
-        const key = pairKey(row.sourceLineId, closing.otherLineId, closing.amount);
-        coveredPairs.set(key, new Set([...(coveredPairs.get(key) ?? []), row.invoiceId]));
-      }
-    }
-    for (const row of historicalAp) {
-      for (const closing of row.evidence ?? []) {
-        const key = pairKey(row.sourceLineId, closing.otherLineId, closing.amount);
-        coveredPairs.set(key, new Set([...(coveredPairs.get(key) ?? []), row.invoiceId]));
-      }
-    }
-    const groups = new Map<string, NativeClosingGroup[]>();
-    for (const item of nativeClosings.values()) {
-      const closing = item.closing;
-      const key = pairKey(closing.sourceLineId, closing.otherSourceLineId, closing.amount);
-      groups.set(key, [...(groups.get(key) ?? []), item]);
-    }
-    for (const [key, group] of groups) {
-      const remaining = new Set(group);
-      const ordered = [...group].sort((left, right) =>
-        left.closing.closingId.localeCompare(right.closing.closingId, undefined, { numeric: true }));
-      for (const item of ordered) {
-        if (!remaining.has(item)) continue;
-        remaining.delete(item);
-        const reciprocal = [...remaining].find((candidate) =>
-          candidate.closing.sourceLineId === item.closing.otherSourceLineId &&
-          candidate.closing.otherSourceLineId === item.closing.sourceLineId &&
-          Number(candidate.closing.amount) === Number(item.closing.amount));
-        if (reciprocal) remaining.delete(reciprocal);
-        const canonical = reciprocal && reciprocal.closing.closingId.localeCompare(
-          item.closing.closingId, undefined, { numeric: true },
-        ) < 0 ? reciprocal : item;
-        const dateA = validOldRecordedDate(item.closing.recordedDate);
-        const dateB = reciprocal ? validOldRecordedDate(reciprocal.closing.recordedDate) : null;
-        const recordedDate = dateA && dateB ? (dateA > dateB ? dateA : dateB) : dateA ?? dateB;
-        if (!recordedDate || recordedDate > asOfDate) continue;
-        const relatedInvoices = new Set([...item.invoiceIds, ...(reciprocal?.invoiceIds ?? [])]);
-        const covered = coveredPairs.get(key) ?? new Set<string>();
-        for (const invoiceId of relatedInvoices) {
-          if (covered.has(invoiceId)) continue;
-          const duplicateAllocation = allocationByInvoice.get(invoiceId)?.some((allocation) =>
-            allocation.paymentDate === recordedDate &&
-            Number(allocation.allocatedAmount) === Number(item.closing.amount));
-          if (duplicateAllocation) continue;
-          const id = `bookie-old-native:${companyId}:${canonical.closing.closingId}:invoice:${invoiceId}`;
-          if (legacySourceIds.has(id)) continue;
-          legacySourceIds.add(id);
-          events.push({
-            id, sourceLineId: invoiceId, amount: item.closing.amount,
-            effectiveDate: recordedDate, eventType: "close",
-          });
-        }
-      }
-    }
-  }
-  const relevantLines = [...invoiceLine.values()];
-  const manualRows = relevantLines.length ? await executor.select().from(partnerSettlementEventsTable).where(and(
-    eq(partnerSettlementEventsTable.companyId, companyId),
-    or(inArray(partnerSettlementEventsTable.sourceLineId, relevantLines), inArray(partnerSettlementEventsTable.targetLineId, relevantLines)),
-    lte(partnerSettlementEventsTable.effectiveDate, asOfDate),
-  )) : [];
-  for (const event of manualRows) {
-    const sourceInvoiceId = lineToInvoice.get(event.sourceLineId);
-    const targetInvoiceId = lineToInvoice.get(event.targetLineId ?? "");
-    const invoiceId = sourceInvoiceId ?? targetInvoiceId;
-    if (!invoiceId) continue;
-    events.push({ id: event.id,
-      sourceLineId: sourceInvoiceId ?? targetInvoiceId!, targetLineId: sourceInvoiceId && targetInvoiceId && sourceInvoiceId !== targetInvoiceId ? targetInvoiceId : null,
-      amount: event.amount, effectiveDate: event.effectiveDate,
-      eventType: event.eventType, closeEventId: event.closeEventId, externalClosingId: event.externalClosingId });
-  }
-  const manualAndExternalRefs = [...new Set([
-    ...legacyArIds,
-    ...events.flatMap((event) => [event.id, event.closeEventId, event.externalClosingId].filter((v): v is string => Boolean(v))),
-  ])];
-  const externalReopens = manualAndExternalRefs.length ? await executor.select().from(partnerSettlementEventsTable).where(and(
-    eq(partnerSettlementEventsTable.companyId, companyId), eq(partnerSettlementEventsTable.eventType, "reopen"),
-    inArray(partnerSettlementEventsTable.externalClosingId, manualAndExternalRefs),
-    lte(partnerSettlementEventsTable.effectiveDate, asOfDate),
-  )) : [];
-  for (const reopen of externalReopens) {
-    if (events.some((event) => event.id === reopen.id)) continue;
-    const invoiceId = lineToInvoice.get(reopen.sourceLineId);
-    if (!invoiceId) continue;
-    events.push({ id: reopen.id, sourceLineId: invoiceId, amount: reopen.amount, effectiveDate: reopen.effectiveDate,
-      eventType: "reopen", closeEventId: reopen.closeEventId, externalClosingId: reopen.externalClosingId });
-  }
-  const active = activeSettlementAmounts(events, asOfDate);
-  const totals = new Map<string, number>();
-  for (const [id, amount] of active) {
-    const source = events.find((event) => event.id === id);
-    if (source) {
-      totals.set(source.sourceLineId, (totals.get(source.sourceLineId) ?? 0) + Number(amount.toFixed(2)));
-      if (source.targetLineId) totals.set(source.targetLineId, (totals.get(source.targetLineId) ?? 0) + Number(amount.toFixed(2)));
-    }
-  }
-  return totals;
-}
-
 router.get(
   "/companies/:companyId/open-items",
   requireAuth,
@@ -2275,6 +2369,7 @@ router.get(
       return;
     }
     const sspOnlyRequested = sspOnly === "true";
+    const sspConstrained = sspOnlyRequested || requestedUnitId !== undefined;
     const sspIdentities = new Map<string, { unitId: number; dateToken: string }>();
     for (const invoice of invoices) {
       const identity = sspInvoiceIdentity(invoice.invoiceNumber);
@@ -2287,17 +2382,12 @@ router.get(
       .where(and(eq(enoteTable.companyId, companyId), inArray(enoteTable.id, sspUnitIds)));
     const units = new Map(unitRows.map((unit) => [unit.id, unit]));
     const eligibleInvoices = invoices.filter((invoice) => {
-      if (!sspOnlyRequested) return true;
+      if (!sspConstrained) return true;
       const identity = sspIdentities.get(invoice.id);
       if (!identity || !units.has(identity.unitId) || invoice.linkedEntryStatus !== "posted") return false;
       if (!hasMatchingPosSalesReference(invoice.linkedEntryReference, identity)) return false;
       return requestedUnitId === undefined || identity.unitId === requestedUnitId;
     });
-
-    if (eligibleInvoices.length === 0) {
-      res.json({ items: [], totalRemaining: "0.00" });
-      return;
-    }
 
     const invoiceIds = eligibleInvoices.map((i) => i.id);
 
@@ -2361,14 +2451,68 @@ router.get(
         remainingAmount: remaining.toFixed(2),
         daysOverdue,
         activePaymentBatchId: inv.activePaymentBatchId,
-        ...(sspOnlyRequested ? {
+        ...(sspConstrained ? {
           unitId: sspIdentities.get(inv.id)!.unitId,
           unitName: units.get(sspIdentities.get(inv.id)!.unitId)!.name,
         } : {}),
       });
     }
 
-    res.json({ items, totalRemaining: totalRemaining.toFixed(2) });
+    // A native GL row has no verified POS invoice/unit identity. For SSP or
+    // unit-constrained queries, keep the dedicated invoice identity path and
+    // do not broaden it by leaking unidentifiable native rows.
+    const unified = sspConstrained ? null : await loadUnifiedOpenItems(companyId, {
+      asOfDate: refDate,
+      counterpartyId,
+      type: type as "issued" | "received" | undefined,
+      invoiceDateFrom,
+      invoiceDateTo,
+    });
+    const compatibleItems = unified
+      ? unified.items.filter((item) => item.sourceKind === "invoice").map((item) => ({
+        ...item,
+        daysOverdue: Math.max(0, Math.floor(
+          (new Date(`${refDate}T00:00:00.000Z`).getTime()
+            - new Date(`${item.dueDate ?? item.invoiceDate}T00:00:00.000Z`).getTime()) / 86_400_000,
+        )),
+      }))
+      : items.map((item) => ({
+        ...item,
+        id: item.invoiceId,
+        sourceKind: "invoice" as const,
+        sourceId: item.invoiceId,
+        invoiceId: item.invoiceId,
+        side: item.invoiceType === "issued" ? "debit" as const : "credit" as const,
+        openDebit: item.invoiceType === "issued" ? item.remainingAmount : "0.00",
+        openCredit: item.invoiceType === "received" ? item.remainingAmount : "0.00",
+        paymentDirection: item.invoiceType === "issued" ? "inbound" as const : "outbound" as const,
+        reference: item.invoiceNumber,
+        description: item.invoiceNumber,
+        type: item.invoiceType,
+      }));
+    const nativeItems = (unified?.items ?? []).filter((item) => item.sourceKind === "ledger"
+      && (!counterpartyId || item.counterpartyId === counterpartyId)
+      && (!type || item.type === type)
+      && (!invoiceDateFrom || item.invoiceDate >= invoiceDateFrom)
+      && (!invoiceDateTo || item.invoiceDate <= invoiceDateTo))
+      .map((item) => ({
+        ...item,
+        daysOverdue: undefined,
+      }));
+    const allItems = [...compatibleItems, ...nativeItems];
+    const combinedTotal = unified
+      ? new Decimal(unified.totalRemaining)
+      : new Decimal(totalRemaining)
+        .plus(nativeItems.filter((item) => item.paymentDirection !== null)
+          .reduce((sum, item) => sum.plus(item.remainingAmount), new Decimal(0)));
+    const totalOpenDebit = allItems.reduce((sum, item) => sum.plus(item.openDebit), new Decimal(0)).toFixed(2);
+    const totalOpenCredit = allItems.reduce((sum, item) => sum.plus(item.openCredit), new Decimal(0)).toFixed(2);
+    res.json({
+      items: allItems,
+      totalRemaining: combinedTotal.toFixed(2),
+      totalOpenDebit,
+      totalOpenCredit,
+    });
   },
 );
 
@@ -2387,84 +2531,30 @@ router.get(
     const refDate = asOfDate ?? new Date().toISOString().slice(0, 10);
     const invoiceType = type ?? "issued";
 
-    const invoices = await db
-      .select({
-        id: invoicesTable.id,
-        invoiceDate: invoicesTable.invoiceDate,
-        dueDate: invoicesTable.dueDate,
-        counterpartyId: invoicesTable.counterpartyId,
-        counterpartyName: counterpartiesTable.name,
-        status: invoicesTable.status,
-        historicalGross: invoicesTable.historicalGross,
-      })
-      .from(invoicesTable)
-      .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, invoicesTable.counterpartyId))
-      .where(
-        and(
-          eq(invoicesTable.companyId, companyId),
-          eq(invoicesTable.type, invoiceType as any),
-          lte(invoicesTable.invoiceDate, refDate),
-          sql`${invoicesTable.status} IN ('posted', 'paid')`,
-        ),
-      );
-
-    if (invoices.length === 0) {
-      const empty = { counterpartyId: "", counterpartyName: "", current: "0.00", bucket1to30: "0.00", bucket31to60: "0.00", bucket61to90: "0.00", bucketOver90: "0.00", total: "0.00" };
-      res.json({ asOfDate: refDate, type: invoiceType, rows: [], totals: empty });
-      return;
-    }
-
-    const invoiceIds = invoices.map((i) => i.id);
-
-    // Bruto po računu
-    const grossRows = await db
-      .select({
-        invoiceId: invoiceLinesTable.invoiceId,
-        gross: sql<string>`COALESCE(SUM(COALESCE(${invoiceLinesTable.vatBase}::numeric + ${invoiceLinesTable.vatAmount}::numeric, (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100))), 0)`,
-      })
-      .from(invoiceLinesTable)
-      .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
-      .groupBy(invoiceLinesTable.invoiceId);
-    const grossMap = new Map(grossRows.map((r) => [r.invoiceId, parseFloat(r.gross ?? "0")]));
-    for (const invoice of invoices) {
-      if ((grossMap.get(invoice.id) ?? 0) === 0 && invoice.historicalGross !== null) {
-        grossMap.set(invoice.id, Number(invoice.historicalGross));
-      }
-    }
-
-    const closureTotals = await invoiceClosingTotals(companyId, invoiceIds, refDate);
-
-    // Grupiraj po partnerju
-    type Buckets = { current: number; b1: number; b31: number; b61: number; b90: number };
+    const unified = await loadUnifiedOpenItems(companyId, {
+      asOfDate: refDate,
+      type: invoiceType as "issued" | "received",
+    });
+    type Buckets = { current: number; b1: number; b31: number; b61: number; b90: number; undated: number };
     const byPartner = new Map<string, { name: string; buckets: Buckets }>();
-    const refMs = new Date(refDate).getTime();
-
-    for (const inv of invoices) {
-      const gross = grossMap.get(inv.id) ?? 0;
-      const remaining = gross - (closureTotals.get(inv.id) ?? 0);
-      if (remaining < 0.005) continue;
-
-      const dueDate = inv.dueDate ?? inv.invoiceDate;
-      const dueMs = new Date(dueDate).getTime();
-      const daysOverdue = Math.floor((refMs - dueMs) / 86400000);
-
-      const existing = byPartner.get(inv.counterpartyId) ?? {
-        name: inv.counterpartyName,
-        buckets: { current: 0, b1: 0, b31: 0, b61: 0, b90: 0 },
+    for (const item of unified.items) {
+      if (item.paymentDirection === null) continue;
+      const existing = byPartner.get(item.counterpartyId) ?? {
+        name: item.counterpartyName,
+        buckets: { current: 0, b1: 0, b31: 0, b61: 0, b90: 0, undated: 0 },
       };
-
-      if (daysOverdue <= 0) existing.buckets.current += remaining;
-      else if (daysOverdue <= 30) existing.buckets.b1 += remaining;
-      else if (daysOverdue <= 60) existing.buckets.b31 += remaining;
-      else if (daysOverdue <= 90) existing.buckets.b61 += remaining;
-      else existing.buckets.b90 += remaining;
-
-      byPartner.set(inv.counterpartyId, existing);
+      const bucket = openItemAgedBucket(item.dueDate, refDate);
+      const key = bucket === "bucket1to30" ? "b1"
+        : bucket === "bucket31to60" ? "b31"
+          : bucket === "bucket61to90" ? "b61"
+            : bucket === "bucketOver90" ? "b90" : bucket;
+      existing.buckets[key] += Number(item.remainingAmount);
+      byPartner.set(item.counterpartyId, existing);
     }
 
     const fmt = (n: number) => n.toFixed(2);
     const rows = [...byPartner.entries()].map(([cpId, data]) => {
-      const { current, b1, b31, b61, b90 } = data.buckets;
+      const { current, b1, b31, b61, b90, undated } = data.buckets;
       return {
         counterpartyId: cpId,
         counterpartyName: data.name,
@@ -2473,7 +2563,8 @@ router.get(
         bucket31to60: fmt(b31),
         bucket61to90: fmt(b61),
         bucketOver90: fmt(b90),
-        total: fmt(current + b1 + b31 + b61 + b90),
+        undated: fmt(undated),
+        total: fmt(current + b1 + b31 + b61 + b90 + undated),
       };
     });
 
@@ -2484,8 +2575,9 @@ router.get(
         b31: acc.b31 + parseFloat(r.bucket31to60),
         b61: acc.b61 + parseFloat(r.bucket61to90),
         b90: acc.b90 + parseFloat(r.bucketOver90),
+        undated: acc.undated + parseFloat(r.undated),
       }),
-      { current: 0, b1: 0, b31: 0, b61: 0, b90: 0 },
+      { current: 0, b1: 0, b31: 0, b61: 0, b90: 0, undated: 0 },
     );
 
     const totals = {
@@ -2496,7 +2588,8 @@ router.get(
       bucket31to60: fmt(totBuckets.b31),
       bucket61to90: fmt(totBuckets.b61),
       bucketOver90: fmt(totBuckets.b90),
-      total: fmt(totBuckets.current + totBuckets.b1 + totBuckets.b31 + totBuckets.b61 + totBuckets.b90),
+      undated: fmt(totBuckets.undated),
+      total: fmt(totBuckets.current + totBuckets.b1 + totBuckets.b31 + totBuckets.b61 + totBuckets.b90 + totBuckets.undated),
     };
 
     res.json({ asOfDate: refDate, type: invoiceType, rows, totals });

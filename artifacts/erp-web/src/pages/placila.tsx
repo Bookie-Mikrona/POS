@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useAuth } from "@clerk/react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -50,6 +50,20 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from "@/components/ui/checkbox";
 import { PaymentBatchesPanel } from "@/components/payment-batches-panel";
 import { BankAccountMetadataDialog } from "@/components/bank-account-metadata-dialog";
+import {
+  allocationIdentity,
+  buildPaymentAllocationPayload,
+  canBulkSelectForCutoff,
+  canPrepareSupplierPayment,
+  getOpenItemKey,
+  isLedgerOpenItem,
+  isSupplierPaymentDirectionEligible,
+  isPastCutoff,
+  openItemDocumentValue,
+  openItemSourceLabel,
+  groupPaymentBatchAllocations,
+  type MixedAllocation,
+} from "@/lib/openItems";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Osnutek",
@@ -402,7 +416,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
   const [cutoffDate, setCutoffDate] = useState(new Date().toISOString().split("T")[0]);
   const [cutoffTouched, setCutoffTouched] = useState(false);
   const [cutoffNotice, setCutoffNotice] = useState<string | null>(null);
-  const [allocations, setAllocations] = useState<{ id: string; invoiceId: string; allocatedAmount: string }[]>([]);
+  const [allocations, setAllocations] = useState<MixedAllocation[]>([]);
 
   React.useEffect(() => {
     if (!open || !sspPrefill) return;
@@ -446,39 +460,62 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
     i.type === invoiceTypeForPayment &&
     i.status === "posted"
   );
+  const inboundLedgerItems = formData.direction === "inbound"
+    ? (openItemsData?.items ?? []).filter(item =>
+      isLedgerOpenItem(item as any) && (item as any).paymentDirection === "inbound")
+    : [];
   const supplierOpenItems = (openItemsData?.items ?? [])
-    .filter(item => item.invoiceType === "received")
-    .sort((a, b) => (a.dueDate || a.invoiceDate).localeCompare(b.dueDate || b.invoiceDate));
+    .filter(item => isSupplierPaymentDirectionEligible(item as any))
+    .sort((a, b) => {
+      const aDue = a.dueDate || (isLedgerOpenItem(a as any) ? "" : a.invoiceDate);
+      const bDue = b.dueDate || (isLedgerOpenItem(b as any) ? "" : b.invoiceDate);
+      return aDue.localeCompare(bDue);
+    });
 
-  const itemDue = (item: { dueDate?: string | null; invoiceDate: string }) => item.dueDate || item.invoiceDate;
-  const beyondCutoff = (item: { dueDate?: string | null; invoiceDate: string }) => !!cutoffDate && itemDue(item) > cutoffDate;
+  const beyondCutoff = (item: typeof supplierOpenItems[number]) => isPastCutoff(item as any, cutoffDate);
+  const hasUnknownNativeMaturity = supplierOpenItems.some(item => isLedgerOpenItem(item as any) && !item.dueDate);
 
   React.useEffect(() => {
     if (formData.direction !== "outbound" || !cutoffDate) { return; }
     const removed = allocations.filter(a => {
-      const it = supplierOpenItems.find(i => i.invoiceId === a.invoiceId);
-      return it && itemDue(it) > cutoffDate;
+      const it = supplierOpenItems.find(i => {
+        const identity = allocationIdentity(i as any);
+        return identity?.invoiceId === a.invoiceId && identity?.journalLineId === a.journalLineId;
+      });
+      return it && beyondCutoff(it);
     });
     if (removed.length === 0) return;
-    const ids = new Set(removed.map(a => a.invoiceId));
-    setAllocations(cur => cur.filter(a => !ids.has(a.invoiceId)));
-    setCutoffNotice(`Zaradi meje zapadlosti ${new Date(cutoffDate).toLocaleDateString("sl-SI")} je bilo odstranjenih ${removed.length} izbranih računov, ki zapadejo pozneje.`);
+    const identities = new Set(removed.map(a => `${a.invoiceId ?? ""}:${a.journalLineId ?? ""}`));
+    setAllocations(cur => cur.filter(a => !identities.has(`${a.invoiceId ?? ""}:${a.journalLineId ?? ""}`)));
+    setCutoffNotice(`Zaradi meje zapadlosti ${new Date(cutoffDate).toLocaleDateString("sl-SI")} je bilo odstranjenih ${removed.length} izbranih postavk z znanim kasnejšim rokom.`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutoffDate, openItemsData]);
 
   const addAllocation = () => setAllocations([...allocations, { id: Math.random().toString(), invoiceId: "", allocatedAmount: "" }]);
   const removeAllocation = (id: string) => setAllocations(allocations.filter(a => a.id !== id));
   const updateAllocation = (id: string, field: string, val: string) => setAllocations(allocations.map(a => a.id === id ? { ...a, [field]: val } : a));
-  const toggleSupplierInvoice = (invoiceId: string, checked: boolean) => {
+  const selectAllocationDocument = (id: string, value: string) => {
+    const [kind, ...parts] = value.split(":");
+    const documentId = parts.join(":");
+    setAllocations(current => current.map(allocation => allocation.id !== id ? allocation : {
+      ...allocation,
+      invoiceId: kind === "invoice" ? documentId : undefined,
+      journalLineId: kind === "ledger" ? documentId : undefined,
+    }));
+  };
+  const toggleSupplierItem = (item: typeof supplierOpenItems[number], checked: boolean) => {
+    const identity = allocationIdentity(item as any);
+    if (!identity) return;
+    const itemKey = getOpenItemKey(item as any);
     if (!checked) {
-      setAllocations(current => current.filter(allocation => allocation.invoiceId !== invoiceId));
+      setAllocations(current => current.filter(allocation =>
+        allocation.invoiceId !== identity.invoiceId || allocation.journalLineId !== identity.journalLineId));
       return;
     }
-    const item = supplierOpenItems.find(openItem => openItem.invoiceId === invoiceId);
-    if (!item || item.activePaymentBatchId) return;
+    if (!canPrepareSupplierPayment(item as any)) return;
     setAllocations(current => [
       ...current,
-      { id: `invoice-${invoiceId}`, invoiceId, allocatedAmount: item.remainingAmount },
+      { id: `open-item-${itemKey}`, ...identity, allocatedAmount: item.remainingAmount },
     ]);
   };
 
@@ -530,12 +567,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
     batch?: { counterpartyId: string; arApAccountId: string; allocations: typeof allocations },
   ) => {
     const sourceAllocations = batch?.allocations ?? allocations;
-    const validAllocations = sourceAllocations
-      .filter(a => a.invoiceId && parseFloat(a.allocatedAmount) > 0)
-      .map(a => ({
-        invoiceId: a.invoiceId,
-        allocatedAmount: parseFloat(a.allocatedAmount)
-      }));
+    const { allocations: invoiceAllocations, ledgerAllocations } = buildPaymentAllocationPayload(sourceAllocations);
 
     return {
       companyId: activeCompany!.id,
@@ -545,13 +577,14 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
         periodId: formData.periodId,
         paymentDate: formData.paymentDate,
         amount: batch
-          ? validAllocations.reduce((sum, allocation) => sum + allocation.allocatedAmount, 0)
+          ? [...invoiceAllocations, ...ledgerAllocations].reduce((sum, allocation) => sum + allocation.allocatedAmount, 0)
           : parseFloat(formData.amount),
         reference: formData.reference || null,
         bankAccountId: formData.bankAccountId,
         arApAccountId: batch?.arApAccountId ?? formData.arApAccountId,
         notes: formData.notes || null,
-        allocations: validAllocations.length > 0 ? validAllocations : undefined,
+        allocations: invoiceAllocations.length > 0 ? invoiceAllocations : undefined,
+        ledgerAllocations: ledgerAllocations.length > 0 ? ledgerAllocations : undefined,
         ...(force ? { force: true } : {}),
       } as any,
     };
@@ -564,6 +597,16 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
       alert("Vsota poravnav ne sme presegati zneska plačila.");
       return;
     }
+    if (formData.direction === "outbound" && allocations.some(allocation =>
+      supplierOpenItems.some(item => {
+        const identity = allocationIdentity(item as any);
+        return item.activePaymentBatchId &&
+          identity?.invoiceId === allocation.invoiceId &&
+          identity?.journalLineId === allocation.journalLineId;
+      }))) {
+      alert("Ena ali več izbranih postavk je že rezerviranih v aktivnem plačilnem paketu. Odstranite jih iz izbora.");
+      return;
+    }
     if (exceedsBankBalance) {
       alert("Skupni znesek izbranih računov presega zadnje evidentirano stanje izbranega TRR.");
       return;
@@ -574,29 +617,8 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
     }
 
     if (formData.direction === "outbound") {
-      const groups = new Map<string, { counterpartyId: string; arApAccountId: string; allocations: typeof allocations }>();
-      for (const allocation of allocations) {
-        const item = supplierOpenItems.find(openItem => openItem.invoiceId === allocation.invoiceId);
-        if (!item) continue;
-        const key = `${item.counterpartyId}:${item.arApAccountId}`;
-        const group = groups.get(key) ?? {
-          counterpartyId: item.counterpartyId,
-          arApAccountId: item.arApAccountId,
-          allocations: [],
-        };
-        group.allocations.push(allocation);
-        groups.set(key, group);
-      }
       // One atomic request: server creates all supplier drafts and the batch, or nothing.
-      const proposedPayments = [...groups.values()]
-        .map(group => ({
-          counterpartyId: group.counterpartyId,
-          arApAccountId: group.arApAccountId,
-          allocations: group.allocations
-            .filter(a => a.invoiceId && parseFloat(a.allocatedAmount) > 0)
-            .map(a => ({ invoiceId: a.invoiceId, amount: parseFloat(a.allocatedAmount) })),
-        }))
-        .filter(g => g.allocations.length > 0);
+      const proposedPayments = groupPaymentBatchAllocations(allocations, supplierOpenItems as any[]);
       if (proposedPayments.length === 0) return;
       try {
         await batchMut.mutateAsync({
@@ -608,7 +630,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
             ...(cutoffDate ? { cutoffDate } : {}),
             proposedPayments,
             idempotencyKey: batchKeyRef.current,
-          },
+          } as any,
         });
         queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
         queryClient.invalidateQueries({ queryKey: getListPaymentBatchesQueryKey(activeCompany.id) });
@@ -659,7 +681,10 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tip plačila</Label>
-              <Select disabled={!!sspPrefill} value={formData.direction} onValueChange={(val: any) => setFormData(p => ({ ...p, direction: val, counterpartyId: "" }))}>
+              <Select disabled={!!sspPrefill} value={formData.direction} onValueChange={(val: any) => {
+                setAllocations([]);
+                setFormData(p => ({ ...p, direction: val, counterpartyId: "" }));
+              }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -777,11 +802,12 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-semibold">Odprti računi dobavitelja</h3>
-                <p className="text-xs text-muted-foreground mt-1">Razvrščeno kronološko po datumu zapadlosti. Znesek lahko zmanjšate za delno plačilo.</p>
+                <p className="text-xs text-muted-foreground mt-1">Razvrščeno po datumu zapadlosti. Znesek lahko zmanjšate za delno plačilo.</p>
+                {hasUnknownNativeMaturity && <p className="text-xs text-amber-700 mt-1">Postavke GK brez roka niso vključene pri izbiri vseh, ker njihove zapadlosti ni mogoče ugotoviti. Po preverjanju jih lahko izberete ročno; niso samodejno označene kot zapadle.</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
                   <Button type="button" variant="outline" size="sm" disabled={openItemsLoading || supplierOpenItems.length === 0}
-                    onClick={() => setAllocations(supplierOpenItems.filter(item => !beyondCutoff(item) && !item.activePaymentBatchId)
-                      .map(item => ({ id: `invoice-${item.invoiceId}`, invoiceId: item.invoiceId, allocatedAmount: item.remainingAmount })))}>
+                    onClick={() => setAllocations(supplierOpenItems.filter(item => canBulkSelectForCutoff(item as any, cutoffDate) && !item.activePaymentBatchId)
+                      .map(item => ({ id: `open-item-${getOpenItemKey(item as any)}`, ...allocationIdentity(item as any)!, allocatedAmount: item.remainingAmount })))}>
                     Izberi vse dovoljene postavke
                   </Button>
                   <Button type="button" variant="ghost" size="sm" disabled={allocations.length === 0} onClick={() => setAllocations([])}>Počisti izbor</Button>
@@ -794,29 +820,35 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
                 ) : supplierOpenItems.length === 0 ? (
                   <div className="p-6 text-center text-sm text-muted-foreground">Dobavitelj nima odprtih računov.</div>
                 ) : supplierOpenItems.map(item => {
-                  const allocation = allocations.find(current => current.invoiceId === item.invoiceId);
-                  const overdue = item.daysOverdue > 0;
+                  const itemIdentity = allocationIdentity(item as any);
+                  const allocation = allocations.find(current => current.invoiceId === itemIdentity?.invoiceId && current.journalLineId === itemIdentity?.journalLineId);
+                  const native = isLedgerOpenItem(item as any);
+                  const overdue = !!item.dueDate && item.daysOverdue > 0;
                   const future = beyondCutoff(item);
+                  const itemKey = getOpenItemKey(item as any);
+                  const label = openItemDocumentValue(item as any);
                   return (
-                    <div key={item.invoiceId} className="grid grid-cols-[auto_1fr_120px] gap-3 items-center border-b last:border-b-0 p-3">
-                      <Checkbox checked={!!allocation} disabled={!!item.activePaymentBatchId || (future && !allocation)} onCheckedChange={checked => toggleSupplierInvoice(item.invoiceId, checked === true)} />
+                    <div key={itemKey} className="grid grid-cols-[auto_1fr_120px] gap-3 items-center border-b last:border-b-0 p-3">
+                      <Checkbox checked={!!allocation} disabled={(!allocation && !!item.activePaymentBatchId) || (future && !allocation)} onCheckedChange={checked => toggleSupplierItem(item, checked === true)} />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium">{item.invoiceNumber}</span>
+                          <span className="font-medium">{label}</span>
+                          <Badge variant="outline">{openItemSourceLabel(item as any)}</Badge>
+                          {native && item.side && <Badge variant="secondary">{item.side === "debit" ? "Debet" : "Kredit"}</Badge>}
                           <Badge className={overdue ? "bg-red-600 hover:bg-red-600" : "bg-green-600 hover:bg-green-600"}>
-                            {overdue ? `Zapadlo ${item.daysOverdue} dni` : "Še ni zapadlo"}
+                            {native && !item.dueDate ? "Brez zapadlosti" : overdue ? `Zapadlo ${item.daysOverdue} dni` : "Še ni zapadlo"}
                           </Badge>
                           {future && <Badge variant="outline">Po meji zapadlosti</Badge>}
                           {item.activePaymentBatchId && <Badge variant="outline">V aktivnem plačilnem paketu</Badge>}
                         </div>
                         <div className="text-sm font-medium text-foreground/80 mt-1">{item.counterpartyName}</div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          Zapadlost: {item.dueDate ? new Date(`${item.dueDate}T00:00:00`).toLocaleDateString("sl-SI") : "ni določena"}
+                          Zapadlost: {item.dueDate ? new Date(`${item.dueDate}T00:00:00`).toLocaleDateString("sl-SI") : native ? "Brez zapadlosti" : "ni določena"}
                           {" · "}Odprto: {parseFloat(item.remainingAmount).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}
                         </div>
                       </div>
                       <Input
-                        aria-label={`Znesek plačila za račun ${item.invoiceNumber}`}
+                        aria-label={`Znesek plačila za ${native ? "postavko GK" : "račun"} ${label}`}
                         disabled={!allocation || !!item.activePaymentBatchId}
                         type="number"
                         min="0.01"
@@ -837,8 +869,9 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>{cutoffDate ? `Zapadle do ${new Date(cutoffDate).toLocaleDateString("sl-SI")}` : "Brez meje zapadlosti"}</span>
-                  <span>{supplierOpenItems.filter(i => !beyondCutoff(i)).reduce((t, i) => t + parseFloat(i.remainingAmount), 0).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}</span>
+                  <span>{supplierOpenItems.filter(i => canBulkSelectForCutoff(i as any, cutoffDate)).reduce((t, i) => t + parseFloat(i.remainingAmount), 0).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}</span>
                 </div>
+                {hasUnknownNativeMaturity && <div className="flex justify-between text-sm text-amber-700"><span>Brez znane zapadlosti</span><span>{supplierOpenItems.filter(i => isLedgerOpenItem(i as any) && !i.dueDate).reduce((t, i) => t + parseFloat(i.remainingAmount), 0).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}</span></div>}
                 {cutoffNotice && <p className="text-sm text-amber-700 mb-2">{cutoffNotice}</p>}
                 <div className="flex justify-between font-semibold">
                   <span>Skupaj odkljukano za plačilo</span>
@@ -865,18 +898,26 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
                 {allocations.map(alloc => (
                   <div key={alloc.id} className="p-3 flex items-start gap-3">
                     <div className="flex-1 space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Račun</Label>
-                      <Select value={alloc.invoiceId} onValueChange={val => updateAllocation(alloc.id, "invoiceId", val)}>
+                      <Label className="text-xs text-muted-foreground">Dokument</Label>
+                      <Select value={alloc.invoiceId ? `invoice:${alloc.invoiceId}` : alloc.journalLineId ? `ledger:${alloc.journalLineId}` : ""} onValueChange={val => selectAllocationDocument(alloc.id, val)}>
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Izberi račun..." />
+                          <SelectValue placeholder="Izberi dokument..." />
                         </SelectTrigger>
                         <SelectContent>
                           {availableInvoices.map(inv => (
-                            <SelectItem key={inv.id} value={inv.id}>
+                            <SelectItem key={`invoice:${inv.id}`} value={`invoice:${inv.id}`}>
                               {inv.invoiceNumber} (Skupaj: {parseFloat(inv.totalGross).toFixed(2)})
                             </SelectItem>
                           ))}
-                          {availableInvoices.length === 0 && <SelectItem value="none" disabled>Ni knjiženih računov</SelectItem>}
+                          {inboundLedgerItems.map(item => {
+                            const journalLineId = item.journalLineId;
+                            return journalLineId ? (
+                              <SelectItem key={`ledger:${journalLineId}`} value={`ledger:${journalLineId}`}>
+                                Postavka GK — {openItemDocumentValue(item as any)} ({item.accountCode ?? "konto"})
+                              </SelectItem>
+                            ) : null;
+                          })}
+                          {availableInvoices.length === 0 && inboundLedgerItems.length === 0 && <SelectItem value="none" disabled>Ni knjiženih dokumentov</SelectItem>}
                         </SelectContent>
                       </Select>
                     </div>
@@ -989,6 +1030,7 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
   );
 
   const allocations = fullPayment?.allocations ?? [];
+  const ledgerAllocations = (fullPayment as any)?.ledgerAllocations ?? [];
   const postMut = usePostPayment();
 
   const handlePost = () => {
@@ -1052,10 +1094,10 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Poravnave računa</h3>
+            <h3 className="text-sm font-semibold">Poravnave dokumentov</h3>
             {isLoading ? (
               <Skeleton className="h-24 w-full" />
-            ) : allocations.length === 0 ? (
+            ) : allocations.length === 0 && ledgerAllocations.length === 0 ? (
               <div className="text-sm text-muted-foreground p-4 border border-dashed rounded-md text-center">
                 Ni poravnav za to plačilo.
               </div>
@@ -1064,16 +1106,29 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Račun</TableHead>
-                      <TableHead>Datum računa</TableHead>
+                      <TableHead>Dokument</TableHead>
+                      <TableHead>Vir</TableHead>
+                      <TableHead>Datum dokumenta</TableHead>
                       <TableHead className="text-right">Poravnano</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {allocations.map(alloc => (
-                      <TableRow key={alloc.id}>
+                      <TableRow key={`invoice-${alloc.id}`}>
                         <TableCell className="font-medium">{alloc.invoiceNumber}</TableCell>
-                        <TableCell>{new Date(alloc.invoiceDate).toLocaleDateString("sl-SI")}</TableCell>
+                        <TableCell><Badge variant="outline">Račun</Badge></TableCell>
+                        <TableCell>{alloc.invoiceDate ? new Date(alloc.invoiceDate).toLocaleDateString("sl-SI") : "—"}</TableCell>
+                        <TableCell className="text-right font-medium">{parseFloat(alloc.allocatedAmount).toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {ledgerAllocations.map((alloc: any) => (
+                      <TableRow key={`ledger-${alloc.id}`}>
+                        <TableCell className="font-medium">
+                          {alloc.reference || alloc.description || `Postavka GK ${alloc.accountCode ? `(${alloc.accountCode})` : ""}`}
+                          {alloc.entryId && <Link className="ml-2 text-primary underline text-xs" href={`/temeljnice?id=${encodeURIComponent(alloc.entryId)}`}>Odpri temeljnico</Link>}
+                        </TableCell>
+                        <TableCell><Badge variant="outline">Postavka GK</Badge></TableCell>
+                        <TableCell>{alloc.documentDate ? new Date(alloc.documentDate).toLocaleDateString("sl-SI") : "—"}</TableCell>
                         <TableCell className="text-right font-medium">{parseFloat(alloc.allocatedAmount).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}

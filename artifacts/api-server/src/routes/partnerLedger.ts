@@ -14,6 +14,11 @@ import {
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { activeSettlementAmounts, calculatePartnerLedger, parseLegacyRecordedDate, type LedgerMovement, type SettlementMovement } from "../lib/partner-ledger-calculator";
 import { effectivePartnerLedgerRows, importedPartnerCode, isPartnerLedgerOpening } from "../lib/partner-ledger-provenance";
+import { nativeReservations } from "../lib/native-payment-allocations";
+import { lockPartnerOpenItemLines } from "../lib/partner-open-item-lock";
+import { loadCard } from "../lib/partner-ledger-loader";
+
+export { loadCard };
 
 const router: IRouter = Router();
 const isoDate = (value: string) => {
@@ -49,7 +54,11 @@ type RawLine = {
   sourceType: string; sequence: number; documentNumber: string | null; documentType: string;
 };
 
-export async function loadCard(companyId: string, params: Record<string, string | undefined>) {
+async function legacyLoadCard(
+  companyId: string,
+  params: Record<string, string | undefined>,
+  executor: Pick<typeof db, "select"> = db,
+) {
   const asOfDate = params.dateTo ?? new Date().toISOString().slice(0, 10);
   const dateFrom = params.dateFrom;
   if (!isoDate(asOfDate) || (dateFrom && !isoDate(dateFrom)) || (dateFrom && dateFrom > asOfDate)) {
@@ -64,7 +73,7 @@ export async function loadCard(companyId: string, params: Record<string, string 
     ...(params.partnerId ? [eq(journalEntryLinesTable.partnerId, params.partnerId)] : []),
     ...(params.accountId ? [eq(journalEntryLinesTable.accountId, params.accountId)] : []),
   ];
-  const rows = await db.select({
+  const rows = await executor.select({
     id: journalEntryLinesTable.id, partnerId: journalEntryLinesTable.partnerId,
     partnerName: counterpartiesTable.name, partnerCity: counterpartiesTable.city,
     accountId: journalEntryLinesTable.accountId, accountCode: accountsTable.code, accountName: accountsTable.name,
@@ -88,7 +97,7 @@ export async function loadCard(companyId: string, params: Record<string, string 
     documentNumber: row.reference,
     documentType: row.reference?.match(/^BOOKIE-OLD\/K2\/\d{4}\/([^/]+)\//)?.[1] ?? row.sourceType,
   }])).values()]);
-  const nativeSourceRows = params.mode !== "drafts" ? await db.select({
+  const nativeSourceRows = params.mode !== "drafts" ? await executor.select({
     id: journalEntryLinesTable.id, partnerId: journalEntryLinesTable.partnerId,
     accountId: journalEntryLinesTable.accountId, side: journalEntryLinesTable.side,
     amount: journalEntryLinesTable.amount,
@@ -109,12 +118,12 @@ export async function loadCard(companyId: string, params: Record<string, string 
   }
   const ids = lines.map((line) => line.id);
   const nativeEvidenceRows = ids.length && params.mode !== "drafts"
-    ? await db.select().from(bookieOldNativeLedgerEvidenceTable).where(and(
+    ? await executor.select().from(bookieOldNativeLedgerEvidenceTable).where(and(
       eq(bookieOldNativeLedgerEvidenceTable.companyId, companyId),
       inArray(bookieOldNativeLedgerEvidenceTable.nativeLineId, ids),
     )) : [];
   const nativeEvidenceByLine = new Map(nativeEvidenceRows.map((row) => [row.nativeLineId, row]));
-  const manualRows = ids.length && params.mode !== "drafts" ? await db.select().from(partnerSettlementEventsTable).where(and(
+  const manualRows = ids.length && params.mode !== "drafts" ? await executor.select().from(partnerSettlementEventsTable).where(and(
     eq(partnerSettlementEventsTable.companyId, companyId),
     or(inArray(partnerSettlementEventsTable.sourceLineId, ids), inArray(partnerSettlementEventsTable.targetLineId, ids)),
     lte(partnerSettlementEventsTable.effectiveDate, asOfDate),
@@ -135,7 +144,7 @@ export async function loadCard(companyId: string, params: Record<string, string 
   };
 
   const linkedInvoiceEntries = [...new Set(lines.map(line => line.entryId))];
-  const invoiceRefs = linkedInvoiceEntries.length ? await db.select({
+  const invoiceRefs = linkedInvoiceEntries.length ? await executor.select({
     id: invoicesTable.id, linkedEntryId: invoicesTable.linkedEntryId,
     invoiceAccountId: invoicesTable.arApAccountId, invoicePartnerId: invoicesTable.counterpartyId,
     dueDate: invoicesTable.dueDate, invoiceNumber: invoicesTable.invoiceNumber, type: invoicesTable.type,
@@ -163,7 +172,7 @@ export async function loadCard(companyId: string, params: Record<string, string 
     }
     const invoiceIds = [...invoiceLine.keys()];
     if (invoiceIds.length) {
-      const allocations = await db.select({
+      const allocations = await executor.select({
         id: paymentAllocationsTable.id,
         invoiceId: paymentAllocationsTable.invoiceId,
         paymentEntryId: paymentsTable.linkedEntryId,
@@ -189,18 +198,18 @@ export async function loadCard(companyId: string, params: Record<string, string 
         if (paymentLine) recordEvidence(paymentLine.id, { id: closingId, source: "posted_payment_allocation", oppositeLineId: invoiceLineId,
           amount: new Decimal(amount).toFixed(2), effectiveDate: allocation.paymentDate });
       }
-      const arEvidence = await db.select({
+      const arEvidence = await executor.select({
         invoiceId: bookieOldArSettlementsTable.invoiceId, sourceLineId: bookieOldArSettlementsTable.sourceLineId,
         evidence: bookieOldArSettlementsTable.evidence,
       })
         .from(bookieOldArSettlementsTable).where(and(eq(bookieOldArSettlementsTable.companyId, companyId), inArray(bookieOldArSettlementsTable.invoiceId, invoiceIds)));
       const otherArLineIds = [...new Set(arEvidence.flatMap((row) => (row.evidence ?? []).map((item) => item.otherLineId)))];
-      const oppositeArRefs = otherArLineIds.length ? await db.select({
+      const oppositeArRefs = otherArLineIds.length ? await executor.select({
         sourceLineId: bookieOldArSettlementsTable.sourceLineId, invoiceId: bookieOldArSettlementsTable.invoiceId,
       }).from(bookieOldArSettlementsTable).where(and(eq(bookieOldArSettlementsTable.companyId, companyId),
         inArray(bookieOldArSettlementsTable.sourceLineId, otherArLineIds))) : [];
       const oppositeInvoiceIds = [...new Set(oppositeArRefs.map((row) => row.invoiceId))];
-      const oppositeInvoices = oppositeInvoiceIds.length ? await db.select({
+      const oppositeInvoices = oppositeInvoiceIds.length ? await executor.select({
         id: invoicesTable.id, linkedEntryId: invoicesTable.linkedEntryId,
         invoiceAccountId: invoicesTable.arApAccountId, invoicePartnerId: invoicesTable.counterpartyId,
       }).from(invoicesTable).where(and(eq(invoicesTable.companyId, companyId), inArray(invoicesTable.id, oppositeInvoiceIds))) : [];
@@ -255,7 +264,7 @@ export async function loadCard(companyId: string, params: Record<string, string 
           }
         }
       }
-      const apEvidence = await db.select({
+      const apEvidence = await executor.select({
         invoiceId: bookieOldBankApClosingsTable.invoiceId,
         closingId: bookieOldBankApClosingsTable.closingId,
         statementId: bookieOldBankApClosingsTable.statementId,
@@ -266,13 +275,13 @@ export async function loadCard(companyId: string, params: Record<string, string 
         inArray(bookieOldBankApClosingsTable.invoiceId, invoiceIds), lte(bookieOldBankApClosingsTable.recordedDate, asOfDate)));
       const bankLineIds = [...new Set(apEvidence.map((row) => row.sourceBankLineId))];
       const statementIds = [...new Set(apEvidence.map((row) => row.statementId))];
-      const sourceBankLines = bankLineIds.length ? await db.select({
+      const sourceBankLines = bankLineIds.length ? await executor.select({
         id: bankStatementLinesTable.id, statementId: bankStatementLinesTable.statementId,
         transactionKey: bankStatementLinesTable.transactionKey,
       }).from(bankStatementLinesTable).innerJoin(bankStatementsTable, eq(bankStatementsTable.id, bankStatementLinesTable.statementId))
         .where(and(eq(bankStatementsTable.companyId, companyId), inArray(bankStatementLinesTable.statementId, statementIds),
           inArray(bankStatementLinesTable.transactionKey, bankLineIds))) : [];
-      const linkedPayments = sourceBankLines.length ? await db.select({
+      const linkedPayments = sourceBankLines.length ? await executor.select({
         bankStatementLineId: paymentsTable.bankStatementLineId, linkedEntryId: paymentsTable.linkedEntryId,
       }).from(paymentsTable).where(and(eq(paymentsTable.companyId, companyId),
         eq(paymentsTable.status, "posted"), inArray(paymentsTable.bankStatementLineId, sourceBankLines.map((row) => row.id)))) : [];
@@ -311,7 +320,7 @@ export async function loadCard(companyId: string, params: Record<string, string 
   // Resolve imported supplier evidence by its original GLAVNA identity, not
   // the invoice's default AP account or the first line of a cash-paid voucher.
   if (params.mode !== "drafts" && invoiceRefs.length && lines.length) {
-    const historicalAp = await db.select().from(bookieOldApSettlementsTable).where(and(
+    const historicalAp = await executor.select().from(bookieOldApSettlementsTable).where(and(
       eq(bookieOldApSettlementsTable.companyId, companyId),
       inArray(bookieOldApSettlementsTable.invoiceId, invoiceRefs.map(invoice => invoice.id)),
     ));
@@ -518,7 +527,7 @@ export async function loadCard(companyId: string, params: Record<string, string 
     const account = lines.find((line) => line.accountId === accountId)!;
     return { accountId, accountCode: account.accountCode, accountName: account.accountName, balance: new Decimal(balance).toFixed(2) };
   });
-  const [company] = await db.select({ companyName: companiesTable.naziv }).from(companiesTable)
+  const [company] = await executor.select({ companyName: companiesTable.naziv }).from(companiesTable)
     .where(eq(companiesTable.id, companyId)).limit(1);
   return { companyName: company?.companyName ?? companyId, asOfDate, dateFrom: dateFrom ?? null, mode: params.mode ?? "posted",
     closingBalance: calculated.reduce((balance, movement) => balance.plus(movement.debit).minus(movement.credit),
@@ -747,20 +756,13 @@ router.post("/companies/:companyId/partner-settlements", requireAuth, async (req
       }
       const ids = [...new Set(allocations.flatMap((a: any) => [a.sourceLineId, a.targetLineId]))].sort();
       if (ids.some((id: string) => !uuidPattern.test(id))) throw new Error("Postavka ni veljaven UUID.");
-      const locked = await tx.execute(sql`
-        SELECT l.id, l.partner_id, l.account_id, l.side, l.amount, e.company_id, e.status
-        FROM journal_entry_lines l JOIN journal_entries e ON e.id=l.entry_id
-        WHERE ${inArray(sql`l.id`, ids)} AND e.company_id=${companyId}
-        ORDER BY l.id
-        FOR UPDATE
-      `);
-      const records = (locked as any).rows as Array<{ id: string; partner_id: string; account_id: string; side: string; amount: string; company_id: string; status: string }>;
+      const records = await lockPartnerOpenItemLines(tx, companyId, ids);
       if (records.length !== ids.length || records.some((r) => !["posted", "reversed"].includes(r.status))) throw new Error("Postavke morajo obstajati v podjetju in biti knjižene.");
       const byId = new Map(records.map((r) => [r.id, r]));
       for (const a of allocations) {
         const amount = new Decimal(a.amount);
         const source = byId.get(a.sourceLineId); const target = byId.get(a.targetLineId);
-        if (!source || !target || source.id === target.id || source.partner_id !== target.partner_id ||
+        if (!source || !target || !source.partner_id || !target.partner_id || source.id === target.id || source.partner_id !== target.partner_id ||
             source.account_id !== target.account_id || source.side === target.side || !amount.isFinite() || amount.lte(0)) {
           throw new Error("Zapiranje mora povezati različno usmerjeni knjižbi istega partnerja in konta s pozitivnim zneskom.");
         }
@@ -769,6 +771,7 @@ router.post("/companies/:companyId/partner-settlements", requireAuth, async (req
         eq(partnerSettlementEventsTable.companyId, companyId),
         or(inArray(partnerSettlementEventsTable.sourceLineId, ids), inArray(partnerSettlementEventsTable.targetLineId, ids)),
       ));
+      const nativeReservationByLine = await nativeReservations(tx as unknown as typeof db, companyId, ids);
       const candidates: SettlementMovement[] = allocations.map((allocation, index) => ({
         id: `candidate:${idempotencyKey}:${index}`, sourceLineId: allocation.sourceLineId,
         targetLineId: allocation.targetLineId, amount: allocation.amount, effectiveDate, eventType: "close",
@@ -792,12 +795,18 @@ router.post("/companies/:companyId/partner-settlements", requireAuth, async (req
             return close && (close.sourceLineId === lineId || close.targetLineId === lineId) ? sum.plus(remaining) : sum;
           }, new Decimal(0));
           if (used.gt(absoluteCapacity)) throw new Error(`Znesek presega ostanek postavke ${line.id} na datum ${date}.`);
+           const reserved = nativeReservationByLine.get(lineId) ?? new Decimal(0);
+           if (reserved.gt(absoluteCapacity.minus(used).plus("0.005"))) {
+             throw new Error(`Ročno zapiranje bi porabilo znesek, rezerviran v osnutku plačila za postavko ${line.id}.`);
+           }
         }
       }
       const result = [];
       for (const [index, a] of allocations.entries()) {
+        const source = byId.get(a.sourceLineId)!;
+        if (!source.partner_id) throw new Error("Knjižbena postavka mora imeti partnerja.");
         const [event] = await tx.insert(partnerSettlementEventsTable).values({
-          companyId, partnerId: byId.get(a.sourceLineId)!.partner_id, accountId: byId.get(a.sourceLineId)!.account_id,
+          companyId, partnerId: source.partner_id, accountId: source.account_id,
           sourceLineId: a.sourceLineId, targetLineId: a.targetLineId, eventType: "close",
           amount: new Decimal(a.amount).toFixed(2), effectiveDate, idempotencyKey: `${idempotencyKey}:${index}`,
           reason: reason ?? null, actorId: auth.clerkUserId,
@@ -850,12 +859,10 @@ router.post("/companies/:companyId/partner-settlements/:id/reopen", requireAuth,
           return [replay];
         }
         const lockIds = targetId ? [found.lineId, targetId] : [found.lineId];
-        await tx.execute(sql`
-          SELECT l.id FROM journal_entry_lines l
-          JOIN journal_entries e ON e.id=l.entry_id
-          WHERE e.company_id=${companyId} AND ${inArray(sql`l.id`, lockIds)}
-          ORDER BY l.id FOR UPDATE
-        `);
+        const locked = await lockPartnerOpenItemLines(tx, companyId, lockIds);
+        if (locked.length !== lockIds.length || locked.some((line) => !["posted", "reversed"].includes(line.status))) {
+          throw new Error("Postavke zapiranja niso na voljo.");
+        }
         const previous = await tx.select().from(partnerSettlementEventsTable).where(and(
           eq(partnerSettlementEventsTable.companyId, companyId),
           eq(partnerSettlementEventsTable.externalClosingId, closeId),
@@ -904,10 +911,9 @@ router.post("/companies/:companyId/partner-settlements/:id/reopen", requireAuth,
       )).for("update").limit(1);
       if (!closing) throw new Error("Zapiranje ni najdeno.");
       if (effectiveDate < closing.effectiveDate) throw new Error("Zapiranja ni mogoče odpreti pred njegovim datumom učinka.");
-      const [locked] = await tx.select({ id: journalEntryLinesTable.id }).from(journalEntryLinesTable)
-        .where(inArray(journalEntryLinesTable.id,
-          [closing.sourceLineId, closing.targetLineId].filter((id): id is string => id !== null))).for("update");
-      if (!locked) throw new Error("Postavke zapiranja niso na voljo.");
+      const locked = await lockPartnerOpenItemLines(tx, companyId,
+        [closing.sourceLineId, closing.targetLineId].filter((id): id is string => id !== null));
+      if (locked.length !== (closing.targetLineId ? 2 : 1)) throw new Error("Postavke zapiranja niso na voljo.");
       const reopenRows = await tx.select().from(partnerSettlementEventsTable).where(and(
         eq(partnerSettlementEventsTable.companyId, companyId), eq(partnerSettlementEventsTable.closeEventId, closeId),
       ));

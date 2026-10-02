@@ -12966,6 +12966,9 @@ export const createPaymentBodyReferenceMax = 50;
 
 export const createPaymentBodyAllocationsItemAllocatedAmountMin = 0.01;
 
+export const createPaymentBodyLedgerAllocationsItemAllocatedAmountExclusiveMin = 0;
+export const createPaymentBodyLedgerAllocationsItemAllocatedAmountMultipleOf = 0.01;
+
 
 
 export const CreatePaymentBody = zod.object({
@@ -12981,7 +12984,11 @@ export const CreatePaymentBody = zod.object({
   "allocations": zod.array(zod.object({
   "invoiceId": zod.string(),
   "allocatedAmount": zod.number().min(createPaymentBodyAllocationsItemAllocatedAmountMin)
-})).optional().describe('Optional allocations; can also be added after creation')
+})).optional().describe('Optional allocations; can also be added after creation'),
+  "ledgerAllocations": zod.array(zod.object({
+  "journalLineId": zod.string(),
+  "allocatedAmount": zod.number().gt(createPaymentBodyLedgerAllocationsItemAllocatedAmountExclusiveMin).multipleOf(createPaymentBodyLedgerAllocationsItemAllocatedAmountMultipleOf)
+})).optional().describe('Optional allocations to posted GL-only partner items, alongside invoice allocations.')
 })
 
 export const CreatePaymentResponse = zod.object({
@@ -13015,7 +13022,18 @@ export const CreatePaymentResponse = zod.object({
   "invoiceNumber": zod.string(),
   "invoiceDate": zod.coerce.date(),
   "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
-}))
+})),
+  "ledgerAllocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "journalLineId": zod.string(),
+  "allocatedAmount": zod.string(),
+  "entryId": zod.string().optional(),
+  "reference": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "documentDate": zod.coerce.date().nullish(),
+  "accountCode": zod.string().optional()
+})).optional().describe('Allocations to real partner GL lines; never substitute invoice records.')
 }))
 
 
@@ -13058,7 +13076,18 @@ export const GetPaymentResponse = zod.object({
   "invoiceNumber": zod.string(),
   "invoiceDate": zod.coerce.date(),
   "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
-}))
+})),
+  "ledgerAllocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "journalLineId": zod.string(),
+  "allocatedAmount": zod.string(),
+  "entryId": zod.string().optional(),
+  "reference": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "documentDate": zod.coerce.date().nullish(),
+  "accountCode": zod.string().optional()
+})).optional().describe('Allocations to real partner GL lines; never substitute invoice records.')
 }))
 
 
@@ -13101,7 +13130,18 @@ export const PostPaymentResponse = zod.object({
   "invoiceNumber": zod.string(),
   "invoiceDate": zod.coerce.date(),
   "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
-}))
+})),
+  "ledgerAllocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "journalLineId": zod.string(),
+  "allocatedAmount": zod.string(),
+  "entryId": zod.string().optional(),
+  "reference": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "documentDate": zod.coerce.date().nullish(),
+  "accountCode": zod.string().optional()
+})).optional().describe('Allocations to real partner GL lines; never substitute invoice records.')
 }))
 
 
@@ -13149,7 +13189,18 @@ export const VoidPaymentResponse = zod.object({
   "invoiceNumber": zod.string(),
   "invoiceDate": zod.coerce.date(),
   "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
-}))
+})),
+  "ledgerAllocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "journalLineId": zod.string(),
+  "allocatedAmount": zod.string(),
+  "entryId": zod.string().optional(),
+  "reference": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "documentDate": zod.coerce.date().nullish(),
+  "accountCode": zod.string().optional()
+})).optional().describe('Allocations to real partner GL lines; never substitute invoice records.')
 }))
 
 
@@ -13215,9 +13266,10 @@ export const CreatePaymentBatchBody = zod.object({
   "counterpartyId": zod.string(),
   "arApAccountId": zod.string(),
   "allocations": zod.array(zod.object({
-  "invoiceId": zod.string(),
+  "invoiceId": zod.string().optional(),
+  "journalLineId": zod.string().optional(),
   "amount": zod.number().gt(createPaymentBatchBodyProposedPaymentsItemAllocationsItemAmountExclusiveMin).multipleOf(createPaymentBatchBodyProposedPaymentsItemAllocationsItemAmountMultipleOf)
-})).min(1)
+}).describe('Exactly one of invoiceId or journalLineId is required; the server validates the target atomically.')).min(1)
 })).min(1).max(createPaymentBatchBodyProposedPaymentsMax).optional().describe('Direct supplier\/AP-account groups. The server splits groups further when creditor instructions are incompatible.'),
   "idempotencyKey": zod.string().min(1).max(createPaymentBatchBodyIdempotencyKeyMax)
 }).describe('Supply either saved paymentIds or periodId, paymentDate and proposedPayments. The server validates these mutually exclusive modes atomically.')
@@ -13265,7 +13317,18 @@ export const CreatePaymentBatchResponse = zod.object({
   "invoiceNumber": zod.string(),
   "invoiceDate": zod.coerce.date(),
   "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
-}))
+})),
+  "ledgerAllocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "journalLineId": zod.string(),
+  "allocatedAmount": zod.string(),
+  "entryId": zod.string().optional(),
+  "reference": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "documentDate": zod.coerce.date().nullish(),
+  "accountCode": zod.string().optional()
+})).optional().describe('Allocations to real partner GL lines; never substitute invoice records.')
 }))),
   "replayed": zod.boolean().optional()
 })
@@ -13925,8 +13988,18 @@ export const GetOpenItemsQueryParams = zod.object({
 
 export const GetOpenItemsResponse = zod.object({
   "items": zod.array(zod.object({
-  "activePaymentBatchId": zod.string().nullish().describe('Active batch reserving this invoice; prevent selecting it again.'),
-  "invoiceId": zod.string(),
+  "id": zod.string().optional().describe('Stable item identity; invoice ID or ledger-prefixed journal-line ID.'),
+  "sourceKind": zod.enum(['invoice', 'ledger']).optional(),
+  "sourceId": zod.string().optional(),
+  "journalLineId": zod.string().optional(),
+  "entryId": zod.string().optional(),
+  "side": zod.enum(['debit', 'credit']).optional(),
+  "paymentDirection": zod.union([zod.literal('inbound'),zod.literal('outbound'),zod.literal(null)]).nullish().describe('Null for a GL item not eligible for ordinary receipt\/supplier payment.'),
+  "reference": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "accountCode": zod.string().optional(),
+  "activePaymentBatchId": zod.string().nullish().describe('Active batch reserving this invoice or GL item; prevent selecting it again.'),
+  "invoiceId": zod.string().nullable().describe('Null for native GL-only items; no invoice is fabricated.'),
   "invoiceNumber": zod.string(),
   "invoiceDate": zod.coerce.date(),
   "dueDate": zod.coerce.date().nullish(),
@@ -13937,11 +14010,15 @@ export const GetOpenItemsResponse = zod.object({
   "totalGross": zod.string(),
   "allocatedAmount": zod.string(),
   "remainingAmount": zod.string(),
+  "openDebit": zod.string().optional().describe('Open amount on the debit side; not netted against credit items.'),
+  "openCredit": zod.string().optional().describe('Open amount on the credit side; not netted against debit items.'),
   "daysOverdue": zod.number().describe('Days past due date (0 if not yet due)'),
   "unitId": zod.number().optional().describe('POS enota; prisotno pri poizvedbi sspOnly=true.'),
   "unitName": zod.string().optional().describe('Naziv POS enote; prisotno pri poizvedbi sspOnly=true.')
 })),
-  "totalRemaining": zod.string()
+  "totalRemaining": zod.string(),
+  "totalOpenDebit": zod.string().optional().describe('Total open debit of the selected items.'),
+  "totalOpenCredit": zod.string().optional().describe('Total open credit of the selected items.')
 })
 
 
@@ -13965,6 +14042,7 @@ export const GetAgedAnalysisResponse = zod.object({
   "counterpartyId": zod.string(),
   "counterpartyName": zod.string(),
   "current": zod.string().describe('Not yet due'),
+  "undated": zod.string().optional().describe('GL open amount without a documented maturity date; not assigned an invented due date.'),
   "bucket1to30": zod.string().describe('1-30 days overdue'),
   "bucket31to60": zod.string().describe('31-60 days overdue'),
   "bucket61to90": zod.string().describe('61-90 days overdue'),
@@ -13975,6 +14053,7 @@ export const GetAgedAnalysisResponse = zod.object({
   "counterpartyId": zod.string(),
   "counterpartyName": zod.string(),
   "current": zod.string().describe('Not yet due'),
+  "undated": zod.string().optional().describe('GL open amount without a documented maturity date; not assigned an invented due date.'),
   "bucket1to30": zod.string().describe('1-30 days overdue'),
   "bucket31to60": zod.string().describe('31-60 days overdue'),
   "bucket61to90": zod.string().describe('61-90 days overdue'),

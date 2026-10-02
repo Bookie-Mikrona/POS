@@ -500,6 +500,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["246-bookie-old-ap-settlements.sql"],
   },
+  {
+    file: "248-payment-ledger-allocations.sql",
+    classification: "schema",
+    dependsOn: ["247-bookie-old-native-ledger-evidence.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

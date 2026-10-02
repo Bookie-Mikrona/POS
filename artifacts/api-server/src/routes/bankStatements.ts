@@ -11,6 +11,7 @@ import {
   bookieOldBankApClosingsTable,
   invoiceLinesTable,
   paymentAllocationsTable,
+  paymentLedgerAllocationsTable,
   paymentsTable,
   accountingRolesTable,
   accountsTable,
@@ -26,6 +27,7 @@ import {
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { GetBankStatementDetailParams, GetBankStatementDetailResponse } from "@workspace/api-zod";
+import { lockNativeSourceLines, validateNativeAllocations } from "../lib/native-payment-allocations";
 
 const router: IRouter = Router();
 
@@ -1407,7 +1409,15 @@ router.post(
         const allocations = await tx.select({
           id: paymentAllocationsTable.id, amount: paymentAllocationsTable.allocatedAmount,
           invoiceId: paymentAllocationsTable.invoiceId,
-        }).from(paymentAllocationsTable).where(eq(paymentAllocationsTable.paymentId, paymentId));
+        }).from(paymentAllocationsTable).where(eq(paymentAllocationsTable.paymentId, paymentId))
+          .orderBy(asc(paymentAllocationsTable.invoiceId));
+        const ledgerAllocations = await tx.select({
+          id: paymentLedgerAllocationsTable.id,
+          amount: paymentLedgerAllocationsTable.allocatedAmount,
+          journalLineId: paymentLedgerAllocationsTable.journalLineId,
+        }).from(paymentLedgerAllocationsTable)
+          .where(eq(paymentLedgerAllocationsTable.paymentId, paymentId))
+          .orderBy(asc(paymentLedgerAllocationsTable.journalLineId));
         if (payment.status === "draft" && allocations.length) {
           const invoiceIds = [...new Set(allocations.map(allocation => allocation.invoiceId))].sort();
           const lockedInvoices = await tx.select({ id: invoicesTable.id }).from(invoicesTable)
@@ -1417,6 +1427,21 @@ router.post(
           if (lockedInvoices.length !== invoiceIds.length) {
             throw Object.assign(new Error("Dodelitev osnutka vključuje račun iz drugega podjetja ali neobstoječ račun"), { status: 409 });
           }
+        }
+        if (payment.status === "draft" && ledgerAllocations.length) {
+          await lockNativeSourceLines(tx as unknown as typeof db, companyId, ledgerAllocations.map(allocation => allocation.journalLineId));
+          await validateNativeAllocations(tx as unknown as typeof db, {
+            companyId,
+            partnerId: payment.counterpartyId,
+            accountId: payment.arApAccountId,
+            paymentDirection: "outbound",
+            allocations: ledgerAllocations.map(allocation => ({
+              journalLineId: allocation.journalLineId,
+              allocatedAmount: Number(allocation.amount),
+            })),
+            asOfDate: line.bookingDate,
+            excludePaymentId: payment.id,
+          });
         }
         const [batchItem] = await tx.select({
           id: paymentBatchItemsTable.id,
@@ -1433,13 +1458,15 @@ router.post(
             resolvedAt: new Date(),
           }).where(eq(paymentBatchItemsTable.id, batchItem.id));
         }
-        const allocated = allocations.reduce((sum, row) => sum + Number(row.amount), 0);
+        const allocated = allocations.reduce((sum, row) => sum + Number(row.amount), 0)
+          + ledgerAllocations.reduce((sum, row) => sum + Number(row.amount), 0);
         if (payment.status === "draft" && actual > allocated + 0.005) {
           throw Object.assign(new Error("Dejanski znesek presega dodeljene odprte postavke naloga"), { status: 400 });
         }
         if (payment.status === "draft") {
           let remaining = actual;
           const remainderAllocations: Array<{ invoiceId: string; amount: number }> = [];
+          const remainderLedgerAllocations: Array<{ journalLineId: string; amount: number }> = [];
           for (const allocation of allocations) {
             const original = Math.round(Number(allocation.amount) * 100) / 100;
             const amount = Math.min(original, remaining);
@@ -1447,6 +1474,16 @@ router.post(
             if (amount <= 0) await tx.delete(paymentAllocationsTable).where(eq(paymentAllocationsTable.id, allocation.id));
             else await tx.update(paymentAllocationsTable).set({ allocatedAmount: amount.toFixed(2) }).where(eq(paymentAllocationsTable.id, allocation.id));
             if (remainder > 0) remainderAllocations.push({ invoiceId: allocation.invoiceId, amount: remainder });
+            remaining = Math.round((remaining - amount) * 100) / 100;
+          }
+          for (const allocation of ledgerAllocations) {
+            const original = Math.round(Number(allocation.amount) * 100) / 100;
+            const amount = Math.min(original, remaining);
+            const remainder = Math.round((original - amount) * 100) / 100;
+            if (amount <= 0) await tx.delete(paymentLedgerAllocationsTable).where(eq(paymentLedgerAllocationsTable.id, allocation.id));
+            else await tx.update(paymentLedgerAllocationsTable).set({ allocatedAmount: amount.toFixed(2) })
+              .where(eq(paymentLedgerAllocationsTable.id, allocation.id));
+            if (remainder > 0) remainderLedgerAllocations.push({ journalLineId: allocation.journalLineId, amount: remainder });
             remaining = Math.round((remaining - amount) * 100) / 100;
           }
           await tx.update(paymentsTable).set({
@@ -1473,6 +1510,11 @@ router.post(
             if (remainderAllocations.length) await tx.insert(paymentAllocationsTable).values(remainderAllocations.map(allocation => ({
               paymentId: remainderPayment.id,
               invoiceId: allocation.invoiceId,
+              allocatedAmount: allocation.amount.toFixed(2),
+            })));
+            if (remainderLedgerAllocations.length) await tx.insert(paymentLedgerAllocationsTable).values(remainderLedgerAllocations.map(allocation => ({
+              paymentId: remainderPayment.id,
+              journalLineId: allocation.journalLineId,
               allocatedAmount: allocation.amount.toFixed(2),
             })));
             if (batchItem) {

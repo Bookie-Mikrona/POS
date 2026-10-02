@@ -24,7 +24,7 @@
 - [QR alkohol brez blokade](qr-alkohol-brez-blokade.md) — QR alkohol gre takoj v pripravo; osebje starost in opitost preveri ob postrežbi pri mizi.
 - [Zapiranje POS 109](pos-109-zapiranje.md) — prejemnico je dovoljeno zapreti le iz natančnega POS posnetka v temeljnici in z usklajenim zaklepanjem računa
 - [Bon za pico logika](bon-za-pico-logika.md) — skupaj/ddv je že neto; bon za pico je info vrstica; buildBonPicaAdjustedPostavke za tiskanje; statistike ne odštevajo bonPica
-- [ZCS bridge tiskanje](zcs-bridge-tiskanje.md) — ✅ delujoč ZCS most; download APK je lahko ločen od source metadata, zato vedno preveri konkretni asset
+- [POS tiskanje](pos-tiskanje.md) — povezani zapisi za ZCS pakete, kodne strani po napravah ter potrjene širine in format računov.
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
 - [Vertex AI image/PDF omejitev](vertex-ai-image-pdf.md) — Vertex AI proxy zavrne image/base64 (PNG+JPEG); rešitev: pdfkit PNG→PDF wrapper, pošlji kot application/pdf document
 - [Samodejno iskanje dobavitelja](poisci-dobavitelja.md) — DDG Lite → bizi.si slug → scrape davčne; brez API ključa; vsi 3 MANJKA_DOBAVITELJ bloki pokrite
@@ -39,8 +39,6 @@
 - [OS oslabitev — nova letna AM](os-oslabitev-nova-letna-am.md) — SRS 1.35+: nova AM = nova_knjižna/preostala_doba; fiksirana v DB; odpisanaVrednost se ne posodablja
 - [Zgodovinski obračun ur](obracun-ur-zgodovinski-snapshot.md) — izmene morajo hraniti nespremenljivo kodo in naziv stroškovnega mesta ob odprtju.
 - [Obračun ur nočnih izmen](obracun-ur-nocne-izmene.md) — izmeno razdeli po lokalnih dnevih Europe/Ljubljana; DST uporablja dejanski pretečeni čas.
-- [BT tiskalniki — kodna stran](bt-tiskalniki-kodna-stran.md) — Q10 Back Clip = obvezno ascii-translit (GBK firmware); lestvica cp1250→wpc1250→cp852→translit; kodna stran per naprava (ne enota)
-- [Format tabele artiklov](tiskanje-format-tabele.md) — USB 58mm je referenca: dvovrstična postavka (naziv / T1+kol+cena+skupaj); 58mm=32 kolon, ZCS Z92=30
 - [Telefonski naročniki](telefonski-narocniki.md) — vsak telefonski prevzem ali dostava trajno razreši naročnika po normaliziranem telefonu znotraj enote
 - [SŠP študentski boni](ssp-studentski-boni.md) — subvencija je terjatev, ne popust; zbirni dokument se odpre šele s potrditvijo dnevne temeljnice.
 - [Prejemnica in e-SLOG izvoz](prejemnica-eslog-izvoz.md) — prejemnice brez popolnih računskih podatkov ne pretvarjaj v e-SLOG Invoice.
@@ -154,6 +152,7 @@
 - [Pregled preračuna tuje valute](document-fx-review.md) — ločeno potrjenih EUR osnov in DDV ne preračunavaj znova iz cene; ohrani decimalno zaokroževanje in izvorno sled.
 - [Namen AJPES izvoza](ajpes-annual-report-contract.md) — XLSX/PDF sledita predlogi JOLP; XML je namenjen dejanskemu uvozu v AJPES, ne splošni izmenjavi.
 - [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.
+- [Samostojne postavke GK](native-ledger-open-items.md) — odprtost in plačila brez nadomestnih računov; neznana zapadlost in ločeni strani ostanejo razvidni.
 - [Vrstni red apply_patch](apply-patch-hunk-order.md) — odseke iste datoteke razvrsti od začetka proti koncu; obratni vrstni red lahko zavrne pravilen kontekst.
 - [Recharts tooltip testiranje](recharts-tooltip-testing.md) — jsdom brez dejanske postavitve lahko ne sproži hover tooltipa; preveri vezavo kategorijske osi in oznake.
 - [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.

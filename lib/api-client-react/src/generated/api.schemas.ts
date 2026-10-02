@@ -9799,8 +9799,25 @@ export interface PaymentRecord {
   updatedAt: string;
 }
 
+export interface PaymentLedgerAllocationRecord {
+  id: string;
+  paymentId: string;
+  journalLineId: string;
+  allocatedAmount: string;
+  entryId?: string;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  documentDate?: string | null;
+  accountCode?: string;
+}
+
 export type PaymentWithAllocations = PaymentRecord & {
   allocations: PaymentAllocationRecord[];
+  /** Allocations to real partner GL lines; never substitute invoice records. */
+  ledgerAllocations?: PaymentLedgerAllocationRecord[];
 };
 
 export interface ListPaymentsResponse {
@@ -9851,8 +9868,12 @@ export interface ListPaymentBatchesResponse {
   batches: PaymentBatchRecord[];
 }
 
+/**
+ * Exactly one of invoiceId or journalLineId is required; the server validates the target atomically.
+ */
 export interface PaymentBatchProposedAllocation {
-  invoiceId: string;
+  invoiceId?: string;
+  journalLineId?: string;
   /** @exclusiveMinimum 0 */
   amount: number;
 }
@@ -10073,6 +10094,12 @@ export interface PaymentAllocationBody {
   allocatedAmount: number;
 }
 
+export interface PaymentLedgerAllocationInput {
+  journalLineId: string;
+  /** @exclusiveMinimum 0 */
+  allocatedAmount: number;
+}
+
 export type CreatePaymentBodyDirection = typeof CreatePaymentBodyDirection[keyof typeof CreatePaymentBodyDirection];
 
 
@@ -10101,6 +10128,8 @@ export interface CreatePaymentBody {
   notes?: string | null;
   /** Optional allocations; can also be added after creation */
   allocations?: PaymentAllocationBody[];
+  /** Optional allocations to posted GL-only partner items, alongside invoice allocations. */
+  ledgerAllocations?: PaymentLedgerAllocationInput[];
 }
 
 export interface VoidPaymentBody {
@@ -10109,6 +10138,34 @@ export interface VoidPaymentBody {
   /** @nullable */
   reason?: string | null;
 }
+
+export type OpenItemSourceKind = typeof OpenItemSourceKind[keyof typeof OpenItemSourceKind];
+
+
+export const OpenItemSourceKind = {
+  invoice: 'invoice',
+  ledger: 'ledger',
+} as const;
+
+export type OpenItemSide = typeof OpenItemSide[keyof typeof OpenItemSide];
+
+
+export const OpenItemSide = {
+  debit: 'debit',
+  credit: 'credit',
+} as const;
+
+/**
+ * Null for a GL item not eligible for ordinary receipt/supplier payment.
+ * @nullable
+ */
+export type OpenItemPaymentDirection = typeof OpenItemPaymentDirection[keyof typeof OpenItemPaymentDirection] | null;
+
+
+export const OpenItemPaymentDirection = {
+  inbound: 'inbound',
+  outbound: 'outbound',
+} as const;
 
 export type OpenItemInvoiceType = typeof OpenItemInvoiceType[keyof typeof OpenItemInvoiceType];
 
@@ -10119,9 +10176,30 @@ export const OpenItemInvoiceType = {
 } as const;
 
 export interface OpenItem {
-  /** Active batch reserving this invoice; prevent selecting it again. */
+  /** Stable item identity; invoice ID or ledger-prefixed journal-line ID. */
+  id?: string;
+  sourceKind?: OpenItemSourceKind;
+  sourceId?: string;
+  journalLineId?: string;
+  entryId?: string;
+  side?: OpenItemSide;
+  /**
+     * Null for a GL item not eligible for ordinary receipt/supplier payment.
+     * @nullable
+     */
+  paymentDirection?: OpenItemPaymentDirection;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  description?: string | null;
+  accountCode?: string;
+  /** Active batch reserving this invoice or GL item; prevent selecting it again. */
   activePaymentBatchId?: string | null;
-  invoiceId: string;
+  /**
+     * Null for native GL-only items; no invoice is fabricated.
+     * @nullable
+     */
+  invoiceId: string | null;
   invoiceNumber: string;
   invoiceDate: string;
   /** @nullable */
@@ -10133,6 +10211,10 @@ export interface OpenItem {
   totalGross: string;
   allocatedAmount: string;
   remainingAmount: string;
+  /** Open amount on the debit side; not netted against credit items. */
+  openDebit?: string;
+  /** Open amount on the credit side; not netted against debit items. */
+  openCredit?: string;
   /** Days past due date (0 if not yet due) */
   daysOverdue: number;
   /** POS enota; prisotno pri poizvedbi sspOnly=true. */
@@ -10144,6 +10226,10 @@ export interface OpenItem {
 export interface OpenItemsResponse {
   items: OpenItem[];
   totalRemaining: string;
+  /** Total open debit of the selected items. */
+  totalOpenDebit?: string;
+  /** Total open credit of the selected items. */
+  totalOpenCredit?: string;
 }
 
 export interface AgedBucket {
@@ -10151,6 +10237,8 @@ export interface AgedBucket {
   counterpartyName: string;
   /** Not yet due */
   current: string;
+  /** GL open amount without a documented maturity date; not assigned an invented due date. */
+  undated?: string;
   /** 1-30 days overdue */
   bucket1to30: string;
   /** 31-60 days overdue */
