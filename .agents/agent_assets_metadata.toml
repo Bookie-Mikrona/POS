@@ -1355,3 +1355,17 @@ mtime_ms = 1790931435471
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/b3e00ce5-af76-40df-98f7-d61efbfcc404/c21d1929-ed92-4ef9-b313-0353ab8bd4fc"
 storage_version_token = "1790931491677083"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "OukhjN00lSdI4jLhQEnvD"
+uri = "file://docs/glavna-knjiga-prirocnik/01-analiticne-dimenzije.md"
+type = "text"
+title = "Priročnik za glavno knjigo — oddelki, projekti in stroškovna mesta"
+description = "Prvo poglavje delovnega priročnika: podrobna navodila, primer razdelitve knjižbe, pravila kontov, analitično poročilo in kontrolni seznami. Splošni primeri, brez spreminjanja nastavitev Mikrone."
+logical_id = "f815436d-953e-439f-8d0a-aebcfd9ca1f3"
+content_hash = "sha256:61b1f98a4e6bce4daa7326d30970d75f1cd56745a360b8def4b1da8c59017090"
+size = 18822
+mtime_ms = 1790948494332
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/f815436d-953e-439f-8d0a-aebcfd9ca1f3/97de9d36-a496-4d5c-b7ff-39575029f2b9"
+storage_version_token = "1790948585661070"
+content_type = "text/markdown"

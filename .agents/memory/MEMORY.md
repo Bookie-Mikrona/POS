@@ -54,7 +54,7 @@
 - [Privzete konto nastavitve](privzete-konto-nastavitve.md) — novi seed je fill-only in serializiran po podjetju; obstoječih podjetij ne spreminja samodejno.
 - [Dostop cron endpointov](cron-endpoint-access.md) — scheduled poti morajo biti pred POS requireEnota in brez CRON_SECRET vedno odpovedati zaprto.
 - [Prijava Clerk v POS](clerk-pos-guides.md) — povezane omejitve host-aware SDK-ja, prevodov, E2E, prehodnih 401 in obsega varoval.
-- [OpenAPI format generator](openapi-uuid-generator.md) — `format: uuid` in `format: uri` generirata nezdružljive Zod 3 klice; taka polja opiši kot string.
+- [OpenAPI generator](openapi-uuid-generator.md) — omejitve uuid/uri in povezano opozorilo o nepovezanem driftu generiranih datotek.
 - [FURS certifikat scope](furs-certifikat-scope.md) — premise override je legacy disk-pot; globalni upload in resolver nista usklajena, zato naj bo en šifriran company vir.
 - [PostgreSQL backup manifest](postgres-backup-manifest.md) — DDL dump ni tekstovno idempotenten; pred restore preveri odtis, po njem strukturo in pravilno obravnavaj neuporabljene sekvence.
 - [XLSX native numerika](xlsx-native-numerics.md) — typed kanal je opt-in; Excel formule v numeričnih poljih berejo cached number, GTIN in besedilo vedno ostaneta text.
@@ -113,7 +113,6 @@
 - [Dogodkovni prenosi zaloge](event-stock-transfers.md) — zgodovina mora uskladiti poslano = porabljeno + preostalo + vrnjeno in omejiti preostalo na dogodkovno količino.
 - [Večhodni POS in QR meni](multicourse-qr-menu.md) — menijska cena, vina in KDS hodi imajo ločene vloge; napredovanje sledi pairingGroupId + courseSequence.
 - [Izbor blagajne pri izdaji računa](receipt-register-selection.md) — aktivna blagajna zahteva ekspliciten ID trenutne enote; legacy fallback velja le brez aktivnih blagajn.
-- [OpenAPI codegen drift](openapi-codegen-drift.md) — po codegenu preveri generated diff; nepovezane stare pogodbene spremembe ne sodijo v trenutno nalogo.
 - [CodeExecution shell poti](codeexecution-shell-paths.md) — vrstice iz callback shellExec lahko vsebujejo skriti CR; pred uporabo kot readFile/writeFile pot jih vedno trimaj.
 - [POS AI svetovalec](pos-ai-svetovalec.md) — LLM samo svetuje; kritične blokade so deterministične, nad svežim tenant-scoped naročilom in ločene od modela.
 - [Spletna primerjava normativov](normative-web-comparison.md) — citati veljajo le iz tipiziranih iskalnih rezultatov; več virov, deterministične enote, brez samodejnih zapisov.
@@ -157,3 +156,4 @@
 - [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.
 - [Vrstni red apply_patch](apply-patch-hunk-order.md) — odseke iste datoteke razvrsti od začetka proti koncu; obratni vrstni red lahko zavrne pravilen kontekst.
 - [Recharts tooltip testiranje](recharts-tooltip-testing.md) — jsdom brez dejanske postavitve lahko ne sproži hover tooltipa; preveri vezavo kategorijske osi in oznake.
+- [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.
