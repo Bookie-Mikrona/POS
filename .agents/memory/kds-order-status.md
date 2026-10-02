@@ -14,3 +14,9 @@ Status pripravljene postavke (bumped) mora biti vizualno ločen od zelene postav
 **Why:** Uporabnik je zahteval spremembo barve bumped in izrecno določil mesto statusa ob količini.
 
 **How to apply:** Ohrani razlikovanje pripravljeno / v pripravi / predano in mesto oznak tudi pri več postajah ali mobilnem prikazu.
+
+Na naročilih je ozadje vrstic artiklov brezbarvno; obarvana sta samo okvir in oznaka statusa. To ne spreminja barvnih ozadij KDS.
+
+**Why:** Uporabnik je po uvedbi izrecno zahteval brezbarvno ozadje artiklov na naročilih.
+
+**How to apply:** Uporabi iste statusne barve, vendar ločeno oblikovanje naročil in KDS; na naročilih ohrani barvo besedila aktivne teme.

@@ -16,10 +16,17 @@ export function kdsItemBadge(minutes: number): string {
   return "bg-green-500 text-white";
 }
 
+function kdsItemOutline(minutes: number): string {
+  if (minutes >= 20) return "border border-red-400";
+  if (minutes >= 10) return "border border-orange-400";
+  return "border border-green-400";
+}
+
 export function getKdsItemAppearance(nalog: KdsNalog, barOnly = false, now = Date.now()) {
   if (nalog.stanje === "preklicano") return null;
   if (nalog.stanje === "zadrzano") return {
     className: "border border-slate-300 bg-slate-100 opacity-55",
+    outlineClassName: "border border-slate-300",
     badgeClassName: "bg-slate-200 text-slate-700",
     label: "Na čakanju", minutes: null, priority: 1,
   };
@@ -28,6 +35,7 @@ export function getKdsItemAppearance(nalog: KdsNalog, barOnly = false, now = Dat
       ? "bg-blue-100 border-l-2 border-l-blue-500 opacity-80"
       : "bg-emerald-100 border-l-2 border-l-emerald-500 opacity-80",
     badgeClassName: nalog.stanje === "bumped" ? "bg-blue-600 text-white" : "bg-emerald-600 text-white",
+    outlineClassName: nalog.stanje === "bumped" ? "border border-blue-500" : "border border-emerald-500",
     label: nalog.stanje === "ack" ? "Predano" : "Pripravljeno",
     minutes: null, priority: 0,
   };
@@ -38,6 +46,7 @@ export function getKdsItemAppearance(nalog: KdsNalog, barOnly = false, now = Dat
       ? "border-2 border-fuchsia-500 bg-fuchsia-50 shadow-md animate-pulse"
       : kdsItemBg(minutes),
     badgeClassName: barOnly ? "bg-fuchsia-700 text-white" : kdsItemBadge(minutes),
+    outlineClassName: barOnly ? "border border-fuchsia-500" : kdsItemOutline(minutes),
     label: barOnly ? "Pripravi pijačo" : "V pripravi",
     minutes, priority: barOnly ? 4 : minutes >= 20 ? 5 : minutes >= 10 ? 3 : 2,
   };
@@ -61,6 +70,7 @@ export function getOrderItemKdsStatuses(
   if (!statuses.length && pripravljeno) {
     statuses.push({
       className: "bg-blue-100 border-l-2 border-l-blue-500 opacity-80",
+      outlineClassName: "border border-blue-500",
       badgeClassName: "bg-blue-600 text-white",
       label: "Pripravljeno", minutes: null, priority: 0, id: 0, stationName: "",
     });
@@ -69,6 +79,6 @@ export function getOrderItemKdsStatuses(
     statuses,
     className: statuses.reduce((selected, status) =>
       !selected || status.priority > selected.priority ? status : selected,
-    undefined as typeof statuses[number] | undefined)?.className ?? "",
+    undefined as typeof statuses[number] | undefined)?.outlineClassName ?? "",
   };
 }

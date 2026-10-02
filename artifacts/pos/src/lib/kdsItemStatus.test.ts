@@ -24,7 +24,8 @@ describe("shared KDS and order item colors", () => {
     expect(result.badgeClassName).toContain(badge);
     expect(result.label).toBe("V pripravi");
     expect(getOrderItemKdsStatuses(3, [ticket(minutes)], [station], now).className)
-      .toBe(result.className);
+      .toBe(result.outlineClassName);
+    expect(result.outlineClassName).not.toMatch(/bg-|opacity-|animate-/);
   });
 
   it("starts the clock at FIRE, not when a held course was created", () => {
@@ -48,7 +49,7 @@ describe("shared KDS and order item colors", () => {
     const bar = { id: 2, ime: "Točilnica", tip: "bar" };
     const nalog = { ...ticket(25), postajaId: 2 };
     const result = getOrderItemKdsStatuses(3, [nalog], [bar], now);
-    expect(result.className).toContain("bg-fuchsia-50");
+    expect(result.className).toBe("border border-fuchsia-500");
     expect(result.statuses[0]).toMatchObject({ stationName: "Točilnica", label: "Pripravi pijačo" });
   });
 
@@ -57,9 +58,9 @@ describe("shared KDS and order item colors", () => {
     const result = getOrderItemKdsStatuses(3, nalogi,
       [station, { id: 2, ime: "Pica", tip: "pizza" }], now);
     expect(result.statuses.map(status => status.label)).toEqual(["Pripravljeno", "V pripravi"]);
-    expect(result.className).toContain("bg-red-100");
+    expect(result.className).toBe("border border-red-400");
     expect(getOrderItemKdsStatuses(3, [nalogi[0], { ...nalogi[1], stanje: "zadrzano" }], [station], now).className)
-      .toContain("bg-slate-100");
+      .toBe("border border-slate-300");
   });
 
   it("ignores cancelled and other-item tickets; untracked items remain neutral", () => {
@@ -70,12 +71,12 @@ describe("shared KDS and order item colors", () => {
 
   it("retains ready color after completed tickets leave the live endpoint", () => {
     expect(getOrderItemKdsStatuses(3, [], [station], now, "2026-10-03T11:59:00Z").className)
-      .toContain("bg-blue-100");
+      .toBe("border border-blue-500");
   });
 
   it("supports string gateway line identifiers", () => {
     const nalog = { ...ticket(12), postavkaId: "gw-line" as unknown as number };
     expect(getOrderItemKdsStatuses("gw-line", [nalog], [station], now).className)
-      .toContain("bg-orange-50");
+      .toBe("border border-orange-400");
   });
 });

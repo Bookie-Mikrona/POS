@@ -298,13 +298,17 @@ describe("Order — pica BREZ modifikatorske skupine (modSkupine=[])", () => {
       ustvarjeno: new Date(Date.now() - 21 * 60_000).toISOString(),
     }];
     const view = render(<Wrapper qc={qc}><Order /></Wrapper>);
-    expect(await screen.findByTestId("order-item-7")).toHaveClass("bg-red-100");
+    expect(await screen.findByTestId("order-item-7")).toHaveClass("bg-transparent", "border", "border-red-400");
+    expect(screen.getByTestId("order-item-7")).not.toHaveClass("bg-red-100", "text-slate-900");
+    expect(screen.getByTestId("order-item-kds-status-7").firstElementChild).toHaveClass("bg-red-500");
     expect(screen.getByTestId("order-item-kds-status-7")).toHaveTextContent("Pica: V pripravi");
     expect(screen.getByTestId("order-item-quantity-7"))
       .toContainElement(screen.getByTestId("order-item-kds-status-7"));
     mockKdsState.nalogi = [{ ...mockKdsState.nalogi[0], stanje: "bumped" }];
     view.rerender(<Wrapper qc={qc}><Order /></Wrapper>);
-    expect(screen.getByTestId("order-item-7")).toHaveClass("bg-blue-100");
+    expect(screen.getByTestId("order-item-7")).toHaveClass("bg-transparent", "border", "border-blue-500");
+    expect(screen.getByTestId("order-item-7")).not.toHaveClass("bg-blue-100");
+    expect(screen.getByTestId("order-item-kds-status-7").firstElementChild).toHaveClass("bg-blue-600");
     expect(screen.getByTestId("order-item-kds-status-7")).toHaveTextContent("Pripravljeno");
   });
 

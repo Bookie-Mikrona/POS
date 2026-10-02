@@ -3169,7 +3169,7 @@ export default function Order() {
                     key={postavka.id}
                     aria-busy={jeZacasnaPostavka || undefined}
                     data-testid={`order-item-${postavka.id}`}
-                    className={`flex flex-col rounded-md py-1 px-1 transition-colors gap-0.5 ${kdsStatus.className ? `${kdsStatus.className} text-slate-900` : ""} ${jeRacunana ? "opacity-50" : kdsStatus.className ? "" : "hover:bg-muted/50"}`}
+                    className={`flex flex-col rounded-md bg-transparent py-1 px-1 transition-colors gap-0.5 ${kdsStatus.className} ${jeRacunana ? "opacity-50" : ""}`}
                   >
                     {/* Vrstica 1: številka + ime + gost badge + gumbi */}
                     <div className="flex items-center gap-1">
