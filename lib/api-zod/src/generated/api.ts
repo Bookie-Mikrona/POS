@@ -13985,7 +13985,7 @@ export const GetAgedAnalysisResponse = zod.object({
 
 
 /**
- * Returns partner-tagged posted/reversed GL lines across all accounts, chronological running balance and independent open debit/credit amounts. dateFrom only filters returned lines; opening/running balance is calculated from the complete flow through dateTo. Drafts are read-only and require mode=drafts; draft data is never included by default and is unsuitable for settlement/payment preparation. Missing historic counterparts are retained as evidence warnings, never manufactured as postings.
+ * Requires one partner and one account. Returns partner-tagged posted/reversed GL lines, chronological running balance and independent open debit/credit amounts. dateFrom only filters returned lines; opening/running balance is calculated from the complete flow through dateTo. Drafts are read-only and require mode=drafts; draft data is never included by default and is unsuitable for settlement/payment preparation. Missing historic counterparts are retained as evidence warnings, never manufactured as postings. Imported opening vouchers are balance metadata, not returned documents; later annual carryforwards are excluded to avoid counting the same history repeatedly.
  * @summary Chronological partner GL card
  */
 export const GetPartnerLedgerParams = zod.object({
@@ -13995,8 +13995,8 @@ export const GetPartnerLedgerParams = zod.object({
 export const getPartnerLedgerQueryModeDefault = `posted`;
 
 export const GetPartnerLedgerQueryParams = zod.object({
-  "partnerId": zod.coerce.string().optional(),
-  "accountId": zod.coerce.string().optional(),
+  "partnerId": zod.coerce.string(),
+  "accountId": zod.coerce.string(),
   "dateFrom": zod.date().optional(),
   "dateTo": zod.date().optional().describe('As-of cut-off; defaults to today.'),
   "openOnly": zod.coerce.boolean().optional().describe('Filters returned lines only; does not alter running balance.'),
@@ -14032,6 +14032,8 @@ export const GetPartnerLedgerResponse = zod.object({
   "postingDate": zod.coerce.date().optional(),
   "taxDate": zod.coerce.date().nullish(),
   "dueDate": zod.coerce.date().nullish(),
+  "durDate": zod.coerce.date().nullish(),
+  "originalDocumentNumber": zod.string().nullish(),
   "debit": zod.string(),
   "credit": zod.string(),
   "runningBalance": zod.string(),
@@ -14053,8 +14055,8 @@ export const GetPartnerLedgerPdfParams = zod.object({
 export const getPartnerLedgerPdfQueryModeDefault = `posted`;
 
 export const GetPartnerLedgerPdfQueryParams = zod.object({
-  "partnerId": zod.coerce.string().optional(),
-  "accountId": zod.coerce.string().optional(),
+  "partnerId": zod.coerce.string(),
+  "accountId": zod.coerce.string(),
   "dateFrom": zod.date().optional(),
   "dateTo": zod.date().optional(),
   "openOnly": zod.coerce.boolean().optional(),

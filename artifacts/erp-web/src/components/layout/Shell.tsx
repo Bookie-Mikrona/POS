@@ -672,6 +672,7 @@ const SIDEBAR_DEFAULT = 256;
 const SIDEBAR_KEY = "erp-sidebar-width";
 
 export function Shell({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     try {
       const saved = localStorage.getItem(SIDEBAR_KEY);
@@ -743,7 +744,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
           <Topbar />
           <main className="flex-1 overflow-auto bg-background p-6">
-            <div className="mx-auto max-w-7xl">
+            <div className={location === "/kartica-partnerja" ? "w-full max-w-none" : "mx-auto max-w-7xl"}>
               {children}
             </div>
           </main>

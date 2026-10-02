@@ -51,6 +51,12 @@ export function DetailDialog({ line, onClose, companyId, canEdit, reload, setSta
           <DialogTitle>Podrobnosti zapiranja</DialogTitle>
           <DialogDescription>{line.partnerName} / {line.accountCode} / {line.documentType ?? ""} {line.documentNumber ?? ""} - debet {fmt(line.debit)}, kredit {fmt(line.credit)}, odprt debet {fmt(line.openDebit)}, odprt kredit {fmt(line.openCredit)}</DialogDescription>
         </DialogHeader>
+        <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm border rounded-lg p-3" data-testid="detail-fields">
+          {([["Partner", line.partnerName], ["Konto", `${line.accountCode ?? ""} ${line.accountName ?? ""}`], ["Vrsta dokumenta", line.documentType], ["Št. dokumenta", line.originalDocumentNumber ?? line.documentNumber],
+            ["Temeljnica", line.reference], ["Datum dokumenta", fmtDate(line.documentDate)], ["Datum DUR", fmtDate(line.durDate)], ["Datum knjiženja", fmtDate(line.postingDate)], ["Datum DDV", fmtDate(line.taxDate)], ["Zapadlost", fmtDate(line.dueDate)]] as [string, any][]).map(([k, v]) =>
+            <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="break-words">{v || "-"}</dd></div>)}
+          <div className="col-span-full"><dt className="text-xs text-muted-foreground">Opis</dt><dd className="break-words whitespace-pre-wrap">{line.description || "-"}</dd></div>
+        </dl>
         {closings.length === 0 ? <p className="text-muted-foreground">Za to postavko ni zapiranj.</p> : (
           <Table>
             <TableHeader><TableRow><TableHead>Vir</TableHead><TableHead>Vrsta</TableHead><TableHead>Datum učinka</TableHead><TableHead className="text-right">Znesek</TableHead><TableHead>Nasprotna postavka</TableHead><TableHead>Razlog / revizija</TableHead><TableHead /></TableRow></TableHeader>

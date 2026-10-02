@@ -70,7 +70,7 @@ function formatLedgerDate(value: string) {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function BankBalanceCard({ companyId, totalBalance, accounts, loading }: BankBalanceCardProps) {
+export function BankBalanceCard({ companyId, totalBalance, accounts, loading }: BankBalanceCardProps) {
   const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
   const { data: ledgerData, isLoading: ledgerLoading, isError: ledgerError } = useGetLedger(
     companyId,
@@ -411,10 +411,10 @@ export default function Dashboard() {
   );
 
   // Open items — obveznosti (received)
-  const { data: obvData, isLoading: obvLoading } = useGetOpenItems(
+  const { data: obvData, isLoading: obvLoading, error: obvError } = useGetOpenItems(
     activeCompany?.id ?? "",
     { type: "received" },
-    { query: { enabled: !!activeCompany?.id && hasErp } as any },
+    { query: { enabled: !!activeCompany?.id && hasErp, refetchInterval: 60_000 } as any },
   );
 
   // Aged analysis — terjatve
@@ -428,7 +428,7 @@ export default function Dashboard() {
   const { data: agedObvData, isLoading: agedObvLoading } = useGetAgedAnalysis(
     activeCompany?.id ?? "",
     { type: "received" },
-    { query: { enabled: !!activeCompany?.id && hasErp } as any },
+    { query: { enabled: !!activeCompany?.id && hasErp, refetchInterval: 60_000 } as any },
   );
 
   // Bank balance — stanje bančnih računov (110x)
@@ -439,7 +439,7 @@ export default function Dashboard() {
 
   // Derived KPIs
   const terjatveTotal = terData?.totalRemaining ?? null;
-  const obveznostiTotal = obvData?.totalRemaining ?? null;
+  const obveznostiTotal = obvError ? null : obvData?.totalRemaining ?? null;
 
   const zapadleTerjatve = useMemo(() => {
     if (!terData?.items) return null;
@@ -551,7 +551,7 @@ export default function Dashboard() {
               <KpiCard
                 title="Skupaj odprte obveznosti"
                 value={obveznostiTotal !== null ? fmtEur(obveznostiTotal) : null}
-                sub="Prejeti računi brez plačila"
+                sub={obvError ? "Obveznosti niso potrjene — preverite podatke zapiranj" : "Knjiženi računi po zapiranjih; brez osnutkov"}
                 href="/saldakonti"
                 icon={TrendingDown}
                 iconColor="text-amber-600"

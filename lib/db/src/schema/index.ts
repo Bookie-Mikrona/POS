@@ -13,6 +13,8 @@ export * from "./counterparties";
 export * from "./purchase-source-documents";
 export * from "./invoices";
 export * from "./bookie-old-ar-settlements";
+export * from "./bookie-old-ap-settlements";
+export * from "./bookie-old-native-ledger-evidence";
 export * from "./bookie-old-bank-ap-closings";
 export * from "./partner-ledger-settlements";
 export * from "./bank-statements";

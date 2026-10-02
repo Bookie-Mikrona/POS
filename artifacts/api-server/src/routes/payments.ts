@@ -15,6 +15,7 @@ import {
   invoicesTable,
   invoiceLinesTable,
   bookieOldArSettlementsTable,
+  bookieOldApSettlementsTable,
   enoteTable,
   posBookingSettingsTable,
   companiesTable,
@@ -1905,9 +1906,11 @@ router.get("/companies/:companyId/payment-batches/:batchId/sepa.xml", requireAut
 });
 
 // ─── GET /companies/:companyId/open-items ─────────────────────────────────────
-// Bookie Old evidence stores recordedDate as the source M/D/YYYY token. The
+// Legacy AR evidence uses M/D/YYYY; validated AP snapshots use ISO dates. The
 // sourceAsOf value is snapshot provenance only, not the closing's effective date.
 function validOldRecordedDate(value: string): string | null {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (iso) return validOldRecordedDate(`${iso[2]}/${iso[3]}/${iso[1]}`);
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
   if (!match) return null;
   const month = Number(match[1]); const day = Number(match[2]); const year = Number(match[3]);
@@ -1928,7 +1931,7 @@ export async function invoiceClosingTotals(
   } = await import("../lib/partner-ledger-calculator");
   const {
     partnerSettlementEventsTable, bookieOldBankApClosingsTable, bankStatementLinesTable,
-    bankStatementsTable,
+    bankStatementsTable, bookieOldNativeLedgerEvidenceTable,
   } = await import("@workspace/db");
   type Evidence = import("../lib/partner-ledger-calculator").SettlementMovement;
   const events: Evidence[] = [];
@@ -1936,20 +1939,34 @@ export async function invoiceClosingTotals(
   const invoiceRows = await executor.select({
     id: invoicesTable.id, entryId: invoicesTable.linkedEntryId,
     accountId: invoicesTable.arApAccountId, partnerId: invoicesTable.counterpartyId,
+    type: invoicesTable.type, sourceType: invoicesTable.sourceType,
+    historicalGross: invoicesTable.historicalGross, status: invoicesTable.status,
   }).from(invoicesTable).where(and(eq(invoicesTable.companyId, companyId), inArray(invoicesTable.id, invoiceIds)));
   for (const row of invoiceRows) invoiceById.set(row.id, { entryId: row.entryId, accountId: row.accountId, partnerId: row.partnerId });
   const entryIds = [...new Set(invoiceRows.flatMap((row) => row.entryId ? [row.entryId] : []))];
   const invoiceLine = new Map<string, string>();
   const lineToInvoice = new Map<string, string>();
+  const invoiceNativeLineIds = new Map<string, string[]>();
+  const importedGlLines = new Map<string, { id: string; entryId: string; partnerId: string | null }>();
   if (entryIds.length) {
     const glRows = await executor.select({
       id: journalEntryLinesTable.id, entryId: journalEntryLinesTable.entryId,
       accountId: journalEntryLinesTable.accountId, partnerId: journalEntryLinesTable.partnerId,
+      description: journalEntryLinesTable.description,
     }).from(journalEntryLinesTable).innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
       .where(and(eq(journalEntriesTable.companyId, companyId), inArray(journalEntryLinesTable.entryId, entryIds)));
+    for (const line of glRows) {
+      const sourceId = line.description?.match(/\[Bookie Old GLAVNA #(\d+)/)?.[1];
+      if (sourceId) importedGlLines.set(sourceId, line);
+    }
     for (const invoice of invoiceRows) {
-      const line = glRows.find((row) => row.entryId === invoice.entryId && row.accountId === invoice.accountId && row.partnerId === invoice.partnerId);
-      if (line) { invoiceLine.set(invoice.id, line.id); lineToInvoice.set(line.id, invoice.id); }
+      const lines = glRows.filter((row) => row.entryId === invoice.entryId && row.accountId === invoice.accountId && row.partnerId === invoice.partnerId);
+      const line = lines[0];
+      if (line) {
+        invoiceLine.set(invoice.id, line.id);
+        invoiceNativeLineIds.set(invoice.id, lines.map((item) => item.id));
+        for (const item of lines) lineToInvoice.set(item.id, invoice.id);
+      }
     }
   }
   const allocations = await executor.select({
@@ -1964,7 +1981,7 @@ export async function invoiceClosingTotals(
     events.push({ id: `payment-allocation:${allocation.id}`, sourceLineId: allocation.invoiceId, amount: allocation.allocatedAmount,
       effectiveDate: allocation.paymentDate, eventType: "close" });
   }
-  const arRows = await executor.select({ invoiceId: bookieOldArSettlementsTable.invoiceId, evidence: bookieOldArSettlementsTable.evidence })
+  const arRows = await executor.select({ invoiceId: bookieOldArSettlementsTable.invoiceId, sourceLineId: bookieOldArSettlementsTable.sourceLineId, evidence: bookieOldArSettlementsTable.evidence })
     .from(bookieOldArSettlementsTable).where(and(eq(bookieOldArSettlementsTable.companyId, companyId),
       inArray(bookieOldArSettlementsTable.invoiceId, invoiceIds)));
   const legacyArIds: string[] = [];
@@ -2009,6 +2026,138 @@ export async function invoiceClosingTotals(
     if (legacySourceIds.has(id)) continue;
     legacySourceIds.add(id);
     if (!duplicate) events.push({ id, sourceLineId: row.invoiceId, amount: row.amount, effectiveDate: row.recordedDate, eventType: "close" });
+  }
+  // Supplier snapshots include old bank, cash and offsetting links. They are
+  // evidence of existing postings, not new payments. Reuse the bank-evidence
+  // identity so the overlapping 2026 statement links are counted only once.
+  const historicalAp = await executor.select({
+    invoiceId: bookieOldApSettlementsTable.invoiceId,
+    sourceLineId: bookieOldApSettlementsTable.sourceLineId,
+    evidence: bookieOldApSettlementsTable.evidence,
+  }).from(bookieOldApSettlementsTable).where(and(
+    eq(bookieOldApSettlementsTable.companyId, companyId),
+    inArray(bookieOldApSettlementsTable.invoiceId, invoiceIds),
+  ));
+  const coveredApInvoices = new Set(historicalAp.map(row => row.invoiceId));
+  const missingApEvidence = invoiceRows.filter(row =>
+    row.type === "received" && row.sourceType === "bookie-old" && Number(row.historicalGross) > 0
+    && (row.status === "posted" || row.status === "paid") && !coveredApInvoices.has(row.id));
+  if (missingApEvidence.length) {
+    throw Object.assign(new Error(
+      `Za ${missingApEvidence.length} zgodovinskih prejetih računov manjkajo preverjena dokazila zapiranj. Odprte obveznosti niso potrjene.`,
+    ), { status: 409, statusCode: 409 });
+  }
+  for (const row of historicalAp) {
+    const original = importedGlLines.get(row.sourceLineId);
+    const invoice = invoiceById.get(row.invoiceId);
+    if (original && original.entryId === invoice?.entryId && original.partnerId === invoice.partnerId) {
+      const previous = invoiceLine.get(row.invoiceId);
+      if (previous && previous !== original.id) lineToInvoice.delete(previous);
+      invoiceLine.set(row.invoiceId, original.id);
+      lineToInvoice.set(original.id, row.invoiceId);
+      invoiceNativeLineIds.set(row.invoiceId, [
+        ...new Set([...(invoiceNativeLineIds.get(row.invoiceId) ?? []), original.id]),
+      ]);
+    }
+    for (const closing of row.evidence ?? []) {
+      const date = validOldRecordedDate(closing.recordedDate);
+      const id = `bookie-old-ap:${companyId}:${closing.closingId}`;
+      if (!date || date > asOfDate || !(Number(closing.amount) > 0) || legacySourceIds.has(id)) continue;
+      legacySourceIds.add(id);
+      events.push({ id, sourceLineId: row.invoiceId, amount: closing.amount,
+        effectiveDate: date, eventType: "close" });
+    }
+  }
+  const nativeInvoiceLineIds = [...new Set([...invoiceNativeLineIds.values()].flat())];
+  if (nativeInvoiceLineIds.length) {
+    const nativeEvidenceRows = await executor.select({
+      nativeLineId: bookieOldNativeLedgerEvidenceTable.nativeLineId,
+      originalClosings: bookieOldNativeLedgerEvidenceTable.originalClosings,
+    }).from(bookieOldNativeLedgerEvidenceTable).where(and(
+      eq(bookieOldNativeLedgerEvidenceTable.companyId, companyId),
+      inArray(bookieOldNativeLedgerEvidenceTable.nativeLineId, nativeInvoiceLineIds),
+    ));
+    type NativeClosing = (typeof nativeEvidenceRows)[number]["originalClosings"][number];
+    type NativeClosingGroup = { closing: NativeClosing; invoiceIds: Set<string> };
+    const invoiceByNativeLine = new Map<string, string>();
+    for (const [invoiceId, nativeIds] of invoiceNativeLineIds) {
+      for (const nativeId of nativeIds) invoiceByNativeLine.set(nativeId, invoiceId);
+    }
+    const nativeClosings = new Map<string, NativeClosingGroup>();
+    for (const row of nativeEvidenceRows) {
+      const invoiceId = invoiceByNativeLine.get(row.nativeLineId);
+      if (!invoiceId) continue;
+      for (const closing of row.originalClosings ?? []) {
+        if (!(Number(closing.amount) > 0)) continue;
+        const prior = nativeClosings.get(closing.closingId);
+        if (prior) {
+          if (prior.closing.sourceLineId !== closing.sourceLineId ||
+              prior.closing.otherSourceLineId !== closing.otherSourceLineId ||
+              Number(prior.closing.amount) !== Number(closing.amount)) {
+            throw new Error(`Izvorni ZAPIRANJE ID ${closing.closingId} ima nasprotujoče invoice dokaze.`);
+          }
+          prior.invoiceIds.add(invoiceId);
+        } else nativeClosings.set(closing.closingId, { closing, invoiceIds: new Set([invoiceId]) });
+      }
+    }
+    const pairKey = (left: string, right: string, amount: string | number) =>
+      `${[left, right].sort().join(":")}:${Number(amount).toFixed(2)}`;
+    const coveredPairs = new Map<string, Set<string>>();
+    for (const row of arRows) {
+      for (const closing of row.evidence ?? []) {
+        const key = pairKey(row.sourceLineId, closing.otherLineId, closing.amount);
+        coveredPairs.set(key, new Set([...(coveredPairs.get(key) ?? []), row.invoiceId]));
+      }
+    }
+    for (const row of historicalAp) {
+      for (const closing of row.evidence ?? []) {
+        const key = pairKey(row.sourceLineId, closing.otherLineId, closing.amount);
+        coveredPairs.set(key, new Set([...(coveredPairs.get(key) ?? []), row.invoiceId]));
+      }
+    }
+    const groups = new Map<string, NativeClosingGroup[]>();
+    for (const item of nativeClosings.values()) {
+      const closing = item.closing;
+      const key = pairKey(closing.sourceLineId, closing.otherSourceLineId, closing.amount);
+      groups.set(key, [...(groups.get(key) ?? []), item]);
+    }
+    for (const [key, group] of groups) {
+      const remaining = new Set(group);
+      const ordered = [...group].sort((left, right) =>
+        left.closing.closingId.localeCompare(right.closing.closingId, undefined, { numeric: true }));
+      for (const item of ordered) {
+        if (!remaining.has(item)) continue;
+        remaining.delete(item);
+        const reciprocal = [...remaining].find((candidate) =>
+          candidate.closing.sourceLineId === item.closing.otherSourceLineId &&
+          candidate.closing.otherSourceLineId === item.closing.sourceLineId &&
+          Number(candidate.closing.amount) === Number(item.closing.amount));
+        if (reciprocal) remaining.delete(reciprocal);
+        const canonical = reciprocal && reciprocal.closing.closingId.localeCompare(
+          item.closing.closingId, undefined, { numeric: true },
+        ) < 0 ? reciprocal : item;
+        const dateA = validOldRecordedDate(item.closing.recordedDate);
+        const dateB = reciprocal ? validOldRecordedDate(reciprocal.closing.recordedDate) : null;
+        const recordedDate = dateA && dateB ? (dateA > dateB ? dateA : dateB) : dateA ?? dateB;
+        if (!recordedDate || recordedDate > asOfDate) continue;
+        const relatedInvoices = new Set([...item.invoiceIds, ...(reciprocal?.invoiceIds ?? [])]);
+        const covered = coveredPairs.get(key) ?? new Set<string>();
+        for (const invoiceId of relatedInvoices) {
+          if (covered.has(invoiceId)) continue;
+          const duplicateAllocation = allocationByInvoice.get(invoiceId)?.some((allocation) =>
+            allocation.paymentDate === recordedDate &&
+            Number(allocation.allocatedAmount) === Number(item.closing.amount));
+          if (duplicateAllocation) continue;
+          const id = `bookie-old-native:${companyId}:${canonical.closing.closingId}:invoice:${invoiceId}`;
+          if (legacySourceIds.has(id)) continue;
+          legacySourceIds.add(id);
+          events.push({
+            id, sourceLineId: invoiceId, amount: item.closing.amount,
+            effectiveDate: recordedDate, eventType: "close",
+          });
+        }
+      }
+    }
   }
   const relevantLines = [...invoiceLine.values()];
   const manualRows = relevantLines.length ? await executor.select().from(partnerSettlementEventsTable).where(and(

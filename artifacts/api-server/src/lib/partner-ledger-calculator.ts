@@ -74,6 +74,7 @@ export function calculatePartnerLedger<T extends LedgerMovement>(
   movements: readonly T[],
   settlements: readonly SettlementMovement[],
   asOfDate: string,
+  initialBalances: ReadonlyMap<string, string | number> = new Map(),
 ): Array<T & { openDebit: string; openCredit: string; runningBalance: string }> {
   const ordered = [...movements]
     .filter((row) => row.date <= asOfDate)
@@ -89,7 +90,9 @@ export function calculatePartnerLedger<T extends LedgerMovement>(
       closedByLine.set(closing.targetLineId, (closedByLine.get(closing.targetLineId) ?? new Decimal(0)).plus(activeAmount));
     }
   }
-  const runningByGroup = new Map<string, Decimal>();
+  const runningByGroup = new Map<string, Decimal>(
+    [...initialBalances].map(([group, amount]) => [group, decimal(amount)]),
+  );
   return ordered.map((line) => {
     const debit = decimal(line.debit);
     const credit = decimal(line.credit);

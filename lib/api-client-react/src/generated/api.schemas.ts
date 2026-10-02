@@ -13202,8 +13202,8 @@ export const GetAgedAnalysisType = {
 } as const;
 
 export type GetPartnerLedgerParams = {
-partnerId?: string;
-accountId?: string;
+partnerId: string;
+accountId: string;
 dateFrom?: string;
 /**
  * As-of cut-off; defaults to today.
@@ -13270,6 +13270,8 @@ export type GetPartnerLedger200LinesItem = {
   postingDate?: string;
   taxDate?: string | null;
   dueDate?: string | null;
+  durDate?: string | null;
+  originalDocumentNumber?: string | null;
   debit: string;
   credit: string;
   runningBalance: string;
@@ -13293,8 +13295,8 @@ export type GetPartnerLedger200 = {
 };
 
 export type GetPartnerLedgerPdfParams = {
-partnerId?: string;
-accountId?: string;
+partnerId: string;
+accountId: string;
 dateFrom?: string;
 dateTo?: string;
 openOnly?: boolean;

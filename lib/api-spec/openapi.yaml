@@ -8940,17 +8940,19 @@ paths:
       tags: [partner-ledger]
       summary: Chronological partner GL card
       description: >
-        Returns partner-tagged posted/reversed GL lines across all accounts, chronological running
+        Requires one partner and one account. Returns partner-tagged posted/reversed GL lines, chronological running
         balance and independent open debit/credit amounts. dateFrom only filters returned lines;
         opening/running balance is calculated from the complete flow through dateTo. Drafts are
         read-only and require mode=drafts; draft data is never included by default and is unsuitable
         for settlement/payment preparation. Missing historic counterparts are retained as evidence
         warnings, never manufactured as postings.
+        Imported opening vouchers are balance metadata, not returned documents; later annual
+        carryforwards are excluded to avoid counting the same history repeatedly.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: companyId, in: path, required: true, schema: { type: string } }
-        - { name: partnerId, in: query, schema: { type: string } }
-        - { name: accountId, in: query, schema: { type: string } }
+        - { name: partnerId, in: query, required: true, schema: { type: string } }
+        - { name: accountId, in: query, required: true, schema: { type: string } }
         - { name: dateFrom, in: query, schema: { type: string, format: date } }
         - { name: dateTo, in: query, schema: { type: string, format: date }, description: "As-of cut-off; defaults to today." }
         - { name: openOnly, in: query, schema: { type: boolean }, description: "Filters returned lines only; does not alter running balance." }
@@ -9004,6 +9006,15 @@ paths:
                         postingDate: { type: string, format: date }
                         taxDate: { type: string, format: date, nullable: true }
                         dueDate: { type: string, format: date, nullable: true }
+                        durDate:
+                          type: string
+                          format: date
+                          nullable: true
+                          description: Original GLAVNA Dat_dur (DUR), not the ERP invoice-receipt date.
+                        originalDocumentNumber:
+                          type: string
+                          nullable: true
+                          description: Original GLAVNA Stevilka voucher/document number.
                         debit: { type: string }
                         credit: { type: string }
                         runningBalance: { type: string }
@@ -9024,8 +9035,8 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: companyId, in: path, required: true, schema: { type: string } }
-        - { name: partnerId, in: query, schema: { type: string } }
-        - { name: accountId, in: query, schema: { type: string } }
+        - { name: partnerId, in: query, required: true, schema: { type: string } }
+        - { name: accountId, in: query, required: true, schema: { type: string } }
         - { name: dateFrom, in: query, schema: { type: string, format: date } }
         - { name: dateTo, in: query, schema: { type: string, format: date } }
         - { name: openOnly, in: query, schema: { type: boolean } }

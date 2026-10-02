@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { AlertCircle, FileDown, Link2 } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -17,8 +17,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DetailDialog, SettleDialog, errMsg } from "@/components/partner-ledger-dialogs";
 import { downloadBlob, fmt, fmtDate, today } from "@/lib/partner-ledger-utils";
+import { PartnerLedgerPartnerSelect } from "@/components/partner-ledger-partner-select";
 
 type Line = any;
+const DOC_LABELS: Record<string, string> = { issued: "Izdani račun", received: "Prejeti račun", issued_invoice: "Izdani račun", received_invoice: "Prejeti račun", payment: "Plačilo", bank_statement: "Bančni izpisek", manual: "Ročni vnos" };
+const docLabel = (t?: string | null) => (t ? DOC_LABELS[t] ?? t : "-");
 export default function KarticaPartnerja() {
   const { activeCompany } = useCompany();
   const companyId = activeCompany?.id ?? "";
@@ -36,17 +39,34 @@ export default function KarticaPartnerja() {
   const [status, setStatus] = useState<string | null>(null);
   const [settleOpen, setSettleOpen] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [appliedKey, setAppliedKey] = useState<string | null>(null);
+  const filterCompany = useRef(companyId);
+
+  useEffect(() => {
+    if (filterCompany.current && filterCompany.current !== companyId) {
+      setPartnerId("all"); setAccountId("all"); setAppliedKey(null);
+    }
+    filterCompany.current = companyId;
+  }, [companyId]);
 
   const { data: cps } = useListCounterparties(companyId, {}, { query: { enabled: !!companyId } as any });
   const { data: accs } = useListAccounts(companyId, {} as any, { query: { enabled: !!companyId } as any });
+  const saldakontoAccounts = (accs?.accounts ?? []).filter(account =>
+    account.isOpenItem && account.allowsPosting !== false && account.isActive !== false);
+  const validAccount = saldakontoAccounts.some(account => account.id === accountId);
 
   const params = {
-    partnerId: partnerId !== "all" ? partnerId : undefined,
-    accountId: accountId !== "all" ? accountId : undefined,
+    partnerId: partnerId !== "all" ? partnerId : "",
+    accountId: accountId !== "all" ? accountId : "",
     dateFrom: dateFrom || undefined, dateTo: dateTo || undefined, openOnly, mode,
   };
-  const ledger = useGetPartnerLedger(companyId, params, { query: { enabled: !!companyId } as any });
-  const data = ledger.data as any;
+  const filterKey = JSON.stringify([companyId, params]);
+  const filtersReady = !!companyId && partnerId !== "all" && validAccount && !!dateTo && (!dateFrom || dateFrom <= dateTo);
+  const showReport = filtersReady && appliedKey === filterKey;
+  const ledger = useGetPartnerLedger(companyId, params, {
+    query: { enabled: showReport, retry: false, refetchOnWindowFocus: false } as any,
+  });
+  const data = showReport ? ledger.data as any : undefined;
   const lines: Line[] = data?.lines ?? [];
   const isDraft = mode === "drafts";
 
@@ -58,9 +78,21 @@ export default function KarticaPartnerja() {
   const lastBalance = data?.closingBalance;
   const selLines = lines.filter(l => selected.includes(l.lineId));
 
-  async function reload() { await ledger.refetch(); }
+  useEffect(() => {
+    setSelected([]); setDetail(null); setSettleOpen(false); setStatus(null);
+  }, [filterKey]);
+
+  function applyFilters(event: React.FormEvent) {
+    event.preventDefault();
+    if (!filtersReady) return;
+    if (showReport) void ledger.refetch();
+    else setAppliedKey(filterKey);
+  }
+
+  async function reload() { if (showReport) await ledger.refetch(); }
 
   async function downloadPdf() {
+    if (!showReport || !data) return;
     setPdfBusy(true); setStatus(null);
     try {
       const blob = await getPartnerLedgerPdf(companyId, params as any);
@@ -74,24 +106,23 @@ export default function KarticaPartnerja() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Kartica partnerja</h1>
-          <p className="text-muted-foreground mt-1">Kronološki pregled vseh kontov partnerja, zapiranja in ponovna odpiranja postavk.</p>
+          <p className="text-muted-foreground mt-1">Kronološki pregled izbranega partnerja in konta, zapiranja in ponovna odpiranja postavk.</p>
         </div>
         <div className="flex gap-2">
           <Link href="/saldakonti"><Button variant="outline">Saldakonti</Button></Link>
           <Link href="/promet-partnerjev"><Button variant="outline">Promet partnerjev</Button></Link>
-          <Button onClick={downloadPdf} disabled={pdfBusy || !companyId}><FileDown className="h-4 w-4 mr-2" />{pdfBusy ? "Pripravljam..." : "PDF"}</Button>
+          <Button onClick={downloadPdf} disabled={pdfBusy || !showReport || !data || ledger.isFetching}><FileDown className="h-4 w-4 mr-2" />{pdfBusy ? "Pripravljam..." : "PDF"}</Button>
         </div>
       </div>
 
-      <div className="bg-card p-4 rounded-lg border shadow-sm grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
-        <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Partner</Label>
-          <Select value={partnerId} onValueChange={v => { setPartnerId(v); setSelected([]); }}><SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Vsi partnerji</SelectItem>
-              {(cps?.counterparties ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Konto</Label>
-          <Select value={accountId} onValueChange={v => { setAccountId(v); setSelected([]); }}><SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Vsi konti</SelectItem>
-              {(accs?.accounts ?? []).map((a: any) => <SelectItem key={a.id} value={a.id}>{a.code} {a.name}</SelectItem>)}</SelectContent></Select></div>
+      <form onSubmit={applyFilters} className="bg-card p-4 rounded-lg border shadow-sm grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+        <div className="space-y-1.5"><Label htmlFor="partner-filter" className="text-xs text-muted-foreground">Poslovni partner</Label>
+          <PartnerLedgerPartnerSelect key={companyId} partners={cps?.counterparties ?? []}
+            value={partnerId} onChange={v => { setPartnerId(v); setSelected([]); }} /></div>
+        <div className="space-y-1.5"><Label htmlFor="account-filter" className="text-xs text-muted-foreground">Konto</Label>
+          <Select value={validAccount ? accountId : "all"} onValueChange={v => { setAccountId(v); setSelected([]); }}><SelectTrigger id="account-filter"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">Izberite konto</SelectItem>
+              {saldakontoAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.code} {a.name}</SelectItem>)}</SelectContent></Select></div>
         <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Datum od</Label><Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
         <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Datum do (stanje na dan)</Label><Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
         <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Postavke</Label>
@@ -100,7 +131,8 @@ export default function KarticaPartnerja() {
         <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Vir knjižb</Label>
           <Select value={mode} onValueChange={v => { setMode(v as any); setSelected([]); }}><SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="posted">Knjižene postavke</SelectItem><SelectItem value="drafts">Osnutki (samo za ogled)</SelectItem></SelectContent></Select></div>
-      </div>
+        <Button type="submit" disabled={!filtersReady || (showReport && ledger.isFetching)}>Prikaži kartico</Button>
+      </form>
 
       {isDraft && (
         <Alert className="border-amber-300 bg-amber-50 text-amber-900">
@@ -113,10 +145,16 @@ export default function KarticaPartnerja() {
         <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Filter odprtih postavk</AlertTitle>
           <AlertDescription>Filter skrije zaprte vrstice, vendar tekoči saldo še vedno izhaja iz celotnega izbranega toka.</AlertDescription></Alert>
       )}
-      <p className="text-xs text-muted-foreground">Datum DUR: vir še ni potrjen, zato ni prikazan. Stolpec Datum DDV je davčni datum knjižbe. Zaporedje sledi datumu dokumenta; če manjka, datumu knjiženja.</p>
+      <p className="text-xs text-muted-foreground">Datum DUR, datum knjiženja, datum DDV in celoten opis so v podrobnostih postavke. DUR je prikazan samo iz potrjenega izvornega podatka. Zaporedje sledi datumu dokumenta; če manjka, datumu knjiženja.</p>
+      {showReport && data && lines.length > 0 && (
+        <div className="bg-card border rounded-lg p-3 text-sm flex flex-wrap gap-x-8 gap-y-1" data-testid="ledger-header">
+          <div><span className="text-muted-foreground">Partner: </span><b>{(cps?.counterparties ?? []).find((c: any) => c.id === partnerId)?.name ?? lines[0].partnerName}</b></div>
+          <div><span className="text-muted-foreground">Konto: </span><b>{saldakontoAccounts.find(a => a.id === accountId)?.code} {saldakontoAccounts.find(a => a.id === accountId)?.name}</b></div>
+        </div>
+      )}
       {status && <Alert variant={status.startsWith("Uspeh") ? "default" : "destructive"}><AlertDescription>{status}</AlertDescription></Alert>}
 
-      {canEdit && !isDraft && (
+      {showReport && canEdit && !isDraft && (
         <div className="flex items-center gap-3">
           <Button disabled={selected.length < 2} onClick={() => { setStatus(null); setSettleOpen(true); }}>
             <Link2 className="h-4 w-4 mr-2" />Zapri izbrane postavke ({selected.length})
@@ -125,7 +163,10 @@ export default function KarticaPartnerja() {
         </div>
       )}
 
-      {ledger.error ? (
+      {!showReport ? (
+        <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Najprej določite filtre</AlertTitle>
+          <AlertDescription>Izberite poslovnega partnerja, konto in veljavno obdobje, nato kliknite »Prikaži kartico«. Do takrat se postavke ne nalagajo.</AlertDescription></Alert>
+      ) : ledger.error ? (
         <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Napaka</AlertTitle>
           <AlertDescription className="flex items-center gap-3">{errMsg(ledger.error)}<Button size="sm" variant="outline" onClick={() => ledger.refetch()}>Poskusi znova</Button></AlertDescription></Alert>
       ) : ledger.isLoading ? <Skeleton className="h-[400px] w-full" />
@@ -134,40 +175,36 @@ export default function KarticaPartnerja() {
           <p className="text-muted-foreground">Za izbrane filtre ni knjižb.{(data?.openingBalances ?? []).filter((o: any) => Number(o.balance) !== 0).map((o: any) => ` Začetno stanje ${o.accountCode}: ${fmt(o.balance)}.`).join("")}</p></div>
       ) : (
         <div className="border rounded-lg bg-card overflow-x-auto">
-          <Table>
+          <Table className="min-w-[1200px] text-sm">
             <TableHeader><TableRow>
               <TableHead className="w-8" />
-              <TableHead>Vrsta</TableHead><TableHead>Konto</TableHead><TableHead>Partner</TableHead><TableHead>Št. dok.</TableHead><TableHead>Temeljnica</TableHead><TableHead>Opis</TableHead>
-              <TableHead>Dat. dok.</TableHead><TableHead title="Datum DDV ni potrjen kot vir; prikazan je Datum DDV.">Datum DDV</TableHead><TableHead>Zapad.</TableHead>
+              <TableHead>Vrsta dokumenta</TableHead><TableHead>Št. dok.</TableHead><TableHead>Temeljnica</TableHead>
+              <TableHead className="whitespace-nowrap">Dat. dok.</TableHead><TableHead className="whitespace-nowrap">Zapad.</TableHead>
               <TableHead className="text-right">Debet</TableHead><TableHead className="text-right">Kredit</TableHead>
-              <TableHead className="text-right">Saldo</TableHead><TableHead className="text-right">Odprt debet</TableHead><TableHead className="text-right">Odprt kredit</TableHead><TableHead />
+              <TableHead className="text-right">Saldo</TableHead><TableHead className="text-right whitespace-nowrap">Odprt debet</TableHead><TableHead className="text-right whitespace-nowrap">Odprt kredit</TableHead><TableHead>Podrobnosti</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {data && dateFrom && (data.openingBalances ?? []).map((o: any) => <TableRow key={o.accountId} className="bg-muted/30"><TableCell colSpan={12} className="font-medium">Začetno stanje pred {fmtDate(dateFrom)}: konto {o.accountCode} {o.accountName}</TableCell>
-                <TableCell className="text-right font-medium">{fmt(o.balance)}</TableCell><TableCell colSpan={3} /></TableRow>)}
+              {data && (data.openingBalances ?? []).filter((o: any) => dateFrom || Number(o.balance) !== 0).map((o: any) => <TableRow key={o.accountId} className="bg-muted/30"><TableCell colSpan={8} className="font-medium">Začetno stanje iz razpoložljive zgodovine{dateFrom ? ` do ${fmtDate(dateFrom)}` : ""}: konto {o.accountCode} {o.accountName}</TableCell>
+                <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">{fmt(o.balance)}</TableCell><TableCell colSpan={3} /></TableRow>)}
               {lines.map(l => (
                 <TableRow key={l.lineId} data-state={selected.includes(l.lineId) ? "selected" : undefined}>
                   <TableCell>{canEdit && !isDraft && (Number(l.openDebit) > 0 || Number(l.openCredit) > 0) &&
                     <Checkbox checked={selected.includes(l.lineId)} onCheckedChange={c => setSelected(s => c ? [...s, l.lineId] : s.filter(x => x !== l.lineId))} />}</TableCell>
-                  <TableCell>{l.documentType ?? "-"}{l.entryStatus !== "posted" && <Badge variant="outline" className="ml-1">{l.entryStatus === "draft" ? "osnutek" : "storno"}</Badge>}</TableCell>
-                  <TableCell className="whitespace-nowrap">{l.accountCode}</TableCell>
-                  <TableCell>{l.partnerName}</TableCell>
-                  <TableCell>{l.documentNumber ?? "-"}</TableCell>
-                  <TableCell><Link className="underline hover:text-primary" href={`/temeljnice?id=${encodeURIComponent(l.entryId)}`}>{l.reference ?? "Odpri temeljnico"}</Link></TableCell>
-                  <TableCell className="max-w-[260px]">{l.description}</TableCell>
-                  <TableCell>{fmtDate(l.documentDate ?? l.postingDate)}</TableCell>
-                  <TableCell>{fmtDate(l.taxDate)}</TableCell>
-                  <TableCell>{fmtDate(l.dueDate)}</TableCell>
-                  <TableCell className="text-right">{fmt(l.debit)}</TableCell>
-                  <TableCell className="text-right">{fmt(l.credit)}</TableCell>
-                  <TableCell className="text-right font-medium">{fmt(l.runningBalance)}</TableCell>
-                  <TableCell className="text-right">{fmt(l.openDebit)}</TableCell>
-                  <TableCell className="text-right">{fmt(l.openCredit)}</TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => setDetail(l)}>Zapiranja ({l.closings?.length ?? 0})</Button></TableCell>
+                  <TableCell className="whitespace-nowrap">{docLabel(l.documentType)}{l.entryStatus !== "posted" && <Badge variant="outline" className="ml-1">{l.entryStatus === "draft" ? "osnutek" : "storno"}</Badge>}</TableCell>
+                  <TableCell className="whitespace-nowrap">{l.originalDocumentNumber ?? l.documentNumber ?? "-"}</TableCell>
+                  <TableCell className="whitespace-nowrap"><Link className="underline hover:text-primary" title={l.reference ?? undefined} href={`/temeljnice?id=${encodeURIComponent(l.entryId)}`}>Odpri</Link></TableCell>
+                  <TableCell className="whitespace-nowrap">{fmtDate(l.documentDate ?? l.postingDate)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{fmtDate(l.dueDate)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmt(l.debit)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmt(l.credit)}</TableCell>
+                  <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">{fmt(l.runningBalance)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmt(l.openDebit)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmt(l.openCredit)}</TableCell>
+                  <TableCell className="whitespace-nowrap"><Button size="sm" variant="ghost" onClick={() => setDetail(l)}>Podrobnosti / Zapiranja ({l.closings?.length ?? 0})</Button></TableCell>
                 </TableRow>
               ))}
-              <TableRow className="bg-muted/50 font-bold hover:bg-muted/50">
-                <TableCell colSpan={10} className="text-right">Skupaj prikazane vrstice:</TableCell>
+              <TableRow className="bg-muted/50 font-bold hover:bg-muted/50 [&>td]:whitespace-nowrap [&>td]:tabular-nums">
+                <TableCell colSpan={6} className="text-right">Skupaj prikazane vrstice:</TableCell>
                 <TableCell className="text-right">{fmt(totals.d)}</TableCell><TableCell className="text-right">{fmt(totals.c)}</TableCell>
                 <TableCell className="text-right">{fmt(lastBalance)}</TableCell>
                 <TableCell className="text-right">{fmt(totals.od)}</TableCell><TableCell className="text-right">{fmt(totals.oc)}</TableCell><TableCell />
@@ -177,9 +214,9 @@ export default function KarticaPartnerja() {
         </div>
       )}
 
-      {detail && <DetailDialog line={lines.find(l => l.lineId === detail.lineId) ?? detail} onClose={() => setDetail(null)}
+      {showReport && detail && <DetailDialog line={lines.find(l => l.lineId === detail.lineId) ?? detail} onClose={() => setDetail(null)}
         companyId={companyId} canEdit={canEdit && !isDraft} reload={reload} setStatus={setStatus} />}
-      <SettleDialog open={settleOpen} onClose={() => setSettleOpen(false)} lines={selLines} companyId={companyId}
+      <SettleDialog open={showReport && settleOpen} onClose={() => setSettleOpen(false)} lines={selLines} companyId={companyId}
         reload={async () => { await reload(); setSelected([]); }} setStatus={setStatus} />
     </div>
   );

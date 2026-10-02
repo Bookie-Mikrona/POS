@@ -80,3 +80,9 @@ Zahteva za dokončno knjiženje zgodovinske GK je omejena na leta 2020–2025; l
 **Why:** Brez izvirnikov ni mogoče zanesljivo dokazati davčne razčlenitve prejetih računov. Stari DDV izvozi so po prejšnjem dogovoru le kontrola, ne vir novih davčnih knjižb; uporabnik je po pojasnilu posledic sprejel nepopolnost nove DDV evidence za arhivski GK prenos.
 
 **How to apply:** Zgodovinskih potrjenih računov ne predstavljaj kot dokaz popolne nove KIR/KPR ali DDV-O; ne dodajaj ugibanih kod in ne prepisuj starih kontrolnih izvozov v novo DDV evidenco. Ob morebitni poznejši rekonstrukciji ohrani ločnico med GK in davčno sledjo.
+
+Odprte obveznosti zgodovinskih dobaviteljev dokazuj z dejanskimi izvirnimi povezavami zapiranja na partnerjevi kreditni vrstici prejetega računa. Skupni saldo GK ni nadomestek za vsoto odprtih računov.
+
+**Why:** Isti voucher lahko vsebuje tudi nepartnerske kreditne vrstice povračil stroškov. Zbiranje vseh kreditov skupine 22 ali sklepanje po številki voucherja napačno poveča obveznosti. Preneseni računi brez prenesenih zapiranj niso dokaz, da ni bilo plačil.
+
+**How to apply:** Veži račun na njegov točni izvorni ID in partnerja, uskladi kredit = zapiranja + ostanek ter števej eno smer dvosmernih povezav. Preveri končni izračun aplikacije nad dejansko prenesenimi dokazili, ne samo izvoznika ali umetnih testnih podatkov. Manjkajoča dokazila prikaži kot nepotrjen saldo; ne ustvarjaj nadomestnih plačil.

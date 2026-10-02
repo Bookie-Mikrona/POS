@@ -1327,3 +1327,31 @@ mtime_ms = 1790917836088
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/af5f51d3-2138-4e4a-9d93-f76abf69f60d/aeee173b-0c4f-4a5f-b017-e99551fdb8e5"
 storage_version_token = "1790917836437949"
 content_type = "text/html"
+
+[[outputs]]
+id = "7d1uKBDxX0jZAvvOMFUMU"
+uri = "file://reports/kartica-partnerja-stephany-2026-10-02.pdf"
+type = "pdf"
+title = "Popravljena kartica partnerja — STEPHANY"
+description = "Kompaktni PDF po vzoru stare kartice, z izvirnimi vezami in DUR. Obseg: knjiženi promet 2020–2025. Odprti debet 4,00 EUR, odprti kredit 0,00 EUR. Brez sprememb izvirnih knjižb ali plačil."
+logical_id = "a5eb0339-3a2e-48be-9e28-27cfa831ac0e"
+content_hash = "sha256:d307116bcd0d5ae6f555a593b3c5119f674593c843ecf2dff71ccec75ef97831"
+size = 47725
+mtime_ms = 1790931290744
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/a5eb0339-3a2e-48be-9e28-27cfa831ac0e/3d7a25d3-ffd3-4374-ba2c-61a8ed29a4b6"
+storage_version_token = "1790931393015975"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "FqnvY_kokTpz4tg3lLlqg"
+uri = "file://reports/kartica-partnerja-stephany-2025-12-31.pdf"
+type = "pdf"
+title = "STEPHANY — stanje 31. 12. 2025"
+description = "Novi izpis za točno isti presečni datum: odprti debet 4,00 EUR, odprti kredit 0,00 EUR. Knjiženi obseg 2020–2025; začetno stanje vključeno. Stari PDF ima ostanek 4,00 EUR in tiskani saldo 3,99 EUR; razlika v saldu še ni pojasnjena."
+logical_id = "b3e00ce5-af76-40df-98f7-d61efbfcc404"
+content_hash = "sha256:1b949ab5f7f19c483da7c181ada8d14646b6036b36a9b73a5ea666276715b5da"
+size = 47678
+mtime_ms = 1790931435471
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/b3e00ce5-af76-40df-98f7-d61efbfcc404/c21d1929-ed92-4ef9-b313-0353ab8bd4fc"
+storage_version_token = "1790931491677083"
+content_type = "application/pdf"

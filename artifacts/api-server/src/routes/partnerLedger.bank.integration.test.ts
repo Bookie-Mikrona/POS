@@ -15,7 +15,7 @@ vi.mock("../middlewares/requireAuth", () => ({
 
 import express from "express";
 import supertest from "supertest";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   accountingPeriodsTable,
   accountingRolesTable,
@@ -24,6 +24,8 @@ import {
   bankAccountMetadataTable,
   bankStatementLinesTable,
   bankStatementsTable,
+  bookieOldArSettlementsTable,
+  bookieOldNativeLedgerEvidenceTable,
   companiesTable,
   counterpartiesTable,
   db,
@@ -408,13 +410,29 @@ afterAll(async () => {
   // This tenant intentionally remains: partner-settlement events are
   // append-only/audited and must not be deleted or bypassed for test cleanup.
   // The unique TEST-only tenant is isolated from real company data.
+  await db.delete(bookieOldArSettlementsTable)
+    .where(eq(bookieOldArSettlementsTable.companyId, companyId));
   await pool.end();
 });
 
 describe("partner ledger through bank payment journey (real dev DB)", () => {
-  it("returns all accounts chronologically as of the default date, excluding drafts unless requested", async () => {
+  it("rejects JSON and PDF requests without both concrete partner/account filters", async () => {
+    for (const suffix of ["", "/pdf"]) {
+      for (const query of [
+        {}, { partnerId: customerId }, { accountId: ledgerAccountId },
+        { partnerId: customerId, accountId: "all" },
+        { partnerId: [customerId, supplierId], accountId: ledgerAccountId },
+      ]) {
+        const response = await supertest(app).get(`/companies/${companyId}/partner-ledger${suffix}`)
+          .query(query).expect(400);
+        expect(response.body.error).toContain("poslovnega partnerja in konto");
+      }
+    }
+  });
+
+  it("returns the selected partner/account chronologically, excluding drafts unless requested", async () => {
     const defaultAsOf = await supertest(app)
-      .get(`/companies/${companyId}/partner-ledger?partnerId=${customerId}`)
+      .get(`/companies/${companyId}/partner-ledger?partnerId=${customerId}&accountId=${ledgerAccountId}`)
       .expect(200);
     expect(defaultAsOf.body.asOfDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(defaultAsOf.body.mode).toBe("posted");
@@ -424,12 +442,12 @@ describe("partner ledger through bank payment journey (real dev DB)", () => {
         .map((line: any) => line.documentDate ?? line.postingDate)
         .sort(),
     );
-    expect(defaultAsOf.body.openingBalances.length).toBeGreaterThanOrEqual(2);
+    expect(defaultAsOf.body.openingBalances).toHaveLength(1);
     expect(defaultAsOf.body.lines.some((line: any) => line.accountId === ledgerAccountId)).toBe(true);
-    expect(defaultAsOf.body.lines.some((line: any) => line.accountId === secondLedgerAccountId)).toBe(true);
+    expect(defaultAsOf.body.lines.every((line: any) => line.accountId === ledgerAccountId)).toBe(true);
 
     const drafts = await supertest(app)
-      .get(`/companies/${companyId}/partner-ledger?partnerId=${customerId}&dateTo=2025-12-31&mode=drafts`)
+      .get(`/companies/${companyId}/partner-ledger?partnerId=${customerId}&accountId=${ledgerAccountId}&dateTo=2025-12-31&mode=drafts`)
       .expect(200);
     expect(drafts.body.mode).toBe("drafts");
     expect(drafts.body.lines.map((line: any) => line.lineId)).toContain(draftLedgerLineId);
@@ -440,6 +458,159 @@ describe("partner ledger through bank payment journey (real dev DB)", () => {
       .innerJoin(journalEntryLinesTable, eq(journalEntryLinesTable.entryId, journalEntriesTable.id))
       .where(eq(journalEntryLinesTable.id, draftLedgerLineId));
     expect(unchangedDraft.status).toBe("draft");
+  });
+
+  it("matches legacy AR evidence to native GL source IDs for both invoice and bank counterpart", async () => {
+    const invoiceSourceId = "900001";
+    const bankSourceId = "900002";
+    const [invoice] = await db.insert(invoicesTable).values({
+      companyId, type: "issued", counterpartyId: customerId, periodId,
+      invoiceNumber: `TEST-AR-PROVENANCE-${RUN_ID}`, invoiceDate: "2025-03-01",
+      dueDate: "2025-03-31", status: "posted", arApAccountId: ledgerAccountId,
+      createdBy: TEST_CLERK_USER_ID,
+    }).returning({ id: invoicesTable.id });
+    const [invoiceEntry] = await db.insert(journalEntriesTable).values({
+      companyId, periodId, documentDate: "2025-03-01", entryDate: "2025-03-01",
+      description: `TEST invoice [Bookie Old GLAVNA #${invoiceSourceId}]`,
+      reference: `TEST-AR-INVOICE-${RUN_ID}`, status: "posted", sourceType: "manual",
+      createdBy: TEST_CLERK_USER_ID,
+    }).returning({ id: journalEntriesTable.id });
+    await db.insert(journalEntryLinesTable).values([
+      { entryId: invoiceEntry.id, accountId: ledgerAccountId, partnerId: customerId,
+        side: "debit", amount: "61.00", description: `[Bookie Old GLAVNA #${invoiceSourceId}]`, sequence: 1 },
+      { entryId: invoiceEntry.id, accountId: expenseAccountId,
+        side: "credit", amount: "61.00", sequence: 2 },
+    ]);
+    await db.update(invoicesTable).set({ linkedEntryId: invoiceEntry.id })
+      .where(eq(invoicesTable.id, invoice.id));
+    const [bankEntry] = await db.insert(journalEntriesTable).values({
+      companyId, periodId, documentDate: "2025-03-10", entryDate: "2025-03-10",
+      description: `TEST bank receipt [Bookie Old GLAVNA #${bankSourceId}]`,
+      reference: `TEST-AR-BANK-${RUN_ID}`, status: "posted", sourceType: "manual",
+      createdBy: TEST_CLERK_USER_ID,
+    }).returning({ id: journalEntriesTable.id });
+    const bankLines = await db.insert(journalEntryLinesTable).values([
+      { entryId: bankEntry.id, accountId: firstBankAccountId,
+        side: "debit", amount: "61.00", sequence: 1 },
+      { entryId: bankEntry.id, accountId: ledgerAccountId, partnerId: customerId,
+        side: "credit", amount: "61.00", description: `[Bookie Old GLAVNA #${bankSourceId}]`, sequence: 2 },
+    ]).returning({ id: journalEntryLinesTable.id, side: journalEntryLinesTable.side });
+    const bankCredit = bankLines.find((line) => line.side === "credit")!;
+    await db.insert(bookieOldArSettlementsTable).values({
+      companyId, invoiceId: invoice.id, sourceLineId: invoiceSourceId,
+      originalAmount: "61.00", closedAmount: "61.00", remainingAmount: "0.00",
+      sourceAsOf: "2025-12-31",
+      evidence: [{ closingId: `TEST-AR-CLOSE-${RUN_ID}`, otherLineId: bankSourceId,
+        amount: "61.00", recordedDate: "3/10/2025" }],
+      sourceSha256: `test-ar-provenance-${RUN_ID}`,
+    });
+    try {
+      const snapshot = await db.select({
+        sourceLineId: bookieOldArSettlementsTable.sourceLineId,
+      }).from(bookieOldArSettlementsTable).where(and(
+        eq(bookieOldArSettlementsTable.companyId, companyId),
+        eq(bookieOldArSettlementsTable.invoiceId, invoice.id),
+      ));
+      expect(snapshot).toEqual([{ sourceLineId: invoiceSourceId }]);
+      const card = await supertest(app)
+        .get(`/companies/${companyId}/partner-ledger`)
+        .query({ partnerId: customerId, accountId: ledgerAccountId, dateTo: "2025-12-31" })
+        .expect(200);
+      const invoiceLine = card.body.lines.find((line: any) =>
+        line.description.includes(`#${invoiceSourceId}`));
+      const bankLine = card.body.lines.find((line: any) => line.lineId === bankCredit.id);
+      expect(invoiceLine?.openDebit).toBe("0.00");
+      expect(bankLine?.openCredit).toBe("0.00");
+      expect(invoiceLine.closings).toContainEqual(expect.objectContaining({
+        source: "bookie_old_ar", oppositeLineId: bankCredit.id, warning: null,
+      }));
+      const bankClosing = bankLine.closings.find((closing: any) => closing.source === "bookie_old_ar");
+      expect(bankClosing?.oppositeLineId).toBe(invoiceLine.lineId);
+      expect(bankClosing).not.toHaveProperty("warning");
+    } finally {
+      await db.delete(bookieOldArSettlementsTable).where(and(
+        eq(bookieOldArSettlementsTable.companyId, companyId),
+        eq(bookieOldArSettlementsTable.invoiceId, invoice.id),
+      ));
+    }
+  });
+
+  it("applies original GLAVNA/ZAPIRANJE evidence once across reciprocated native lines", async () => {
+    const sourceLineId = "993991";
+    const otherSourceLineId = "993992";
+    const reference = "BOOKIE-OLD/K2/2021/60/000273";
+    const sourceDescription = `TEST native proof [Bookie Old GLAVNA #${sourceLineId}, konto 1200000, partner 100171 Test partner]`;
+    const otherDescription = `TEST native proof [Bookie Old GLAVNA #${otherSourceLineId}, konto 1200000, partner 100171 Test partner]`;
+    const createNativeLine = async (line: {
+      description: string; side: "debit" | "credit";
+    }) => {
+      const [entry] = await db.insert(journalEntriesTable).values({
+        companyId, periodId, documentDate: "2021-10-30", entryDate: "2021-10-30",
+        description: "TEST original source proof", reference, status: "posted",
+        sourceType: "manual", createdBy: TEST_CLERK_USER_ID,
+      }).returning({ id: journalEntriesTable.id });
+      const [native] = await db.insert(journalEntryLinesTable).values({
+        entryId: entry.id, accountId: ledgerAccountId, partnerId: customerId,
+        side: line.side, amount: "48.80", description: line.description, sequence: 1,
+      }).returning({ id: journalEntryLinesTable.id });
+      return native.id;
+    };
+    const sourceNativeId = await createNativeLine({
+      description: sourceDescription, side: "debit",
+    });
+    const otherNativeId = await createNativeLine({
+      description: otherDescription, side: "credit",
+    });
+    const proof = (id: string, side: "debit" | "credit") => ({
+      sourceLineId: id, year: "2021", type: "60", voucherNumber: "000273",
+      documentNumber: "000273", ledgerCode: "K2", accountCode: "1200000",
+      partnerCode: "100171", partnerName: "Test partner", sides: [{ side, amount: "48.80" }],
+      documentDate: "2021-10-30", postingDate: "2021-10-30", durDate: "2021-10-30",
+    });
+    const first = {
+      closingId: "777771", sourceLineId, otherSourceLineId, amount: "48.80",
+      recordedDate: "2021-10-30", sourceProof: proof(sourceLineId, "debit"),
+      counterpartProof: proof(otherSourceLineId, "credit"),
+    };
+    const reciprocal = {
+      closingId: "777772", sourceLineId: otherSourceLineId, otherSourceLineId: sourceLineId,
+      amount: "48.80", recordedDate: "2021-10-30",
+      sourceProof: proof(otherSourceLineId, "credit"), counterpartProof: proof(sourceLineId, "debit"),
+    };
+    await db.insert(bookieOldNativeLedgerEvidenceTable).values([
+      {
+        companyId, nativeLineId: sourceNativeId, sourceLineId,
+        durDate: "2021-10-30", originalDocumentNumber: "000273",
+        originalGlMetadata: { ...proof(sourceLineId, "debit"), side: "debit", amount: "48.80" },
+        originalClosings: [{ ...first, anchorSide: "source" }, { ...reciprocal, anchorSide: "counterpart" }],
+        sourceDigest: "a".repeat(64),
+      },
+      {
+        companyId, nativeLineId: otherNativeId, sourceLineId: otherSourceLineId,
+        durDate: "2021-10-30", originalDocumentNumber: "000273",
+        originalGlMetadata: { ...proof(otherSourceLineId, "credit"), side: "credit", amount: "48.80" },
+        originalClosings: [{ ...first, anchorSide: "counterpart" }, { ...reciprocal, anchorSide: "source" }],
+        sourceDigest: "a".repeat(64),
+      },
+    ]);
+
+    const response = await supertest(app)
+      .get(`/companies/${companyId}/partner-ledger?partnerId=${customerId}&accountId=${ledgerAccountId}&dateTo=2025-12-31`)
+      .expect(200);
+    const sourceLine = response.body.lines.find((line: any) => line.lineId === sourceNativeId);
+    const otherLine = response.body.lines.find((line: any) => line.lineId === otherNativeId);
+    expect(sourceLine).toMatchObject({
+      openDebit: "0.00", durDate: "2021-10-30", originalDocumentNumber: "000273",
+    });
+    expect(otherLine).toMatchObject({
+      openCredit: "0.00", durDate: "2021-10-30", originalDocumentNumber: "000273",
+    });
+    expect(sourceLine.closings.filter((closing: any) => closing.source === "bookie_old_native_gl_zap"))
+      .toHaveLength(1);
+    expect(otherLine.closings.filter((closing: any) => closing.source === "bookie_old_native_gl_zap"))
+      .toHaveLength(1);
+    expect(sourceLine.closings.find((closing: any) => closing.source === "bookie_old_native_gl_zap"))
+      .toMatchObject({ closingId: "777771", originalClosingIds: ["777771", "777772"] });
   });
 
   it("groups historical open amounts into turnover for the requested period", async () => {
@@ -548,6 +719,8 @@ describe("partner ledger through bank payment journey (real dev DB)", () => {
   });
 
   it("atomically rejects an invalid second supplier, then creates and replays a valid batch on the selected TRR", async () => {
+    const journalIdsBeforeBatch = (await db.select({ id: journalEntriesTable.id })
+      .from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId))).map(row => row.id).sort();
     const base = {
       bankAccountId: selectedBankAccountId,
       periodId,
@@ -614,7 +787,7 @@ describe("partner ledger through bank payment journey (real dev DB)", () => {
     const entriesAfterExport = await db.select({ id: journalEntriesTable.id })
       .from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
     expect(entriesAfterExport.map(row => row.id)).toContain(postedJournalEntryId);
-    expect(entriesAfterExport.length).toBe(8); // ledger, reconciliation, external invoice/payment journals
+    expect(entriesAfterExport.map(row => row.id).sort()).toEqual(journalIdsBeforeBatch);
 
     const openItemsBeforeRelease = await supertest(app)
       .get(`/companies/${companyId}/open-items`)
@@ -863,8 +1036,40 @@ describe("partner ledger through bank payment journey (real dev DB)", () => {
     expect(negativeLine).toMatchObject({ debit: "-30.00", openCredit: "10.00" });
   });
 
+  it("hides opening documents and uses the first baseline only, without changing stored postings", async () => {
+    const partnerId = await createPartner(companyId, `TEST openings ${RUN_ID}`, "customer");
+    const accountId = await createAccount(companyId, "1200999", "asset");
+    const first = await createJournalLine({
+      companyId, periodId, accountId, partnerId, side: "debit", amount: 100,
+      date: "2025-01-01", reference: "BOOKIE-OLD/K2/2025/00/000001",
+    });
+    const invoice = await createJournalLine({
+      companyId, periodId, accountId, partnerId, side: "debit", amount: 40,
+      date: "2025-02-01", reference: "BOOKIE-OLD/K2/2025/10/000001",
+    });
+    const [nextPeriod] = await db.insert(accountingPeriodsTable).values({
+      companyId, name: "TEST 2026", startDate: "2026-01-01", endDate: "2026-12-31", status: "open",
+    }).returning({ id: accountingPeriodsTable.id });
+    const carry = await createJournalLine({
+      companyId, periodId: nextPeriod.id, accountId, partnerId, side: "debit", amount: 140,
+      date: "2026-01-01", reference: "BOOKIE-OLD/K2/2026/00/000001",
+    });
+    const response = await supertest(app).get(`/companies/${companyId}/partner-ledger`)
+      .query({ partnerId, accountId, dateTo: "2026-01-02" }).expect(200);
+    expect(response.body.lines.map((line: any) => line.lineId)).toEqual([invoice.lineId]);
+    expect(response.body).toMatchObject({ openingBalance: "100.00", closingBalance: "140.00" });
+    expect(response.body.lines[0]).toMatchObject({ runningBalance: "140.00", openDebit: "40.00" });
+    const periodCard = await supertest(app).get(`/companies/${companyId}/partner-ledger`)
+      .query({ partnerId, accountId, dateFrom: "2026-01-01", dateTo: "2026-01-02" }).expect(200);
+    expect(periodCard.body).toMatchObject({ openingBalance: "140.00", closingBalance: "140.00", lines: [] });
+    const stored = await db.select({ id: journalEntryLinesTable.id, amount: journalEntryLinesTable.amount })
+      .from(journalEntryLinesTable).where(inArray(journalEntryLinesTable.id, [first.lineId, carry.lineId]));
+    expect(stored).toHaveLength(2);
+    expect(stored.map(line => line.amount).sort()).toEqual(["100.00", "140.00"]);
+  });
+
   it("serves valid partner-ledger and turnover PDFs with the same 2025 filters and JSON totals", async () => {
-    const ledgerFilters = { partnerId: customerId, dateTo: "2025-12-31" };
+    const ledgerFilters = { partnerId: customerId, accountId: ledgerAccountId, dateTo: "2025-12-31" };
     const ledgerJson = await supertest(app)
       .get(`/companies/${companyId}/partner-ledger`)
       .query(ledgerFilters)
@@ -873,8 +1078,8 @@ describe("partner ledger through bank payment journey (real dev DB)", () => {
     expect(ledgerJson.body.mode).toBe("posted");
     const ledgerDebitTotal = ledgerJson.body.lines.reduce((sum: number, line: any) => sum + Number(line.debit), 0);
     const ledgerCreditTotal = ledgerJson.body.lines.reduce((sum: number, line: any) => sum + Number(line.credit), 0);
-    expect(ledgerDebitTotal).toBe(180);
-    expect(ledgerCreditTotal).toBe(160);
+    expect(ledgerDebitTotal).toBe(209.8); // 100 + AR/native 61 + standalone native 48.80 fixtures
+    expect(ledgerCreditTotal).toBe(209.8);
 
     const ledgerPdf = await supertest(app)
       .get(`/companies/${companyId}/partner-ledger/pdf`)
@@ -900,8 +1105,8 @@ describe("partner ledger through bank payment journey (real dev DB)", () => {
       dateTo: turnoverFilters.dateTo,
     });
     expect(turnoverJson.body.totals).toMatchObject({
-      debit: "180.00",
-      credit: "160.00",
+      debit: "241.00", // includes the 61 EUR native AR fixture in 2025
+      credit: "221.00",
       periodBalance: "20.00",
     });
 

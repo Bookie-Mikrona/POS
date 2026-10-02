@@ -78,6 +78,8 @@ const migrations = [
   "237-purchase-article-eslog-units.sql",
   "238-bookie-old-ar-settlements.sql",
   "242-partner-ledger-settlements.sql",
+  "246-bookie-old-ap-settlements.sql",
+  "247-bookie-old-native-ledger-evidence.sql",
 ] as const;
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptsDir, "../../../lib/db/src/migrations");

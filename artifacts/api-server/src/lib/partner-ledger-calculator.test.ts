@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { activeSettlementAmounts, calculateOpenRemainder, calculatePartnerLedger, parseLegacyRecordedDate } from "./partner-ledger-calculator";
 
+describe("opening balance metadata", () => {
+  it("seeds balances without making the opening a document or an open item", () => {
+    const initial = new Map([["account-a", "100.00"]]);
+    const rows = calculatePartnerLedger([
+      { id: "invoice", date: "2024-12-31", debit: "40.00", credit: "0", sourceOrder: 0, balanceGroup: "account-a" },
+      { id: "payment", date: "2025-02-01", debit: "0", credit: "15.00", sourceOrder: 1, balanceGroup: "account-a" },
+    ], [], "2025-12-31", initial);
+    expect(rows.map(row => row.id)).toEqual(["invoice", "payment"]);
+    expect(rows[0]).toMatchObject({ runningBalance: "140.00", openDebit: "40.00", openCredit: "0.00" });
+    expect(rows[1]).toMatchObject({ runningBalance: "125.00", openDebit: "0.00", openCredit: "15.00" });
+    expect(initial.get("account-a")).toBe("100.00");
+  });
+});
+
 describe("partner ledger calculator", () => {
   it("keeps debit and credit open amounts separate and honors as-of closures", () => {
     const result = calculatePartnerLedger([

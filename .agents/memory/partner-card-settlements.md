@@ -3,11 +3,41 @@ name: Kartica poslovnega partnerja in zapiranje postavk
 description: Uporabnikove zahteve za kartico knjižb, delna zapiranja in zbirni promet po partnerjih po vzoru starega programa.
 ---
 
-Kartica partnerja mora prikazovati kronološke knjižene postavke z izbiro partnerja, konta in obdobja ter filtrom samo odprte/vse. Za vsako postavko mora biti viden dokument oziroma več dokumentov, ki jo delno ali popolnoma zapirajo, z zneski posameznih povezav in ostankom.
+Kartica partnerja mora prikazovati kronološke knjižene postavke z obvezno izbiro enega poslovnega partnerja in enega konta pred nalaganjem ter izbiro obdobja in filtrom samo odprte/vse. Za vsako postavko mora biti viden dokument oziroma več dokumentov, ki jo delno ali popolnoma zapirajo, z zneski posameznih povezav in ostankom.
 
 **Why:** Uporabnik je 2026-10-02 opisal stari program kot funkcionalno referenco: en račun se lahko poravna z več delnimi plačili, eno plačilo pa zapira več računov. Zahteva velja za vse konte, tako kupce kot dobavitelje, in vključuje ročno zapiranje poljubnih postavk ter ponovno odpiranje.
 
 **How to apply:** Kartice ne omeji na seznam računov ali na status »plačan«. Loči knjižbeno postavko od njenih več povezav zapiranja; vključuj tudi ustrezne postavke glavne knjige in ohrani izvorno sled zgodovinskih zapiranj.
+
+Otvoritve niso posamezne postavke kartice za izbiro in zapiranje; njihovo začetno stanje mora ostati ločeno od dokumentnega prometa. Ne odpiraj skupnega nefiltriranega seznama vseh partnerjev in kontov.
+
+**Why:** Uporabnik je 2026-10-02 izrecno zahteval: »pred prikazom je obvezno določiti filter poslovni partner in konto« in opozoril: »v seznamu so tudi postavke z otvoritev, kar je napaka.«
+
+**How to apply:** Ob vhodu pokaži filtre in naloži kartico šele po potrditvi konkretnega partnerja in konta. Za zbirni promet uporabljaj ločeno poročilo, ne neomejene podrobne kartice; izvornih otvoritvenih knjižb zaradi spremembe prikaza ne briši.
+
+Na kartici partnerja mora biti partner iskljiv po delnem nazivu, davčni ali matični številki. Izbira konta je omejena na saldakontne konte.
+
+**Why:** Uporabnik je 2026-10-02 izrecno določil ta način iskanja in obseg kontov.
+
+**How to apply:** Upoštevaj oznake saldakontnih kontov v kontnem planu podjetja, ne zgolj številčnih predpon; iskanje je samo izbor obstoječega partnerja in ne spreminja njegove identitete.
+
+Zaslonska kartica mora imeti kompaktne vrstice: izbrani partner in konto sta prikazana enkrat v glavi, datumi in zneski se ne lomijo, celotni tehnični opisi in reference pa ostanejo dostopni v podrobnostih.
+
+**Why:** Uporabnik je ponovljeno opozoril, da so ozka tabela, ponavljajoči podatki in večvrstični izvorni opisi nepregledni.
+
+**How to apply:** Za kartico uporabi razpoložljivo širino in vodoravni pomik na ožjih zaslonih. Ob spremembi postavitve ohrani izbiro postavk, zapiranja, izvorno sled, začetno stanje in seštevke; podatkov ne odstranjuj zgolj zaradi preglednosti.
+
+Za tiskano kartico je referenca uporabnikov potrjeni izpis Bookie Old: partner in konto v glavi, kompaktne knjižbe ter veza, znesek zapiranja in ostanek ob pripadajoči knjižbi.
+
+**Why:** Uporabnik je izrecno zavrnil novi PDF s ponavljajočimi se partnerji, konti in tehničnimi opisi ter označil stari izpis kot ustrezen.
+
+**How to apply:** PDF preverjaj ločeno od spletne tabele. Ohraniti mora izvorne številke in povezave, slovenske zneske in datume, jasen obseg knjiženih let ter označene strani; zapiranja niso dodaten debetni promet.
+
+Izvorno potrjeno zapiranje knjižene bančne vrstice lahko velja tudi proti starejšemu računu zunaj prenesenega obdobja; odsoten novi ID računa ni dokaz, da je bančna vrstica odprta.
+
+**Why:** Zgodovinska bančna plačila zapirajo tudi predhodna leta, ki jih nova glavna knjiga pokriva samo z otvoritvijo. Evidenca vezana samo na prenesene račune zato ni popolna.
+
+**How to apply:** Ohrani preverljivo izvorno GL/ZAP dokazilo, njegov časovni presek in razveljavitve. Ne ustvarjaj manjkajočih knjižb ali plačil; dvojno izvorno in sodobno dokazilo iste povezave ne sme dvakrat zmanjšati ostanka.
 
 Ponovno odpiranje postavke obravnavaj ločeno od razveljavitve plačila oziroma storna knjižbe.
 

@@ -27104,7 +27104,7 @@ export function useGetAgedAnalysis<TData = Awaited<ReturnType<typeof getAgedAnal
 
 
 export const getGetPartnerLedgerUrl = (companyId: string,
-    params?: GetPartnerLedgerParams,) => {
+    params: GetPartnerLedgerParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -27120,11 +27120,11 @@ export const getGetPartnerLedgerUrl = (companyId: string,
 }
 
 /**
- * Returns partner-tagged posted/reversed GL lines across all accounts, chronological running balance and independent open debit/credit amounts. dateFrom only filters returned lines; opening/running balance is calculated from the complete flow through dateTo. Drafts are read-only and require mode=drafts; draft data is never included by default and is unsuitable for settlement/payment preparation. Missing historic counterparts are retained as evidence warnings, never manufactured as postings.
+ * Requires one partner and one account. Returns partner-tagged posted/reversed GL lines, chronological running balance and independent open debit/credit amounts. dateFrom only filters returned lines; opening/running balance is calculated from the complete flow through dateTo. Drafts are read-only and require mode=drafts; draft data is never included by default and is unsuitable for settlement/payment preparation. Missing historic counterparts are retained as evidence warnings, never manufactured as postings. Imported opening vouchers are balance metadata, not returned documents; later annual carryforwards are excluded to avoid counting the same history repeatedly.
  * @summary Chronological partner GL card
  */
 export const getPartnerLedger = async (companyId: string,
-    params?: GetPartnerLedgerParams, options?: RequestInit): Promise<GetPartnerLedger200> => {
+    params: GetPartnerLedgerParams, options?: RequestInit): Promise<GetPartnerLedger200> => {
 
   return customFetch<GetPartnerLedger200>(getGetPartnerLedgerUrl(companyId,params),
   {
@@ -27148,7 +27148,7 @@ export const getGetPartnerLedgerQueryKey = (companyId: string,
 
 
 export const getGetPartnerLedgerQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerLedger>>, TError = ErrorType<void>>(companyId: string,
-    params?: GetPartnerLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+    params: GetPartnerLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -27176,7 +27176,7 @@ export type GetPartnerLedgerQueryError = ErrorType<void>
 
 export function useGetPartnerLedger<TData = Awaited<ReturnType<typeof getPartnerLedger>>, TError = ErrorType<void>>(
  companyId: string,
-    params?: GetPartnerLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+    params: GetPartnerLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -27194,7 +27194,7 @@ export function useGetPartnerLedger<TData = Awaited<ReturnType<typeof getPartner
 
 
 export const getGetPartnerLedgerPdfUrl = (companyId: string,
-    params?: GetPartnerLedgerPdfParams,) => {
+    params: GetPartnerLedgerPdfParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -27214,7 +27214,7 @@ export const getGetPartnerLedgerPdfUrl = (companyId: string,
  * @summary Export partner ledger card as PDF
  */
 export const getPartnerLedgerPdf = async (companyId: string,
-    params?: GetPartnerLedgerPdfParams, options?: RequestInit): Promise<Blob> => {
+    params: GetPartnerLedgerPdfParams, options?: RequestInit): Promise<Blob> => {
 
   return customFetch<Blob>(getGetPartnerLedgerPdfUrl(companyId,params),
   {
@@ -27238,7 +27238,7 @@ export const getGetPartnerLedgerPdfQueryKey = (companyId: string,
 
 
 export const getGetPartnerLedgerPdfQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError = ErrorType<void>>(companyId: string,
-    params?: GetPartnerLedgerPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+    params: GetPartnerLedgerPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -27266,7 +27266,7 @@ export type GetPartnerLedgerPdfQueryError = ErrorType<void>
 
 export function useGetPartnerLedgerPdf<TData = Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError = ErrorType<void>>(
  companyId: string,
-    params?: GetPartnerLedgerPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+    params: GetPartnerLedgerPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
