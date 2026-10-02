@@ -1369,3 +1369,17 @@ mtime_ms = 1790948494332
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/f815436d-953e-439f-8d0a-aebcfd9ca1f3/97de9d36-a496-4d5c-b7ff-39575029f2b9"
 storage_version_token = "1790948585661070"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "doK1Dtx7SasbhKKoOkbiG"
+uri = "file://docs/reports/stare-naloge-pregled.html"
+type = "html"
+title = "Pregled starih nalog"
+description = "Pregled vseh 112 čakajočih nalog in predlogov: 14 označenih za odstranitev, razlogi in preverjene poti. Oznake niso dejanski izbris."
+logical_id = "711e3034-0207-437a-9c79-dcac97595e67"
+content_hash = "sha256:16f619936b700102e88e1898644964395cb345c055511fc8c972f8ba99560110"
+size = 41195
+mtime_ms = 1790969225346
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/711e3034-0207-437a-9c79-dcac97595e67/56baec4a-6782-4b81-9db0-1da75800cfa8"
+storage_version_token = "1790969226049616"
+content_type = "text/html"
