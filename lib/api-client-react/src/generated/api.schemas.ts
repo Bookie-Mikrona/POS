@@ -9046,6 +9046,11 @@ export interface BankBalanceHistoryPoint {
   /** Sum of evidenced 110x closing balances as of this date */
   balance: string;
 }
+
+export interface BankBalanceHistoryResponse {
+  points: BankBalanceHistoryPoint[];
+}
+
 export interface LedgerResponse {
   lines: LedgerLine[];
   totalDebit: string;
@@ -13207,10 +13212,6 @@ export const GetAgedAnalysisType = {
   received: 'received',
 } as const;
 
-export type GetBankBalanceHistoryParams = {
-dateFrom: string;
-dateTo: string;
-};
 export type GetPartnerLedgerParams = {
 partnerId: string;
 accountId: string;
@@ -13280,7 +13281,9 @@ export type GetPartnerLedger200LinesItem = {
   postingDate?: string;
   taxDate?: string | null;
   dueDate?: string | null;
+  /** Original GLAVNA Dat_dur (DUR), not the ERP invoice-receipt date. */
   durDate?: string | null;
+  /** Original GLAVNA Stevilka voucher/document number. */
   originalDocumentNumber?: string | null;
   debit: string;
   credit: string;
@@ -13404,6 +13407,11 @@ export type ReopenPartnerSettlementBody = {
   idempotencyKey: string;
   /** @minLength 1 */
   reason: string;
+};
+
+export type GetBankBalanceHistoryParams = {
+dateFrom: string;
+dateTo: string;
 };
 
 export type GetLedgerParams = {
@@ -13577,6 +13585,3 @@ export type DeleteJavniProfilImage200 = {
   deleted: boolean;
 };
 
-export interface BankBalanceHistoryResponse {
-  points: BankBalanceHistoryPoint[];
-}
