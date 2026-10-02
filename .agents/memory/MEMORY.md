@@ -156,3 +156,4 @@
 - [Namen AJPES izvoza](ajpes-annual-report-contract.md) — XLSX/PDF sledita predlogi JOLP; XML je namenjen dejanskemu uvozu v AJPES, ne splošni izmenjavi.
 - [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.
 - [Vrstni red apply_patch](apply-patch-hunk-order.md) — odseke iste datoteke razvrsti od začetka proti koncu; obratni vrstni red lahko zavrne pravilen kontekst.
+- [Recharts tooltip testiranje](recharts-tooltip-testing.md) — jsdom brez dejanske postavitve lahko ne sproži hover tooltipa; preveri vezavo kategorijske osi in oznake.

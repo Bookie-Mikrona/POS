@@ -9228,6 +9228,58 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/bank-balance-history:
+    get:
+      operationId: getBankBalanceHistory
+      tags:
+        - ledger
+      summary: Daily evidenced balances of 110x bank accounts
+      description: Returns daily totals only through the latest bank statement evidence and only after every 110x account has an evidenced balance. Earlier statement balances carry forward between evidence dates.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Daily bank balance history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankBalanceHistoryResponse"
+        "400":
+          description: Invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /companies/{companyId}/ledger:
     get:
       operationId: getLedger
@@ -20859,6 +20911,24 @@ components:
         - totalBalance
         - allAccountsHaveStatementBalance
         - accounts
+    BankBalanceHistoryPoint:
+      type: object
+      required: [date, balance]
+      properties:
+        date:
+          type: string
+          description: Calendar date in YYYY-MM-DD
+        balance:
+          type: string
+          description: Sum of evidenced 110x closing balances as of this date
+    BankBalanceHistoryResponse:
+      type: object
+      required: [points]
+      properties:
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankBalanceHistoryPoint"
     LedgerResponse:
       type: object
       properties:

@@ -28,6 +28,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  LineChart,
+  Line,
 } from "recharts";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useGetOpenItems, useGetAgedAnalysis, useGetBankBalance, useGetLedger } from "@workspace/api-client-react";
+import { useGetOpenItems, useGetAgedAnalysis, useGetBankBalance, useGetBankBalanceHistory, useGetLedger } from "@workspace/api-client-react";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -70,8 +72,36 @@ function formatLedgerDate(value: string) {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
+export function BankBalanceSparkline({ points }: { points: Array<{ date: string; balance: number }> }) {
+  return (
+    <div className="h-14 w-full" role="img" aria-label={`Gibanje od ${formatLedgerDate(points[0].date)} do ${formatLedgerDate(points[points.length - 1].date)}`}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={points} margin={{ top: 5, right: 3, bottom: 5, left: 3 }}>
+          <XAxis dataKey="date" hide />
+          <Tooltip
+            labelFormatter={(date) => formatLedgerDate(String(date))}
+            formatter={(value: number) => [fmtEur(value), "Stanje"]}
+            contentStyle={{ fontSize: 11 }}
+          />
+          <Line type="monotone" dataKey="balance" name="Stanje" stroke="#059669" strokeWidth={2} dot={false} activeDot={{ r: 3 }} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 export function BankBalanceCard({ companyId, totalBalance, accounts, loading }: BankBalanceCardProps) {
   const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
+  const dateTo = new Date().toISOString().slice(0, 10);
+  const dateFrom = new Date(Date.parse(`${dateTo}T00:00:00Z`) - 29 * 86_400_000).toISOString().slice(0, 10);
+  const { data: history, isLoading: historyLoading, isError: historyError } = useGetBankBalanceHistory(
+    companyId,
+    { dateFrom, dateTo },
+    { query: { enabled: !!companyId } as any },
+  );
+  const trend = (history?.points ?? []).map(point => ({
+    date: point.date,
+    balance: Number(point.balance),
+  }));
   const { data: ledgerData, isLoading: ledgerLoading, isError: ledgerError } = useGetLedger(
     companyId,
     expandedAccountId ? { accountId: expandedAccountId, recentLimit: 7 } : {},
@@ -102,6 +132,18 @@ export function BankBalanceCard({ companyId, totalBalance, accounts, loading }: 
               {totalBalance !== null ? fmtEur(totalBalance) : "—"}
             </div>
             <p className="text-xs text-muted-foreground mt-1 mb-3">Zadnja evidentirana stanja bančnih izpiskov</p>
+            <div className="mb-3" aria-label="Gibanje stanja bančnih računov v zadnjih 30 dneh">
+              <p className="text-[11px] text-muted-foreground mb-1">Gibanje po bančnih izpiskih · zadnjih 30 dni</p>
+              {historyLoading ? (
+                <Skeleton className="h-14 w-full" />
+              ) : historyError ? (
+                <p className="text-xs text-destructive">Gibanja ni bilo mogoče naložiti.</p>
+              ) : trend.length < 2 ? (
+                <p className="text-xs text-muted-foreground">Za prikaz gibanja ni dovolj podatkov.</p>
+              ) : (
+                <BankBalanceSparkline points={trend} />
+              )}
+            </div>
             {accounts.length > 0 && (
               <div className="space-y-1 border-t border-border/40 pt-2 mt-2">
                 {accounts.map((acc) => {

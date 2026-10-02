@@ -9040,6 +9040,12 @@ export interface BankBalanceResponse {
   accounts: BankBalanceResponseAccountsItem[];
 }
 
+export interface BankBalanceHistoryPoint {
+  /** Calendar date in YYYY-MM-DD */
+  date: string;
+  /** Sum of evidenced 110x closing balances as of this date */
+  balance: string;
+}
 export interface LedgerResponse {
   lines: LedgerLine[];
   totalDebit: string;
@@ -13201,6 +13207,10 @@ export const GetAgedAnalysisType = {
   received: 'received',
 } as const;
 
+export type GetBankBalanceHistoryParams = {
+dateFrom: string;
+dateTo: string;
+};
 export type GetPartnerLedgerParams = {
 partnerId: string;
 accountId: string;
@@ -13567,3 +13577,6 @@ export type DeleteJavniProfilImage200 = {
   deleted: boolean;
 };
 
+export interface BankBalanceHistoryResponse {
+  points: BankBalanceHistoryPoint[];
+}

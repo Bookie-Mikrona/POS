@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, asc, desc, sql, like, or } from "drizzle-orm";
+import { eq, and, gte, lte, asc, desc, sql, like, or, isNotNull } from "drizzle-orm";
 import Decimal from "decimal.js";
 import {
   db,
@@ -9,9 +9,11 @@ import {
   accountingPeriodsTable,
   accountingRolesTable,
   osRolesTable,
+  bankStatementsTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { getLatestBankStatementBalances } from "../lib/bankStatementBalances";
+import { buildBankBalanceHistory } from "../lib/bankBalanceHistory";
 
 const router: IRouter = Router();
 
@@ -253,6 +255,70 @@ router.get(
       totalBalance: allAccountsHaveStatementBalance ? knownTotalBalance.toFixed(2) : null,
       allAccountsHaveStatementBalance,
       accounts,
+    });
+  },
+);
+
+// GET /companies/:companyId/bank-balance-history
+router.get(
+  "/companies/:companyId/bank-balance-history",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const companyId = extractParam(req.params.companyId);
+    const ok = await resolveAccess((req as AuthenticatedRequest).clerkUserId, companyId, res);
+    if (!ok) return;
+
+    const { dateFrom, dateTo } = req.query;
+    const validDate = (value: unknown): value is string =>
+      typeof value === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
+      new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+    if (!validDate(dateFrom) || !validDate(dateTo) ||
+        dateFrom > dateTo ||
+        (Date.parse(`${dateTo}T00:00:00Z`) - Date.parse(`${dateFrom}T00:00:00Z`)) / 86_400_000 > 365) {
+      res.status(400).json({ error: "Izberite veljavno obdobje do 366 dni." });
+      return;
+    }
+
+    const bankAccounts = await db
+      .select({ id: accountsTable.id })
+      .from(accountsTable)
+      .where(and(eq(accountsTable.companyId, companyId), like(accountsTable.code, "110%")));
+    if (!bankAccounts.length) {
+      res.json({ points: [] });
+      return;
+    }
+
+    const evidenceDate = sql<string>`COALESCE(${bankStatementsTable.periodTo}, ${bankStatementsTable.statementDate})`;
+    const evidence = await db
+      .select({
+        bankAccountId: bankStatementsTable.bankAccountId,
+        evidenceDate,
+        balance: bankStatementsTable.closingBalance,
+      })
+      .from(bankStatementsTable)
+      .innerJoin(accountsTable, eq(accountsTable.id, bankStatementsTable.bankAccountId))
+      .where(and(
+        eq(bankStatementsTable.companyId, companyId),
+        eq(accountsTable.companyId, companyId),
+        like(accountsTable.code, "110%"),
+        isNotNull(bankStatementsTable.closingBalance),
+        lte(evidenceDate, dateTo),
+      ))
+      .orderBy(
+        asc(evidenceDate),
+        asc(bankStatementsTable.statementDate),
+        asc(bankStatementsTable.createdAt),
+        asc(bankStatementsTable.id),
+      );
+    res.json({
+      points: buildBankBalanceHistory(
+        bankAccounts.map(account => account.id),
+        evidence.filter((row): row is typeof row & { balance: string } => row.balance !== null),
+        dateFrom,
+        dateTo,
+      ),
     });
   },
 );
