@@ -151,11 +151,80 @@ describe("obvezni filtri kartice partnerja", () => {
     const row = screen.getByText("000002").closest("tr")!;
     const cells = within(row).getAllByRole("cell");
     expect(cells).toHaveLength(12);
-    for (const cell of cells.slice(4, 11)) expect(cell).toHaveClass("whitespace-nowrap");
+    for (const cell of cells.slice(4, 6)) expect(cell).toHaveClass("whitespace-nowrap");
+    for (const cell of cells.slice(6, 11)) expect(cell).toHaveClass("break-all");
     for (const cell of cells.slice(6, 11)) expect(cell).toHaveClass("tabular-nums");
+    expect(table).toHaveClass("table-fixed", "min-w-[640px]");
+    expect(table).not.toHaveClass("min-w-[1200px]");
+    expect(table.querySelectorAll("col")).toHaveLength(12);
     expect(within(row).getByRole("link", { name: "Odpri" })).toHaveAttribute("href", "/temeljnice?id=entry-a");
     fireEvent.click(within(row).getByRole("button", { name: /Podrobnosti/ }));
     expect(mocks.detail.mock.lastCall?.[0].line).toEqual(line);
     expect(mocks.detail.mock.lastCall?.[0].canEdit).toBe(true);
+  });
+
+  it("prikaže najnovejšo postavko najprej brez spreminjanja podatkov, tekočih saldov in seštevkov", () => {
+    const older = Object.freeze({
+      lineId: "older", entryId: "entry-a", documentType: "issued", entryStatus: "posted",
+      documentNumber: "OLDER-001", documentDate: "2025-01-01", dueDate: "2025-01-31",
+      debit: "20.00", credit: "0.00", runningBalance: "30.00",
+      openDebit: "20.00", openCredit: "0.00", closings: [],
+    });
+    const newer = Object.freeze({
+      ...older, lineId: "newer", documentNumber: "NEWER-002", documentDate: "2025-02-01",
+      debit: "0.00", credit: "10.00", runningBalance: "20.00", openDebit: "0.00",
+    });
+    const lines = Object.freeze([older, newer]);
+    mocks.ledger.mockReturnValue({
+      data: { lines, openingBalances: [{ accountId: "account-a", accountCode: "1200", accountName: "Terjatve", balance: "10.00" }], closingBalance: "20.00" },
+      isLoading: false, isFetching: false, error: null, refetch: mocks.refetch,
+    });
+    window.history.replaceState(null, "", "/kartica-partnerja?partnerId=partner-a&accountId=account-a");
+    render(<KarticaPartnerja />);
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži kartico" }));
+    const rows = within(screen.getByRole("table")).getAllByRole("row");
+    expect(rows[1]).toHaveTextContent("NEWER-002");
+    expect(rows[2]).toHaveTextContent("OLDER-001");
+    expect(within(rows[1]).getAllByRole("cell")[8]).toHaveTextContent("20,00");
+    expect(within(rows[2]).getAllByRole("cell")[8]).toHaveTextContent("30,00");
+    expect(rows[3]).toHaveTextContent("Začetno stanje");
+    const totals = within(rows[4]).getAllByRole("cell");
+    expect(totals[1]).toHaveTextContent("20,00");
+    expect(totals[2]).toHaveTextContent("10,00");
+    expect(totals[3]).toHaveTextContent("20,00");
+    expect(lines.map(line => line.lineId)).toEqual(["older", "newer"]);
+    fireEvent.click(within(rows[1]).getByRole("button", { name: /Podrobnosti/ }));
+    expect(mocks.detail.mock.lastCall?.[0].line).toBe(newer);
+  });
+
+  it("iz filtra samo odprtih z enim klikom prikaže tudi zaprte postavke in ohrani ostale filtre", () => {
+    const open = {
+      lineId: "open-line", entryId: "entry-a", partnerName: "Partner A", accountCode: "1200",
+      documentType: "issued", documentNumber: "OPEN-001", entryStatus: "posted",
+      documentDate: "2025-01-31", postingDate: "2025-01-31", dueDate: "2025-02-08",
+      debit: "61.00", credit: "0.00", runningBalance: "122.00",
+      openDebit: "4.00", openCredit: "0.00", closings: [],
+    };
+    const closed = { ...open, lineId: "closed-line", documentNumber: "CLOSED-002", openDebit: "0.00" };
+    mocks.ledger.mockImplementation((_company, params) => ({
+      data: { lines: params.openOnly ? [open] : [open, closed], openingBalances: [], closingBalance: "4.00" },
+      isLoading: false, isFetching: false, error: null, refetch: mocks.refetch,
+    }));
+    window.history.replaceState(null, "", "/kartica-partnerja?partnerId=partner-a&accountId=account-a&dateTo=2025-12-31");
+    render(<KarticaPartnerja />);
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Postavke" }), { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Samo odprte" }));
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži kartico" }));
+    expect(screen.getByText("OPEN-001")).toBeInTheDocument();
+    expect(screen.queryByText("CLOSED-002")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži vse postavke" }));
+    expect(screen.getByText("CLOSED-002")).toBeInTheDocument();
+    expect(screen.getByText("OPEN-001")).toBeInTheDocument();
+    expect(enabled()).toBe(true);
+    expect(mocks.ledger.mock.lastCall?.[1]).toMatchObject({
+      partnerId: "partner-a", accountId: "account-a", dateTo: "2025-12-31", openOnly: false, mode: "posted",
+    });
+    expect(screen.getByRole("combobox", { name: "Postavke" })).toHaveTextContent("Vse postavke");
   });
 });

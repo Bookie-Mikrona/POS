@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DetailDialog, SettleDialog, errMsg } from "@/components/partner-ledger-dialogs";
 import { downloadBlob, fmt, fmtDate, today } from "@/lib/partner-ledger-utils";
 import { PartnerLedgerPartnerSelect } from "@/components/partner-ledger-partner-select";
+import "./kartica-partnerja.css";
 
 type Line = any;
 const DOC_LABELS: Record<string, string> = { issued: "Izdani račun", received: "Prejeti račun", issued_invoice: "Izdani račun", received_invoice: "Prejeti račun", payment: "Plačilo", bank_statement: "Bančni izpisek", manual: "Ročni vnos" };
@@ -68,6 +69,7 @@ export default function KarticaPartnerja() {
   });
   const data = showReport ? ledger.data as any : undefined;
   const lines: Line[] = data?.lines ?? [];
+  const displayLines = useMemo(() => [...lines].reverse(), [lines]);
   const isDraft = mode === "drafts";
 
   const totals = useMemo(() => {
@@ -87,6 +89,12 @@ export default function KarticaPartnerja() {
     if (!filtersReady) return;
     if (showReport) void ledger.refetch();
     else setAppliedKey(filterKey);
+  }
+
+  function showAllEntries() {
+    if (!filtersReady) return;
+    setOpenOnly(false);
+    setAppliedKey(JSON.stringify([companyId, { ...params, openOnly: false }]));
   }
 
   async function reload() { if (showReport) await ledger.refetch(); }
@@ -125,8 +133,8 @@ export default function KarticaPartnerja() {
               {saldakontoAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.code} {a.name}</SelectItem>)}</SelectContent></Select></div>
         <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Datum od</Label><Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
         <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Datum do (stanje na dan)</Label><Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
-        <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Postavke</Label>
-          <Select value={openOnly ? "open" : "all"} onValueChange={v => setOpenOnly(v === "open")}><SelectTrigger><SelectValue /></SelectTrigger>
+        <div className="space-y-1.5"><Label htmlFor="items-filter" className="text-xs text-muted-foreground">Postavke</Label>
+          <Select value={openOnly ? "open" : "all"} onValueChange={v => setOpenOnly(v === "open")}><SelectTrigger id="items-filter"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">Vse postavke</SelectItem><SelectItem value="open">Samo odprte</SelectItem></SelectContent></Select></div>
         <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Vir knjižb</Label>
           <Select value={mode} onValueChange={v => { setMode(v as any); setSelected([]); }}><SelectTrigger><SelectValue /></SelectTrigger>
@@ -143,9 +151,12 @@ export default function KarticaPartnerja() {
       )}
       {openOnly && !isDraft && (
         <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Filter odprtih postavk</AlertTitle>
-          <AlertDescription>Filter skrije zaprte vrstice, vendar tekoči saldo še vedno izhaja iz celotnega izbranega toka.</AlertDescription></Alert>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>Prikazane so samo odprte postavke. Zaprte vrstice so skrite, tekoči saldo pa izhaja iz celotnega izbranega toka.</span>
+            <Button type="button" size="sm" variant="outline" disabled={!filtersReady} onClick={showAllEntries}>Prikaži vse postavke</Button>
+          </AlertDescription></Alert>
       )}
-      <p className="text-xs text-muted-foreground">Datum DUR, datum knjiženja, datum DDV in celoten opis so v podrobnostih postavke. DUR je prikazan samo iz potrjenega izvornega podatka. Zaporedje sledi datumu dokumenta; če manjka, datumu knjiženja.</p>
+      <p className="text-xs text-muted-foreground">Datum DUR, datum knjiženja, datum DDV in celoten opis so v podrobnostih postavke. DUR je prikazan samo iz potrjenega izvornega podatka. Postavke so prikazane od najnovejših do najstarejših po datumu dokumenta; če manjka, po datumu knjiženja. Tekoči saldo ostaja izračunan v prvotnem kronološkem zaporedju.</p>
       {showReport && data && lines.length > 0 && (
         <div className="bg-card border rounded-lg p-3 text-sm flex flex-wrap gap-x-8 gap-y-1" data-testid="ledger-header">
           <div><span className="text-muted-foreground">Partner: </span><b>{(cps?.counterparties ?? []).find((c: any) => c.id === partnerId)?.name ?? lines[0].partnerName}</b></div>
@@ -174,36 +185,37 @@ export default function KarticaPartnerja() {
         <div className="border border-dashed rounded-lg p-10 text-center bg-card"><h2 className="text-xl font-semibold mb-2">Ni postavk</h2>
           <p className="text-muted-foreground">Za izbrane filtre ni knjižb.{(data?.openingBalances ?? []).filter((o: any) => Number(o.balance) !== 0).map((o: any) => ` Začetno stanje ${o.accountCode}: ${fmt(o.balance)}.`).join("")}</p></div>
       ) : (
-        <div className="border rounded-lg bg-card overflow-x-auto">
-          <Table className="min-w-[1200px] text-sm">
+        <div className="min-w-0 border rounded-lg bg-card overflow-x-auto">
+          <Table data-testid="partner-ledger-table" className="partner-ledger-table w-full min-w-[640px] table-fixed">
+            <colgroup>{[4, 9, 8, 6, 10, 10, 8, 8, 9, 8, 8, 12].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup>
             <TableHeader><TableRow>
               <TableHead className="w-8" />
               <TableHead>Vrsta dokumenta</TableHead><TableHead>Št. dok.</TableHead><TableHead>Temeljnica</TableHead>
               <TableHead className="whitespace-nowrap">Dat. dok.</TableHead><TableHead className="whitespace-nowrap">Zapad.</TableHead>
               <TableHead className="text-right">Debet</TableHead><TableHead className="text-right">Kredit</TableHead>
-              <TableHead className="text-right">Saldo</TableHead><TableHead className="text-right whitespace-nowrap">Odprt debet</TableHead><TableHead className="text-right whitespace-nowrap">Odprt kredit</TableHead><TableHead>Podrobnosti</TableHead>
+              <TableHead className="text-right">Saldo</TableHead><TableHead className="text-right">Odprt debet</TableHead><TableHead className="text-right">Odprt kredit</TableHead><TableHead>Podrobnosti</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {data && (data.openingBalances ?? []).filter((o: any) => dateFrom || Number(o.balance) !== 0).map((o: any) => <TableRow key={o.accountId} className="bg-muted/30"><TableCell colSpan={8} className="font-medium">Začetno stanje iz razpoložljive zgodovine{dateFrom ? ` do ${fmtDate(dateFrom)}` : ""}: konto {o.accountCode} {o.accountName}</TableCell>
-                <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">{fmt(o.balance)}</TableCell><TableCell colSpan={3} /></TableRow>)}
-              {lines.map(l => (
+              {displayLines.map(l => (
                 <TableRow key={l.lineId} data-state={selected.includes(l.lineId) ? "selected" : undefined}>
                   <TableCell>{canEdit && !isDraft && (Number(l.openDebit) > 0 || Number(l.openCredit) > 0) &&
                     <Checkbox checked={selected.includes(l.lineId)} onCheckedChange={c => setSelected(s => c ? [...s, l.lineId] : s.filter(x => x !== l.lineId))} />}</TableCell>
-                  <TableCell className="whitespace-nowrap">{docLabel(l.documentType)}{l.entryStatus !== "posted" && <Badge variant="outline" className="ml-1">{l.entryStatus === "draft" ? "osnutek" : "storno"}</Badge>}</TableCell>
-                  <TableCell className="whitespace-nowrap">{l.originalDocumentNumber ?? l.documentNumber ?? "-"}</TableCell>
+                  <TableCell className="break-words">{docLabel(l.documentType)}{l.entryStatus !== "posted" && <Badge variant="outline" className="mt-1 max-w-full whitespace-normal px-1 text-[10px]">{l.entryStatus === "draft" ? "osnutek" : "storno"}</Badge>}</TableCell>
+                  <TableCell className="break-all">{l.originalDocumentNumber ?? l.documentNumber ?? "-"}</TableCell>
                   <TableCell className="whitespace-nowrap"><Link className="underline hover:text-primary" title={l.reference ?? undefined} href={`/temeljnice?id=${encodeURIComponent(l.entryId)}`}>Odpri</Link></TableCell>
-                  <TableCell className="whitespace-nowrap">{fmtDate(l.documentDate ?? l.postingDate)}</TableCell>
-                  <TableCell className="whitespace-nowrap">{fmtDate(l.dueDate)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmt(l.debit)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmt(l.credit)}</TableCell>
-                  <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">{fmt(l.runningBalance)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmt(l.openDebit)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmt(l.openCredit)}</TableCell>
-                  <TableCell className="whitespace-nowrap"><Button size="sm" variant="ghost" onClick={() => setDetail(l)}>Podrobnosti / Zapiranja ({l.closings?.length ?? 0})</Button></TableCell>
+                  <TableCell className="whitespace-nowrap">{fmtDate(l.documentDate ?? l.postingDate).replace(/\s/g, "")}</TableCell>
+                  <TableCell className="whitespace-nowrap">{fmtDate(l.dueDate).replace(/\s/g, "")}</TableCell>
+                  <TableCell className="text-right break-all tabular-nums">{fmt(l.debit)}</TableCell>
+                  <TableCell className="text-right break-all tabular-nums">{fmt(l.credit)}</TableCell>
+                  <TableCell className="text-right font-medium break-all tabular-nums">{fmt(l.runningBalance)}</TableCell>
+                  <TableCell className="text-right break-all tabular-nums">{fmt(l.openDebit)}</TableCell>
+                  <TableCell className="text-right break-all tabular-nums">{fmt(l.openCredit)}</TableCell>
+                  <TableCell><Button size="sm" variant="ghost" className="h-auto w-full whitespace-normal px-1 py-1 text-[11px] leading-tight" onClick={() => setDetail(l)}>Podrobnosti / Zapiranja ({l.closings?.length ?? 0})</Button></TableCell>
                 </TableRow>
               ))}
-              <TableRow className="bg-muted/50 font-bold hover:bg-muted/50 [&>td]:whitespace-nowrap [&>td]:tabular-nums">
+              {data && (data.openingBalances ?? []).filter((o: any) => dateFrom || Number(o.balance) !== 0).map((o: any) => <TableRow key={o.accountId} className="bg-muted/30"><TableCell colSpan={8} className="font-medium">Začetno stanje iz razpoložljive zgodovine{dateFrom ? ` do ${fmtDate(dateFrom)}` : ""}: konto {o.accountCode} {o.accountName}</TableCell>
+                <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">{fmt(o.balance)}</TableCell><TableCell colSpan={3} /></TableRow>)}
+              <TableRow className="bg-muted/50 font-bold hover:bg-muted/50 [&>td]:break-all [&>td]:tabular-nums">
                 <TableCell colSpan={6} className="text-right">Skupaj prikazane vrstice:</TableCell>
                 <TableCell className="text-right">{fmt(totals.d)}</TableCell><TableCell className="text-right">{fmt(totals.c)}</TableCell>
                 <TableCell className="text-right">{fmt(lastBalance)}</TableCell>

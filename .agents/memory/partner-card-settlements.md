@@ -27,6 +27,12 @@ Zaslonska kartica mora imeti kompaktne vrstice: izbrani partner in konto sta pri
 
 **How to apply:** Za kartico uporabi razpoložljivo širino in vodoravni pomik na ožjih zaslonih. Ob spremembi postavitve ohrani izbiro postavk, zapiranja, izvorno sled, začetno stanje in seštevke; podatkov ne odstranjuj zgolj zaradi preglednosti.
 
+Zaslonska kartica partnerja naj prikazuje postavke od najnovejših do najstarejših; smer prikaza ne spreminja kronološkega izračuna tekočih saldov.
+
+**Why:** Uporabnik je 2026-10-02 zahteval: »kronološko obrni prikaz« po prikazu starejših postavk na vrhu.
+
+**How to apply:** Obrni le zaslonski vrstni red; ohrani salde, seštevke, filtre in podatke zapiranj. Te zahteve ne razširi samodejno na potrjeni tiskani izpis.
+
 Za tiskano kartico je referenca uporabnikov potrjeni izpis Bookie Old: partner in konto v glavi, kompaktne knjižbe ter veza, znesek zapiranja in ostanek ob pripadajoči knjižbi.
 
 **Why:** Uporabnik je izrecno zavrnil novi PDF s ponavljajočimi se partnerji, konti in tehničnimi opisi ter označil stari izpis kot ustrezen.

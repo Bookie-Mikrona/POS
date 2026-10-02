@@ -1,0 +1,31 @@
+/* The app's unlayered dense-table defaults override layered utilities.
+   Override them locally: changing the global rules would affect every report. */
+.partner-ledger-table {
+  font-size: 11px;
+}
+
+.partner-ledger-table thead th {
+  height: auto;
+  padding: 8px 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.partner-ledger-table tbody td {
+  padding: 8px 4px;
+  line-height: 1.4;
+}
+
+@media (min-width: 1280px) {
+  .partner-ledger-table {
+    font-size: 12px;
+  }
+
+  .partner-ledger-table thead th {
+    font-size: 11px;
+  }
+}
