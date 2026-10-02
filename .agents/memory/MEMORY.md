@@ -131,7 +131,7 @@
 - [Celovitost POS priročnika](pos-manual-traceability.md) — izdaja je celovita šele po ločeni potrditvi izvedbe in dokumentacijske pokritosti vseh inventarnih postopkov.
 - [Upodabljanje POS priročnika](pos-manual-pdf-rendering.md) — PDF preštevilči naslove; medvrstični prelomi krepkega tiska v korakih se lahko izpišejo dobesedno.
 - [PDFKit strani in noge poročil](pdfkit-strani-in-noge.md) — absolutne noge lahko dodajo prazne strani; preveri dejanski PDF in omeji višino dolgih nazivov kontov.
-- [KIR/KPR izvoz](kirkpr-export-safety.md) — predogled in XML morata uporabljati isti eksplicitni mesečni/trimesečni obseg; nepopolna davčna sled blokira izvoz.
+- [DDV poročila in izvoz](kirkpr-export-safety.md) — enoten obseg in popolna davčna sled; eDavki morajo vključevati samostojna RP-O in PD-O.
 - [Meni Gostilne Križišče](krizisce-menu-import.md) — velika pica pomeni normalno; malice niso artikli; pice uporabljajo sestavinske normative in skupne ter lastne modifikatorje.
 - [Križišče POS brez interne GK](krizisce-pos-only.md) — poslovne knjige vodi zunanji izvajalec; ne odpiraj obdobij, razvojno testiranje osnovnih sredstev ohrani.
 - [Skupinski nabavni artikli](generic-purchase-articles.md) — dobaviteljeva postavka ohrani identiteto; skupna zaloga združuje le postavke z isto kanonično e-SLOG enoto.

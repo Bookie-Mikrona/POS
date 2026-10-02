@@ -1,0 +1,149 @@
+<!doctype html><html lang="sl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>3. Osnutek implementacije: poslovne banke</title><style>body{margin:0;background:#f3f5f8;color:#1d2939;font:16px/1.65 system-ui,sans-serif}main{max-width:940px;margin:40px auto;padding:44px 54px;background:#fff;border:1px solid #e2e7ee;border-radius:12px}h1{font-size:30px;line-height:1.25;color:#163d65}h2{margin-top:38px;padding-top:20px;border-top:1px solid #e2e7ee;color:#163d65;font-size:23px}h3{margin-top:26px;font-size:18px}li{margin:6px 0}code{font-size:.88em;overflow-wrap:anywhere;background:#f1f4f8;padding:2px 4px}p{margin:12px 0;overflow-wrap:anywhere}@media(max-width:650px){main{margin:0;padding:22px;border-radius:0;border:0}h1{font-size:25px}}@media print{body{background:white;font-size:10pt}main{margin:0;max-width:none;padding:0;border:0}h1{font-size:21pt}h2{font-size:15pt}h3{font-size:12pt}h1,h2,h3{break-after:avoid}li{break-inside:avoid}}</style></head><body><main><h1>3. Osnutek implementacije: poslovne banke</h1>
+<p>Datum: 2. 10. 2026 Produkt: Bookie ERP Status: načrt prihodnje implementacije, brez oddaje banki ali sprememb pogodb.</p>
+<h2>1. Cilj in ločitev postopkov</h2>
+<p>Omogočiti pripravo preverljive dokumentacije za kreditno presojo in pogodbeno spremljanje podjetja.</p>
+<p>Ločimo:</p>
+<ol>
+<li>Finančna poročila za kredit, limit, lizing ali spremljanje pogodbenih zavez.</li>
+<li>Plačilni promet — paketni bančni XML.</li>
+<li>Evidenco dejanskega stanja TRR in bančnih izpiskov.</li>
+</ol>
+<p>Paketni XML je podrobno opredeljen v predhodnem osnutku kartic in plačil. Ta dokument ga povezuje s pregledom bančnih potreb, ne uvaja drugega vzporednega izvoznika.</p>
+<p>Banke in kreditne pogodbe imajo različne zahteve. Program ne predpostavlja univerzalnega bančnega obrazca, enakih kazalnikov ali enotnega XML za dokumentacijo o kreditni presoji.</p>
+<h2>2. Izhodišče v programu</h2>
+<p>Obstajajo letni in medletni BS/IPI, bruto bilanca, PDF/XLSX izvozi, saldakonti s starostnimi razredi, bančni izpiski in priprava plačil.</p>
+<p>Pred uporabo za banko je treba:</p>
+<ul>
+<li>dokončati zanesljiv izračun terjatev in obveznosti na pretekli datum;</li>
+<li>ločiti knjiženo stanje od osnutkov;</li>
+<li>pravilno upoštevati otvoritve in prenesena zapiranja;</li>
+<li>dodati enoten paket, pregled financiranja in pogodbeno prilagodljive analize.</li>
+</ul>
+<p>Obstoječih osnovnih poročil ne predstavljamo kot manjkajočih in jih ne izdelujemo znova brez potrebe.</p>
+<h2>3. Profil banke in pogodbe</h2>
+<p>Za banko oziroma konkretno vlogo/pogodbo se določijo:</p>
+<ul>
+<li>namen paketa in naslovnik;</li>
+<li>referenčni datum ter zahtevana obdobja;</li>
+<li>zahtevane vrste dokumentov in formati;</li>
+<li>pogostost predložitve, roki in odgovorna oseba;</li>
+<li>dogovorjene definicije kazalnikov in pragovi;</li>
+<li>zahtevane izjave, razkritja in priloge.</li>
+</ul>
+<p>Profil je verzioniran. Zahteve ene banke niso avtomatično zahteve vseh drugih.</p>
+<p>Vprašalniki in izjave se izpolnijo iz dejanskih podatkov ter uporabnikovih potrjenih vnosov. Izjave o premoženju poroka se ne generira z izmišljenimi podatki.</p>
+<h2>4. Osnovni paket finančnih izkazov</h2>
+<ul>
+<li>Letna bilanca stanja in izkaz poslovnega izida.</li>
+<li>Medletna BS/IPI za tekoče obdobje.</li>
+<li>Primerjalni podatki predhodnega leta oziroma primerljivega obdobja.</li>
+<li>Bruto bilanca z začetnim stanjem, prometom in končnim stanjem.</li>
+<li>Potrebna pojasnila pomembnih odstopanj in uporabljene računovodske podlage.</li>
+</ul>
+<p>Vsa poročila navajajo podjetje, datum, obdobje, valuto, obseg knjiženih podatkov in čas izdelave. Osnutki so samo ločena jasno označena priloga, če jo uporabnik izrecno potrebuje.</p>
+<h2>5. Terjatve in obveznosti</h2>
+<ul>
+<li>Odprte postavke na točen referenčni datum.</li>
+<li>Starostna analiza po dogovorjenih razredih in zapadlosti.</li>
+<li>Zbirni promet po partnerjih ter saldo in ločeni odprti ostanki.</li>
+<li>Največji kupci/dobavitelji in koncentracija izpostavljenosti, če jo banka zahteva.</li>
+<li>Ločeno vidni avansi, dobropisi in nepovezana plačila, ne tiho pobotani z računi.</li>
+<li>Povezava vsakega agregata na dokumente, knjižbe in zapiranja.</li>
+</ul>
+<p>Račun po referenčnem datumu se ne vključuje. Poznejše plačilo ne zmanjšuje zgodovinskega odprtega zneska. Kasnejše ponovno odpiranje ima svojo časovno sled.</p>
+<p>Seštevki se uskladijo z glavno knjigo; razlike zaradi obsega, neporazdeljenih otvoritev, valut ali drugih pravil so pojasnjene, ne odpravljene z umetno knjižbo.</p>
+<h2>6. Pregled kreditov, limitov in lizingov</h2>
+<p>Za financiranje se po dejanski pogodbi vodijo:</p>
+<ul>
+<li>financer, vrsta financiranja in pogodbeni identifikator;</li>
+<li>valuta, začetni znesek in datum;</li>
+<li>črpanje, odplačila in preostala glavnica na datum;</li>
+<li>obrestni pogoji, relevantni stroški in zapadlosti;</li>
+<li>dogovorjeni odplačilni načrt ter dejanska izvedba;</li>
+<li>zavarovanja in dogovorjene obveznosti;</li>
+<li>kratkoročni/dolgoročni del po zahtevanih pravilih.</li>
+</ul>
+<p>Poročilo vsebuje odplačila v izbranem prihodnjem obdobju ter uskladitev s knjiženim dolgom.</p>
+<p>Vseh pogodbenih podatkov ni mogoče zanesljivo razbrati samo iz konta. Manjkajoči načrt se dopolni iz pogodbe ali uvoženega potrjenega vira.</p>
+<h2>7. Likvidnost in načrti</h2>
+<p>Ločena prikaza:</p>
+<ol>
+<li>Dejanska sredstva po TRR iz bančnih izpiskov in naknadnih evidentiranih transakcij.</li>
+<li>Napoved prihodnjih prilivov in odlivov.</li>
+</ol>
+<p>Napoved lahko vključuje pričakovano izterjavo terjatev, plačila obveznosti, davke, plače, investicije, obroke in druga potrjena pričakovanja.</p>
+<p>Predlagana sta kratkoročni tedenski in daljši mesečni pogled; horizont se prilagodi zahtevi banke.</p>
+<p>Vsaka predpostavka je vidna in urejiva z razlogom. Scenariji se ne knjižijo v glavno knjigo. Napoved, zgodovinski izkaz denarnih tokov in trenutno bančno stanje niso ista stvar.</p>
+<p>Stanje TRR je označeno z datumom zanesljivega vira in morebitno zastarelostjo. Konto 110x ni samodejno živ ali popoln podatek o bančnem kritju.</p>
+<h2>8. Kazalniki in pogodbene zaveze</h2>
+<p>Primeri pogojnih analiz: likvidnost, kapitaliziranost, zadolženost, EBITDA, razmerje dolga do EBITDA ter sposobnost servisiranja dolga.</p>
+<p>Za vsak kazalnik se hranijo:</p>
+<ul>
+<li>dogovorjena formula in verzija;</li>
+<li>izvor števca in imenovalca;</li>
+<li>obdobje, uporabljene prilagoditve in prag;</li>
+<li>dejanski rezultat, status in pojasnilo.</li>
+</ul>
+<p>Definicije EBITDA ali DSCR se ne razglasijo za univerzalne. Uporabi se dogovorjena pogodbeno veljavna formula.</p>
+<p>Ničelni ali neustrezen imenovalec pomeni neizračunljiv oziroma neprimerljiv rezultat, ne izmišljenega ugodnega kazalnika.</p>
+<p>Opozorilo o odstopanju ne pomeni avtomatične pravne ugotovitve kršitve pogodbe; potreben je pregled odgovorne osebe.</p>
+<h2>9. Izdelava bančnega paketa</h2>
+<p>Postopek:</p>
+<ol>
+<li>Izbor podjetja, banke/pogodbe, datuma in namena.</li>
+<li>Nabor potrebnih poročil iz profila.</li>
+<li>Skupni izračun na usklajen referenčni datum.</li>
+<li>Pregled kontrol, prilog, razkritij in načrtov.</li>
+<li>Potrditev odgovorne osebe.</li>
+<li>Izvoz paketa in evidentiranje predaje.</li>
+</ol>
+<p>Predlagani izvozi:</p>
+<ul>
+<li>posamezni PDF/XLSX;</li>
+<li>zbirni PDF z vsebinskim kazalom, če je primeren za banko;</li>
+<li>ZIP z dokumenti in manifestom;</li>
+<li>bančna predloga, kadar konkretna banka zahteva in dopušča njeno izpolnjevanje.</li>
+</ul>
+<p>Manifest vsebuje seznam dokumentov, obdobja, verzije in odtise. Paket ostane vezan na podjetje, izbrano ob začetku priprave, tudi če uporabnik med prenosom zamenja aktivno podjetje.</p>
+<p>Prenos paketa ne pomeni predaje banki. Hranijo se datum predaje, način, naslovnik in dokazilo oziroma odgovor, kadar je na voljo.</p>
+<h2>10. Povezava s plačilnim prometom</h2>
+<p>Predhodni osnutek določa:</p>
+<ul>
+<li>vse odprte dobaviteljske obveznosti, tudi iz prejšnjih let;</li>
+<li>polna/delna plačila in izbrani izvorni TRR;</li>
+<li>en XML paket za izbrane naloge;</li>
+<li>preverjen uvozni profil konkretne banke;</li>
+<li>zaščito pred podvojenimi nalogi;</li>
+<li>ločitev priprave/izvoza od dejanske izvedbe;</li>
+<li>povezavo na izpisek in zapiranje samo izvedenega zneska.</li>
+</ul>
+<p>Pred prvo uporabo pri banki se preverijo njen sprejeti pain.001 profil, zahtevani sklici, kode in dejanski uvoz. Osnutek ne zahteva neposrednega bančnega API-ja.</p>
+<h2>11. Varnost in kontrole</h2>
+<ul>
+<li>Dostop in vsi izvozi so omejeni na aktivno podjetje ter uporabniško vlogo.</li>
+<li>Paket nima nepotrebnih osebnih podatkov zaposlenih ali porokov.</li>
+<li>Priloge imajo nadzorovan dostop.</li>
+<li>Poročila v istem paketu uporabljajo isti potrjeni posnetek in pravilno obdobje.</li>
+<li>Sprememba podatkov ali formul zahteva nov pregled; predanega paketa se ne prepiše.</li>
+<li>Primerjalni podatki se označijo, če niso popolni ali primerljivi.</li>
+<li>Neskladja z glavno knjigo so vidna in preprečijo označitev nepreverjenega paketa kot usklajenega.</li>
+</ul>
+<h2>12. Faze in merila sprejema</h2>
+<p>Faza A: zanesljivi zgodovinski saldi, starostna analiza in združitev že obstoječih izkazov.</p>
+<p>Faza B: profil banke/pogodbe, paket PDF/XLSX/ZIP, razkritja in sled predaje.</p>
+<p>Faza C: financiranje, odplačilni načrti in uskladitev dolga.</p>
+<p>Faza D: napovedi, scenariji in dogovorjeni pogodbeni kazalniki.</p>
+<p>Sprejem zahteva isti referenčni datum v vseh poročilih, pravilno stanje pred poznejšimi plačili, pojasnjena odstopanja, preverjene formule, ločitev napovedi od dejanskih podatkov, nespremenljiv predani paket in preprečeno mešanje podjetij.</p>
+<p>Plačilni XML se sprejme po merilih predhodnega osnutka in potrjenem uvozu za konkretno banko.</p>
+<h2>13. Odločitve pred izvedbo</h2>
+<ul>
+<li>Prve podprte banke, pogodbe in dejanski obrazci/vprašalniki.</li>
+<li>Potrebna pogostost in roki predložitve.</li>
+<li>Zahtevani starostni razredi in primerjalna obdobja.</li>
+<li>Razpoložljive kreditne/lizinške pogodbe in odplačilni načrti.</li>
+<li>Pogodbene formule, pragovi in horizont načrtovanja.</li>
+</ul>
+<h2>14. Vir in povezava</h2>
+<p>Uradni primer dokumentacije banke, preverjen 2. 10. 2026: vloga, vprašalnik/razkritja in finančni izkazi preteklega ter tekočega leta; pri osebnem poroštvu tudi ustrezna izjava.</p>
+<p>https://www.unicreditbank.si/si/podjetniki-in-mala-podjetja/financiranje/financiranje-nova.html</p>
+<p>Predhodni osnutek: <code>docs/implementation-partner-ledger-and-bank-payments.md</code>.</p></main></body></html>

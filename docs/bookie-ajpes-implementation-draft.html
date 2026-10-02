@@ -1,0 +1,113 @@
+<!doctype html><html lang="sl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1. Osnutek implementacije: AJPES</title><style>body{margin:0;background:#f3f5f8;color:#1d2939;font:16px/1.65 system-ui,sans-serif}main{max-width:940px;margin:40px auto;padding:44px 54px;background:#fff;border:1px solid #e2e7ee;border-radius:12px}h1{font-size:30px;line-height:1.25;color:#163d65}h2{margin-top:38px;padding-top:20px;border-top:1px solid #e2e7ee;color:#163d65;font-size:23px}h3{margin-top:26px;font-size:18px}li{margin:6px 0}code{font-size:.88em;overflow-wrap:anywhere;background:#f1f4f8;padding:2px 4px}p{margin:12px 0;overflow-wrap:anywhere}@media(max-width:650px){main{margin:0;padding:22px;border-radius:0;border:0}h1{font-size:25px}}@media print{body{background:white;font-size:10pt}main{margin:0;max-width:none;padding:0;border:0}h1{font-size:21pt}h2{font-size:15pt}h3{font-size:12pt}h1,h2,h3{break-after:avoid}li{break-inside:avoid}}</style></head><body><main><h1>1. Osnutek implementacije: AJPES</h1>
+<p>Datum: 2. 10. 2026 Produkt: Bookie ERP Status: načrt prihodnje implementacije, brez sprememb programa ali finančnih podatkov.</p>
+<h2>1. Cilj</h2>
+<p>Omogočiti pripravo, pregled, izvoz in dokumentiranje predložitve celovitega AJPES poročila za izbrano podjetje in poslovno leto. Ločiti:</p>
+<ul>
+<li>podatke za državno statistiko;</li>
+<li>letno poročilo za javno objavo;</li>
+<li>upravičeno poenostavljeno skupno predložitev;</li>
+<li>pogojna dodatna poročila.</li>
+</ul>
+<p>Prva izvedba je namenjena običajnim mikro in majhnim gospodarskim družbam. Druge pravne oblike in posebni režimi se vključijo kot ločeni, preverjeni profili.</p>
+<h2>2. Izhodišče v programu</h2>
+<p>Obstajajo izračuni bilance stanja in izkaza poslovnega izida, katalog AOP, podatki bilančnega dobička/izgube, podatki o poslovanju s tujino ter PDF/XLSX povzetka JOLP.</p>
+<p>Uradni XML je trenutno preverjen za poslovno leto 2025. Pojasnila, razkritja, razporeditev dobička in celovita evidenca predložitve še niso povezani v zaključen uporabniški postopek.</p>
+<p>Obstoječe pravilne izračune in predloge se nadgradi, ne zamenja z vzporednim sistemom.</p>
+<h2>3. Profil podjetja in obveznosti</h2>
+<p>Za podjetje in posamezno leto se vodijo:</p>
+<ul>
+<li>pravna oblika, računovodski okvir in poslovno leto;</li>
+<li>velikost ter podatki, na podlagi katerih je določena;</li>
+<li>upravičenost do posebnega mikro režima;</li>
+<li>revizijska obveznost, skupina in morebitna konsolidacija;</li>
+<li>upravičenost do poenostavljene predložitve;</li>
+<li>obveznosti dodatnega periodičnega poročanja.</li>
+</ul>
+<p>Program predlaga obseg, računovodja pa profil potrdi z navedeno podlago. Velikosti se ne določi zgolj iz enega podatka ali enega leta, če predpis zahteva drugačno presojo.</p>
+<p>Za s.p., zadruge in druge subjekte se ne uporablja avtomatično obrazcev gospodarskih družb. Posebne izjeme zahtevajo svoj profil.</p>
+<h2>4. Letni številčni podatki</h2>
+<p>Priprava mora vključiti vse zahtevane dele aktualnega obrazca:</p>
+<ol>
+<li>Bilanco stanja s primerjalnim letom.</li>
+<li>Izkaz poslovnega izida s primerjalnim letom.</li>
+<li>Podatke bilančnega dobička oziroma bilančne izgube.</li>
+<li>Dodatne podatke o poslovanju s tujino, kadar so potrebni.</li>
+<li>Druge obvezne podatke konkretnega letnika, vključno z ustreznimi podatki o zaposlenih.</li>
+</ol>
+<p>Vsaka vrednost ima sled do kontov in knjiženih postavk ali do dokumentiranega ročnega vnosa. Manjkajoč podatek se razlikuje od potrjene ničle.</p>
+<p>Ročni popravki se hranijo ločeno od izračuna, z razlogom in revizijsko sledjo. Program zaradi popravka AOP ne ustvarja knjižb.</p>
+<h2>5. Pojasnila, razkritja in razporeditev dobička</h2>
+<p>Predviden je urejevalnik besedil in prilog, vezan na podjetje in leto:</p>
+<ul>
+<li>računovodske usmeritve in zahtevana pojasnila pomembnih postavk;</li>
+<li>ustrezna razkritja za konkretni režim družbe;</li>
+<li>predlog razporeditve dobička ali obravnavanja izgube;</li>
+<li>sprejeta razporeditev oziroma sklep pristojnega organa;</li>
+<li>dodatne priloge, ki jih zahteva predpis.</li>
+</ul>
+<p>Za upravičeno mikro družbo program pripravi predpisana razkritja po posebnem režimu. Mikro režim ne pomeni avtomatične odprave vseh razkritij.</p>
+<p>Številčni izkaz bilančnega dobička ni nadomestilo za dokument o predlagani oziroma sprejeti razporeditvi.</p>
+<p>Predloge vsebujejo navodila in prazna polja, ne izmišljenih dejstev ali vnaprej potrjenih izjav.</p>
+<h2>6. Pogojni paketi</h2>
+<h3>Srednje/velike družbe in drugi ustrezni zavezanci</h3>
+<p>Glede na pravni režim se vključijo izkaz denarnih tokov, izkaz gibanja kapitala, poslovno poročilo in revizorjevo poročilo. Revizorjevo poročilo je priloga dejanskega revizorja, ne samodejno ustvarjeno dokazilo.</p>
+<h3>Konsolidacija</h3>
+<p>Če je potrebna, gre za ločen razvojni sklop s konsolidacijskim obsegom, izločitvami, primerjalnimi podatki in sledjo. Program ne označi vsote družb kot konsolidirano poročilo.</p>
+<h3>SFR in ČPPS</h3>
+<p>Vodita se kot samostojna periodična obrazca z lastnimi pogoji zavezanosti, obdobji, preslikavami in izvozom. Vključitev temelji na aktualnih pravilih ter morebitni izbiri oziroma obvestilu AJPES; nista obvezna za vsako družbo.</p>
+<p>Dejavnostno specifični tokovi, na primer eTurizem, niso del osnovnega letnega računovodskega paketa.</p>
+<h2>7. Delovni postopek</h2>
+<ol>
+<li>Izbor podjetja, leta in potrjenega profila.</li>
+<li>Nalaganje knjiženih podatkov ter primerjalnega leta.</li>
+<li>Pregled AOP, preslikav, manjkajočih podatkov in kontrol.</li>
+<li>Dopolnitev pojasnil, prilog, podatkov o dobičku in potrebnih izjav.</li>
+<li>Potrditev računovodje.</li>
+<li>Izvoz ustreznih datotek za statistiko in javno objavo.</li>
+<li>Ročni uvoz/predložitev v AJPES in shranitev dokazil.</li>
+</ol>
+<p>Podatki za statistiko in dokument za javno objavo imajo jasno označen namen. Če je dovoljena poenostavljena predložitev, program pripravi zahtevano izjavo; ne šteje je za sprejeto brez uporabnikove potrditve.</p>
+<h2>8. Izvozi in sled predložitve</h2>
+<ul>
+<li>Uradni XML po aktualni shemi in katalogu obrazca.</li>
+<li>Obstoječi JOLP PDF/XLSX za pregled.</li>
+<li>Celovit PDF letnega poročila z zahtevanimi besedili in prilogami, kjer je ustrezen.</li>
+<li>Priloge v formatih, ki jih sprejema AJPES.</li>
+<li>Evidenca izvoza: podjetje, leto, namen, verzija pravil, čas, izvajalec in odtis.</li>
+<li>Evidenca predložitve: datum, identifikator oziroma potrdilo in rezultat, vključno z morebitno zavrnitvijo.</li>
+</ul>
+<p>Prenos datoteke ni predložitev; predložitev ni potrjena uspešna oddaja brez dokazila. Neposredna povezava z AJPES je možnost poznejše faze, ne predpostavka osnutka.</p>
+<h2>9. Kontrole in varovala</h2>
+<ul>
+<li>Računske povezave AOP in ujemanje bilance.</li>
+<li>Ločitev otvoritev in tekočega prometa brez podvajanja.</li>
+<li>Pravilno obdobje in primerjalno leto.</li>
+<li>Osnutki se ne vključijo potiho v uradne številčne izkaze.</li>
+<li>Vsa uporabljena kontna preslikava je pregledana; nepokriti pomembni konti blokirajo izvoz.</li>
+<li>Obvezna besedila, izjave in priloge so prisotni.</li>
+<li>Podatki za podjetje se ne mešajo s podatki drugega podjetja.</li>
+<li>Potrditev velja za točen posnetek izračuna, prilog in pravil. Njihova sprememba zahteva nov pregled.</li>
+<li>Nov letnik XML se omogoči šele po preverjanju uradne sheme in preizkusu uvoza.</li>
+</ul>
+<p>Predpisani roki se vodijo po profilu in letu. Za običajno koledarsko leto se upošteva trimesečni statistični rok, pri ustreznih revidiranih javnih poročilih osemmesečni rok ter posebni roki, kadar veljajo.</p>
+<h2>10. Faze in merila sprejema</h2>
+<p>Faza A: letni profili, aktualni katalog, dopolnitev obstoječih številčnih poročil in kontrole.</p>
+<p>Faza B: pojasnila/mikro razkritja, razporeditev dobička, izjave in celovit dokument.</p>
+<p>Faza C: izvozi, dokazila predložitve in preverjanje aktualnega letnika.</p>
+<p>Faza D: ločeni pogojni obrazci in večji oziroma konsolidirani paketi glede na ciljne uporabnike.</p>
+<p>Sprejem zahteva, da številke v predogledu, PDF/XLSX in XML izvirajo iz istega potrjenega posnetka; manjkajoče obvezne priloge blokirajo predajo; popravek razveljavi staro potrditev; dejanski uvoz v AJPES je preizkušen za podprti obrazec in leto.</p>
+<h2>11. Odločitve pred izvedbo</h2>
+<ul>
+<li>Prvi podprti letnik in pravne oblike.</li>
+<li>Obseg mikro režima oziroma navadnih pojasnil.</li>
+<li>Potrebne pogojne obveznosti ciljnih podjetij.</li>
+<li>Način pridobitve potrjenih sklepov in dokazil predložitve.</li>
+</ul>
+<h2>12. Uradni viri</h2>
+<p>Preverjeno 2. 10. 2026; pred izvedbo novega letnika se viri ponovno preverijo.</p>
+<ul>
+<li>Veljavno navodilo: https://pisrs.si/pregledPredpisa?id=NAVO1119</li>
+<li>AJPES, pogosta vprašanja: https://www.ajpes.si/Letna_porocila/Predlozitev/Druzbe_in_zadruge/Pogosta_vprasanja</li>
+<li>SFR: https://www.ajpes.si/statistike/statistika_financnih_racunov/splosno</li>
+<li>ČPPS: https://www.ajpes.si/Statistike/Cetrtletno_porocanje/Pogosta_vprasanja</li>
+</ul></main></body></html>

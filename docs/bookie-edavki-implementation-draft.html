@@ -1,0 +1,168 @@
+<!doctype html><html lang="sl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2. Osnutek implementacije: eDavki</title><style>body{margin:0;background:#f3f5f8;color:#1d2939;font:16px/1.65 system-ui,sans-serif}main{max-width:940px;margin:40px auto;padding:44px 54px;background:#fff;border:1px solid #e2e7ee;border-radius:12px}h1{font-size:30px;line-height:1.25;color:#163d65}h2{margin-top:38px;padding-top:20px;border-top:1px solid #e2e7ee;color:#163d65;font-size:23px}h3{margin-top:26px;font-size:18px}li{margin:6px 0}code{font-size:.88em;overflow-wrap:anywhere;background:#f1f4f8;padding:2px 4px}p{margin:12px 0;overflow-wrap:anywhere}@media(max-width:650px){main{margin:0;padding:22px;border-radius:0;border:0}h1{font-size:25px}}@media print{body{background:white;font-size:10pt}main{margin:0;max-width:none;padding:0;border:0}h1{font-size:21pt}h2{font-size:15pt}h3{font-size:12pt}h1,h2,h3{break-after:avoid}li{break-inside:avoid}}</style></head><body><main><h1>2. Osnutek implementacije: eDavki</h1>
+<p>Datum: 2. 10. 2026 Produkt: Bookie ERP Status: načrt prihodnje implementacije, brez oddaje obrazcev ali sprememb davčnih podatkov.</p>
+<h2>1. Cilj in obseg</h2>
+<p>Vzpostaviti pripravo, kontrolo, izvoz, popravke in sled oddaje davčnih obrazcev.</p>
+<p>Prvi osnovni obseg:</p>
+<ol>
+<li>DDV-O.</li>
+<li>Evidenci obračunanega DDV in odbitka DDV, KIR/KPR.</li>
+<li>RP-O — rekapitulacijsko poročilo.</li>
+<li>PD-O — poročilo o dobavah po 76.a členu ZDDV-1.</li>
+<li>DDPO — obračun davka od dohodkov pravnih oseb.</li>
+</ol>
+<p>RP-O in PD-O sta samostojna obvezna razvojna sklopa tega osnutka, čeprav je obveznost njune oddaje za posamezno podjetje pogojna.</p>
+<p>REK-O, obračun plač, DDD-DDD, ustrezni OPSV in posebni režimi imajo ločene razvojne sklope. Evidence ur ali davčna amortizacija jih ne nadomestijo.</p>
+<h2>2. Izhodišče</h2>
+<ul>
+<li>Obstaja izračun DDV-O, njegov uporabniški XML izvoz pa ni zaključen.</li>
+<li>Obstajajo generator in kontrole KIR/KPR ter lokalna evidenca izvozov.</li>
+<li>Celovit DDPO, RP-O in PD-O v predhodnem pregledu niso bili najdeni.</li>
+<li>Neposredna avtenticirana oddaja in potrditve sprejema eDavkov niso bile potrjene kot implementirane.</li>
+</ul>
+<p>Prva faza podpira uradno ustrezen izvoz in ročni uvoz v eDavke. Neposredna oddaja je ločena poznejša možnost s pooblastili in potrditvami.</p>
+<h2>3. Skupni davčni podatki in profil</h2>
+<p>Za podjetje se po obdobjih veljavnosti vodijo davčni status, pravna oblika, identifikacija za DDV, način poročanja in mesečna/trimesečna obdobja.</p>
+<p>Vsaka vključena transakcija ima:</p>
+<ul>
+<li>izvorni dokument in knjižbo;</li>
+<li>smer nabava/prodaja, partnerja in relevantno DDV identifikacijo;</li>
+<li>vrsto posla, državo in davčno obravnavo;</li>
+<li>datum za davčno obdobje, davčno osnovo, DDV, valuto ter uporabljeni tečaj;</li>
+<li>podjetniško DDV kodo in točno verzijo povezane FURS klasifikacije;</li>
+<li>pri popravku povezavo na originalno transakcijo in poročano obdobje.</li>
+</ul>
+<p>Stopnja DDV ali država partnerja sama ne zadostuje za klasifikacijo. EU nabava ni avtomatično RP-O; vsaka obrnjena davčna obveznost ni PD-O.</p>
+<p>Manjkajoča ali dvoumna klasifikacija zahteva pregled in lahko blokira izvoz. Program ne izpušča nepopolnih vrstic potiho.</p>
+<h2>4. DDV-O</h2>
+<ul>
+<li>Izbor točnega davčnega obdobja.</li>
+<li>Izračun polj po veljavnih pravilih in verziji obrazca.</li>
+<li>Povezava vsakega agregata do dokumentov in davčnih evidenc.</li>
+<li>Pregled obračunanega DDV, odbitka, samoobdavčitev, oprostitev in drugih podprtih vrst poslov.</li>
+<li>Uskladitev z evidencama KIR/KPR ob upoštevanju predpisanih razlik v poročanju in zaokroževanju.</li>
+<li>Delujoč uradni XML izvoz, ki prestane shematsko in vsebinsko kontrolo.</li>
+<li>Običajni obračun in ustrezne vrste popravkov po pravilih eDavkov.</li>
+</ul>
+<p>Ko obstaja obveznost RP-O, program upošteva njen vpliv na obdobje in rok DDV-O. Ne ohrani avtomatično trimesečnega režima zgolj zaradi stare nastavitve.</p>
+<h2>5. KIR/KPR</h2>
+<ul>
+<li>Predogled, kontrole in izvoz uporabljajo isti izbrani datumski obseg.</li>
+<li>Obvezni podatki in smerne preslikave se preverijo pred izvozom.</li>
+<li>Za ročni uvoz se pripravi ZIP z evidencama v uradno sprejetem formatu ter veljavni strukturi.</li>
+<li>Hranijo se potrjeni posnetek, kontrolne vsote, datoteke, verzija pravil in povezave do izvorov.</li>
+<li>Program omogoči evidentiranje oddaje, opozoril, zavrnitev in popravkov.</li>
+</ul>
+<p>Rok je usklajen z DDV-O. Če obstaja RP-O, se upošteva skrajšani rok. Predizpolnjen obračun FURS se obravnava kot zunanji dokument za primerjavo, ne kot avtomatična potrditev pravilnosti programa.</p>
+<h2>6. RP-O — rekapitulacijsko poročilo</h2>
+<h3>Zavezanost in izbor transakcij</h3>
+<p>Poročilo zajema relevantne dobave znotraj EU in določene storitve, pri katerih je plačnik DDV prejemnik v drugi članici. Aktualni obrazec lahko zahteva tudi podatke o skladiščenju na odpoklic in posebnih postopkih.</p>
+<p>Uvoz, EU nabave in domače dobave se ne vključijo samo zaradi tuje države ali ničelne davčne stopnje.</p>
+<h3>Podatki in prikaz</h3>
+<ul>
+<li>Koledarski mesec poročanja.</li>
+<li>Država in DDV identifikacija prejemnika.</li>
+<li>Ločene vrste transakcij po aktualnem obrazcu, vključno z blagom, tristranskimi posli in storitvami.</li>
+<li>Davčne osnove v EUR.</li>
+<li>Dokumenti, iz katerih so sestavljeni zneski posameznega prejemnika.</li>
+<li>Ločen prikaz popravkov preteklih obdobij.</li>
+</ul>
+<p>Identifikacija se preveri oblikovno in glede na vrsto posla. Morebitno zunanje preverjanje veljavnosti se hrani z datumom in odzivom; nedosegljivost zunanjega vira ni dokaz neveljavnosti.</p>
+<h3>Kontrole</h3>
+<ul>
+<li>Pravilna smer in klasifikacija posla.</li>
+<li>Obvezna identifikacija prejemnika, pravilne oznake države in ustrezno obdobje.</li>
+<li>Brez podvajanja iste transakcije.</li>
+<li>Uskladitev z relevantnimi polji DDV-O in prodajno davčno evidenco, ne slepo z vsemi EU računi.</li>
+<li>Dobropisi in popravki se obravnavajo po uradnih navodilih; ne spreminjajo potiho že oddanega posnetka.</li>
+</ul>
+<h3>Izvoz, popravki in rok</h3>
+<p>Samostojen predogled, uradni XML po veljavni shemi, potrjen posnetek, zgodovina izvozov, dokazilo oddaje in rezultat.</p>
+<p>Poroča se za koledarski mesec relevantnih dobav ali popravkov. Osnovni rok je 20. dan naslednjega meseca; v istem roku se predloži tudi DDV-O, kadar je RP-O obvezen. Posebni premiki rokov se upoštevajo po uradnem koledarju.</p>
+<p>Scenariji sprejema: EU blago, relevantna EU storitev, tristranski posel, dobropis/popravek prejšnjega meseca, napačna identifikacija, EU nabava izključena in poseben podprt režim.</p>
+<h2>7. PD-O — poročilo o dobavah po 76.a členu</h2>
+<h3>Zavezanost in izbor transakcij</h3>
+<p>Poročilo pripravi dobavitelj, ki opravlja dobave, za katere je prejemnik plačnik DDV po 76.a členu ZDDV-1.</p>
+<p>Prejete samoobdavčene nabave, EU posli in običajne domače dobave niso PD-O zgolj zato, ker vsebujejo obrnjeno davčno obveznost ali ničelni obračun davka.</p>
+<h3>Podatki in prikaz</h3>
+<ul>
+<li>Koledarski mesec poročanja.</li>
+<li>Identifikacija domačega prejemnika in zahtevani podatki aktualnega obrazca.</li>
+<li>Davčna osnova relevantnih dobav.</li>
+<li>Izvorni dokumenti in uporabljena klasifikacija 76.a.</li>
+<li>Ločeni popravki predhodnih obdobij.</li>
+</ul>
+<h3>Kontrole</h3>
+<ul>
+<li>Posel je dejansko dobava po 76.a, ne samo podobno označen račun.</li>
+<li>Prejemnik in DDV identifikacija izpolnjujeta zahteve relevantnega posla.</li>
+<li>Ni podvajanja transakcij ali zamenjave nabavne/prodajne evidence.</li>
+<li>Zneski so usklajeni z relevantnimi polji DDV-O in evidenco obračunanega DDV.</li>
+<li>Popravki imajo izvorno obdobje ter sled do prvotne oddaje.</li>
+</ul>
+<h3>Izvoz, popravki in rok</h3>
+<p>Samostojen predogled, uradni XML po veljavni shemi, potrjen posnetek, zgodovina in dokazilo oddaje.</p>
+<p>Osnovni rok je zadnji delovni dan naslednjega meseca po koledarskem mesecu relevantnih dobav ali popravkov.</p>
+<p>Scenariji sprejema: pravilna domača dobava 76.a, delni dobropis, popravek prejšnjega meseca, nepopolna identifikacija in izključitev prejete samoobdavčene nabave.</p>
+<h2>8. DDPO</h2>
+<p>Samostojen letni davčni obračun mora vključiti:</p>
+<ul>
+<li>izhodišče iz potrjenega računovodskega rezultata;</li>
+<li>povečanja/zmanjšanja davčne osnove po vrstah prilagoditev;</li>
+<li>ločeno obravnavo računovodske in davčne amortizacije;</li>
+<li>davčno nepriznane oziroma delno priznane odhodke in druge relevantne prilagoditve;</li>
+<li>olajšave z dokazili, omejitvami in neporabljenimi prenosi, kjer jih pravila dovoljujejo;</li>
+<li>izgube po letih nastanka, njihovo uporabo in veljavne omejitve;</li>
+<li>pravilno stopnjo za davčno leto, akontacije ter poračun;</li>
+<li>zahtevane priloge in izjavo o izkazih, predloženih AJPES, kadar je uporabljiva;</li>
+<li>XML in sled oddaje ter popravkov.</li>
+</ul>
+<p>Davčnih zneskov se ne izpelje samo iz konta brez ustrezne poslovne podlage. Ročni vnosi imajo dokazilo, razlog in potrditev.</p>
+<p>Za običajno koledarsko leto se uporabi trimesečni rok po koncu leta; drugačna davčna leta in posebni dogodki imajo svoje roke.</p>
+<h2>9. Drugi ločeni sklopi</h2>
+<ul>
+<li>REK-O: vrste dohodkov, individualni podatki, prispevki, dohodnina in dejanski datum izplačila; povezan z dejanskim obračunom dohodka oziroma plač.</li>
+<li>DDD-DDD: ustrezen profil s.p. in način ugotavljanja davčne osnove.</li>
+<li>Ustrezni OPSV: zavarovalni status, osnove, obdobja in predpisani obračuni.</li>
+<li>OSS/IOSS in drugi posebni obrazci: samo ob relevantnem režimu.</li>
+</ul>
+<p>Pogojev za ta poročila se ne pripiše vsem podjetjem. REK-O zahteva dodatna varovala za osebne podatke in ločena pooblastila.</p>
+<h2>10. Enoten potek in stanja</h2>
+<p>Podjetje → obrazec → obdobje → izračun → kontrola → računovodska potrditev → izvoz → oddaja → rezultat.</p>
+<p>Ločena stanja:</p>
+<ul>
+<li>osnutek;</li>
+<li>pregledan/potrjen;</li>
+<li>izvožen;</li>
+<li>oddan z dokazilom;</li>
+<li>sprejet, zavrnjen ali potreben pregled odziva.</li>
+</ul>
+<p>Potrditev velja za konkreten posnetek podatkov in verzijo pravil. Oddano vsebino se ohrani nespremenljivo; popravek je nova povezana oddaja.</p>
+<p>Prenos datoteke ne pomeni oddaje. Ob ročnem uvozu uporabnik priloži potrdilo in identifikator; ob poznejši neposredni povezavi se rezultat pridobi iz uradnega odziva.</p>
+<h2>11. Tehnična zasnova in zaščita</h2>
+<ul>
+<li>Skupni verzionirani davčni izračun za DDV-O, KIR/KPR, RP-O in PD-O.</li>
+<li>Ločene preslikave posameznega obrazca in jasne kontrole dovoljenih razlik.</li>
+<li>Verzionirane uradne XML sheme, šifranti, roki in vrste oddaje.</li>
+<li>Decimalni izračuni in pravila zaokroževanja po obrazcu.</li>
+<li>Dosledno omejevanje na izbrano podjetje, vključno z izvozi in večpodjetniškimi uporabniki.</li>
+<li>Revizijska sled izračuna, ročnih sprememb, potrditve in oddaje.</li>
+<li>Varno shranjevanje dokazil; poverilnice in podpisovanje samo v ustreznem varovanem postopku.</li>
+<li>Ob nejasnem rezultatu neposredne oddaje ni slepe ponovitve, ki bi lahko podvojila oddajo.</li>
+<li>Osnutki in nepopolne davčne sledi se ne vključujejo oziroma izpuščajo potiho.</li>
+</ul>
+<h2>12. Faze in merila sprejema</h2>
+<p>Faza A: skupna davčna sled, DDV-O XML, uvozna embalaža KIR/KPR, potrjeni posnetki in dokazila.</p>
+<p>Faza B: RP-O in PD-O, vsak s svojim predogledom, kontrolami, XML, popravki in uskladitvijo.</p>
+<p>Faza C: celovit DDPO.</p>
+<p>Faza D: pogojni obračuni in po potrebi neposredna oddaja.</p>
+<p>Sprejem zahteva preizkušen uvoz v eDavke za vsako podprto shemo; pravilna obdobja in roke; pravilno ločevanje RP-O/PD-O/nabav; sled popravkov in uskladitev z DDV-O; blokado nepopolnih obveznih podatkov; potrditev, vezano na posnetek; odsotnost mešanja podjetij.</p>
+<h2>13. Uradni viri</h2>
+<p>Preverjeno 2. 10. 2026; pred izvedbo se pridobijo aktualne tehnične sheme in navodila.</p>
+<ul>
+<li>RP-O: https://edavki.durs.si/EdavkiPortal/OpenPortal/CommonPages/Opdynp/PageD.aspx?category=rekapitulacijsko_porocilo_podjetja</li>
+<li>PD-O: https://edavki.durs.si/EdavkiPortal/OpenPortal/CommonPages/Opdynp/PageD.aspx?category=porocilo_o_dobavah_podjetja</li>
+<li>KIR/KPR: https://edavki.durs.si/EdavkiPortal/OpenPortal/CommonPages/Opdynp/PageD.aspx?category=kirkpr</li>
+<li>DDPO: https://www.fu.gov.si/poslovni_dogodki_podjetja/obracun_davka_od_dohodkov_pravnih_oseb</li>
+<li>REK: https://www.fu.gov.si/davki_in_druge_dajatve/podrocja/dohodnina/rek_obrazci</li>
+<li>DDD-DDD: https://www.fu.gov.si/poslovni_dogodki_podjetja/obracun_akontacije_dohodnine_in_dohodnine_od_dohodka_iz_dejavnosti</li>
+</ul></main></body></html>

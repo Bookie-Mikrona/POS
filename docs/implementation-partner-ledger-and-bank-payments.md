@@ -280,6 +280,12 @@ Povezovanje bančnega izpiska s paketom, delne izvedbe, zavrnitve in pravilno za
 
 Ta sklop povzema predhodni pregled; pred izvedbo vsakega obrazca je treba preveriti aktualni letnik in dejansko obveznost podjetja.
 
+Podrobni nadaljnji osnutki:
+
+- `docs/implementation-ajpes-reporting.md`
+- `docs/implementation-edavki-reporting.md` — vključuje samostojna sklopa RP-O in PD-O.
+- `docs/implementation-business-bank-reporting.md`
+
 ### AJPES
 
 - Besedilna pojasnila oziroma predpisana mikro razkritja.

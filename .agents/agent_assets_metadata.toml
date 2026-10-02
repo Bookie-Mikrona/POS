@@ -1285,3 +1285,45 @@ mtime_ms = 1790917282188
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/982612a7-2237-48d9-bbe1-4e71d766f7e0/5407fbc7-e554-472b-b6cf-7e04d651abad"
 storage_version_token = "1790917282911417"
 content_type = "text/html"
+
+[[outputs]]
+id = "IvtXXeduv7xvlnN9vNMQj"
+uri = "file://docs/bookie-ajpes-implementation-draft.html"
+type = "html"
+title = "1. AJPES — osnutek implementacije"
+description = "Letni profili, izkazi, razkritja, razporeditev dobička, uradni izvozi, dokazila predložitve in pogojna poročila."
+logical_id = "c4d4a56c-da73-4ed7-a160-7db7c4f1a502"
+content_hash = "sha256:7012e140f5f4006a4198fb968567f099e227969c0f507e178383e78f2e578761"
+size = 9221
+mtime_ms = 1790917834108
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/c4d4a56c-da73-4ed7-a160-7db7c4f1a502/d4aa3083-f8ba-4ef8-9e7a-730182e209b0"
+storage_version_token = "1790917834820953"
+content_type = "text/html"
+
+[[outputs]]
+id = "N4NTwXu-LgakLTzx1-9T8"
+uri = "file://docs/bookie-edavki-implementation-draft.html"
+type = "html"
+title = "2. eDavki — osnutek implementacije"
+description = "DDV-O, KIR/KPR, samostojna sklopa RP-O in PD-O, DDPO, kontrole, popravki, XML izvozi in sled oddaje."
+logical_id = "327b0868-04aa-46a5-bfe3-7c201a43eee8"
+content_hash = "sha256:639a1165c5cd78b895d591781cb419e3db68226315e0d75efead2e7797630f9c"
+size = 12922
+mtime_ms = 1790917835276
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/327b0868-04aa-46a5-bfe3-7c201a43eee8/6d650b5b-af98-497b-97d0-3ebbe67e66f3"
+storage_version_token = "1790917835659423"
+content_type = "text/html"
+
+[[outputs]]
+id = "lXICt1b0y5MySXo03G4z4"
+uri = "file://docs/bookie-banks-implementation-draft.html"
+type = "html"
+title = "3. Poslovne banke — osnutek implementacije"
+description = "Bančni paketi izkazov, odprte postavke, financiranje, likvidnost, načrti, pogodbeni kazalniki in povezava s plačilnim XML."
+logical_id = "af5f51d3-2138-4e4a-9d93-f76abf69f60d"
+content_hash = "sha256:5f1d09d86f4eecf3e42414476836f5fffa627553359aa7a97a70e7a98469ebd4"
+size = 10765
+mtime_ms = 1790917836088
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/af5f51d3-2138-4e4a-9d93-f76abf69f60d/aeee173b-0c4f-4a5f-b017-e99551fdb8e5"
+storage_version_token = "1790917836437949"
+content_type = "text/html"

@@ -1,4 +1,4 @@
-<!doctype html><html lang="sl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bookie ERP — osnutek implementacije</title><style>body{margin:0;background:#f3f5f8;color:#1d2939;font:16px/1.65 system-ui,sans-serif}main{max-width:940px;margin:40px auto;padding:44px 54px;background:#fff;border:1px solid #e2e7ee;border-radius:12px}h1{font-size:30px;line-height:1.25;color:#163d65}h2{margin-top:38px;padding-top:20px;border-top:1px solid #e2e7ee;color:#163d65;font-size:23px}h3{margin-top:26px;font-size:18px}li{margin:6px 0}code{font-size:.88em;overflow-wrap:anywhere;background:#f1f4f8;padding:2px 4px}p{margin:12px 0}@media(max-width:650px){main{margin:0;padding:22px;border-radius:0;border:0}h1{font-size:25px}}@media print{body{background:white;font-size:10pt}main{margin:0;max-width:none;padding:0;border:0}h1{font-size:21pt}h2{font-size:15pt}h3{font-size:12pt}h1,h2,h3{break-after:avoid}li{break-inside:avoid}}</style></head><body><main><h1>Osnutek implementacije: kartice partnerjev, zapiranje postavk in bančna plačila</h1>
+<!doctype html><html lang="sl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Osnutek implementacije: kartice partnerjev, zapiranje postavk in bančna plačila</title><style>body{margin:0;background:#f3f5f8;color:#1d2939;font:16px/1.65 system-ui,sans-serif}main{max-width:940px;margin:40px auto;padding:44px 54px;background:#fff;border:1px solid #e2e7ee;border-radius:12px}h1{font-size:30px;line-height:1.25;color:#163d65}h2{margin-top:38px;padding-top:20px;border-top:1px solid #e2e7ee;color:#163d65;font-size:23px}h3{margin-top:26px;font-size:18px}li{margin:6px 0}code{font-size:.88em;overflow-wrap:anywhere;background:#f1f4f8;padding:2px 4px}p{margin:12px 0;overflow-wrap:anywhere}@media(max-width:650px){main{margin:0;padding:22px;border-radius:0;border:0}h1{font-size:25px}}@media print{body{background:white;font-size:10pt}main{margin:0;max-width:none;padding:0;border:0}h1{font-size:21pt}h2{font-size:15pt}h3{font-size:12pt}h1,h2,h3{break-after:avoid}li{break-inside:avoid}}</style></head><body><main><h1>Osnutek implementacije: kartice partnerjev, zapiranje postavk in bančna plačila</h1>
 <p>Datum: 2. 10. 2026 Produkt: Bookie ERP Status: osnutek za uskladitev in izvedbo; ni dovoljenje za spreminjanje finančnih podatkov.</p>
 <h3>Referenčne priloge</h3>
 <ul>
@@ -214,6 +214,12 @@
 </ul>
 <h2>12. Ločen sklop AJPES/FURS in dokumentacija za banke</h2>
 <p>Ta sklop povzema predhodni pregled; pred izvedbo vsakega obrazca je treba preveriti aktualni letnik in dejansko obveznost podjetja.</p>
+<p>Podrobni nadaljnji osnutki:</p>
+<ul>
+<li><code>docs/implementation-ajpes-reporting.md</code></li>
+<li><code>docs/implementation-edavki-reporting.md</code> — vključuje samostojna sklopa RP-O in PD-O.</li>
+<li><code>docs/implementation-business-bank-reporting.md</code></li>
+</ul>
 <h3>AJPES</h3>
 <ul>
 <li>Besedilna pojasnila oziroma predpisana mikro razkritja.</li>
