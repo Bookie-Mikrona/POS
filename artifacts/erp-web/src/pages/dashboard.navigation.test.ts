@@ -5,7 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { ledgerMock } = vi.hoisted(() => ({ ledgerMock: vi.fn() }));
 
-vi.mock("@workspace/api-client-react", () => ({ useGetLedger: ledgerMock }));
+vi.mock("@workspace/api-client-react", () => ({
+  useGetLedger: ledgerMock,
+  useGetBankBalanceHistory: () => ({ data: { points: [] }, isLoading: false, isError: false }),
+}));
+// Reconciliation has its own account-scoped query and integration tests.
+// Keep these tests focused on expanding the seven-line ledger history.
+vi.mock("@/components/bank-balance-reconciliation", () => ({ BankBalanceReconciliation: () => null }));
 vi.mock("@/contexts/CompanyContext", () => ({ useCompany: vi.fn() }));
 
 import { BankBalanceCard, isCrossArtifactModule } from "./dashboard";

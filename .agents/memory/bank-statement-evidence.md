@@ -8,3 +8,9 @@ Bančni izpisek je samostojen dokument z izbranim kontom 110x, izvornim IBAN-om,
 **Why:** Samostojna plačila brez glave izpiska ne omogočajo dokazovanja popolnosti obdobja, zanesljivega preprečevanja ponovnega uvoza ali rekonstrukcije izvora knjižbe. Konto 110x lahko zaradi manjkajoče otvoritve naslednjega leta kaže nepopoln saldo, zato ne predstavlja trenutnega bančnega kritja.
 
 **How to apply:** Posamezno plačilo je lahko povezano z največ eno vrstico izpiska. SHA-256 odtis je enoličen znotraj podjetja. CAMT/MT940 podatke preberi iz glave; pri CSV manjkajoča polja pusti prazna in uporabi datumski razpon transakcij. Dejanska razpoložljivost se vodi po posameznem TRR iz stanj in neprekinjenega dnevnika izpiskov, ne iz salda konta 110x.
+
+Ročna primerjava knjiženega salda s stanjem, ki ga računovodja prepiše z izpiska, je samo diagnostična kontrola. Ne predstavlja novega dokazila o bančnem stanju in ne sme spreminjati kritja za plačila.
+
+**Why:** Knjiženi saldo in dokazljivo stanje banke imata različna namena; nepotrjen ročni vnos ne sme prepisati dokumentarne sledi izpiskov. Primerjava je smiselna le za isti TRR in isti presečni datum.
+
+**How to apply:** Vnos za primerjavo jasno loči od uvoza izpiska in od razpoložljivega kritja. Ob primerjavi zgodovinskega izpiska uporabi knjiženi saldo na njegov datum, ne današnjega.

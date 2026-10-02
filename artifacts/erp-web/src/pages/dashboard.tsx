@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCompany } from "@/contexts/CompanyContext";
+import { BankBalanceReconciliation } from "@/components/bank-balance-reconciliation";
 import { useGetOpenItems, useGetAgedAnalysis, useGetBankBalance, useGetBankBalanceHistory, useGetLedger } from "@workspace/api-client-react";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -169,6 +170,12 @@ export function BankBalanceCard({ companyId, totalBalance, accounts, loading }: 
                           {bal == null ? "Ni evidentirano" : fmtEur(bal)}
                         </span>
                       </button>
+                      <BankBalanceReconciliation
+                        key={`${companyId}-${acc.accountId}`}
+                        companyId={companyId}
+                        accountId={acc.accountId}
+                        accountCode={acc.accountCode}
+                      />
                       {expandedAccountId === acc.accountId && (
                         <div id={`bank-ledger-${acc.accountId}`} className="mx-1.5 mb-2 border-l-2 border-border pl-3 pt-1">
                           {ledgerLoading ? (
