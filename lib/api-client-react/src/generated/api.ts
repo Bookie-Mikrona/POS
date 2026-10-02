@@ -24,6 +24,9 @@ import type {
   AddMalicaToOrderBody,
   AddMalicaToOrderResponse,
   AgedAnalysisResponse,
+  AjpesAnnualDraftInput,
+  AjpesAnnualExportInput,
+  AjpesAnnualReport,
   AjpesLookupBody,
   AjpesLookupResponse,
   AlergenPovzetek,
@@ -539,6 +542,218 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetAjpesAnnualReportUrl = (companyId: string,
+    year: number,) => {
+
+
+
+
+  return `/api/companies/${companyId}/reports/ajpes/${year}`
+}
+
+export const getAjpesAnnualReport = async (companyId: string,
+    year: number, options?: RequestInit): Promise<AjpesAnnualReport> => {
+
+  return customFetch<AjpesAnnualReport>(getGetAjpesAnnualReportUrl(companyId,year),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAjpesAnnualReportQueryKey = (companyId: string,
+    year: number,) => {
+    return [
+    `/api/companies/${companyId}/reports/ajpes/${year}`
+    ] as const;
+    }
+
+
+export const getGetAjpesAnnualReportQueryOptions = <TData = Awaited<ReturnType<typeof getAjpesAnnualReport>>, TError = ErrorType<void>>(companyId: string,
+    year: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAjpesAnnualReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAjpesAnnualReportQueryKey(companyId,year);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAjpesAnnualReport>>> = ({ signal }) => getAjpesAnnualReport(companyId,year, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && year !== null && year !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAjpesAnnualReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAjpesAnnualReportQueryResult = NonNullable<Awaited<ReturnType<typeof getAjpesAnnualReport>>>
+export type GetAjpesAnnualReportQueryError = ErrorType<void>
+
+
+
+export function useGetAjpesAnnualReport<TData = Awaited<ReturnType<typeof getAjpesAnnualReport>>, TError = ErrorType<void>>(
+ companyId: string,
+    year: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAjpesAnnualReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAjpesAnnualReportQueryOptions(companyId,year,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveAjpesAnnualReportUrl = (companyId: string,
+    year: number,) => {
+
+
+
+
+  return `/api/companies/${companyId}/reports/ajpes/${year}`
+}
+
+export const saveAjpesAnnualReport = async (companyId: string,
+    year: number,
+    ajpesAnnualDraftInput: AjpesAnnualDraftInput, options?: RequestInit): Promise<AjpesAnnualReport> => {
+
+  return customFetch<AjpesAnnualReport>(getSaveAjpesAnnualReportUrl(companyId,year),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ajpesAnnualDraftInput)
+  }
+);}
+
+
+
+
+
+export const getSaveAjpesAnnualReportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAjpesAnnualReport>>, TError,{companyId: string;year: number;data: BodyType<AjpesAnnualDraftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveAjpesAnnualReport>>, TError,{companyId: string;year: number;data: BodyType<AjpesAnnualDraftInput>}, TContext> => {
+
+const mutationKey = ['saveAjpesAnnualReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveAjpesAnnualReport>>, {companyId: string;year: number;data: BodyType<AjpesAnnualDraftInput>}> = (props) => {
+          const {companyId,year,data} = props ?? {};
+
+          return  saveAjpesAnnualReport(companyId,year,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveAjpesAnnualReportMutationResult = NonNullable<Awaited<ReturnType<typeof saveAjpesAnnualReport>>>
+    export type SaveAjpesAnnualReportMutationBody = BodyType<AjpesAnnualDraftInput>
+    export type SaveAjpesAnnualReportMutationError = ErrorType<void>
+
+    export const useSaveAjpesAnnualReport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAjpesAnnualReport>>, TError,{companyId: string;year: number;data: BodyType<AjpesAnnualDraftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveAjpesAnnualReport>>,
+        TError,
+        {companyId: string;year: number;data: BodyType<AjpesAnnualDraftInput>},
+        TContext
+      > => {
+      return useMutation(getSaveAjpesAnnualReportMutationOptions(options));
+    }
+
+export const getExportAjpesAnnualReportUrl = (companyId: string,
+    year: number,) => {
+
+
+
+
+  return `/api/companies/${companyId}/reports/ajpes/${year}/export`
+}
+
+export const exportAjpesAnnualReport = async (companyId: string,
+    year: number,
+    ajpesAnnualExportInput: AjpesAnnualExportInput, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportAjpesAnnualReportUrl(companyId,year),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ajpesAnnualExportInput)
+  }
+);}
+
+
+
+
+
+export const getExportAjpesAnnualReportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exportAjpesAnnualReport>>, TError,{companyId: string;year: number;data: BodyType<AjpesAnnualExportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof exportAjpesAnnualReport>>, TError,{companyId: string;year: number;data: BodyType<AjpesAnnualExportInput>}, TContext> => {
+
+const mutationKey = ['exportAjpesAnnualReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof exportAjpesAnnualReport>>, {companyId: string;year: number;data: BodyType<AjpesAnnualExportInput>}> = (props) => {
+          const {companyId,year,data} = props ?? {};
+
+          return  exportAjpesAnnualReport(companyId,year,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExportAjpesAnnualReportMutationResult = NonNullable<Awaited<ReturnType<typeof exportAjpesAnnualReport>>>
+    export type ExportAjpesAnnualReportMutationBody = BodyType<AjpesAnnualExportInput>
+    export type ExportAjpesAnnualReportMutationError = ErrorType<void>
+
+    export const useExportAjpesAnnualReport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exportAjpesAnnualReport>>, TError,{companyId: string;year: number;data: BodyType<AjpesAnnualExportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof exportAjpesAnnualReport>>,
+        TError,
+        {companyId: string;year: number;data: BodyType<AjpesAnnualExportInput>},
+        TContext
+      > => {
+      return useMutation(getExportAjpesAnnualReportMutationOptions(options));
+    }
 
 export const getListCreditNotePackagingDocumentsUrl = (companyId: string,) => {
 

@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:element name="AjpesDokument">
+		<xs:annotation>
+			<xs:documentation>root</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Ident">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Datum" type="xs:date"/>
+							<xs:element name="Ura" type="xs:time"/>
+							<xs:element name="Nacin_predlozitve" type="xs:string" minOccurs="0"/>
+							<xs:element name="Vse_pravice" type="xs:string" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attribute ref="Vrsta" use="required" fixed="LP"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="Osnovni_podatki">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="OSN_Maticna_stevilka" type="MaticnaStevilka"/>
+							<xs:element name="OSN_Sif_upor" type="SifraUporabnika" minOccurs="0"/>
+							<xs:element name="OSN_Davcna_stevilka" type="DavcnaStevilka" minOccurs="0"/>
+							<xs:element name="OSN_Ime" type="xs:string" minOccurs="0"/>
+							<xs:element name="OSN_Sedez" type="xs:string" minOccurs="0"/>
+							<xs:element name="OSN_Statusna_sprememba" type="StatusnaSprememba" minOccurs="0"/>
+							<xs:element name="OSN_MS_pred_spremembo" type="MaticnaStevilka" minOccurs="0"/>
+							<xs:element name="OSN_Odgovorna_oseba_za_bilanco" type="xs:string" minOccurs="0"/>
+							<xs:element name="OSN_Telefonska_stevilka" type="Telefon" minOccurs="0"/>
+							<xs:element name="OSN_Enaslov_kontaktne_osebe" type="xs:string" minOccurs="0"/>
+							<xs:element name="OSN_Enaslov_uporabnika_portala" type="xs:string" minOccurs="0"/>
+							<xs:element name="OSN_Enaslov_za_obvestila_eracune" type="xs:string" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>elektronski naslov za posiljanje obvestil in eracune</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="OSN_Vodja_podjetja" type="xs:string" minOccurs="0"/>
+							<xs:element name="OSN_Datum_sestave_bilance" type="xs:date" minOccurs="0"/>
+							<xs:element name="OSN_Kraj_sestave_bilance" type="xs:string" minOccurs="0"/>
+							<xs:element name="OSN_Datum_posl_zacetek" type="xs:date" minOccurs="0"/>
+							<xs:element name="OSN_Datum_posl_konec" type="xs:date" minOccurs="0"/>
+							<xs:element name="OSN_Dejavnost" type="xs:string" minOccurs="0"/>
+							<xs:element name="OSN_Racunovodimo" type="Racunovodimo" minOccurs="0"/>
+							<xs:element name="OSN_Poslovne_knjige_vodimo_po_nacelu_enostavnega_knjigovodstva" type="DaNe" minOccurs="0"/>
+							<xs:element name="OSN_Velikost" type="Velikost" minOccurs="0"/>
+							<xs:element name="OSN_Velikost_izracunana_preteklo" type="Velikost0" minOccurs="0"/>
+							<xs:element name="OSN_Velikost_izracunana_tekoce" type="Velikost" minOccurs="0"/>
+							<xs:element name="OSN_Velikost_obravnavana_preteklo" type="Velikost0" minOccurs="0"/>
+							<xs:element name="OSN_Velikost_obravnavana_tekoce" type="Velikost" minOccurs="0"/>
+							<xs:element name="OSN_Izracunana_zavezanost_reviziji" type="DaNe" minOccurs="0"/>
+							<xs:element name="OSN_Status_drustva" type="StatusDrustva" minOccurs="0"/>
+							<xs:element name="OSN_Razlog_sestavitve_zakljucnega_porocila" type="RazlogSestavitveZakljucnegaPorocila" minOccurs="0"/>
+							<xs:element name="OSN_Maticna_po_spremembi" type="MaticnaStevilka" minOccurs="0"/>
+							<xs:element name="OSN_Zavezanost_k_reviziji_statusnega_preoblikovanja" type="DaNe" minOccurs="0"/>
+							<xs:element name="IZJ_Oddal_izjavo" type="DaNe" minOccurs="0"/>
+							<xs:element name="POJ_Oddal" type="PojasnilaOddana" minOccurs="0"/>
+							<xs:element name="OPR_Vrsta_druzbe" type="VrstaDruzbe" minOccurs="0"/>
+							<xs:element name="OPR_Subjekt_javnega_interesa" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Poslovno_leto_vrsta" type="PoslovnoLetoVrsta" minOccurs="0"/>
+							<xs:element name="OPR_Poslovno_leto_zacetek" type="xs:date" minOccurs="0"/>
+							<xs:element name="OPR_Poslovno_leto_konec" type="xs:date" minOccurs="0"/>
+							<xs:element name="OPR_Velikost_vrednotenje_racunovodskih_postavk_po_nacelu" type="VelikostVrednotenjeRacunovodskihPostavkPoNacelu" minOccurs="0"/>
+							<xs:element name="OPR_Velikost_investicijsko_podjetje_ali_financni_holding" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Velikost_pojasnila_k_izkazom_ali_razkritja_informacij" type="VelikostPojasnilaKIzkazomAliRazkritjaInformacij" minOccurs="0"/>
+							<xs:element name="OPR_Opredelitev" type="Opredelitev" minOccurs="0"/>
+							<xs:element name="OPR_Ime_sedez_nadrejene" type="xs:string" minOccurs="0"/>
+							<xs:element name="OPR_MS_nadrejene_druzbe" type="MaticnaStevilka" minOccurs="0"/>
+							<xs:element name="OPR_Revizija" type="Revizija" minOccurs="0"/>
+							<xs:element name="OPR_Revizija_Zavezanost_k_preiskavi_letnih_racunovodskih_izkazov" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Revizija_Zavezanost_za_sestavitev_porocila_o_placilih_vladam" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Vrsta_podruznice" type="VrstaPodruznice" minOccurs="0"/>
+							<xs:element name="OPR_Ime_podruznice" type="xs:string" minOccurs="0"/>
+							<xs:element name="OPR_Sifra_drzave" type="SifraDrzave" minOccurs="0"/>
+							<xs:element name="OPR_Javna_objava" type="JavnaObjava" minOccurs="0"/>
+							<xs:element name="OPR_Javna_objava_ms" type="MaticnaStevilka" minOccurs="0"/>
+							<xs:element name="OPR_Poslovanje_s_tujino_poslovne_terjatve" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Poslovanje_s_tujino_poslovne_obveznosti" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Poslovanje_s_tujino_financne_obveznosti" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Poslovanje_s_tujino_financne_terjatve" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Poslovanje_s_tujino_najmanj_10_odstotni_lastnik" type="DaNe" minOccurs="0"/>
+							<xs:element name="OPR_Zavezanost_za_porocanje_o_trajnostnosti" type="ZavezanostZaPorocanjeOTrajnostnosti" minOccurs="0"/>
+							<xs:element name="OPR_Zavezanost_za_porocanje_o_davcnih_informacijah" type="ZavezanostZaPorocanjeODavcnihInformacijah" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attribute name="vrstaPoslovnegaSubjekta" use="required">
+							<xs:annotation>
+								<xs:documentation>vrsta poslovnega subjekta</xs:documentation>
+							</xs:annotation>
+							<xs:simpleType>
+								<xs:restriction base="xs:string">
+									<xs:enumeration value="NGDO"/>
+									<xs:enumeration value="NGDR"/>
+									<xs:enumeration value="DR"/>
+									<xs:enumeration value="GD"/>
+									<xs:enumeration value="SP"/>
+									<xs:enumeration value="ZA"/>
+									<xs:enumeration value="ZP"/>
+								</xs:restriction>
+							</xs:simpleType>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="Podatki">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="AOP" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="PODATEK" nillable="true" maxOccurs="unbounded">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:double">
+														<xs:attribute ref="TIP" use="required"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute ref="ID" use="required"/>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="Pojasnila" type="xs:string" minOccurs="0"/>
+				<xs:element name="Poslovno_porocilo" type="xs:string" minOccurs="0"/>
+				<xs:element name="Razkritje_informacij_iz_4_tocke" type="xs:string" minOccurs="0"/>
+				<xs:element name="Razkritje_informacij_iz_5_tocke" type="xs:string" minOccurs="0"/>
+				<xs:element name="Razkritje_informacij_iz_6_tocke" type="xs:string" minOccurs="0"/>
+				<xs:element name="Razkritje_informacij_iz_10_tocke" type="xs:string" minOccurs="0"/>
+				<xs:element name="Predlog_razporeditve_dobicka" type="xs:string" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:simpleType name="MaticnaStevilka">
+		<xs:annotation>
+			<xs:documentation>matična stevilka</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:minLength value="7"/>
+			<xs:maxLength value="10"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="SifraUporabnika">
+		<xs:annotation>
+			<xs:documentation>5-mestna šifra uporabnika</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[0-9]{5}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="DavcnaStevilka">
+		<xs:annotation>
+			<xs:documentation>8-mestna davcna stevilka</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[0-9]{8}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="StatusnaSprememba">
+		<xs:annotation>
+			<xs:documentation>0 do 8</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="8"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="Telefon">
+		<xs:annotation>
+			<xs:documentation>vsaj 7 znakov</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:minLength value="7"/>
+			<xs:maxLength value="30"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="Racunovodimo">
+		<xs:annotation>
+			<xs:documentation>1 do 2 (1-MSRP, 2-SRS)</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="1"/>
+			<xs:maxInclusive value="2"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="Velikost">
+		<xs:annotation>
+			<xs:documentation>1 do 4 (1-mikro, 2-majhna, 3-srednja, 4-velika)</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="1"/>
+			<xs:maxInclusive value="4"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="Velikost0">
+		<xs:annotation>
+			<xs:documentation>0 do 4 (0-ni podatka, 1-mikro, 2-majhna, 3-srednja, 4-velika)</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="4"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="DaNe">
+		<xs:annotation>
+			<xs:documentation>0 do 1 (0-NE, 1-DA)</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="1"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="StatusDrustva">
+		<xs:annotation>
+			<xs:documentation>1 do 2 (1-Društvo, 2-Društvo s statusom invalidske organizacije)</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="1"/>
+			<xs:maxInclusive value="2"/>
+		</xs:restriction>
+	</xs:simpleType>	
+	<xs:simpleType name="RazlogSestavitveZakljucnegaPorocila">
+		<xs:annotation>
+			<xs:documentation>1 do 8</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="1"/>
+			<xs:maxInclusive value="8"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="PojasnilaOddana">
+		<xs:annotation>
+			<xs:documentation>0-pojasnila niso oddana, 1-pojasnila oddana, 2-pojasnila v pdf formatu</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="2"/>
+		</xs:restriction>
+	</xs:simpleType>	
+	<xs:simpleType name="VrstaDruzbe">
+		<xs:annotation>
+			<xs:documentation>0 do 7</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="7"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="PoslovnoLetoVrsta">
+		<xs:annotation>
+			<xs:documentation>0 do 2</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="2"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="VelikostVrednotenjeRacunovodskihPostavkPoNacelu">
+		<xs:annotation>
+			<xs:documentation>0 do 2</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="2"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="VelikostPojasnilaKIzkazomAliRazkritjaInformacij">
+		<xs:annotation>
+			<xs:documentation>0 do 2</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="2"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="Opredelitev">
+		<xs:annotation>
+			<xs:documentation>0 do 6</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="6"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="Revizija">
+		<xs:annotation>
+			<xs:documentation>0 do 3</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:int">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="3"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="VrstaPodruznice">
+		<xs:annotation>
+			<xs:documentation>0 do 2</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="2"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="SifraDrzave">
+		<xs:annotation>
+			<xs:documentation>3-mestna sifra drzave</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[0-9]{3}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="JavnaObjava">
+		<xs:annotation>
+			<xs:documentation>0 do 3</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="3"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="ZavezanostZaPorocanjeOTrajnostnosti">
+		<xs:annotation>
+			<xs:documentation>1 do 6</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="1"/>
+			<xs:maxInclusive value="6"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="ZavezanostZaPorocanjeODavcnihInformacijah">
+		<xs:annotation>
+			<xs:documentation>1 do 3</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="1"/>
+			<xs:maxInclusive value="3"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:attribute name="Vrsta" type="xs:string" fixed="LP"/>
+	<xs:attribute name="ID">
+		<xs:simpleType>
+			<xs:restriction base="xs:string">
+				<xs:minLength value="3"/>
+				<xs:maxLength value="4"/>
+			</xs:restriction>
+		</xs:simpleType>
+	</xs:attribute>
+	<xs:attribute name="TIP">
+		<xs:annotation>
+			<xs:documentation>T-tekoče leto, P-prejšnje leto, TP-tekoče leto pridobitna dejavnost, PP-prejšnje leto pridobitna dejavnost, 1 do 10-stolpec 1 do 10</xs:documentation>
+		</xs:annotation>
+		<xs:simpleType>
+			<xs:restriction base="xs:string">
+				<xs:enumeration value="T"/>
+				<xs:enumeration value="P"/>
+				<xs:enumeration value="TP"/>
+				<xs:enumeration value="PP"/>
+				<xs:enumeration value="1"/>
+				<xs:enumeration value="2"/>
+				<xs:enumeration value="3"/>
+				<xs:enumeration value="4"/>
+				<xs:enumeration value="5"/>
+				<xs:enumeration value="6"/>
+				<xs:enumeration value="7"/>
+				<xs:enumeration value="8"/>
+				<xs:enumeration value="9"/>
+				<xs:enumeration value="10"/>
+			</xs:restriction>
+		</xs:simpleType>
+	</xs:attribute>
+</xs:schema>

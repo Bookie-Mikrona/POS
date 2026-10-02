@@ -20,6 +20,7 @@ import {
   Sheet,
 } from "lucide-react";
 import ExcelJS from "exceljs";
+import { AjpesAnnualReportTab } from "@/components/reports/ajpes-annual-report-tab";
 import { trialBalanceNet, formatTrialBalanceNet } from "@/lib/trial-balance-net";
 import { LedgerStatementTable, type LedgerStatementView } from "@/components/reports/ledger-statement-table";
 import {
@@ -2077,6 +2078,7 @@ export default function Porocila() {
           <TabsTrigger value="balance-sheet">Bilanca stanja</TabsTrigger>
           <TabsTrigger value="income-statement">Izkaz poslovnega izida</TabsTrigger>
           <TabsTrigger value="trial-balance">Bilanca kontov / zaključni račun</TabsTrigger>
+          <TabsTrigger value="ajpes">Letno poročilo AJPES</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5">
             <History className="h-3.5 w-3.5" />
             Zgodovina izvozov
@@ -2093,6 +2095,10 @@ export default function Porocila() {
 
         <TabsContent value="trial-balance" className="mt-0">
           <TrialBalanceTab />
+        </TabsContent>
+
+        <TabsContent value="ajpes" className="mt-0">
+          <AjpesAnnualReportTab />
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">

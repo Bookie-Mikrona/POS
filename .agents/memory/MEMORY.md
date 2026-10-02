@@ -53,11 +53,7 @@
 - [Gospodarski kontni plan](gospodarski-kontni-plan.md) — potrjen SRS razdelnik določa 3-mestne sintetike in 7-mestne analitike za d.o.o.
 - [Privzete konto nastavitve](privzete-konto-nastavitve.md) — novi seed je fill-only in serializiran po podjetju; obstoječih podjetij ne spreminja samodejno.
 - [Dostop cron endpointov](cron-endpoint-access.md) — scheduled poti morajo biti pred POS requireEnota in brez CRON_SECRET vedno odpovedati zaprto.
-- [Clerk host-aware SDK](clerk-host-aware-sdk.md) — POS naj uporablja @clerk/react kot ERP; zastareli @clerk/clerk-react ne izvozi publishableKeyFromHost.
-- [Clerk lokalizacija](clerk-lokalizacija.md) — pri tej različici globalni footer ključi niso tipovno podprti; besedilo noge nastavi v signIn/signUp.start.
-- [Clerk POS E2E](clerk-pos-e2e.md) — programska Clerk seja ni dovolj; testni userId potrebuje časovno omejen pos_uporabniki zapis in veljavno aktivno enoto.
-- [POS prehodni 401](pos-transient-401.md) — en sam 401 ne sme odmontirati aplikacije; odjavo potrdi s svežim Clerk žetonom in `/api/pos/auth/me`.
-- [POS prijavna pot in globalni middleware](pos-auth-router-scope.md) — varovala za enoto montiraj le na njihove URL predpone; sicer blokirajo prijavo pred izborom enote.
+- [Prijava Clerk v POS](clerk-pos-guides.md) — povezane omejitve host-aware SDK-ja, prevodov, E2E, prehodnih 401 in obsega varoval.
 - [OpenAPI format generator](openapi-uuid-generator.md) — `format: uuid` in `format: uri` generirata nezdružljive Zod 3 klice; taka polja opiši kot string.
 - [FURS certifikat scope](furs-certifikat-scope.md) — premise override je legacy disk-pot; globalni upload in resolver nista usklajena, zato naj bo en šifriran company vir.
 - [PostgreSQL backup manifest](postgres-backup-manifest.md) — DDL dump ni tekstovno idempotenten; pred restore preveri odtis, po njem strukturo in pravilno obravnavaj neuporabljene sekvence.
@@ -149,11 +145,11 @@
 - [POS test obrazca artiklov](pos-menu-test-mocks.md) — ob razširitvi API odvisnosti popraviti namenske testne mocke; uvoz celotnega odjemalca lahko obvisi.
 - [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.
 - [EU nabava osnovnega sredstva](eu-os-prejeti-racun.md) — OCR/e-SLOG predlog mora biti potrjen; dobaviteljeva obveznost je neto, DDV samoobdavčitve pa ločen in uravnotežen.
-- [Bookie Old preslikava GK](bookie-old-gk-mapping.md) — K2 je vir nazivov; otvoritev je zbirna brez partnerjev, Mikrona ne uporablja stroškovnih mest; zapiranja preveri v izvirnih letih.
-- [Bookie Old zgodovinski računi](bookie-old-zgodovinski-racuni.md) — GK 2020–2025 je dovoljena brez popolne nove KIR/KPR; 2026 ostane osnutek, stari DDV izvozi so le kontrola.
-- [Oddana bilanca Bookie Old](bookie-old-oddana-bilanca.md) — oddana Bilanca in Zaključni račun sta avtoriteta; primerjaj bruto otvoritev, promet in skupaj po preslikanih kontih.
+- [Bookie Old zgodovinska GK](bookie-old-guides.md) — preslikava K2 in zapiranja, dovoljen obseg zgodovinskih računov ter primerjava oddanih bruto izpisov.
 - [Poti predstavljenih datotek](present-asset-paths.md) — za sredstva v knjižnici uporabi ASCII ime datoteke; Unicode v poti lahko odpove pri prenosu.
 - [AJPES JOLP preverjanje](ajpes-jolp-preverjanje.md) — javni JOLP lahko zahteva prijavo; številk iz zbirnih portalov ne obravnavaj kot dokazilo o razporeditvi dobička.
 - [Učni viri kontiranja](ocr-approved-learning.md) — ročno potrjena predloga je učni vir tudi pred knjiženjem; nepregledan osnutek računa ni potrjena zgodovina.
 - [Slovenska matična številka](slovenian-party-registration.md) — 7 mest in 10-mestni sedež s končnico 000 sta ista identiteta; druge končnice niso samodejno enakovredne.
 - [Pregled preračuna tuje valute](document-fx-review.md) — ločeno potrjenih EUR osnov in DDV ne preračunavaj znova iz cene; ohrani decimalno zaokroževanje in izvorno sled.
+- [Namen AJPES izvoza](ajpes-annual-report-contract.md) — XLSX/PDF sledita predlogi JOLP; XML je namenjen dejanskemu uvozu v AJPES, ne splošni izmenjavi.
+- [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.

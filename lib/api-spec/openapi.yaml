@@ -85,6 +85,62 @@ tags:
   - name: daily-lunch
     description: Unit and business-date scoped daily lunch offers
 paths:
+  /companies/{companyId}/reports/ajpes/{year}:
+    get:
+      operationId: getAjpesAnnualReport
+      tags: [Reports]
+      parameters:
+        - {name: companyId, in: path, required: true, schema: {type: string}}
+        - {name: year, in: path, required: true, schema: {type: integer, minimum: 2000, maximum: 2100}}
+      responses:
+        "200":
+          description: Annual reporting draft and fresh general-ledger comparison
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AjpesAnnualReport"}
+        "403": {description: Company access denied}
+    put:
+      operationId: saveAjpesAnnualReport
+      tags: [Reports]
+      parameters:
+        - {name: companyId, in: path, required: true, schema: {type: string}}
+        - {name: year, in: path, required: true, schema: {type: integer, minimum: 2000, maximum: 2100}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AjpesAnnualDraftInput"}
+      responses:
+        "200":
+          description: Saved draft recalculated against current ledger
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AjpesAnnualReport"}
+        "400": {description: Invalid reporting inputs}
+        "403": {description: Read-only role or foreign company}
+        "409": {description: Draft revision or underlying ledger changed}
+  /companies/{companyId}/reports/ajpes/{year}/export:
+    post:
+      operationId: exportAjpesAnnualReport
+      tags: [Reports]
+      parameters:
+        - {name: companyId, in: path, required: true, schema: {type: string}}
+        - {name: year, in: path, required: true, schema: {type: integer, minimum: 2000, maximum: 2100}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AjpesAnnualExportInput"}
+      responses:
+        "200":
+          description: Reviewed annual report download (XLSX, PDF or official AJPES XML)
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        "400": {description: Invalid format or unsupported official XML year}
+        "403": {description: Company access denied}
+        "409": {description: Preview is stale; reload and review again}
+        "422": {description: Incomplete or inconsistent annual report}
   /companies/{companyId}/credit-note-packaging-documents:
     get:
       operationId: listCreditNotePackagingDocuments
@@ -10593,6 +10649,108 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    AjpesAnnualSettings:
+      type: object
+      required: [mappings, mappingReasons, currentValues, previousValues, excludedEntryIds, metadata]
+      properties:
+        mappings: {type: object, additionalProperties: {type: string}}
+        mappingReasons: {type: object, additionalProperties: {type: string}}
+        currentValues: {type: object, additionalProperties: {type: string}}
+        previousValues: {type: object, additionalProperties: {type: string}}
+        excludedEntryIds: {type: array, items: {type: string}}
+        metadata:
+          type: object
+          additionalProperties: {type: string}
+    AjpesAnnualDraftInput:
+      type: object
+      required: [revision, settings]
+      properties:
+        revision: {type: integer, minimum: 0}
+        settings: {$ref: "#/components/schemas/AjpesAnnualSettings"}
+        reviewedFingerprint: {type: [string, "null"]}
+    AjpesAnnualExportInput:
+      type: object
+      required: [format, sourceFingerprint]
+      properties:
+        format: {type: string, enum: [xlsx, pdf, xml]}
+        sourceFingerprint: {type: string}
+    AjpesAnnualCompany:
+      type: object
+      required: [name, street, postalCode, city, registrationNumber, taxNumber]
+      properties:
+        name: {type: string}
+        street: {type: string}
+        postalCode: {type: string}
+        city: {type: string}
+        registrationNumber: {type: string}
+        taxNumber: {type: string}
+    AjpesJolpRow:
+      type: object
+      required: [code, label, bold, current, previous]
+      properties:
+        code: {type: string}
+        label: {type: string}
+        bold: {type: boolean}
+        current: {type: string}
+        previous: {type: string}
+    AjpesAopRow:
+      type: object
+      required: [code, label, section, editable, current, previous]
+      properties:
+        code: {type: string}
+        label: {type: string}
+        section: {type: string}
+        editable: {type: boolean}
+        ledgerMappable: {type: boolean}
+        formula: {type: string}
+        current: {type: string}
+        previous: {type: string}
+    AjpesAccountRow:
+      type: object
+      required: [accountId, code, name, currentBalance, previousBalance, currentTurnover, previousTurnover]
+      properties:
+        accountId: {type: string}
+        code: {type: string}
+        name: {type: string}
+        currentBalance: {type: string}
+        previousBalance: {type: string}
+        currentTurnover: {type: string}
+        previousTurnover: {type: string}
+    AjpesJournalChoice:
+      type: object
+      required: [id, number, date, reference, description]
+      properties:
+        id: {type: string}
+        number: {type: string}
+        date: {type: string}
+        reference: {type: string}
+        description: {type: string}
+    AjpesReportIssue:
+      type: object
+      required: [code, message, blocking]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        blocking: {type: boolean}
+    AjpesAnnualReport:
+      type: object
+      required: [year, company, settings, revision, sourceFingerprint, reviewed, canExport, canExportXml, supportedXmlYears, balanceSheet, incomeStatement, aopRows, accounts, journals, issues]
+      properties:
+        year: {type: integer}
+        company: {$ref: "#/components/schemas/AjpesAnnualCompany"}
+        settings: {$ref: "#/components/schemas/AjpesAnnualSettings"}
+        revision: {type: integer}
+        sourceFingerprint: {type: string}
+        reviewed: {type: boolean}
+        canExport: {type: boolean}
+        canExportXml: {type: boolean}
+        supportedXmlYears: {type: array, items: {type: integer}}
+        balanceSheet: {type: array, items: {$ref: "#/components/schemas/AjpesJolpRow"}}
+        incomeStatement: {type: array, items: {$ref: "#/components/schemas/AjpesJolpRow"}}
+        aopRows: {type: array, items: {$ref: "#/components/schemas/AjpesAopRow"}}
+        accounts: {type: array, items: {$ref: "#/components/schemas/AjpesAccountRow"}}
+        journals: {type: array, items: {$ref: "#/components/schemas/AjpesJournalChoice"}}
+        issues: {type: array, items: {$ref: "#/components/schemas/AjpesReportIssue"}}
     CreditNotePackagingDocumentsResponse:
       type: object
       required: [documents]

@@ -8,6 +8,205 @@
 import * as zod from 'zod';
 
 
+export const getAjpesAnnualReportPathYearMin = 2000;
+export const getAjpesAnnualReportPathYearMax = 2100;
+
+
+
+export const GetAjpesAnnualReportParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "year": zod.coerce.number().min(getAjpesAnnualReportPathYearMin).max(getAjpesAnnualReportPathYearMax)
+})
+
+export const GetAjpesAnnualReportResponse = zod.object({
+  "year": zod.number(),
+  "company": zod.object({
+  "name": zod.string(),
+  "street": zod.string(),
+  "postalCode": zod.string(),
+  "city": zod.string(),
+  "registrationNumber": zod.string(),
+  "taxNumber": zod.string()
+}),
+  "settings": zod.object({
+  "mappings": zod.record(zod.string(), zod.string()),
+  "mappingReasons": zod.record(zod.string(), zod.string()),
+  "currentValues": zod.record(zod.string(), zod.string()),
+  "previousValues": zod.record(zod.string(), zod.string()),
+  "excludedEntryIds": zod.array(zod.string()),
+  "metadata": zod.record(zod.string(), zod.string())
+}),
+  "revision": zod.number(),
+  "sourceFingerprint": zod.string(),
+  "reviewed": zod.boolean(),
+  "canExport": zod.boolean(),
+  "canExportXml": zod.boolean(),
+  "supportedXmlYears": zod.array(zod.number()),
+  "balanceSheet": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "bold": zod.boolean(),
+  "current": zod.string(),
+  "previous": zod.string()
+})),
+  "incomeStatement": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "bold": zod.boolean(),
+  "current": zod.string(),
+  "previous": zod.string()
+})),
+  "aopRows": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "editable": zod.boolean(),
+  "ledgerMappable": zod.boolean().optional(),
+  "formula": zod.string().optional(),
+  "current": zod.string(),
+  "previous": zod.string()
+})),
+  "accounts": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "currentBalance": zod.string(),
+  "previousBalance": zod.string(),
+  "currentTurnover": zod.string(),
+  "previousTurnover": zod.string()
+})),
+  "journals": zod.array(zod.object({
+  "id": zod.string(),
+  "number": zod.string(),
+  "date": zod.string(),
+  "reference": zod.string(),
+  "description": zod.string()
+})),
+  "issues": zod.array(zod.object({
+  "code": zod.string(),
+  "message": zod.string(),
+  "blocking": zod.boolean()
+}))
+})
+
+
+export const saveAjpesAnnualReportPathYearMin = 2000;
+export const saveAjpesAnnualReportPathYearMax = 2100;
+
+
+
+export const SaveAjpesAnnualReportParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "year": zod.coerce.number().min(saveAjpesAnnualReportPathYearMin).max(saveAjpesAnnualReportPathYearMax)
+})
+
+export const saveAjpesAnnualReportBodyRevisionMin = 0;
+
+
+
+export const SaveAjpesAnnualReportBody = zod.object({
+  "revision": zod.number().min(saveAjpesAnnualReportBodyRevisionMin),
+  "settings": zod.object({
+  "mappings": zod.record(zod.string(), zod.string()),
+  "mappingReasons": zod.record(zod.string(), zod.string()),
+  "currentValues": zod.record(zod.string(), zod.string()),
+  "previousValues": zod.record(zod.string(), zod.string()),
+  "excludedEntryIds": zod.array(zod.string()),
+  "metadata": zod.record(zod.string(), zod.string())
+}),
+  "reviewedFingerprint": zod.string().nullish()
+})
+
+export const SaveAjpesAnnualReportResponse = zod.object({
+  "year": zod.number(),
+  "company": zod.object({
+  "name": zod.string(),
+  "street": zod.string(),
+  "postalCode": zod.string(),
+  "city": zod.string(),
+  "registrationNumber": zod.string(),
+  "taxNumber": zod.string()
+}),
+  "settings": zod.object({
+  "mappings": zod.record(zod.string(), zod.string()),
+  "mappingReasons": zod.record(zod.string(), zod.string()),
+  "currentValues": zod.record(zod.string(), zod.string()),
+  "previousValues": zod.record(zod.string(), zod.string()),
+  "excludedEntryIds": zod.array(zod.string()),
+  "metadata": zod.record(zod.string(), zod.string())
+}),
+  "revision": zod.number(),
+  "sourceFingerprint": zod.string(),
+  "reviewed": zod.boolean(),
+  "canExport": zod.boolean(),
+  "canExportXml": zod.boolean(),
+  "supportedXmlYears": zod.array(zod.number()),
+  "balanceSheet": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "bold": zod.boolean(),
+  "current": zod.string(),
+  "previous": zod.string()
+})),
+  "incomeStatement": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "bold": zod.boolean(),
+  "current": zod.string(),
+  "previous": zod.string()
+})),
+  "aopRows": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "editable": zod.boolean(),
+  "ledgerMappable": zod.boolean().optional(),
+  "formula": zod.string().optional(),
+  "current": zod.string(),
+  "previous": zod.string()
+})),
+  "accounts": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "currentBalance": zod.string(),
+  "previousBalance": zod.string(),
+  "currentTurnover": zod.string(),
+  "previousTurnover": zod.string()
+})),
+  "journals": zod.array(zod.object({
+  "id": zod.string(),
+  "number": zod.string(),
+  "date": zod.string(),
+  "reference": zod.string(),
+  "description": zod.string()
+})),
+  "issues": zod.array(zod.object({
+  "code": zod.string(),
+  "message": zod.string(),
+  "blocking": zod.boolean()
+}))
+})
+
+
+export const exportAjpesAnnualReportPathYearMin = 2000;
+export const exportAjpesAnnualReportPathYearMax = 2100;
+
+
+
+export const ExportAjpesAnnualReportParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "year": zod.coerce.number().min(exportAjpesAnnualReportPathYearMin).max(exportAjpesAnnualReportPathYearMax)
+})
+
+export const ExportAjpesAnnualReportBody = zod.object({
+  "format": zod.enum(['xlsx', 'pdf', 'xml']),
+  "sourceFingerprint": zod.string()
+})
+
+export const ExportAjpesAnnualReportResponse = zod.unknown()
+
+
 export const ListCreditNotePackagingDocumentsParams = zod.object({
   "companyId": zod.coerce.string()
 })

@@ -5,6 +5,117 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export type AjpesAnnualSettingsMappings = {[key: string]: string};
+
+export type AjpesAnnualSettingsMappingReasons = {[key: string]: string};
+
+export type AjpesAnnualSettingsCurrentValues = {[key: string]: string};
+
+export type AjpesAnnualSettingsPreviousValues = {[key: string]: string};
+
+export type AjpesAnnualSettingsMetadata = {[key: string]: string};
+
+export interface AjpesAnnualSettings {
+  mappings: AjpesAnnualSettingsMappings;
+  mappingReasons: AjpesAnnualSettingsMappingReasons;
+  currentValues: AjpesAnnualSettingsCurrentValues;
+  previousValues: AjpesAnnualSettingsPreviousValues;
+  excludedEntryIds: string[];
+  metadata: AjpesAnnualSettingsMetadata;
+}
+
+export interface AjpesAnnualDraftInput {
+  /** @minimum 0 */
+  revision: number;
+  settings: AjpesAnnualSettings;
+  /** @nullable */
+  reviewedFingerprint?: string | null;
+}
+
+export type AjpesAnnualExportInputFormat = typeof AjpesAnnualExportInputFormat[keyof typeof AjpesAnnualExportInputFormat];
+
+
+export const AjpesAnnualExportInputFormat = {
+  xlsx: 'xlsx',
+  pdf: 'pdf',
+  xml: 'xml',
+} as const;
+
+export interface AjpesAnnualExportInput {
+  format: AjpesAnnualExportInputFormat;
+  sourceFingerprint: string;
+}
+
+export interface AjpesAnnualCompany {
+  name: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  registrationNumber: string;
+  taxNumber: string;
+}
+
+export interface AjpesJolpRow {
+  code: string;
+  label: string;
+  bold: boolean;
+  current: string;
+  previous: string;
+}
+
+export interface AjpesAopRow {
+  code: string;
+  label: string;
+  section: string;
+  editable: boolean;
+  ledgerMappable?: boolean;
+  formula?: string;
+  current: string;
+  previous: string;
+}
+
+export interface AjpesAccountRow {
+  accountId: string;
+  code: string;
+  name: string;
+  currentBalance: string;
+  previousBalance: string;
+  currentTurnover: string;
+  previousTurnover: string;
+}
+
+export interface AjpesJournalChoice {
+  id: string;
+  number: string;
+  date: string;
+  reference: string;
+  description: string;
+}
+
+export interface AjpesReportIssue {
+  code: string;
+  message: string;
+  blocking: boolean;
+}
+
+export interface AjpesAnnualReport {
+  year: number;
+  company: AjpesAnnualCompany;
+  settings: AjpesAnnualSettings;
+  revision: number;
+  sourceFingerprint: string;
+  reviewed: boolean;
+  canExport: boolean;
+  canExportXml: boolean;
+  supportedXmlYears: number[];
+  balanceSheet: AjpesJolpRow[];
+  incomeStatement: AjpesJolpRow[];
+  aopRows: AjpesAopRow[];
+  accounts: AjpesAccountRow[];
+  journals: AjpesJournalChoice[];
+  issues: AjpesReportIssue[];
+}
+
 export type CreditNotePackagingDocumentsResponseDocumentsItem = {
   id: number;
   /** @nullable */
