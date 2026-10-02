@@ -20,6 +20,7 @@ import {
   Sheet,
 } from "lucide-react";
 import ExcelJS from "exceljs";
+import { trialBalanceNet, formatTrialBalanceNet } from "@/lib/trial-balance-net";
 import { LedgerStatementTable, type LedgerStatementView } from "@/components/reports/ledger-statement-table";
 import {
   useGetBalanceSheet,
@@ -1395,7 +1396,7 @@ function TrialBalanceTab() {
         ["Bruto bilanca (preizkusna bilanca)"],
         [`Obdobje: ${appliedFrom} – ${appliedTo}`],
         [],
-        ["Šifra", "Naziv konta", "Tip", "Začetni saldo B", "Začetni saldo D", "Promet breme", "Promet dobro", "Saldo breme", "Saldo dobro"],
+        ["Šifra", "Naziv konta", "Tip", "Začetni saldo B", "Začetni saldo D", "Promet breme", "Promet dobro", "Skupaj breme", "Skupaj dobro", "Neto saldo (breme − dobro)"],
       ];
 
       // Export the same account set currently visible on screen.
@@ -1409,6 +1410,7 @@ function TrialBalanceTab() {
         parseFloat(row.turnoverCredit || "0"),
         parseFloat(row.balanceDebit || "0"),
         parseFloat(row.balanceCredit || "0"),
+        trialBalanceNet(row.balanceDebit || "0", row.balanceCredit || "0"),
       ]);
 
       // Totals row
@@ -1418,7 +1420,7 @@ function TrialBalanceTab() {
       const totalCredit = filtered.reduce((s, r) => s + parseFloat(r.turnoverCredit || "0"), 0);
       const totalBalDebit = filtered.reduce((s, r) => s + parseFloat(r.balanceDebit || "0"), 0);
       const totalBalCredit = filtered.reduce((s, r) => s + parseFloat(r.balanceCredit || "0"), 0);
-      const totalsRow: (string | number)[] = ["", "SKUPAJ", "", totalObD, totalObC, totalDebit, totalCredit, totalBalDebit, totalBalCredit];
+      const totalsRow: (string | number)[] = ["", "SKUPAJ", "", totalObD, totalObC, totalDebit, totalCredit, totalBalDebit, totalBalCredit, trialBalanceNet(totalBalDebit, totalBalCredit)];
 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Bruto bilanca");
@@ -1430,19 +1432,20 @@ function TrialBalanceTab() {
         { width: 16 },  // Začetni saldo D
         { width: 16 },  // Promet breme
         { width: 16 },  // Promet dobro
-        { width: 16 },  // Saldo breme
-        { width: 16 },  // Saldo dobro
+        { width: 16 },  // Skupaj breme
+        { width: 16 },  // Skupaj dobro
+        { width: 28 },  // Neto saldo (breme − dobro)
       ];
       for (const row of headerRows) worksheet.addRow(row);
       for (const row of dataRows) worksheet.addRow(row);
       worksheet.addRow([]);
       worksheet.addRow(totalsRow);
 
-      // Number format for numeric columns D–I. Skupne vrednosti so že
+      // Number format for numeric columns D–J. Skupne vrednosti so že
       // izračunane v JavaScriptu, zato izvoz ne vsebuje Excel formul.
       const numFmt = "#,##0.00";
       for (let rowIndex = 6; rowIndex <= worksheet.rowCount; rowIndex++) {
-        for (let columnIndex = 4; columnIndex <= 9; columnIndex++) {
+        for (let columnIndex = 4; columnIndex <= 10; columnIndex++) {
           const cell = worksheet.getCell(rowIndex, columnIndex);
           if (typeof cell.value === "number") {
             cell.numFmt = numFmt;
@@ -1693,7 +1696,11 @@ function TrialBalanceTab() {
               companyName={activeCompany?.naziv ?? ""}
             />
           )}
-          {statementView === "standard" && <div className="overflow-x-auto rounded-md border">
+          {statementView === "standard" && <>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Skupaj ohranja bruto seštevke otvoritve in prometa. Neto saldo = skupaj breme − skupaj dobro; pozitiven je v breme, negativen v dobro.
+          </p>
+          <div className="overflow-x-auto rounded-md border">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-muted/60">
@@ -1706,8 +1713,9 @@ function TrialBalanceTab() {
                     Promet v obdobju
                   </th>
                   <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
-                    Zaključni saldo
+                    Skupaj — breme/dobro
                   </th>
+                  <th className="text-right px-3 py-2 font-semibold border-l border-border/50 whitespace-nowrap">Neto saldo</th>
                 </tr>
                 <tr className="bg-muted/30 text-muted-foreground">
                   <th className="px-3 py-1"></th>
@@ -1718,6 +1726,7 @@ function TrialBalanceTab() {
                   <th className="text-right px-3 py-1 font-medium">Dobro</th>
                   <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
                   <th className="text-right px-3 py-1 font-medium">Dobro</th>
+                  <th className="text-right px-3 py-1 border-l border-border/50 font-medium whitespace-nowrap">Breme − dobro</th>
                 </tr>
               </thead>
               <tbody>
@@ -1753,11 +1762,14 @@ function TrialBalanceTab() {
                     <td className="px-3 py-1.5 text-right tabular-nums font-medium">
                       {parseFloat(row.balanceCredit) !== 0 ? fmtZ(row.balanceCredit) : ""}
                     </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 font-semibold whitespace-nowrap">
+                      {formatTrialBalanceNet(row.balanceDebit, row.balanceCredit)}
+                    </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
                       Ni podatkov za izbrano obdobje.
                     </td>
                   </tr>
@@ -1787,11 +1799,14 @@ function TrialBalanceTab() {
                     <td className="px-3 py-2 text-right tabular-nums">
                       {fmt(totals.balanceCredit)}
                     </td>
+                    <td className="px-3 py-2 text-right tabular-nums border-l border-border/50 whitespace-nowrap">
+                      {formatTrialBalanceNet(totals.balanceDebit, totals.balanceCredit)}
+                    </td>
                   </tr>
                 </tfoot>
               )}
             </table>
-          </div>}
+          </div></>}
 
           {/* Print header (hidden on screen) */}
           <div className="hidden print:block mb-4">

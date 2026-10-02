@@ -35,6 +35,12 @@ function fmtNum(v: string | number | null | undefined): string {
   return n.toLocaleString("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function formatSignedCents(cents: number): string {
+  const normalized = Object.is(cents, -0) || cents === 0 ? 0 : cents;
+  const formatted = fmtNum(normalized / 100);
+  return normalized > 0 ? `+${formatted}` : formatted;
+}
+
 // ── Konstante ─────────────────────────────────────────────────────────────────
 
 const MARGIN = 40;
@@ -793,18 +799,19 @@ export async function generateTrialBalancePdf(opts: {
   if (opts.statementView) return generateLedgerStatementPdf({ ...opts, statementView: opts.statementView });
   const { companyName, dateFrom, dateTo, rows } = opts;
   const reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)";
-  const subtitle = `Obdobje: ${dateFrom} - ${dateTo}`;
+  const subtitle = `Obdobje: ${dateFrom} - ${dateTo} · Neto saldo: + breme / − dobro`;
 
   // A4 ležeče za 8-stolpčno postavitev
   const PAGE_W_L = 841.89;
   const PAGE_H_L = 595.28;
   const USABLE_W_L = PAGE_W_L - MARGIN * 2;
-  const NUM_W_L = 80;
+  const NUM_W_L = 72;
 
   // Stolpčne pozicije (ležeče)
   const COL_CODE  = MARGIN;
   const COL_NAME  = MARGIN + 55;
-  const COL_SAL_C  = PAGE_W_L - MARGIN - NUM_W_L;
+  const COL_NET    = PAGE_W_L - MARGIN - NUM_W_L;
+  const COL_SAL_C  = COL_NET - NUM_W_L - 4;
   const COL_SAL_D  = COL_SAL_C - NUM_W_L - 4;
   const COL_PROM_C = COL_SAL_D - NUM_W_L - 4;
   const COL_PROM_D = COL_PROM_C - NUM_W_L - 4;
@@ -863,7 +870,8 @@ export async function generateTrialBalancePdf(opts: {
     // Skupinska oznaka stolpcev
     doc.text("Začetni saldo",    COL_OB_D,   hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
     doc.text("Promet v obdobju", COL_PROM_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
-    doc.text("Zaključni saldo",  COL_SAL_D,  hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
+    doc.text("Skupaj — breme/dobro", COL_SAL_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
+    doc.text("Neto saldo", COL_NET, hY + 3, { width: NUM_W_L, align: "center", lineBreak: false });
     // Pod-oznake
     doc.font("DejaVuSans").fontSize(6.5).fillColor(COLOR_MUTED);
     doc.text("Breme", COL_OB_D,   hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
@@ -872,6 +880,7 @@ export async function generateTrialBalancePdf(opts: {
     doc.text("Dobro", COL_PROM_C, hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
     doc.text("Breme", COL_SAL_D,  hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
     doc.text("Dobro", COL_SAL_C,  hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
+    doc.text("+ / −", COL_NET, hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
     y = hY + 28;
     doc.fillColor(COLOR_PRIMARY);
   }
@@ -906,6 +915,7 @@ export async function generateTrialBalancePdf(opts: {
     const tc = parseFloat(row.turnoverCredit);
     const bd = parseFloat(row.balanceDebit);
     const bc = parseFloat(row.balanceCredit);
+    const netCents = Math.round((bd - bc) * 100);
 
     // Začetni saldo (siva)
     doc.font("DejaVuSans").fontSize(7).fillColor(COLOR_MUTED);
@@ -921,6 +931,8 @@ export async function generateTrialBalancePdf(opts: {
     doc.fillColor(COLOR_PRIMARY);
     if (bd !== 0) doc.font("DejaVuSans-Bold").fontSize(7).text(fmtNum(bd), COL_SAL_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
     if (bc !== 0) doc.font("DejaVuSans-Bold").fontSize(7).text(fmtNum(bc), COL_SAL_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    doc.font("DejaVuSans-Bold").fontSize(7).fillColor(COLOR_PRIMARY)
+      .text(formatSignedCents(netCents), COL_NET, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
 
     y += ROW_HEIGHT;
   }
@@ -939,6 +951,11 @@ export async function generateTrialBalancePdf(opts: {
   doc.fillColor(COLOR_PRIMARY);
   doc.text(fmtNum(opts.totalBalanceDebit),         COL_SAL_D,  y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
   doc.text(fmtNum(opts.totalBalanceCredit),        COL_SAL_C,  y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  const totalNetCents = Math.round(
+    (parseFloat(opts.totalBalanceDebit) - parseFloat(opts.totalBalanceCredit)) * 100,
+  );
+  doc.font("DejaVuSans-Bold").fillColor(COLOR_PRIMARY)
+    .text(formatSignedCents(totalNetCents), COL_NET, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
   y += 22;
 
   // Kontrola bilance

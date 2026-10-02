@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom";
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import ExcelJS from "exceljs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -112,7 +112,7 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
 
     render(<Porocila />);
 
-    const brutoBilancaTab = screen.getByRole("tab", { name: "Bruto bilanca" });
+    const brutoBilancaTab = screen.getByRole("tab", { name: "Bilanca kontov / zaključni račun" });
     fireEvent.mouseDown(brutoBilancaTab, { button: 0, ctrlKey: false });
     fireEvent.click(brutoBilancaTab);
     const prikazi = await screen.findByRole("button", { name: "Prikaži" });
@@ -133,12 +133,12 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
     const sheet = roundTrip.getWorksheet("Bruto bilanca")!;
     const rowValues = (rowNumber: number) =>
       Array.from(
-        { length: 9 },
+        { length: 10 },
         (_unused, columnIndex) => sheet.getCell(rowNumber, columnIndex + 1).value ?? "",
       );
     const rows = Array.from({ length: 9 }, (_unused, rowIndex) => rowValues(rowIndex + 1));
 
-    expect(rows[0]).toEqual(["Karakterizacija d.o.o.", "", "", "", "", "", "", "", ""]);
+    expect(rows[0]).toEqual(["Karakterizacija d.o.o.", "", "", "", "", "", "", "", "", ""]);
     expect(rows[1]?.[0]).toBe("Bruto bilanca (preizkusna bilanca)");
     expect(rows[2]?.[0]).toMatch(/^Obdobje: \d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2}$/);
     expect(rows[4]).toEqual([
@@ -149,8 +149,9 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
       "Začetni saldo D",
       "Promet breme",
       "Promet dobro",
-      "Saldo breme",
-      "Saldo dobro",
+      "Skupaj breme",
+      "Skupaj dobro",
+      "Neto saldo (breme − dobro)",
     ]);
     expect(rows[5]).toEqual([
       "1200",
@@ -162,6 +163,7 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
       5,
       125.5,
       0,
+      125.5,
     ]);
     expect(rows[6]).toEqual([
       "2200",
@@ -173,10 +175,72 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
       125.5,
       0,
       155.5,
+      -155.5,
     ]);
-    expect(rows[7]).toEqual(["", "", "", "", "", "", "", "", ""]);
-    expect(rows[8]).toEqual(["", "SKUPAJ", "", 100, 25, 30.5, 130.5, 125.5, 155.5]);
+    expect(rows[7]).toEqual(["", "", "", "", "", "", "", "", "", ""]);
+    expect(rows[8]).toEqual(["", "SKUPAJ", "", 100, 25, 30.5, 130.5, 125.5, 155.5, -30]);
     expect(sheet.getCell("D6").numFmt).toBe("#,##0.00");
     expect(sheet.getCell("I9").numFmt).toBe("#,##0.00");
+    expect(sheet.getCell("J6").numFmt).toBe("#,##0.00");
+    expect(sheet.getCell("J9").numFmt).toBe("#,##0.00");
+  });
+
+  it("ohrani bruto zneske in pokaže ločen neto saldo, ničlo ter skupni saldo filtriranih kontov", async () => {
+    state.useGetBalanceSheet.mockReturnValue(praznaPoizvedba);
+    state.useGetIncomeStatement.mockReturnValue(praznaPoizvedba);
+    const makeRow = (id: string, name: string, debit: string, credit: string) => ({
+      accountId: id, accountCode: id, accountName: name, accountType: "asset",
+      openingBalanceDebit: "0", openingBalanceCredit: "0",
+      turnoverDebit: debit, turnoverCredit: credit, balanceDebit: debit, balanceCredit: credit,
+    });
+    const rows = [
+      { ...makeRow("1100000", "Glavni transakcijski račun", "23948.52", "21081.77"),
+        openingBalanceDebit: "1410.37", turnoverDebit: "22538.15" },
+      makeRow("2200000", "Dobavitelj", "0", "3000.00"),
+      makeRow("1200000", "Poravnan konto", "500.00", "500.00"),
+    ];
+    state.useGetTrialBalance.mockReturnValue({
+      data: { dateFrom: "2025-01-01", dateTo: "2025-12-31", rows,
+        totalTurnoverDebit: "23038.15", totalTurnoverCredit: "24581.77" },
+      isFetching: false, isError: false, error: null,
+    });
+    render(<Porocila />);
+    const tab = screen.getByRole("tab", { name: "Bilanca kontov / zaključni račun" });
+    fireEvent.mouseDown(tab, { button: 0, ctrlKey: false });
+    fireEvent.click(tab);
+    fireEvent.click(await screen.findByRole("button", { name: "Prikaži" }));
+    expect(screen.getByRole("columnheader", { name: "Skupaj — breme/dobro" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Neto saldo" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Zaključni saldo" })).not.toBeInTheDocument();
+    const bankRow = screen.getByText("1100000").closest("tr")!;
+    const bankCells = within(bankRow).getAllByRole("cell");
+    expect(bankCells).toHaveLength(9);
+    expect(bankCells[6].textContent?.replace(/\s/g, "")).toBe("23.948,52");
+    expect(bankCells[7].textContent?.replace(/\s/g, "")).toBe("21.081,77");
+    expect(bankCells[8].textContent?.replace(/[.\s]/g, "")).toBe("2866,75");
+    const creditCells = within(screen.getByText("2200000").closest("tr")!).getAllByRole("cell");
+    expect(creditCells[8].textContent?.replace(/[.\s]/g, "").replace(/−/g, "-")).toBe("-3000,00");
+    const zeroCells = within(screen.getByText("1200000").closest("tr")!).getAllByRole("cell");
+    expect(zeroCells[8]).toHaveTextContent("0,00");
+    const totalCells = within(screen.getByText("Skupaj", { selector: "td" }).closest("tr")!).getAllByRole("cell");
+    expect(totalCells.at(-1)?.textContent?.replace(/−/g, "-")).toBe("-133,25");
+
+    fireEvent.change(screen.getByPlaceholderText("Šifra ali naziv…"), { target: { value: "1100000" } });
+    const filteredTotals = within(screen.getByText("Skupaj", { selector: "td" }).closest("tr")!).getAllByRole("cell");
+    expect(filteredTotals.at(-1)?.textContent?.replace(/[.\s]/g, "")).toBe("2866,75");
+    fireEvent.click(screen.getByRole("button", { name: "Izvozi XLSX" }));
+    await waitFor(() => expect(downloadState.blob).not.toBeNull());
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(
+      await downloadState.blob!.arrayBuffer() as unknown as Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0],
+    );
+    const sheet = workbook.getWorksheet("Bruto bilanca")!;
+    expect(sheet.getCell("H6").value).toBe(23948.52);
+    expect(sheet.getCell("I6").value).toBe(21081.77);
+    expect(sheet.getCell("J6").value).toBe(2866.75);
+    expect(sheet.getCell("J8").value).toBe(2866.75);
+    expect(sheet.getCell("J6").numFmt).toBe("#,##0.00");
+    expect(rows[0].balanceDebit).toBe("23948.52");
+    expect(rows[0].balanceCredit).toBe("21081.77");
   });
 });

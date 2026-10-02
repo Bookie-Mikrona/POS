@@ -144,6 +144,7 @@
 - [POS unovčenje spletnega bona](pos-spletni-bon-unovcenje.md) — bon se rezervira skupaj z računom pred FURS; neznan izid zadrži rezervacijo, kartica in bon pa nista dovoljena skupaj.
 - [Podizbire modifikatorjev](podizbire-modifikatorjev.md) — vsak prodajni artikel v normativu modifikatorja ima svoje enonivojske izbire; ni dodatna prodajna vrstica.
 - [Slovenska abeceda v seznamih](slovenska-abeceda.md) — abecedna imena uporabljajo slovensko primerjavo; ročni vrstni red kategorij ima prednost.
+- [Slovenski finančni formati](slovenian-financial-formatting.md) — Intl/ICU lahko uporabi Unicode minus in ne združi štirimestnih števil; loči vrednost od tipografije.
 - [Drobni inventar gostinstva](drobni-inventar-gostinstva.md) — kozarci in krožniki so ob nabavi strošek; inventure usklajujejo samo količine, brez novih temeljnic.
 - [POS test obrazca artiklov](pos-menu-test-mocks.md) — ob razširitvi API odvisnosti popraviti namenske testne mocke; uvoz celotnega odjemalca lahko obvisi.
 - [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.
