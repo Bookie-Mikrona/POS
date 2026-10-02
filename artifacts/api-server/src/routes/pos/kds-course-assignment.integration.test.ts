@@ -1,12 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import express from "express";
+import supertest from "supertest";
 import {
   artikliTable, companiesTable, db, enoteTable, kdsDogodkiTable, kdsIzdajaDogodkiTable,
   kdsNalogiTable, kdsPostajeTable, narocilaTable, natakariTable, pool, posAiAgentAuditTable, postavkeTable,
 } from "@workspace/db";
 import {
-  assignKdsCourse, assignKdsCourses, fingerprintKdsCourseAssignmentOrder, KdsCourseAssignmentConflict,
+  assignKdsCourse, assignKdsCourses, fingerprintKdsCourseAssignmentOrder, KdsCourseAssignmentConflict, materializirajKdsNaloge,
 } from "./kds";
+import kdsRouter from "./kds";
+import { includedKdsTicket } from "../../lib/kds-exclusion";
+import { isDispatchEligible } from "../../lib/kds-dispatch";
 import {
   consumeBatchCourseClarificationAssignments, consumeCourseClarificationAssignment,
   signCourseClarificationToken, verifyCourseClarificationToken,
@@ -78,6 +83,43 @@ afterAll(async () => {
 });
 
 describe("assignKdsCourse PostgreSQL integration", () => {
+  it("izključitev skrije stare naloge, ne ustvari novih in ne blokira izdaje; ponovni vklop ohrani zgodovino", async () => {
+    const app = express();
+    app.use((req, _res, next) => { (req as any).enotaId = enotaId; next(); });
+    app.use(kdsRouter);
+    const narociloId = await order();
+    const food = await line(narociloId);
+    await materializirajKdsNaloge(narociloId, enotaId);
+    const existing = await db.select().from(kdsNalogiTable).where(eq(kdsNalogiTable.postavkaId, food.id));
+    expect(existing.length).toBeGreaterThan(0);
+    const history = await db.select().from(kdsDogodkiTable).where(eq(kdsDogodkiTable.nalogId, existing[0]!.id));
+    try {
+      await db.update(artikliTable).set({ kdsIzkljucen: true }).where(eq(artikliTable.id, artikelId));
+      const newLine = await line(narociloId);
+      await materializirajKdsNaloge(narociloId, enotaId);
+      expect(await db.select().from(kdsNalogiTable).where(eq(kdsNalogiTable.postavkaId, newLine.id))).toEqual([]);
+      const visible = await supertest(app).get(`/kds/postaje/${existing[0]!.postajaId}/nalogi`);
+      expect(visible.status).toBe(200);
+      expect(visible.body.some((job: any) => job.postavkaId === food.id)).toBe(false);
+      const unassigned = await supertest(app).get("/kds/nerazporejene-postavke");
+      expect(unassigned.status).toBe(200);
+      expect(unassigned.body.some((a: any) => a.artikelId === artikelId)).toBe(false);
+      const otherFood = await line(narociloId, { artikelId: null });
+      await ticket(narociloId, otherFood.id, { stanje: "bumped" });
+      const included = await db.select().from(kdsNalogiTable).where(and(
+        eq(kdsNalogiTable.narociloId, narociloId), includedKdsTicket(),
+      ));
+      expect(isDispatchEligible(included.map(job => job.stanje))).toBe(true);
+      expect(await db.select().from(kdsDogodkiTable).where(eq(kdsDogodkiTable.nalogId, existing[0]!.id))).toEqual(history);
+      await db.update(artikliTable).set({ kdsIzkljucen: false }).where(eq(artikliTable.id, artikelId));
+      const restored = await supertest(app).get(`/kds/postaje/${existing[0]!.postajaId}/nalogi`);
+      expect(restored.status).toBe(200);
+      expect(restored.body.some((job: any) => job.id === existing[0]!.id)).toBe(true);
+    } finally {
+      await db.update(artikliTable).set({ kdsIzkljucen: false }).where(eq(artikliTable.id, artikelId));
+    }
+  });
+
   it("groups an ordinary parent and modifier with an idempotent repeat", async () => {
     const narociloId = await order();
     const parent = await line(narociloId);

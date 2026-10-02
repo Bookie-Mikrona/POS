@@ -2180,6 +2180,8 @@ export interface Artikel {
      * @nullable
      */
   pripravaVrsta?: ArtikelPripravaVrsta;
+  /** Artikel se ne prikazuje kot samostojen nalog na KDS */
+  kdsIzkljucen?: boolean;
   /** Ali je artikel nabavni artikel */
   nabavniArtikel?: boolean;
   /** Ali je artikel prodajni artikel */
@@ -2323,6 +2325,8 @@ export interface ArtikelInput {
      * @nullable
      */
   pripravaVrsta?: ArtikelInputPripravaVrsta;
+  /** Izrecna izključitev artikla iz KDS in seznama nerazporejenih artiklov */
+  kdsIzkljucen?: boolean;
   povratnaEmbalaza?: boolean;
   /** Samo nabavni material, brez prodaje ali povratne embalaže; zaloga je količinska brez vrednotenja */
   drobniInventar?: boolean;

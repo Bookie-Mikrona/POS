@@ -12,6 +12,7 @@ import { canApplyKdsCommand } from "../../lib/kds-state";
 import { choosePreparationStations, planStandardKdsDisplays, preparationStationType, resolvePreparationKind, type KdsProfile } from "../../lib/kds-routing";
 import { ensureKdsUnitConfiguration } from "../../lib/kds-unit-configuration";
 import { isDispatchEligible, lockKdsOrder } from "../../lib/kds-dispatch";
+import { includedKdsTicket } from "../../lib/kds-exclusion";
 import {
   CreateKdsMapiranjeBody, CreateKdsPostajaBody, CreateKdsPrikazovalnikBody,
   SetKdsPrikazovalnikNarocnineBody, UpdateKdsNastavitveBody, UpdateKdsPostajaBody,
@@ -244,6 +245,7 @@ export async function materializirajKdsNaloge(narociloId: number, enotaId: numbe
     .where(and(
       eq(postavkeTable.narociloId, narociloId),
       eq(narocilaTable.enotaId, enotaId),
+      or(isNull(artikliTable.id), eq(artikliTable.kdsIzkljucen, false)),
       isNull(postavkeTable.parentPostavkaId),
       // A menu-charge line has the pairing group but no course. It is a
       // commercial record only; individual food and wine course lines route.
@@ -526,7 +528,7 @@ router.get("/kds/nerazporejene-postavke", async (req, res) => {
     kategorijaIme: kategorijeTable.ime, kategorijaTip: kategorijeTable.tip,
   }).from(artikliTable)
     .leftJoin(kategorijeTable, and(eq(kategorijeTable.id, artikliTable.kategorijaId), eq(kategorijeTable.enotaId, enotaId)))
-    .where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.aktiven, true), eq(artikliTable.prodajniArtikel, true)));
+    .where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.aktiven, true), eq(artikliTable.prodajniArtikel, true), eq(artikliTable.kdsIzkljucen, false)));
   const mappings = await db.select({ artikelId: kdsPostajaMapiranjaTable.artikelId, kategorijaId: kdsPostajaMapiranjaTable.kategorijaId })
     .from(kdsPostajaMapiranjaTable).innerJoin(kdsPostajeTable, eq(kdsPostajaMapiranjaTable.postajaId, kdsPostajeTable.id))
     .where(and(eq(kdsPostajeTable.enotaId, enotaId), eq(kdsPostajeTable.aktivna, true)));
@@ -553,6 +555,7 @@ router.get("/kds/postaje/:id/nalogi", async (req, res) => {
   const tickets = await db.select().from(kdsNalogiTable).where(and(
     eq(kdsNalogiTable.postajaId, id),
     eq(kdsNalogiTable.enotaId, enotaId),
+    includedKdsTicket(),
     // Held tickets are metadata for the POS fire control.  Consumers must not
     // make them actionable until the explicit fire command succeeds.
     inArray(kdsNalogiTable.stanje, ["zadrzano", "aktivno", "bumped"]),
@@ -628,6 +631,7 @@ router.post("/kds/narocila/:narociloId/tecaji/:courseNumber/fire", async (req, r
       if (!order) throw new Error("KDS_ORDER_NOT_OPEN");
       await materializirajKdsNaloge(narociloId, enotaId, tx);
       const tickets = await tx.select().from(kdsNalogiTable).where(and(
+        includedKdsTicket(),
         eq(kdsNalogiTable.enotaId, enotaId), eq(kdsNalogiTable.narociloId, narociloId),
       ));
       // Older callers do not send a pairing id. Keep that URL contract only
@@ -689,7 +693,7 @@ router.get("/kds/izdaja", async (req, res) => {
   const [tickets, dispatched, lines] = await Promise.all([
     db.select({ narociloId: kdsNalogiTable.narociloId, stanje: kdsNalogiTable.stanje, postajaIme: kdsPostajeTable.ime })
       .from(kdsNalogiTable).innerJoin(kdsPostajeTable, eq(kdsNalogiTable.postajaId, kdsPostajeTable.id))
-      .where(and(eq(kdsNalogiTable.enotaId, enotaId), inArray(kdsNalogiTable.narociloId, orderIds), ne(kdsNalogiTable.stanje, "preklicano"))),
+      .where(and(includedKdsTicket(), eq(kdsNalogiTable.enotaId, enotaId), inArray(kdsNalogiTable.narociloId, orderIds), ne(kdsNalogiTable.stanje, "preklicano"))),
     db.select({ narociloId: kdsIzdajaDogodkiTable.narociloId }).from(kdsIzdajaDogodkiTable)
       .where(and(eq(kdsIzdajaDogodkiTable.enotaId, enotaId), inArray(kdsIzdajaDogodkiTable.narociloId, orderIds))),
     db.select({ narociloId: postavkeTable.narociloId, id: postavkeTable.id, ime: postavkeTable.ime, kolicina: postavkeTable.kolicina, opomba: postavkeTable.opomba })
@@ -734,7 +738,7 @@ router.post("/kds/narocila/:narociloId/izdaj", async (req, res) => {
       if (previous) throw new Error("KDS_ORDER_DISPATCHED");
       await materializirajKdsNaloge(narociloId, enotaId, tx);
       const tickets = await tx.select({ stanje: kdsNalogiTable.stanje }).from(kdsNalogiTable)
-        .where(and(eq(kdsNalogiTable.narociloId, narociloId), eq(kdsNalogiTable.enotaId, enotaId), ne(kdsNalogiTable.stanje, "preklicano")));
+        .where(and(includedKdsTicket(), eq(kdsNalogiTable.narociloId, narociloId), eq(kdsNalogiTable.enotaId, enotaId), ne(kdsNalogiTable.stanje, "preklicano")));
       if (!isDispatchEligible(tickets.map((ticket) => ticket.stanje))) throw new Error("KDS_NOT_READY");
       const [created] = await tx.insert(kdsIzdajaDogodkiTable).values({
         enotaId, narociloId, idempotencyKey, actorClerkUserId: (req as any).clerkUserId ?? "pos",
@@ -768,6 +772,7 @@ async function transition(req: any, res: any, tip: "bump" | "ack") {
     await db.transaction(async (tx) => {
       await lockKdsOrder(tx, ticket.narociloId);
       const [current] = await tx.select().from(kdsNalogiTable).where(and(
+        includedKdsTicket(),
         eq(kdsNalogiTable.id, id),
         eq(kdsNalogiTable.enotaId, enota(req)),
       )).for("update");

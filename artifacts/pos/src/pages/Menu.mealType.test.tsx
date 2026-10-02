@@ -85,6 +85,25 @@ describe("Menu - mealType conditions", () => {
     });
   });
 
+  it("ponudi izključitev KDS in jo ob novem artiklu ponastavi", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider><NastavitveProvider><Menu /></NastavitveProvider></AuthProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Nov artikel" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Cena in DDV" }));
+    const checkbox = screen.getByRole("checkbox", { name: "Ne prikazuj na KDS" }) as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Nov artikel" })).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Nov artikel" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Cena in DDV" }));
+    expect((screen.getByRole("checkbox", { name: "Ne prikazuj na KDS" }) as HTMLInputElement).checked).toBe(false);
+  });
+
   it("filter drobnega inventarja preklopi gumb na ustrezen obrazec, drugi filtri pa odprejo navaden artikel", async () => {
     render(
       <QueryClientProvider client={queryClient}>

@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import {
   getGetPreparedFoodAvailabilityQueryKey,
   getListArtikliQueryKey,
+  getListPreparedFoodDailyQueryKey,
   useGetPreparedFoodAvailability,
   useListArtikli,
+  useListPreparedFoodDaily,
   type Artikel,
   type PreparedFoodAvailability,
   type PreparedFoodAvailabilityItem,
@@ -26,6 +28,8 @@ export type KitchenAvailabilityLine = {
 export type KitchenAvailabilityState = {
   availability?: PreparedFoodAvailability;
   articles?: Artikel[];
+  /** Membership of the daily-evidence screen for the server's business day. */
+  dailyArticleIds?: number[];
   loading?: boolean;
   error?: boolean;
   offline?: boolean;
@@ -146,9 +150,22 @@ export function useKitchenPreparedAvailability(enabled: boolean) {
       staleTime: 30_000,
     },
   });
-  const error = availabilityQuery.isError || articlesQuery.isError;
+  const businessDate = availabilityQuery.data?.businessDate ?? "";
+  const dailyQuery = useListPreparedFoodDaily(businessDate, {
+    query: {
+      queryKey: getListPreparedFoodDailyQueryKey(businessDate),
+      enabled: queryEnabled && !!businessDate,
+      refetchInterval: queryEnabled && !!businessDate ? 5_000 : false,
+      staleTime: 2_000,
+      refetchOnMount: queryEnabled && !!businessDate ? "always" : false,
+    },
+  });
+  const error = availabilityQuery.isError || articlesQuery.isError || (!!businessDate && dailyQuery.isError);
   const refetch = async () => {
-    await Promise.all([availabilityQuery.refetch(), articlesQuery.refetch()]);
+    await Promise.all([
+      availabilityQuery.refetch(), articlesQuery.refetch(),
+      ...(businessDate ? [dailyQuery.refetch()] : []),
+    ]);
   };
   return {
     state: {
@@ -156,11 +173,15 @@ export function useKitchenPreparedAvailability(enabled: boolean) {
       // honor offline/error before ever reading a cached quantity.
       availability: availabilityQuery.data,
       articles: articlesQuery.data,
-      loading: queryEnabled && (availabilityQuery.isLoading || articlesQuery.isLoading),
+      dailyArticleIds: dailyQuery.data
+        ?.filter(row => row.businessDate === businessDate)
+        .map(row => row.artikelId),
+      loading: queryEnabled && (availabilityQuery.isLoading || articlesQuery.isLoading
+        || (!!businessDate && dailyQuery.isLoading)),
       error,
       offline,
     } satisfies KitchenAvailabilityState,
-    isFetching: queryEnabled && (availabilityQuery.isFetching || articlesQuery.isFetching),
+    isFetching: queryEnabled && (availabilityQuery.isFetching || articlesQuery.isFetching || dailyQuery.isFetching),
     refetch,
     canRetry: queryEnabled,
   };
@@ -243,7 +264,9 @@ function PreparedAvailabilityOverview({
   onRetry: () => void;
   canRetry: boolean;
 }) {
-  const items = state.availability?.items.filter(item => item.mealType === "prepared" || item.mealType === "composite") ?? [];
+  const dailyArticleIds = new Set(state.dailyArticleIds ?? []);
+  const items = state.availability?.items.filter(item =>
+    item.mealType === "prepared" && dailyArticleIds.has(item.articleId)) ?? [];
   const articles = useMemo(() => articleMap(state.articles), [state.articles]);
 
   if (offline) {
@@ -263,22 +286,23 @@ function PreparedAvailabilityOverview({
       </div>
     );
   }
-  if (loading || !state.availability || !state.articles) {
+  if (loading || !state.availability || !state.articles || !state.dailyArticleIds) {
     return <p className="py-8 text-center text-sm text-muted-foreground" role="status" data-testid="status-prepared-availability-loading">Nalaganje razpoložljivosti...</p>;
   }
 
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
+        Prikazane so samo jedi iz dnevne evidence pripravljene hrane za ta poslovni dan.{" "}
         Prikazane so količine za nova naročila; sistem je že odštel vse naročene postavke, tudi te listke.
         Zamrznjene porcije niso vključene v razpoložljivost, dokler niso odtajane.
       </p>
-      <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950" data-testid="text-shared-prepared-stock">
+      {items.some(item => item.availableBySize) && <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950" data-testid="text-shared-prepared-stock">
         Zaloga je skupna. Kapacitete male, normalne in družinske pice porabljajo iste sestavine, zato jih ne seštevajte.
-      </p>
+      </p>}
       {isFetching && <p className="text-xs text-muted-foreground" role="status" data-testid="status-prepared-availability-refreshing">Osvežujem zalogo…</p>}
       {items.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground" data-testid="status-prepared-availability-empty">Ni razpoložljivih pripravljenih jedi ali sestavljenih jedi.</p>
+        <p className="py-8 text-center text-sm text-muted-foreground" data-testid="status-prepared-availability-empty">V dnevni evidenci za ta poslovni dan ni pripravljenih jedi.</p>
       ) : (
         <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
           {items.map(item => {

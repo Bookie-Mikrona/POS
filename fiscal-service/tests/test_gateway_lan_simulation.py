@@ -14,6 +14,7 @@ import sys
 import tempfile
 import time
 import uuid
+import pytest
 from pathlib import Path
 
 os.environ["BOOKIE_FISCAL_ALLOW_INSECURE_DEV"] = "1"
@@ -52,6 +53,78 @@ def _signed(client_id: str, secret: bytes, method: str, path: str, body: bytes =
         "X-Bookie-Signature": hmac.new(secret, message, hashlib.sha256).hexdigest(),
         "Content-Type": "application/json",
     }
+
+
+def test_excluded_packaging_has_no_gateway_kds_job_or_missing_routing_warning():
+    with tempfile.TemporaryDirectory() as directory:
+        store = Store(Path(directory) / "kds-exclusion.sqlite")
+        try:
+            gateway = GatewayV2(store)
+            gateway._enqueue_snapshot_kds("test-order", {
+                "lines": [
+                    {"lineId": "packaging", "kdsIzkljucen": True,
+                     "postajaId": 7, "postajaIds": [7]},
+                    {"lineId": "food", "postajaId": 7, "postajaIds": [7]},
+                ],
+            }, {"companyId": "test-company", "enotaId": "9"}, "exclude-packaging")
+            jobs = gateway.list_kds({"companyId": "test-company", "enotaId": "9"})
+            assert len(jobs) == 1
+            assert jobs[0]["payload"]["line"]["lineId"] == "food"
+            assert store.db.execute(
+                "SELECT COUNT(*) FROM gateway_events WHERE event_type='kds-routing-missing'"
+            ).fetchone()[0] == 0
+        finally:
+            store.db.close()
+
+
+@pytest.mark.parametrize("initial_state", ["QUEUED", "STARTED", "READY"])
+def test_existing_kds_exclusion_is_reversible_and_preserves_history(initial_state):
+    with tempfile.TemporaryDirectory() as directory:
+        store = Store(Path(directory) / "kds-reversible.sqlite")
+        scope = {"companyId": "test-company", "enotaId": "9"}
+        line = {"lineId": "packaging", "postajaId": 7, "postajaIds": [7],
+                "held": initial_state == "QUEUED", "quantity": "1"}
+        try:
+            gateway = GatewayV2(store)
+            gateway._enqueue_snapshot_kds("order", {"lines": [line]}, scope, "initial")
+            original = gateway.list_kds(scope)[0]
+            if initial_state == "READY":
+                gateway.transition_kds(original["jobId"], module.GatewayAckIn(
+                    operationId="prepared", jobId=original["jobId"],
+                    expectedVersion=original["version"], **scope,
+                ), "READY", None, scope)
+                original = gateway.list_kds(scope)[0]
+            history = [dict(row) for row in store.db.execute("SELECT * FROM gateway_events ORDER BY seq")]
+            gateway._enqueue_snapshot_kds("order", {"lines": [
+                {**line, "kdsIzkljucen": True, "postajaIds": [], "postajaId": None},
+            ]}, scope, "exclude")
+            assert gateway.list_kds(scope) == []
+            hidden = gateway.list_kds(scope, include_history=True)[0]
+            assert hidden["jobId"] == original["jobId"]
+            assert hidden["state"] == initial_state
+            assert hidden["payload"]["line"]["kdsIzkljucen"] is True
+            target = {"QUEUED": "STARTED", "STARTED": "READY", "READY": "COMPLETED"}[initial_state]
+            with pytest.raises(module.HTTPException) as error:
+                gateway.transition_kds(hidden["jobId"], module.GatewayAckIn(
+                    operationId="stale-command", jobId=hidden["jobId"],
+                    expectedVersion=hidden["version"], **scope,
+                ), target, None, scope)
+            assert error.value.status_code == 409
+            assert error.value.detail == "KDS_JOB_EXCLUDED"
+            gateway._enqueue_snapshot_kds("order", {"lines": [
+                {**line, "kdsIzkljucen": False},
+            ]}, scope, "include")
+            restored = gateway.list_kds(scope)
+            assert len(restored) == 1
+            assert restored[0]["jobId"] == original["jobId"]
+            assert restored[0]["state"] == initial_state
+            assert restored[0]["version"] > hidden["version"]
+            assert [dict(row) for row in store.db.execute("SELECT * FROM gateway_events ORDER BY seq")] == history
+            gateway._enqueue_snapshot_kds("order", {"lines": []}, scope, "remove")
+            assert gateway.list_kds(scope) == []
+            assert gateway.list_kds(scope, include_history=True)[0]["state"] == "CANCELLED"
+        finally:
+            store.db.close()
 
 
 def test_signed_http_two_operator_manager_lan_protocol_and_restart():
@@ -167,7 +240,10 @@ def test_signed_http_two_operator_manager_lan_protocol_and_restart():
                              "lines": [{"lineId": line_id, "postajaId": 7, "postajaIds": [7],
                                         "quantity": "1"},
                                        {"lineId": str(uuid.uuid4()), "postajaId": 8,
-                                        "postajaIds": [8], "quantity": "1"}]},
+                                        "postajaIds": [8], "quantity": "1"},
+                                       {"lineId": str(uuid.uuid4()), "postajaId": 7,
+                                        "postajaIds": [7], "quantity": "1",
+                                        "kdsIzkljucen": True}]},
             }
             first_snapshot = post(operator_b, secret_b,
                                    f"/v1/gateway/v2/orders/{order_id}/snapshot", snapshot)
@@ -185,9 +261,9 @@ def test_signed_http_two_operator_manager_lan_protocol_and_restart():
                                 f"/v1/gateway/v2/orders/{order_id}/snapshot", second_snapshot)
             assert exact_replay.status_code == 200
             assert exact_replay.json()["version"] == second.json()["version"]
-            jobs = client.get("/v1/gateway/v2/kds?companyId=company-http&enotaId=9",
+            jobs = client.get("/v1/gateway/v2/kds?companyId=company-http&enotaId=9&includeHistory=true",
                               headers=_signed(operator_b, secret_b, "GET",
-                                              "/v1/gateway/v2/kds?companyId=company-http&enotaId=9"))
+                                              "/v1/gateway/v2/kds?companyId=company-http&enotaId=9&includeHistory=true"))
             assert jobs.status_code == 200
             assert len(jobs.json()["jobs"]) == 2
             assert [job["state"] for job in jobs.json()["jobs"]
@@ -218,7 +294,13 @@ def test_signed_http_two_operator_manager_lan_protocol_and_restart():
             all_jobs = client.get("/v1/gateway/v2/kds?companyId=company-http&enotaId=9",
                                   headers=_signed(operator_b, secret_b, "GET",
                                                   "/v1/gateway/v2/kds?companyId=company-http&enotaId=9"))
-            assert {job["state"] for job in all_jobs.json()["jobs"]} == {"CANCELLED"}
+            assert all_jobs.json()["jobs"] == []
+            history_path = "/v1/gateway/v2/kds?companyId=company-http&enotaId=9&includeHistory=true"
+            history_jobs = client.get(history_path, headers=_signed(
+                operator_b, secret_b, "GET", history_path,
+            ))
+            assert len(history_jobs.json()["jobs"]) == 2
+            assert {job["state"] for job in history_jobs.json()["jobs"]} == {"CANCELLED"}
             event_path = "/v1/gateway/events?after=0"
             before_replay_events = client.get(event_path, headers=_signed(
                 operator_b, secret_b, "GET", event_path,
@@ -229,7 +311,7 @@ def test_signed_http_two_operator_manager_lan_protocol_and_restart():
             after_replay_events = client.get(event_path, headers=_signed(
                 operator_b, secret_b, "GET", event_path,
             )).json()["events"]
-            assert len(all_jobs.json()["jobs"]) == 2
+            assert len(history_jobs.json()["jobs"]) == 2
             assert len(after_replay_events) == len(before_replay_events)
             for event in after_replay_events:
                 assert re.fullmatch(r"[0-9a-f]{64}", event["payloadHash"])

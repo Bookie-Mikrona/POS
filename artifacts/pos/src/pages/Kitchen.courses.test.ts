@@ -88,6 +88,11 @@ describe("getKdsHeaderWarnings", () => {
 });
 
 describe("KDS FIRE signal and timer", () => {
+  it("omits allergens and traces on bar cards but retains them in kitchen cards", () => {
+    const lines = [{ gostStevilka: 2, alergeni: ["GLUTEN"], alergeniSledi: ["MLEKO"] }];
+    expect(getKdsHeaderWarnings(lines, false)).toEqual({ guestCount: 2, allergens: [], traces: [] });
+    expect(getKdsHeaderWarnings(lines)).toEqual({ guestCount: 2, allergens: ["GLUTEN"], traces: ["MLEKO"] });
+  });
   it("uses the release timestamp when a held course is fired", () => {
     expect(getKdsTimerStart({
       ...ticket(2, "aktivno"),

@@ -89,6 +89,8 @@ export const artikliTable = pgTable("artikli", {
   jePica: boolean("je_pica").notNull().default(false),
   /** Postaja priprave prodajnega artikla; null pomeni starejši/neopredeljen zapis. */
   pripravaVrsta: text("priprava_vrsta", { enum: ["pica", "hrana", "pijaca"] }),
+  /** Explicit exclusion from preparation screens, independent of routing. */
+  kdsIzkljucen: boolean("kds_izkljucen").notNull().default(false),
   jeDodatekZaPico: boolean("je_dodatek_za_pico").notNull().default(false),
   privzetiDodatki: json("privzeti_dodatki").$type<number[]>().notNull().default([]),
   jeModifikator: boolean("je_modifikator").notNull().default(false),

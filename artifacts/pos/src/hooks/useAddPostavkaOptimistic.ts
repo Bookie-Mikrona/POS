@@ -33,6 +33,7 @@ export interface ArtikelZaOptimistiko {
   happyHourVelikostiPice?: ("mala" | "normalna" | "druzinska")[];
   davek: number;
   jePica?: boolean;
+  kdsIzkljucen?: boolean;
   kategorijaId?: number | null;
   kategorijaIme?: string | null;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { useListAktivnaNarocila, useListKategorije, getListAktivnaNarocilaQueryKey, useTogglePostavkaPripravljeno, useListKdsPrikazovalniki, getListKdsPrikazovalnikiQueryKey, KdsPrikazovalnik, KdsPostaja, useGetKdsNastavitve, getGetKdsNastavitveQueryKey } from "@workspace/api-client-react";
+import { useListAktivnaNarocila, useListArtikli, getListArtikliQueryKey, useListKategorije, getListAktivnaNarocilaQueryKey, useTogglePostavkaPripravljeno, useListKdsPrikazovalniki, getListKdsPrikazovalnikiQueryKey, KdsPrikazovalnik, KdsPostaja, useGetKdsNastavitve, getGetKdsNastavitveQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Clock, UtensilsCrossed, History, ChefHat, MonitorPlay, AlertTriangle } from "lucide-react";
@@ -98,7 +98,7 @@ export type KdsHeaderPostavka = {
 };
 
 /** Header data is derived only from the order lines visible to this KDS card. */
-export function getKdsHeaderWarnings(postavke: readonly KdsHeaderPostavka[]): {
+export function getKdsHeaderWarnings(postavke: readonly KdsHeaderPostavka[], showAllergens = true): {
   guestCount: number | null;
   allergens: string[];
   traces: string[];
@@ -111,8 +111,8 @@ export function getKdsHeaderWarnings(postavke: readonly KdsHeaderPostavka[]): {
 
   return {
     guestCount: guests.length > 0 ? Math.max(...guests) : null,
-    allergens: unique(postavke.map((postavka) => postavka.alergeni)),
-    traces: unique(postavke.map((postavka) => postavka.alergeniSledi)),
+    allergens: showAllergens ? unique(postavke.map((postavka) => postavka.alergeni)) : [],
+    traces: showAllergens ? unique(postavke.map((postavka) => postavka.alergeniSledi)) : [],
   };
 }
 
@@ -327,14 +327,12 @@ function KdsKitchenView({
         }
       }
     }
-    for (const local of Object.values(localStanja)) {
-      if (local.stanje !== "ack" && !map.has(local.nalog.id)) {
-        map.set(local.nalog.id, { ...local.nalog, stanje: local.stanje });
-      }
-    }
+    // A refreshed server list is authoritative: never resurrect an excluded,
+    // cancelled or externally acknowledged ticket from optimistic state.
     // Held tickets are returned for fire controls but never shown as
     // actionable production tickets.
-    return Array.from(map.values()).filter(n => n.stanje !== "zadrzano");
+    return Array.from(map.values()).filter(n =>
+      n.stanje !== "zadrzano" && n.stanje !== "ack" && n.stanje !== "preklicano");
   }, [serverNalogi, localStanja]);
 
   const heldNalogiPoNarocilu = useMemo(() => {
@@ -581,7 +579,7 @@ function KdsKitchenView({
             const imaFallback = narocilo.kdsZaToNarocilo.some(n => n.uporabljenFallback);
             const nextCourses = getNextKdsCoursesToFire(narocilo.kdsZaToNarocilo);
             const courseGroups = groupKdsNalogiByCourse(narocilo.kdsZaToNarocilo, barOnly);
-            const headerWarnings = getKdsHeaderWarnings(narocilo.topPostavke);
+            const headerWarnings = getKdsHeaderWarnings(narocilo.topPostavke, !barOnly);
             const hasActiveBarCourse = barOnly && narocilo.kdsZaToNarocilo.some(n => n.stanje === "aktivno");
 
             return (
@@ -712,14 +710,14 @@ function KdsKitchenView({
                                     </div>
                                   );
                                 })}
-                                 {itemNalogi.length > 1 && (
+                                 {!barOnly && itemNalogi.length > 1 && (
                                   <div className="mt-1">
                                     <Badge variant="outline" className={`text-[9px] uppercase font-bold border-0 bg-black/5 ${done ? "text-emerald-700" : "text-gray-600"}`}>
                                       {postaje.find(x => x.id === nalog.postajaId)?.ime || "Neznana postaja"}
                                     </Badge>
                                   </div>
                                 )}
-                                 {itemNalogi.length <= 1 && (
+                                 {!barOnly && itemNalogi.length <= 1 && (
                                   <div className="mt-1">
                                     <Badge variant="outline" className="text-[9px] uppercase font-bold border-0 bg-black/5 text-gray-600">
                                       {postaje.find(x => x.id === nalog.postajaId)?.ime === "Bar"
@@ -905,6 +903,10 @@ function LegacyKitchenView() {
   const preparedAvailability = useKitchenPreparedAvailability(true);
   const { data: narocila } = useListAktivnaNarocila();
   const { data: kategorije } = useListKategorije();
+  const { data: artikli } = useListArtikli(undefined, {
+    query: { queryKey: getListArtikliQueryKey(), refetchInterval: 15000 },
+  });
+  const excludedArticleIds = new Set((artikli ?? []).filter(a => a.kdsIzkljucen).map(a => a.id));
   const queryClient = useQueryClient();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [, setTick] = useState(0);
@@ -943,6 +945,7 @@ function LegacyKitchenView() {
       const vsePostavke = n.postavke ?? [];
       const topPostavke = vsePostavke
         .filter(p => p.parentPostavkaId == null
+          && !excludedArticleIds.has(p.artikelId ?? -1)
           && p.kategorijaId != null
           && hranaIds.has(p.kategorijaId))
         .sort((a, b) => {

@@ -1770,8 +1770,17 @@ class GatewayV2(Gateway):
     def _enqueue_snapshot_kds(self, order: str, snapshot: dict[str, Any],
                               scope: dict[str, str], command_id: str) -> None:
         lines = snapshot.get("lines", snapshot.get("postavke", []))
+        excluded_lines = {
+            str(line.get("lineId", line.get("id")))
+            for line in lines if line.get("kdsIzkljucen") is True
+        }
+        terminal = str(snapshot.get("status", snapshot.get("state", ""))).upper() in {
+            "CLOSED", "CANCELLED", "ZAKLJUCENO", "PREKLICANO",
+        }
         desired: dict[tuple[str, int, str], dict[str, Any]] = {}
         for line in lines:
+            if line.get("kdsIzkljucen") is True:
+                continue
             line_id = str(line.get("lineId", line.get("id")))
             configured = line.get("postajaIds")
             station_ids = sorted({int(value) for value in configured
@@ -1793,7 +1802,17 @@ class GatewayV2(Gateway):
         for old in existing:
             if old["state"] in ("COMPLETED", "CANCELLED"):
                 continue
-            old_line = json.loads(old["payload_json"]).get("line", {})
+            old_payload = json.loads(old["payload_json"])
+            old_line = old_payload.get("line", {})
+            if str(old["line_id"]) in excluded_lines and not terminal:
+                # Exclusion is visibility, not cancellation. Preserve the
+                # preparation state and existing events for a later re-enable.
+                if old_line.get("kdsIzkljucen") is not True:
+                    old_payload["line"] = {**old_line, "kdsIzkljucen": True}
+                    self.s.db.execute(
+                        "UPDATE kds_jobs SET version=version+1,payload_json=?,updated_at=? WHERE job_id=?",
+                        (canonical_json(old_payload), _gateway_now(), old["job_id"]))
+                continue
             identity = (str(old["line_id"]), old_line.get("postajaId"),
                         str(old_line.get("courseNumber", "")))
             if identity not in desired:
@@ -1804,9 +1823,6 @@ class GatewayV2(Gateway):
                     self.s, f"{command_id}:kds-cancel:{old['job_id']}", "kds-cancelled",
                     {"orderId": order, "jobId": old["job_id"], "identity": list(identity)},
                     {"jobId": old["job_id"], "state": "CANCELLED"})
-        terminal = str(snapshot.get("status", snapshot.get("state", ""))).upper() in {
-            "CLOSED", "CANCELLED", "ZAKLJUCENO", "PREKLICANO",
-        }
         if terminal:
             return
         for (line_id, postaja_id, course), line in desired.items():
@@ -1837,7 +1853,8 @@ class GatewayV2(Gateway):
                 (job_id, 1, initial_state, canonical_json(payload), now, now,
                  scope["companyId"], scope["enotaId"], order, line_id, idem))
 
-    def list_kds(self, scope: dict[str, str], state: str | None = None) -> list[dict[str, Any]]:
+    def list_kds(self, scope: dict[str, str], state: str | None = None,
+                 include_history: bool = False) -> list[dict[str, Any]]:
         query = "SELECT * FROM kds_jobs WHERE company_id=? AND enota_id=?"
         args: list[Any] = [scope["companyId"], scope["enotaId"]]
         if state:
@@ -1846,11 +1863,17 @@ class GatewayV2(Gateway):
         result = []
         for row in self.s.db.execute(query, args):
             raw = dict(row)
+            payload = json.loads(raw["payload_json"])
+            if not include_history and (
+                raw["state"] in ("COMPLETED", "CANCELLED")
+                or payload.get("line", {}).get("kdsIzkljucen") is True
+            ):
+                continue
             item = {
                 "jobId": raw["job_id"],
                 "version": raw["version"],
                 "state": raw["state"],
-                "payload": json.loads(raw["payload_json"]),
+                "payload": payload,
                 "createdAt": raw["created_at"],
                 "updatedAt": raw["updated_at"],
                 "companyId": raw.get("company_id"),
@@ -1879,6 +1902,8 @@ class GatewayV2(Gateway):
                                         (job_id, scope["companyId"], scope["enotaId"])).fetchone()
                 if not row:
                     raise HTTPException(404, "JOB_NOT_FOUND")
+                if json.loads(row["payload_json"]).get("line", {}).get("kdsIzkljucen") is True:
+                    raise HTTPException(409, "KDS_JOB_EXCLUDED")
                 if int(req.expectedVersion) != int(row["version"]):
                     raise HTTPException(409, detail=json.dumps({
                         "code": "JOB_VERSION_CONFLICT", "currentVersion": row["version"],
@@ -2765,8 +2790,9 @@ def gateway_v2_prime(req: GatewayPrimeIn, request: Request):
 @app.get("/v1/gateway/v2/kds")
 def gateway_v2_kds(request: Request, companyId: str | None = None,
                    enotaId: str | None = None, state: str | None = None,
-                   postajaId: int | None = None):
-    jobs = gateway_v2.list_kds(_v2_scope(request, companyId, enotaId), state)
+                   postajaId: int | None = None, includeHistory: bool = False):
+    jobs = gateway_v2.list_kds(_v2_scope(request, companyId, enotaId), state,
+                               include_history=includeHistory)
     if postajaId is not None:
         jobs = [job for job in jobs
                 if str((job.get("payload") or {}).get("line", {}).get("postajaId", "")) == str(postajaId)]

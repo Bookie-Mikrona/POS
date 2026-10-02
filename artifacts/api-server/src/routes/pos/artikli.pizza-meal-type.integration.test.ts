@@ -16,6 +16,10 @@ import router from "./artikli";
 
 const app = express();
 app.use(express.json());
+app.use((req, _res, next) => {
+  (req as any).enotaId = context.enotaId;
+  next();
+});
 app.use(router);
 
 let companyId: string;
@@ -63,6 +67,21 @@ afterAll(async () => {
 });
 
 describe("PUT /artikli/:id — tip pice", () => {
+  it("shrani izključitev KDS, jo vrne v seznamu in pri drugih spremembah ohrani", async () => {
+    const update = await supertest(app).put(`/artikli/${pizzaId}`).send({ ime: "Testna pica", kdsIzkljucen: true });
+    expect(update.status, JSON.stringify(update.body)).toBe(200);
+    expect(update.body.kdsIzkljucen).toBe(true);
+    const list = await supertest(app).get("/artikli");
+    expect(list.status).toBe(200);
+    expect(list.body.find((a: any) => a.id === pizzaId).kdsIzkljucen).toBe(true);
+    const unchanged = await supertest(app).put(`/artikli/${pizzaId}`).send({ ime: "Testna pica" });
+    expect(unchanged.body.kdsIzkljucen).toBe(true);
+    const invalid = await supertest(app).put(`/artikli/${pizzaId}`).send({ ime: "Testna pica", kdsIzkljucen: "false" });
+    expect(invalid.status).toBe(400);
+    const reset = await supertest(app).put(`/artikli/${pizzaId}`).send({ ime: "Testna pica", kdsIzkljucen: false });
+    expect(reset.status).toBe(200);
+    expect(reset.body.kdsIzkljucen).toBe(false);
+  });
   it("ob spremembi To Go ignorira napačen tip iz odjemalca", async () => {
     const response = await supertest(app).put(`/artikli/${pizzaId}`).send({
       ime: "Testna pica",

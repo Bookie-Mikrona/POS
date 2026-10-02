@@ -152,6 +152,7 @@ const SELECT_FIELDS = {
   normativRevision: artikliTable.normativRevision,
   jePica: artikliTable.jePica,
   pripravaVrsta: artikliTable.pripravaVrsta,
+  kdsIzkljucen: artikliTable.kdsIzkljucen,
   jeDodatekZaPico: artikliTable.jeDodatekZaPico,
   privzetiDodatki: artikliTable.privzetiDodatki,
   jeModifikator: artikliTable.jeModifikator,
@@ -219,6 +220,7 @@ function mapRow(r: Record<string, unknown>) {
     normativRevision: Number(r.normativRevision ?? 1),
     jePica: r.jePica as boolean,
     pripravaVrsta: (r.pripravaVrsta as "pica" | "hrana" | "pijaca" | null) ?? null,
+    kdsIzkljucen: r.kdsIzkljucen === true,
     jeDodatekZaPico: r.jeDodatekZaPico as boolean,
     privzetiDodatki: (r.privzetiDodatki as number[] | null) ?? [],
     jeModifikator: r.jeModifikator as boolean,
@@ -645,6 +647,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         netoDelezOdst: polizdelek ? null : drainedYield.netoDelezOdst,
         jePica: parsed.data.jePica ?? (parsed.data.pripravaVrsta === "pica"),
         pripravaVrsta: prodajniArtikel ? (parsed.data.pripravaVrsta ?? (parsed.data.jePica ? "pica" : null)) : null,
+        kdsIzkljucen: parsed.data.kdsIzkljucen ?? false,
         jeDodatekZaPico: parsed.data.jeDodatekZaPico ?? false,
         privzetiDodatki: parsed.data.privzetiDodatki ?? [],
         jeModifikator: parsed.data.jeModifikator ?? false,
@@ -1751,6 +1754,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     updateData.netoDelezOdst = drainedYield.netoDelezOdst;
   }
   if (parsed.data.jePica !== undefined) updateData.jePica = parsed.data.jePica;
+  if (parsed.data.kdsIzkljucen !== undefined) updateData.kdsIzkljucen = parsed.data.kdsIzkljucen;
   if (!naslednjiProdajni) updateData.pripravaVrsta = null;
   else if (parsed.data.pripravaVrsta !== undefined) updateData.pripravaVrsta = parsed.data.pripravaVrsta ?? (naslednjiJePica ? "pica" : null);
   else if (parsed.data.jePica === true) updateData.pripravaVrsta = "pica";

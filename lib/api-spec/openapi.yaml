@@ -12714,6 +12714,9 @@ components:
           type: [string, "null"]
           enum: [pica, hrana, pijaca, null]
           description: Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice
+        kdsIzkljucen:
+          type: boolean
+          description: Artikel se ne prikazuje kot samostojen nalog na KDS
         nabavniArtikel:
           type: boolean
           description: Ali je artikel nabavni artikel
@@ -12817,6 +12820,9 @@ components:
           type: [string, "null"]
           enum: [pica, hrana, pijaca, null]
           description: Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)
+        kdsIzkljucen:
+          type: boolean
+          description: Izrecna izključitev artikla iz KDS in seznama nerazporejenih artiklov
         povratnaEmbalaza: { type: boolean, default: false }
         drobniInventar:
           type: boolean

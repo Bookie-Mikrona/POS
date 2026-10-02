@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { gatewayJob, mapGatewayKdsState } from "./use-kds";
+import { gatewayJob, isLiveGatewayKdsJob, mapGatewayKdsState } from "./use-kds";
 
 describe("gateway KDS state machine", () => {
+  it("hides excluded and terminal jobs even from an older gateway response", () => {
+    for (const state of ["QUEUED", "CLAIMED", "STARTED", "READY"]) {
+      expect(isLiveGatewayKdsJob({ state, payload: { line: { kdsIzkljucen: true } } })).toBe(false);
+      expect(isLiveGatewayKdsJob({ state, payload: { line: { kdsIzkljucen: false } } })).toBe(true);
+    }
+    for (const state of ["COMPLETED", "CANCELLED"]) {
+      expect(isLiveGatewayKdsJob({ state, payload: { line: {} } })).toBe(false);
+    }
+  });
   it.each([
     ["QUEUED", "zadrzano"], ["CLAIMED", "aktivno"], ["STARTED", "aktivno"],
     ["READY", "bumped"], ["COMPLETED", "ack"], ["CANCELLED", "preklicano"],

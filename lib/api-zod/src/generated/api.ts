@@ -1619,6 +1619,7 @@ export const ListArtikliResponseItem = zod.object({
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
+  "kdsIzkljucen": zod.boolean().optional().describe('Artikel se ne prikazuje kot samostojen nalog na KDS'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
@@ -1700,6 +1701,7 @@ export const createArtikelBodyOneNetoDelezOdstMax = 100;
 
 export const CreateArtikelBody = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)'),
+  "kdsIzkljucen": zod.boolean().optional().describe('Izrecna izključitev artikla iz KDS in seznama nerazporejenih artiklov'),
   "povratnaEmbalaza": zod.boolean().default(createArtikelBodyOnePovratnaEmbalazaDefault),
   "drobniInventar": zod.boolean().default(createArtikelBodyOneDrobniInventarDefault).describe('Samo nabavni material, brez prodaje ali povratne embalaže; zaloga je količinska brez vrednotenja'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
@@ -1801,6 +1803,7 @@ export const CreateArtikelResponse = zod.object({
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
+  "kdsIzkljucen": zod.boolean().optional().describe('Artikel se ne prikazuje kot samostojen nalog na KDS'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
@@ -2001,6 +2004,7 @@ export const GenerateArtikelImageResponse = zod.object({
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
+  "kdsIzkljucen": zod.boolean().optional().describe('Artikel se ne prikazuje kot samostojen nalog na KDS'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
@@ -2104,6 +2108,7 @@ export const UploadArtikelImageResponse = zod.object({
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
+  "kdsIzkljucen": zod.boolean().optional().describe('Artikel se ne prikazuje kot samostojen nalog na KDS'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
@@ -2200,6 +2205,7 @@ export const GetArtikelResponse = zod.object({
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
+  "kdsIzkljucen": zod.boolean().optional().describe('Artikel se ne prikazuje kot samostojen nalog na KDS'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
@@ -2282,6 +2288,7 @@ export const updateArtikelBodyOneNetoDelezOdstMax = 100;
 
 export const UpdateArtikelBody = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)'),
+  "kdsIzkljucen": zod.boolean().optional().describe('Izrecna izključitev artikla iz KDS in seznama nerazporejenih artiklov'),
   "povratnaEmbalaza": zod.boolean().default(updateArtikelBodyOnePovratnaEmbalazaDefault),
   "drobniInventar": zod.boolean().default(updateArtikelBodyOneDrobniInventarDefault).describe('Samo nabavni material, brez prodaje ali povratne embalaže; zaloga je količinska brez vrednotenja'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
@@ -2386,6 +2393,7 @@ export const UpdateArtikelResponse = zod.object({
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
+  "kdsIzkljucen": zod.boolean().optional().describe('Artikel se ne prikazuje kot samostojen nalog na KDS'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),

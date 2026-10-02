@@ -25,4 +25,28 @@ Embalaža in potrošni material se praviloma ne smeta prikazovati kot samostojni
 
 **Why:** To niso jedi za pripravo; odsotnost pravila usmerjanja ne pomeni, da jih je treba poslati na privzeto kuhinjsko postajo.
 
-**How to apply:** Pri spremembah usmerjanja loči izključitev iz KDS od manjkajočega pravila. Izključeni artikli ne sodijo niti med nerazporejene artikle niti med samostojne naloge priprave.
+**How to apply:** Pri spremembah usmerjanja loči izključitev iz KDS od manjkajočega pravila. Izključeni artikli ne sodijo niti med nerazporejene artikle niti med samostojne naloge priprave. Izključitev določi uporabnik na artiklu; obstoječih artiklov ne spreminjaj samodejno zgolj po nazivu.
+
+Izključitev je povratna operativna nastavitev, ne brisanje zgodovinskih nalogov ali sprememba prodaje in zaloge.
+
+**Why:** Material za embalažo lahko ostane prodajna in zalogovna postavka, čeprav zanj ni priprave. Brisanje nalogov bi izgubilo revizijsko sled in otežilo ponovni vklop.
+
+**How to apply:** Izključitev ima prednost tudi pred ročnim usmerjanjem in privzeto postajo. Izključeni nalogi ne blokirajo priprave ali Izdaje. Osvežen seznam strežnika je avtoritativen: optimistično stanje ne sme ponovno prikazati naloga, ki ga strežnik izloči.
+
+Lokalna izključitev že obstoječega naloga mora ohraniti njegovo stanje priprave, ne ga pretvoriti v preklic.
+
+**Why:** Lokalni preklic je terminalen; isti idempotentni nalog se po ponovnem vklopu ne začne znova. Izključitev zato ni enaka odstranitvi postavke iz naročila.
+
+**How to apply:** Skrit nalog ob ponovnem vklopu vrni v njegovo prejšnje stanje. V živi vrsti ne kažita izključenih ali terminalnih nalogov; zgodovina mora ostati ločeno dostopna znotraj istega podjetja in enote.
+
+Razpoložljivost pripravljenih jedi v kuhinji mora slediti naboru jedi iz dnevne evidence pripravljene hrane za trenutni poslovni dan, ne celotnemu katalogu pripravljenih in sestavljenih artiklov.
+
+**Why:** Uporabnik zahteva isti operativni nabor kot v dnevni evidenci, ne splošnega pregleda vseh prodajnih kapacitet.
+
+**How to apply:** Uporabi poslovni dan strežnika in dnevno evidenco. Jedi z ničelno razpoložljivostjo ne izloči zgolj zato, ker so že porabljene.
+
+Na zaslonu točilnice naročila ne kažejo alergenov ali njihovih sledi niti ponavljajoče oznake postaje ob vsakem artiklu.
+
+**Why:** Uporabnik je alergene na tem zaslonu označil kot nepomembne, postaja pa je že razvidna iz zaslona.
+
+**How to apply:** To je omejitev prikaza točilnice, ne brisanje podatkov. Alergenska opozorila v kuhinji in na zaslonu pic ter operativna stanja priprave ohrani.

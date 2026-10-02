@@ -1315,9 +1315,9 @@ export default function Order() {
     const fallbackStation = kdsNastavitve?.fallbackPostajaId
       ? activeStations.find(postaja => postaja.id === kdsNastavitve.fallbackPostajaId)?.id
       : undefined;
-    const routedStations = [...new Set(mappedStations.length ? mappedStations :
+    const routedStations = article.kdsIzkljucen ? [] : [...new Set(mappedStations.length ? mappedStations :
       inferredStationId ? [inferredStationId] : fallbackStation ? [fallbackStation] : [])];
-    if (!routedStations.length) throw new Error(`Artikel ${article.ime} nima veljavne KDS postaje.`);
+    if (!article.kdsIzkljucen && !routedStations.length) throw new Error(`Artikel ${article.ime} nima veljavne KDS postaje.`);
     const lineId = crypto.randomUUID();
     return [{
       lineId, cloudLineId: null, artikelId: article.id, ime: article.ime, kolicina: quantity,
@@ -1327,6 +1327,7 @@ export default function Order() {
       modifikatorji: data.izbranModifikatorji ?? [], gostStevilka: data.gostStevilka ?? null,
       opomba: data.opomba ?? null, toGo: Boolean(data.toGo), pripravljeno: null,
       parentPostavkaId: null, racunId: null, postajaId: routedStations[0], postajaIds: routedStations,
+      kdsIzkljucen: article.kdsIzkljucen === true,
       courseNumber: data.courseNumber ?? null, pairingGroupId: data.pairingGroupId ?? null,
       velikostPice: size ?? null,
     }];

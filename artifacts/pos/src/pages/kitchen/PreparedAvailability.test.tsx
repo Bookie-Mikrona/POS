@@ -93,7 +93,7 @@ const articles: Artikel[] = [
   },
 ];
 
-const readyState: KitchenAvailabilityState = { availability, articles };
+const readyState: KitchenAvailabilityState = { availability, articles, dailyArticleIds: [22] };
 
 describe("KDS prepared-food availability badge helpers", () => {
   it("shows the selected pizza size and defaults legacy lines to normalna without subtracting ticket quantity", () => {
@@ -157,18 +157,32 @@ describe("KDS prepared-food availability badge helpers", () => {
 });
 
 describe("PreparedAvailabilityToolbar", () => {
-  it("opens a read-only overview with raw prepared stock and individual pizza sizes", () => {
+  it("shows only meals listed in daily evidence, not the full prepared/composite catalogue", () => {
     render(<PreparedAvailabilityToolbar state={readyState} />);
     fireEvent.click(screen.getByRole("button", { name: /Razpoložljivost/i }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText(/Še na voljo za nova naročila/)).toBeInTheDocument();
     expect(screen.getByText(/Zamrznjene porcije niso vključene/)).toBeInTheDocument();
-    expect(screen.getByText(/male, normalne in družinske pice porabljajo iste sestavine/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Nezamrznjeno, za nadaljnjo uporabo:/)).toHaveLength(2);
+    expect(screen.queryByTestId("text-shared-prepared-stock")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Nezamrznjeno, za nadaljnjo uporabo:/)).toHaveLength(1);
     expect(screen.getByText("2,4 kg")).toBeInTheDocument();
-    expect(screen.getByText(/mala: 8 · normalna: 4 · družinska: brez izračunane omejitve/)).toBeInTheDocument();
-    expect(screen.getByTestId("row-prepared-availability-33")).toHaveTextContent("Kapaciteta za prodajo: 3 porcij");
+    expect(screen.queryByTestId("row-prepared-availability-11")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("row-prepared-availability-33")).not.toBeInTheDocument();
+  });
+
+  it("retains exhausted meals in daily evidence and updates membership when refreshed", () => {
+    const { rerender } = render(<PreparedAvailabilityToolbar state={{
+      ...readyState,
+      articles: articles.map(article => article.id === 22 ? { ...article, prodajniArtikel: true } : article),
+      availability: { ...availability, items: availability.items.map(item =>
+        item.articleId === 22 ? { ...item, availableQuantity: 0, freshQuantity: 0 } : item) },
+    }} />);
+    fireEvent.click(screen.getByRole("button", { name: /Razpoložljivost/i }));
+    expect(screen.getByTestId("row-prepared-availability-22")).toHaveTextContent("Kapaciteta za prodajo: 0 kg");
+    rerender(<PreparedAvailabilityToolbar state={{ ...readyState, dailyArticleIds: [] }} />);
+    expect(screen.queryByTestId("row-prepared-availability-22")).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-prepared-availability-empty")).toBeInTheDocument();
   });
 
   it("shows loading, empty, offline and error/retry states without leaking stale data", () => {
@@ -188,7 +202,7 @@ describe("PreparedAvailabilityToolbar", () => {
     expect(screen.getByTestId("status-prepared-availability-offline")).toBeInTheDocument();
     expect(screen.queryByTestId("row-prepared-availability-11")).not.toBeInTheDocument();
 
-    rerender(<PreparedAvailabilityToolbar state={{ availability: { ...availability, items: [] }, articles }} />);
+    rerender(<PreparedAvailabilityToolbar state={{ availability: { ...availability, items: [] }, articles, dailyArticleIds: [] }} />);
     expect(screen.getByTestId("status-prepared-availability-empty")).toBeInTheDocument();
   });
 });

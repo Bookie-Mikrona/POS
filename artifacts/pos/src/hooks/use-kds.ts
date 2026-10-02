@@ -56,6 +56,12 @@ export function mapGatewayKdsState(state: unknown): KdsNalog["stanje"] {
   }
 }
 
+export function isLiveGatewayKdsJob(job: Record<string, unknown>): boolean {
+  const line = (job.payload as any)?.line;
+  return line?.kdsIzkljucen !== true
+    && !["COMPLETED", "CANCELLED"].includes(String(job.state).toUpperCase());
+}
+
 export function gatewayJob(job: Record<string, unknown>): KdsNalog {
   const payload = (job.payload ?? {}) as Record<string, any>;
   const line = payload.line ?? {};
@@ -95,6 +101,7 @@ export function useKdsNalogi(postajaId?: number) {
     queryKey: ["kds", "postaje", postajaId, "nalogi", user?.enotaId],
     queryFn: async () => gateway.effectiveAuthority === "GATEWAY" && gateway.scope
       ? (await gatewayPosService(gateway.scope).kds()).jobs
+        .filter(isLiveGatewayKdsJob)
         .filter(job => postajaId == null || Number((job.payload as any)?.line?.postajaId) === Number(postajaId))
         .map(job => gatewayJob(job))
       : customFetch<KdsNalog[]>(`/api/kds/postaje/${postajaId}/nalogi`),
@@ -111,6 +118,7 @@ export function useKdsNalogiVecPostaj(postajaIds: number[]) {
       queryKey: ["kds", "postaje", id, "nalogi", user?.enotaId],
       queryFn: async () => gateway.effectiveAuthority === "GATEWAY" && gateway.scope
         ? (await gatewayPosService(gateway.scope).kds()).jobs
+          .filter(isLiveGatewayKdsJob)
           .filter(job => Number((job.payload as any)?.line?.postajaId) === Number(id))
           .map(job => gatewayJob(job))
         : customFetch<KdsNalog[]>(`/api/kds/postaje/${id}/nalogi`),

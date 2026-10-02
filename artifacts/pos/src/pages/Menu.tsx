@@ -182,6 +182,7 @@ export default function Menu() {
   const [artJePica, setArtJePica] = useState(false);
   const [artPripravaVrsta, setArtPripravaVrsta] = useState<"pica" | "hrana" | "pijaca" | null>("hrana");
   const [artPripravaVrstaIzbrana, setArtPripravaVrstaIzbrana] = useState(false);
+  const [artKdsIzkljucen, setArtKdsIzkljucen] = useState(false);
   const [artImeZaNabavo, setArtImeZaNabavo] = useState("");
   const [artEnotaMere, setArtEnotaMere] = useState<string | null>(null);
   const [artMassYield, setArtMassYield] = useState<MassYieldValues>({ ...EMPTY_MASS_YIELD });
@@ -936,6 +937,7 @@ export default function Menu() {
     setArtName(""); setArtPrice(""); setArtCenaMala(""); setArtCenaDruzinska(""); setArtCat(""); setArtAktiven(true); setArtColor(null);
     setArtNabavniArtikel(false); setArtProdajniArtikel(true); setArtDrobniInventar(false); setArtJePica(false);
     setArtPripravaVrsta("hrana"); setArtPripravaVrstaIzbrana(false);
+    setArtKdsIzkljucen(false);
     setArtJeSkupinskiNabavniArtikel(false);
     setArtPovratnaEmbalaza(false);
     setArtVrstaEmbalaze("steklenica");
@@ -1017,6 +1019,7 @@ export default function Menu() {
       ? "pica"
       : a.pripravaVrsta ?? vrstaPripraveKategorije(kategorijaArtikla ?? { ime: a.kategorijaIme, tip: null });
     setArtPripravaVrsta(pripravaVrsta);
+    setArtKdsIzkljucen(a.kdsIzkljucen === true);
     setArtPripravaVrstaIzbrana(false);
     setArtJePica(pripravaVrsta === "pica");
     setArtPrivzetiModGrpIds([]);
@@ -1584,6 +1587,7 @@ export default function Menu() {
       jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
       ...(artPolizdelek ? {} : { vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla }),
       pripravaVrsta: isProdajni ? artPripravaVrsta : null,
+      kdsIzkljucen: artKdsIzkljucen,
       mealType: mealTypeForArticleSave(artMealType, artPolizdelek, artPripravaVrsta, artJePica),
       casPripraveMin: isProdajni ? casPripraveMin : 0,
       happyHourCena: isProdajni && artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
@@ -1612,6 +1616,8 @@ export default function Menu() {
       const refreshAndClose = async (modifierLinkSaved: boolean) => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() }),
+          queryClient.invalidateQueries({ queryKey: ["/api/kds/nerazporejene-postavke"] }),
+          queryClient.invalidateQueries({ queryKey: ["kds"] }),
           queryClient.invalidateQueries({ queryKey: getGetArtikelNormativiQueryKey(artikelId) }),
           queryClient.invalidateQueries({ queryKey: getGetArtikelAlergeniNormativQueryKey(artikelId) }),
           ...(artProdajniArtikel
@@ -2704,6 +2710,22 @@ export default function Menu() {
               </div>
 
               {/* Vrsta priprave usmerja artikel na zaslon pice, kuhinje ali točilnice. */}
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="art-kds-izkljucen"
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={artKdsIzkljucen}
+                    onChange={event => setArtKdsIzkljucen(event.target.checked)}
+                  />
+                  <Label htmlFor="art-kds-izkljucen">Ne prikazuj na KDS</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Za embalažo in potrošni material. Artikel ne ustvari samostojnega naloga priprave
+                  in ni med nerazporejenimi artikli. Prodaja, račun in zaloga ostanejo nespremenjeni.
+                </p>
+              </div>
               {!(artNabavniArtikel && !artProdajniArtikel) && (
                 <fieldset className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                   <legend className="px-1 text-sm font-semibold">Vrsta artikla za pripravo</legend>
@@ -2731,7 +2753,7 @@ export default function Menu() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {artPripravaVrsta === null
-                      ? "Embalaža nima postaje priprave. Po potrebi izberite eno od vrst."
+                      ? "Vrsta priprave ni določena. Za izključitev uporabite »Ne prikazuj na KDS«."
                       : "Izbira določa zaslon priprave; pri pici je hkrati omogočeno plačilo z bonom za pico."}
                   </p>
                 </fieldset>
