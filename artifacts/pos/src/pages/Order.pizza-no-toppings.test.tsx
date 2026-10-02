@@ -16,6 +16,7 @@ import { render, fireEvent, screen, waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import Order, { selectOrderKdsNalogi } from "./Order";
+import type { KdsNalog } from "@/hooks/use-kds";
 
 // ── Vzorčni podatki ──────────────────────────────────────────────────────────
 
@@ -62,6 +63,20 @@ const mockUpdatePostavkaMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
 const mockSetLocation = vi.hoisted(() => vi.fn());
 const mockZacniGlasovni = vi.hoisted(() => vi.fn());
+const mockKdsState = vi.hoisted(() => ({
+  stations: [] as Array<{ id: number; ime: string; tip: string }>,
+  nalogi: [] as KdsNalog[],
+}));
+
+vi.mock("@/hooks/use-kds", () => ({
+  useKdsPostaje: () => ({ data: mockKdsState.stations }),
+  useKdsNalogiVecPostaj: () => [{ data: mockKdsState.nalogi }],
+  useFireKdsCourse: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+// Lunch quoting is a separate flow, outside these order-line regressions.
+vi.mock("@/components/DailyLunchOrderFlow", () => ({
+  DailyLunchOrderFlow: () => null,
+}));
 
 vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({
   ok: true,
@@ -134,6 +149,8 @@ vi.mock("@dnd-kit/utilities", () => ({
 }));
 
 vi.mock("@workspace/api-client-react", () => ({
+  useGetKdsNastavitve: () => ({ data: undefined }),
+  getGetKdsNastavitveQueryKey: () => ["/api/kds/nastavitve"],
   useGetNarocilo: () => ({ data: mockNarocilo, isLoading: false }),
   useListArtikli: () => ({ data: mockArtikli, isLoading: false }),
   getListArtikliQueryKey: () => ["/api/artikli"],
@@ -265,6 +282,28 @@ describe("Order — pica BREZ modifikatorske skupine (modSkupine=[])", () => {
     mockZacniGlasovni.mockReturnValue(true);
     mockArtikli.splice(0, mockArtikli.length, mockPicaBrezDodatkov);
     mockNarocilo.postavke = [];
+    mockKdsState.stations = [];
+    mockKdsState.nalogi = [];
+  });
+
+  it("colors the actual order row by its KDS ticket and updates it when prepared", async () => {
+    mockNarocilo.postavke = [{
+      id: 7, artikelId: 11, ime: "Margherita", kolicina: 1, cenaKos: 8.5,
+      skupaj: 8.5, davek: 9.5, parentPostavkaId: null, racunId: null,
+    }];
+    mockKdsState.stations = [{ id: 1, ime: "Pica", tip: "pizza" }];
+    mockKdsState.nalogi = [{
+      id: 1, enotaId: 1, postajaId: 1, narociloId: NAROCILO_ID, postavkaId: 7,
+      stanje: "aktivno", uporabljenFallback: false,
+      ustvarjeno: new Date(Date.now() - 21 * 60_000).toISOString(),
+    }];
+    const view = render(<Wrapper qc={qc}><Order /></Wrapper>);
+    expect(await screen.findByTestId("order-item-7")).toHaveClass("bg-red-100");
+    expect(screen.getByTestId("order-item-kds-status-7")).toHaveTextContent("Pica: V pripravi");
+    mockKdsState.nalogi = [{ ...mockKdsState.nalogi[0], stanje: "bumped" }];
+    view.rerender(<Wrapper qc={qc}><Order /></Wrapper>);
+    expect(screen.getByTestId("order-item-7")).toHaveClass("bg-emerald-100");
+    expect(screen.getByTestId("order-item-kds-status-7")).toHaveTextContent("Pripravljeno");
   });
 
   // ── 1. Glasovni vnos → direct add, brez dialoga ───────────────────────────

@@ -85,6 +85,7 @@ import { isOrderArticleVisible } from "@/lib/order-article-visibility";
 import { orderAddErrorMessage } from "@/lib/order-add-error";
 import { DostavaStatusPanel } from "@/components/DostavaStatusPanel";
 import { KdsCountdown } from "@/lib/kdsNarocilo";
+import { getOrderItemKdsStatuses } from "@/lib/kdsItemStatus";
 import { getNextKdsCoursesToFire } from "@/lib/kdsCourses";
 import { useFireKdsCourse, useKdsNalogiVecPostaj, useKdsPostaje } from "@/hooks/use-kds";
 import { formatMizaProstor } from "@/lib/formatMizaProstor";
@@ -1124,6 +1125,16 @@ export default function Order() {
     [kdsNalogQueries, activeKdsOrderId, gatewayOrderId, gatewayMode],
   );
   const nextKdsCourses = useMemo(() => getNextKdsCoursesToFire(orderKdsNalogi), [orderKdsNalogi]);
+  const [kdsNow, setKdsNow] = useState(() => Date.now());
+  useEffect(() => {
+    // Update urgency even when the station sends no new events, and recover
+    // missed events while this order (rather than a KDS screen) is open.
+    const timer = window.setInterval(() => {
+      setKdsNow(Date.now());
+      queryClient.invalidateQueries({ queryKey: ["kds", "postaje"] });
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [queryClient]);
   const { data: artikli, isLoading: loadingArtikli } = useListArtikli(undefined, {
     query: {
       queryKey: getListArtikliQueryKey(),
@@ -3149,12 +3160,16 @@ export default function Order() {
                 const jeRacunana = !!postavka.racunId;
                 const jeZacasnaPostavka = isTemporaryPostavkaId(postavka.id);
                 const jePostavkaVObdelavi = jeZacasnaPostavka || pendingPostavke.has(postavka.id);
+                const kdsStatus = getOrderItemKdsStatuses(
+                  postavka.id, orderKdsNalogi, kdsPostaje, kdsNow, postavka.pripravljeno,
+                );
 
                 return (
                   <div
                     key={postavka.id}
                     aria-busy={jeZacasnaPostavka || undefined}
-                    className={`flex flex-col py-1 px-1 transition-colors gap-0.5 ${jeRacunana ? "opacity-50" : "hover:bg-muted/50"}`}
+                    data-testid={`order-item-${postavka.id}`}
+                    className={`flex flex-col rounded-md py-1 px-1 transition-colors gap-0.5 ${kdsStatus.className ? `${kdsStatus.className} text-slate-900` : ""} ${jeRacunana ? "opacity-50" : kdsStatus.className ? "" : "hover:bg-muted/50"}`}
                   >
                     {/* Vrstica 1: številka + ime + gost badge + gumbi */}
                     <div className="flex items-center gap-1">
@@ -3264,6 +3279,16 @@ export default function Order() {
                         </button>
                       )}
                     </div>
+                    {kdsStatus.statuses.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pl-5" data-testid={`order-item-kds-status-${postavka.id}`}>
+                        {kdsStatus.statuses.map(status => (
+                          <span key={status.id} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${status.badgeClassName}`}>
+                            {status.stationName && `${status.stationName}: `}{status.label}
+                            {status.minutes != null && ` · ${status.minutes} min`}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {/* Opomba vrstica */}
                     {postavka.opomba && (
                       <div className="flex items-center gap-1 pl-5 pr-1">

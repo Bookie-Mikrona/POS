@@ -6,6 +6,8 @@ import { CheckCircle2, Clock, UtensilsCrossed, History, ChefHat, MonitorPlay, Al
 import { getActiveKdsTarget, getKdsCountdown, getKdsModifierRows, KdsNarociloGlava, kdsUrgencyClass, sortKdsNarocila } from "@/lib/kdsNarocilo";
 import { useKdsPostaje, useKdsNalogiVecPostaj, useBumpNalog, useAckNalog, useFireKdsCourse, KdsNalog, useNalogZgodovina } from "@/hooks/use-kds";
 import { canAcknowledgeKdsTicket } from "@/lib/kdsDispatch";
+import { getKdsTimerStart, getKdsItemAppearance, kdsItemBg as itemBg, kdsItemBadge as itemBadge } from "@/lib/kdsItemStatus";
+export { getKdsTimerStart } from "@/lib/kdsItemStatus";
 import { getNextKdsCoursesToFire } from "@/lib/kdsCourses";
 import { getBarServingSize, getKdsStationStatusLabel, getPairedFoodName, isBarOnlyStation, sortKdsNalogiForStation } from "@/lib/kdsBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -26,10 +28,6 @@ import {
 // Helper functions (same as legacy)
 function minutesSince(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-}
-
-export function getKdsTimerStart(nalog: KdsNalog): string {
-  return nalog.aktiviranoAt ?? nalog.ustvarjeno;
 }
 
 export function getNewlyActivatedKdsTicketIds(
@@ -63,18 +61,6 @@ function playKdsFireTone(): void {
   } catch {
     // Browsers may block sound until the KDS screen has received a user gesture.
   }
-}
-
-function itemBg(mins: number): string {
-  if (mins >= 20) return "bg-red-100 border-l-2 border-l-red-400";
-  if (mins >= 10) return "bg-orange-50 border-l-2 border-l-orange-400";
-  return "bg-green-50 border-l-2 border-l-green-400";
-}
-
-function itemBadge(mins: number): string {
-  if (mins >= 20) return "bg-red-500 text-white";
-  if (mins >= 10) return "bg-orange-400 text-white";
-  return "bg-green-500 text-white";
 }
 
 function cardBorder(mins: number): string {
@@ -661,13 +647,7 @@ function KdsKitchenView({
                             key={nalog.id}
                              onClick={actionable ? (e) => handleItemClick(nalog, e) : undefined}
                             className={`rounded-md px-2.5 py-2 select-none transition-all relative group ${
-                                held
-                                 ? "border border-slate-300 bg-slate-100 opacity-55"
-                                 : done
-                                ? "bg-emerald-100 border-l-2 border-l-emerald-500 opacity-80"
-                                 : barOnly
-                                   ? "border-2 border-fuchsia-500 bg-fuchsia-50 shadow-md animate-pulse"
-                                : itemBg(mins)
+                                getKdsItemAppearance(nalog, barOnly)?.className ?? ""
                              } ${actionable ? "cursor-pointer active:scale-[0.98]" : "cursor-default"}`}
                           >
                             <div className="flex items-start justify-between gap-2">

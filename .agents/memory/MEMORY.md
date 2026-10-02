@@ -19,8 +19,7 @@
 - [Nabavna vs. prodajna DDV](nabavna-prodajna-ddv.md) — razlika je sistemska in zakonita; nikoli ne primerjaj davek z taxCategory
 - [Purchase rate map spec](purchase-rate-map-spec.md) — spec za ERP prejemnice: DB tabela, validacija, 3 pravila (datum dobave, asimetrično opozorilo, ločena kontrola)
 - [Ljubljana timezone](ljubljana-timezone.md) — UTC+1 zima / UTC+2 poletje; doc datumi shranjeni kot UTC wall-clock, prikaz z timeZone:"UTC"
-- [KDS čas priprave](kds-cas-priprave.md) — kuhinja odšteva do pripravljenosti, čas dostave je vedno le ločena informacija
-- [KDS zasloni po enoti](kds-zasloni-po-enoti.md) — enota določi točilnico, skupno ali ločeno kuhinjo/pico ter izbirno izdajo.
+- [KDS pravila in prikaz](kds-guides.md) — čas priprave, postaje po enoti, varni preklici, stabilnost oken ter enaki statusi na KDS in naročilih.
 - [QR alkohol brez blokade](qr-alkohol-brez-blokade.md) — QR alkohol gre takoj v pripravo; osebje starost in opitost preveri ob postrežbi pri mizi.
 - [Zapiranje POS 109](pos-109-zapiranje.md) — prejemnico je dovoljeno zapreti le iz natančnega POS posnetka v temeljnici in z usklajenim zaklepanjem računa
 - [Bon za pico logika](bon-za-pico-logika.md) — skupaj/ddv je že neto; bon za pico je info vrstica; buildBonPicaAdjustedPostavke za tiskanje; statistike ne odštevajo bonPica
@@ -117,7 +116,6 @@
 - [Začetni spletni normativ](initial-smart-normative.md) — manjkajoče nabavne surovine nastanejo šele ob potrditvi z izbrano DDV kategorijo; spletni URL ne dokazuje vsebine recepta.
 - [QR gostujoči AI](qr-gost-ai.md) — javni nasveti uporabljajo tipizirana živa dejstva; zgodovina je opt-in po napravi, ocena pa šele po zaključenem QR naročilu.
 - [Zasebnost QR ocen](qr-feedback-privacy.md) — vodstveni trendi in izvozi so agregirani; komentarji so ločen zaščiten tok brez povezovalnih ID-jev.
-- [KDS preklic nepredanega paketa](kds-preklic-paketa.md) — preklic ohrani append-only audit; brisanje, materializacija in prehodi uporabljajo isti zaklep naročila.
 - [POS actor PIN brez ERP računa](pos-actor-pin.md) — natakar uporablja ID+PIN na skupni prijavi; manjkajoča actor seja ne sme blokirati vodje pri nastavitvi PIN-a.
 - [POS audit identitete](pos-audit-identitete.md) — Clerk izvajalec in natakar actor sta ločena; legacy integer stolpca ne pretipkaj.
 - [Začetne cene malic](malice-initial-prices.md) — prvo ceno skupine je dovoljeno določiti za nazaj; poznejše spremembe veljajo šele od naslednjega poslovnega dne.
@@ -156,4 +154,3 @@
 - [Vrstni red apply_patch](apply-patch-hunk-order.md) — odseke iste datoteke razvrsti od začetka proti koncu; obratni vrstni red lahko zavrne pravilen kontekst.
 - [Recharts tooltip testiranje](recharts-tooltip-testing.md) — jsdom brez dejanske postavitve lahko ne sproži hover tooltipa; preveri vezavo kategorijske osi in oznake.
 - [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.
-- [Stabilnost KDS pregleda](kds-dialog-stability.md) — osveževanje zaloge v odprtem pregledu ne sme dodajati statusnega besedila, ki premika okvir.
