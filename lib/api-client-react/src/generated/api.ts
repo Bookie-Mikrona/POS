@@ -26,9 +26,14 @@ import type {
   AgedAnalysisResponse,
   AjpesAnnualDraftInput,
   AjpesAnnualExportInput,
+  AjpesAnnualHistory,
   AjpesAnnualReport,
+  AjpesEvidenceUpload,
+  AjpesEvidenceUploadRequest,
   AjpesLookupBody,
   AjpesLookupResponse,
+  AjpesSubmission,
+  AjpesSubmissionRequest,
   AlergenPovzetek,
   AnnualOpeningPreview,
   AnthropicConversation,
@@ -136,6 +141,7 @@ import type {
   FursAttemptPage,
   GetAdminEventTransferDiagnosticsParams,
   GetAgedAnalysisParams,
+  GetAjpesAnnualHistoryParams,
   GetArtikelVNormativi200Item,
   GetArtikliKatalogPdf400,
   GetArtikliKatalogPdf500,
@@ -709,6 +715,392 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getSaveAjpesAnnualReportMutationOptions(options));
     }
+
+export const getGetAjpesAnnualHistoryUrl = (companyId: string,
+    year: number,
+    params?: GetAjpesAnnualHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/reports/ajpes/${year}/history?${stringifiedParams}` : `/api/companies/${companyId}/reports/ajpes/${year}/history`
+}
+
+export const getAjpesAnnualHistory = async (companyId: string,
+    year: number,
+    params?: GetAjpesAnnualHistoryParams, options?: RequestInit): Promise<AjpesAnnualHistory> => {
+
+  return customFetch<AjpesAnnualHistory>(getGetAjpesAnnualHistoryUrl(companyId,year,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAjpesAnnualHistoryQueryKey = (companyId: string,
+    year: number,
+    params?: GetAjpesAnnualHistoryParams,) => {
+    return [
+    `/api/companies/${companyId}/reports/ajpes/${year}/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAjpesAnnualHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getAjpesAnnualHistory>>, TError = ErrorType<unknown>>(companyId: string,
+    year: number,
+    params?: GetAjpesAnnualHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAjpesAnnualHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAjpesAnnualHistoryQueryKey(companyId,year,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAjpesAnnualHistory>>> = ({ signal }) => getAjpesAnnualHistory(companyId,year,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && year !== null && year !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAjpesAnnualHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAjpesAnnualHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getAjpesAnnualHistory>>>
+export type GetAjpesAnnualHistoryQueryError = ErrorType<unknown>
+
+
+
+export function useGetAjpesAnnualHistory<TData = Awaited<ReturnType<typeof getAjpesAnnualHistory>>, TError = ErrorType<unknown>>(
+ companyId: string,
+    year: number,
+    params?: GetAjpesAnnualHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAjpesAnnualHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAjpesAnnualHistoryQueryOptions(companyId,year,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadAjpesAnnualArchiveUrl = (companyId: string,
+    year: number,
+    exportId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/reports/ajpes/${year}/history/exports/${exportId}/download`
+}
+
+export const downloadAjpesAnnualArchive = async (companyId: string,
+    year: number,
+    exportId: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadAjpesAnnualArchiveUrl(companyId,year,exportId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadAjpesAnnualArchiveQueryKey = (companyId: string,
+    year: number,
+    exportId: string,) => {
+    return [
+    `/api/companies/${companyId}/reports/ajpes/${year}/history/exports/${exportId}/download`
+    ] as const;
+    }
+
+
+export const getDownloadAjpesAnnualArchiveQueryOptions = <TData = Awaited<ReturnType<typeof downloadAjpesAnnualArchive>>, TError = ErrorType<unknown>>(companyId: string,
+    year: number,
+    exportId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAjpesAnnualArchive>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadAjpesAnnualArchiveQueryKey(companyId,year,exportId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadAjpesAnnualArchive>>> = ({ signal }) => downloadAjpesAnnualArchive(companyId,year,exportId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && year !== null && year !== undefined && exportId !== null && exportId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadAjpesAnnualArchive>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadAjpesAnnualArchiveQueryResult = NonNullable<Awaited<ReturnType<typeof downloadAjpesAnnualArchive>>>
+export type DownloadAjpesAnnualArchiveQueryError = ErrorType<unknown>
+
+
+
+export function useDownloadAjpesAnnualArchive<TData = Awaited<ReturnType<typeof downloadAjpesAnnualArchive>>, TError = ErrorType<unknown>>(
+ companyId: string,
+    year: number,
+    exportId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAjpesAnnualArchive>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadAjpesAnnualArchiveQueryOptions(companyId,year,exportId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRequestAjpesEvidenceUploadUrl = (companyId: string,
+    year: number,) => {
+
+
+
+
+  return `/api/companies/${companyId}/reports/ajpes/${year}/history/uploads`
+}
+
+export const requestAjpesEvidenceUpload = async (companyId: string,
+    year: number,
+    ajpesEvidenceUploadRequest: AjpesEvidenceUploadRequest, options?: RequestInit): Promise<AjpesEvidenceUpload> => {
+
+  return customFetch<AjpesEvidenceUpload>(getRequestAjpesEvidenceUploadUrl(companyId,year),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ajpesEvidenceUploadRequest)
+  }
+);}
+
+
+
+
+
+export const getRequestAjpesEvidenceUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAjpesEvidenceUpload>>, TError,{companyId: string;year: number;data: BodyType<AjpesEvidenceUploadRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestAjpesEvidenceUpload>>, TError,{companyId: string;year: number;data: BodyType<AjpesEvidenceUploadRequest>}, TContext> => {
+
+const mutationKey = ['requestAjpesEvidenceUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestAjpesEvidenceUpload>>, {companyId: string;year: number;data: BodyType<AjpesEvidenceUploadRequest>}> = (props) => {
+          const {companyId,year,data} = props ?? {};
+
+          return  requestAjpesEvidenceUpload(companyId,year,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestAjpesEvidenceUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestAjpesEvidenceUpload>>>
+    export type RequestAjpesEvidenceUploadMutationBody = BodyType<AjpesEvidenceUploadRequest>
+    export type RequestAjpesEvidenceUploadMutationError = ErrorType<unknown>
+
+    export const useRequestAjpesEvidenceUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAjpesEvidenceUpload>>, TError,{companyId: string;year: number;data: BodyType<AjpesEvidenceUploadRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestAjpesEvidenceUpload>>,
+        TError,
+        {companyId: string;year: number;data: BodyType<AjpesEvidenceUploadRequest>},
+        TContext
+      > => {
+      return useMutation(getRequestAjpesEvidenceUploadMutationOptions(options));
+    }
+
+export const getRecordAjpesSubmissionUrl = (companyId: string,
+    year: number,) => {
+
+
+
+
+  return `/api/companies/${companyId}/reports/ajpes/${year}/history/submissions`
+}
+
+export const recordAjpesSubmission = async (companyId: string,
+    year: number,
+    ajpesSubmissionRequest: AjpesSubmissionRequest, options?: RequestInit): Promise<AjpesSubmission> => {
+
+  return customFetch<AjpesSubmission>(getRecordAjpesSubmissionUrl(companyId,year),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ajpesSubmissionRequest)
+  }
+);}
+
+
+
+
+
+export const getRecordAjpesSubmissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordAjpesSubmission>>, TError,{companyId: string;year: number;data: BodyType<AjpesSubmissionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordAjpesSubmission>>, TError,{companyId: string;year: number;data: BodyType<AjpesSubmissionRequest>}, TContext> => {
+
+const mutationKey = ['recordAjpesSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordAjpesSubmission>>, {companyId: string;year: number;data: BodyType<AjpesSubmissionRequest>}> = (props) => {
+          const {companyId,year,data} = props ?? {};
+
+          return  recordAjpesSubmission(companyId,year,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordAjpesSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof recordAjpesSubmission>>>
+    export type RecordAjpesSubmissionMutationBody = BodyType<AjpesSubmissionRequest>
+    export type RecordAjpesSubmissionMutationError = ErrorType<unknown>
+
+    export const useRecordAjpesSubmission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordAjpesSubmission>>, TError,{companyId: string;year: number;data: BodyType<AjpesSubmissionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordAjpesSubmission>>,
+        TError,
+        {companyId: string;year: number;data: BodyType<AjpesSubmissionRequest>},
+        TContext
+      > => {
+      return useMutation(getRecordAjpesSubmissionMutationOptions(options));
+    }
+
+export const getDownloadAjpesSubmissionEvidenceUrl = (companyId: string,
+    year: number,
+    submissionId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/reports/ajpes/${year}/history/submissions/${submissionId}/download`
+}
+
+export const downloadAjpesSubmissionEvidence = async (companyId: string,
+    year: number,
+    submissionId: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadAjpesSubmissionEvidenceUrl(companyId,year,submissionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadAjpesSubmissionEvidenceQueryKey = (companyId: string,
+    year: number,
+    submissionId: string,) => {
+    return [
+    `/api/companies/${companyId}/reports/ajpes/${year}/history/submissions/${submissionId}/download`
+    ] as const;
+    }
+
+
+export const getDownloadAjpesSubmissionEvidenceQueryOptions = <TData = Awaited<ReturnType<typeof downloadAjpesSubmissionEvidence>>, TError = ErrorType<unknown>>(companyId: string,
+    year: number,
+    submissionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAjpesSubmissionEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadAjpesSubmissionEvidenceQueryKey(companyId,year,submissionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadAjpesSubmissionEvidence>>> = ({ signal }) => downloadAjpesSubmissionEvidence(companyId,year,submissionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && year !== null && year !== undefined && submissionId !== null && submissionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadAjpesSubmissionEvidence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadAjpesSubmissionEvidenceQueryResult = NonNullable<Awaited<ReturnType<typeof downloadAjpesSubmissionEvidence>>>
+export type DownloadAjpesSubmissionEvidenceQueryError = ErrorType<unknown>
+
+
+
+export function useDownloadAjpesSubmissionEvidence<TData = Awaited<ReturnType<typeof downloadAjpesSubmissionEvidence>>, TError = ErrorType<unknown>>(
+ companyId: string,
+    year: number,
+    submissionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAjpesSubmissionEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadAjpesSubmissionEvidenceQueryOptions(companyId,year,submissionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getExportAjpesAnnualReportUrl = (companyId: string,
     year: number,) => {

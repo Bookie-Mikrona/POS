@@ -19,6 +19,7 @@ import { Statement, Explanation } from "./ajpes-annual-report-preview";
 import { cleanSettings, defaultAjpesYear, emptyAjpesSettings, errMsg, invalidInputs } from "./ajpes-annual-report-model";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AjpesAnnualHistoryTab, historyPrefix } from "./ajpes-annual-history-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -169,6 +170,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
       if (m) { try { name = decodeURIComponent(m[1]); } catch { name = m[1]; } }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+      await qc.invalidateQueries({ queryKey: [historyPrefix(companyId, year)] });
       setMsg({ kind: "ok", text: `Preneseno: ${name}` });
     } catch (e) { setMsg({ kind: "err", text: errMsg(e) }); } finally { setBusy(null); }
   }
@@ -232,7 +234,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
       </div>
       {msg && <p role="status" className={`text-sm ${msg.kind === "err" ? "text-destructive" : "text-emerald-700 dark:text-emerald-400"}`}>{msg.text}</p>}
 
-      <Tabs defaultValue="prep" className="space-y-4">
+      <Tabs defaultValue="prep" className="min-w-0 max-w-full space-y-4">
         <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="prep">Priprava</TabsTrigger>
           <TabsTrigger value="profile">Profil</TabsTrigger>
@@ -240,6 +242,7 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
           <TabsTrigger value="manual">Ročni vnos AOP</TabsTrigger>
           <TabsTrigger value="preview">Predogled</TabsTrigger>
           <TabsTrigger value="export">Izvoz</TabsTrigger>
+          <TabsTrigger value="history">Izvozi in dokazila</TabsTrigger>
         </TabsList>
 
         <TabsContent value="prep" className="mt-0 space-y-6">
@@ -263,6 +266,10 @@ function AnnualInner({ companyId, year, yearValid, viewer }: { companyId: string
           <Statement title="Izkaz poslovnega izida" rows={report.incomeStatement} year={year} />
           <Explanation report={report} />
           <PublicationPreview report={report} />
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-0 min-w-0 max-w-full">
+          <AjpesAnnualHistoryTab companyId={companyId} year={year} viewer={viewer} dirty={dirty} />
         </TabsContent>
 
         <TabsContent value="export" className="mt-0 space-y-3">

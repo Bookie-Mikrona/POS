@@ -5,6 +5,17 @@ import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({ userId: "ajpes-report-owner-test" }));
+const archivedObjects = vi.hoisted(() => new Map<string, Buffer>());
+vi.mock("../lib/objectStorage", () => ({
+  ObjectNotFoundError: class extends Error {},
+  ObjectStorageService: class {
+    async saveObjectEntityToNewPath(dir: string, bytes: Buffer) {
+      const p = `/objects/${dir}/${crypto.randomUUID()}`;
+      archivedObjects.set(p, Buffer.from(bytes));
+      return p;
+    }
+  },
+}));
 
 vi.mock("../middlewares/requireAuth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {

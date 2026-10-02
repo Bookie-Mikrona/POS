@@ -15,8 +15,11 @@ import { loadAjpesAnnualReport, loadAjpesSource, AjpesReportError } from "../lib
 import { generateJolpPdf, generateJolpXlsx } from "../lib/ajpes/jolp-renderers";
 import { generateAjpesXml } from "../lib/ajpes/xml";
 import { generateAjpesPublicationPdf } from "../lib/ajpes/publication-pdf";
+import { archiveAnnualExport } from "../lib/ajpes/annual-history-storage";
+import historyRouter from "./ajpesAnnualHistory";
 
 const router: IRouter = Router();
+router.use(historyRouter);
 const base = "/companies/:companyId/reports/ajpes/:year";
 
 function renderInput(report: AjpesAnnualReport) {
@@ -269,11 +272,16 @@ router.post(`${base}/export`, requireAuth, async (req, res): Promise<void> => {
       });
       bytes = Buffer.from(xml, "utf8"); mime = "application/xml; charset=utf-8";
     }
+    const filename = `ajpes-${scope.year}${format === "xml" ? "" : format === "publication-pdf" ? "-publication" : "-numeric-preview"}.${format === "publication-pdf" ? "pdf" : format}`;
+    const archived = await archiveAnnualExport({
+      companyId: scope.companyId, actor: scope.actor, report, bytes, format, mime, filename,
+    });
+    res.setHeader("X-AJPES-Export-Id", archived.id);
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", mime);
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="ajpes-${scope.year}${format === "xml" ? "" : format === "publication-pdf" ? "-publication" : "-numeric-preview"}.${format === "publication-pdf" ? "pdf" : format}"`,
+      `attachment; filename="${filename}"`,
     );
     if (format === "publication-pdf") {
       res.setHeader(

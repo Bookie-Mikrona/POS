@@ -621,6 +621,138 @@ export const SaveAjpesAnnualReportResponse = zod.object({
 })
 
 
+export const GetAjpesAnnualHistoryParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "year": zod.coerce.number()
+})
+
+export const getAjpesAnnualHistoryQueryOffsetDefault = 0;
+export const getAjpesAnnualHistoryQueryOffsetMin = 0;
+export const getAjpesAnnualHistoryQueryOffsetMax = 100000;
+
+
+
+export const GetAjpesAnnualHistoryQueryParams = zod.object({
+  "offset": zod.coerce.number().min(getAjpesAnnualHistoryQueryOffsetMin).max(getAjpesAnnualHistoryQueryOffsetMax).default(getAjpesAnnualHistoryQueryOffsetDefault)
+})
+
+export const GetAjpesAnnualHistoryResponse = zod.object({
+  "exports": zod.array(zod.object({
+  "id": zod.string(),
+  "format": zod.enum(['pdf', 'xlsx', 'xml', 'publication-pdf']),
+  "purpose": zod.enum(['review', 'statistics', 'publication', 'combined']),
+  "revision": zod.number(),
+  "fingerprint": zod.string(),
+  "rulesVersion": zod.string(),
+  "publicationReviewed": zod.boolean(),
+  "sha256": zod.string(),
+  "byteSize": zod.number(),
+  "filename": zod.string(),
+  "mime": zod.string(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string()
+})),
+  "submissions": zod.array(zod.object({
+  "id": zod.string(),
+  "exportId": zod.string(),
+  "outcome": zod.enum(['submitted', 'accepted', 'rejected']),
+  "submittedOn": zod.string(),
+  "reference": zod.string(),
+  "note": zod.string(),
+  "filename": zod.string(),
+  "mime": zod.string(),
+  "byteSize": zod.number(),
+  "sha256": zod.string(),
+  "recordedBy": zod.string(),
+  "recordedAt": zod.string(),
+  "supersedesId": zod.string().nullable()
+})),
+  "currentFingerprint": zod.string(),
+  "nextOffset": zod.number().nullable()
+})
+
+
+export const DownloadAjpesAnnualArchiveParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "year": zod.coerce.number(),
+  "exportId": zod.coerce.string()
+})
+
+export const DownloadAjpesAnnualArchiveResponse = zod.unknown()
+
+
+export const RequestAjpesEvidenceUploadParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "year": zod.coerce.number()
+})
+
+export const requestAjpesEvidenceUploadBodyFilenameMax = 180;
+
+export const requestAjpesEvidenceUploadBodyByteSizeMax = 10485760;
+
+
+
+export const RequestAjpesEvidenceUploadBody = zod.object({
+  "exportId": zod.string(),
+  "filename": zod.string().min(1).max(requestAjpesEvidenceUploadBodyFilenameMax),
+  "mime": zod.enum(['application/pdf', 'image/png', 'image/jpeg']),
+  "byteSize": zod.number().min(1).max(requestAjpesEvidenceUploadBodyByteSizeMax)
+})
+
+export const RequestAjpesEvidenceUploadResponse = zod.object({
+  "id": zod.string(),
+  "uploadURL": zod.string()
+})
+
+
+export const RecordAjpesSubmissionParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "year": zod.coerce.number()
+})
+
+export const recordAjpesSubmissionBodySubmittedOnRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const recordAjpesSubmissionBodyReferenceMax = 250;
+
+export const recordAjpesSubmissionBodyNoteMax = 4000;
+
+
+
+export const RecordAjpesSubmissionBody = zod.object({
+  "uploadId": zod.string(),
+  "outcome": zod.enum(['submitted', 'accepted', 'rejected']),
+  "submittedOn": zod.string().regex(recordAjpesSubmissionBodySubmittedOnRegExp),
+  "reference": zod.string().min(1).max(recordAjpesSubmissionBodyReferenceMax),
+  "note": zod.string().max(recordAjpesSubmissionBodyNoteMax),
+  "attested": zod.boolean(),
+  "supersedesId": zod.string().nullish()
+})
+
+export const RecordAjpesSubmissionResponse = zod.object({
+  "id": zod.string(),
+  "exportId": zod.string(),
+  "outcome": zod.enum(['submitted', 'accepted', 'rejected']),
+  "submittedOn": zod.string(),
+  "reference": zod.string(),
+  "note": zod.string(),
+  "filename": zod.string(),
+  "mime": zod.string(),
+  "byteSize": zod.number(),
+  "sha256": zod.string(),
+  "recordedBy": zod.string(),
+  "recordedAt": zod.string(),
+  "supersedesId": zod.string().nullable()
+})
+
+
+export const DownloadAjpesSubmissionEvidenceParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "year": zod.coerce.number(),
+  "submissionId": zod.coerce.string()
+})
+
+export const DownloadAjpesSubmissionEvidenceResponse = zod.unknown()
+
+
 export const exportAjpesAnnualReportPathYearMin = 2000;
 export const exportAjpesAnnualReportPathYearMax = 2100;
 

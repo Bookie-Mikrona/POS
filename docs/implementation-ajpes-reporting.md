@@ -2,7 +2,7 @@
 
 Datum: 2. 10. 2026  
 Produkt: Bookie ERP  
-Status: letni profili in besedilni paket za običajne samostojne nerevidirane družbe so implementirani; dokazila predložitve in posebni paketi ostajajo načrt. Brez neposredne oddaje AJPES.
+Status: letni profili, besedilni paket za običajne samostojne nerevidirane družbe ter arhiv izvozov in ročno vnesena dokazila so implementirani. Posebni paketi in preverjanje novih letnikov ostajajo načrt. Brez neposredne oddaje AJPES.
 
 ## 1. Cilj
 
@@ -19,7 +19,7 @@ Prva izvedba je namenjena običajnim mikro in majhnim gospodarskim družbam. Dru
 
 Obstajajo izračuni bilance stanja in izkaza poslovnega izida, katalog AOP, podatki bilančnega dobička/izgube, podatki o poslovanju s tujino ter PDF/XLSX povzetka JOLP.
 
-Uradni XML je trenutno preverjen za poslovno leto 2025. Pojasnila, mikro razkritja, predlog in sprejeti sklep ter besedilo izjave so povezani z letnim osnutkom. Dokazila dejanske predložitve še niso vključena.
+Uradni XML je trenutno preverjen za poslovno leto 2025. Pojasnila, mikro razkritja, predlog in sprejeti sklep ter besedilo izjave so povezani z letnim osnutkom. Izvozi imajo zasebni arhiv izvirnih datotek; dokazila se ročno povežejo z določenim izvozom.
 
 Obstoječe pravilne izračune in predloge se nadgradi, ne zamenja z vzporednim sistemom.
 
@@ -131,6 +131,18 @@ Podatki za statistiko in dokument za javno objavo imajo jasno označen namen. Č
 
 Prenos datoteke ni predložitev; predložitev ni potrjena uspešna oddaja brez dokazila. Neposredna povezava z AJPES je možnost poznejše faze, ne predpostavka osnutka.
 
+### Izvedena evidenca izvozov in dokazil
+
+Zavihek **Izvozi in dokazila** hrani izvirno datoteko vsakega novega uspešnega izvoza. Datoteka je pred odgovorom shranjena v zasebno App Storage, PostgreSQL pa hrani podjetje, leto, namen, revizijo, verzije/katalog pravil, čas in izvajalca, vsebinski odtis, SHA-256 datoteke ter posnetek poročila. Če arhiviranje ne uspe, izvoz ne dobi uspešnega odgovora. Pretekli izvozi pred uvedbo arhiva se ne izmišljajo oziroma ne rekonstruirajo.
+
+Ponovni prenos iz arhiva vrne izvirne bajte, ne novega izračuna iz trenutne glavne knjige. Preverita se velikost in SHA-256. Ujemanje vsebinskega odtisa označi trenutni shranjeni posnetek; starejši izvozi in dokazila ostanejo razvidni. Številčni PDF/XLSX imata namen **Pregled**, zato ju ni mogoče označiti kot dokazano oddajo. Uradni XML ima statistični namen oziroma vključuje pripravljena besedila za upravičeno poenostavitev; PDF z besedili ima javnoobjavni namen. To ne dokazuje dejanskega obsega ali uspeha oddaje.
+
+Računovodja oziroma lastnik izbere konkreten izvoz, dejanski datum predložitve, ročno navedeni izid (oddano/sprejeto/zavrnjeno), sklic in dokazilo PDF, PNG ali JPEG do 10 MiB. Povezavo in izid mora izrecno potrditi; pri zavrnitvi je obvezen razlog. Preverjajo se dejanski podpis formata, velikost in veljaven datum, ne pa pristnost potrdila ali digitalnega podpisa pri AJPES.
+
+Nalaganje poteka neposredno na rezervirano zasebno mesto. Ob potrditvi se ustvari ločena arhivska kopija; še veljavna povezava za nalaganje zato ne more spremeniti že evidentiranega dokazila. Nespremenjen ponovni poskus iste potrditve vrne isti zapis. Popravek je nov zapis z lastnim dokazilom in povezavo na zadnji vpis istega izvoza; izvorni vpis ostane v zgodovini. Dokazilo ne spremeni letnega osnutka, njegove revizije ali potrditve pregleda.
+
+Gledalec lahko pregleduje in prenaša, ne more pa dodajati dokazil. Vse poti so omejene na podjetje in leto, datoteke pa se prenašajo prek preverjenega dostopa kot priponke. Evidenca uporablja strani po 50 izvozov. Izid je vedno označen kot ročno evidentiran, ne kot samodejno preverjen pri AJPES.
+
 ## 9. Kontrole in varovala
 
 - Računske povezave AOP in ujemanje bilance.
@@ -151,7 +163,7 @@ Faza A: letni profili, aktualni katalog, dopolnitev obstoječih številčnih por
 
 Faza B: implementirana pojasnila/mikro razkritja, predlog in dejanski sklep, besedilo izjave in dokument za prvi podprti samostojni nerevidirani profil. Datotečne priloge in posebni paketi niso nadomeščeni z ustvarjenimi besedili.
 
-Faza C: izvozi, dokazila predložitve in preverjanje aktualnega letnika.
+Faza C: implementirana arhiviranje izvozov in ročno evidentiranje dokazil predložitve. Preverjanje in podpora novih uradnih letnikov ostajata ločen nadaljnji sklop; preverjeni XML je še vedno samo 2025.
 
 Faza D: ločeni pogojni obrazci in večji oziroma konsolidirani paketi glede na ciljne uporabnike.
 

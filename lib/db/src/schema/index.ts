@@ -3,6 +3,8 @@ export * from "./company-modules";
 export * from "./company-pos-plans";
 export * from "./companies";
 export * from "./annual-reports";
+export * from "./annual-report-exports";
+export * from "./annual-report-submissions";
 export * from "./accounting-roles";
 export * from "./accounts";
 export * from "./accounting-periods";

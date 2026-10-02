@@ -320,6 +320,128 @@ export interface AjpesJournalChoice {
   description: string;
 }
 
+export type AjpesAnnualExportFormat = typeof AjpesAnnualExportFormat[keyof typeof AjpesAnnualExportFormat];
+
+
+export const AjpesAnnualExportFormat = {
+  pdf: 'pdf',
+  xlsx: 'xlsx',
+  xml: 'xml',
+  'publication-pdf': 'publication-pdf',
+} as const;
+
+export type AjpesAnnualExportPurpose = typeof AjpesAnnualExportPurpose[keyof typeof AjpesAnnualExportPurpose];
+
+
+export const AjpesAnnualExportPurpose = {
+  review: 'review',
+  statistics: 'statistics',
+  publication: 'publication',
+  combined: 'combined',
+} as const;
+
+export interface AjpesAnnualExport {
+  id: string;
+  format: AjpesAnnualExportFormat;
+  purpose: AjpesAnnualExportPurpose;
+  revision: number;
+  fingerprint: string;
+  rulesVersion: string;
+  publicationReviewed: boolean;
+  sha256: string;
+  byteSize: number;
+  filename: string;
+  mime: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export type AjpesSubmissionOutcome = typeof AjpesSubmissionOutcome[keyof typeof AjpesSubmissionOutcome];
+
+
+export const AjpesSubmissionOutcome = {
+  submitted: 'submitted',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface AjpesSubmission {
+  id: string;
+  exportId: string;
+  outcome: AjpesSubmissionOutcome;
+  submittedOn: string;
+  reference: string;
+  note: string;
+  filename: string;
+  mime: string;
+  byteSize: number;
+  sha256: string;
+  recordedBy: string;
+  recordedAt: string;
+  supersedesId: string | null;
+}
+
+export interface AjpesAnnualHistory {
+  exports: AjpesAnnualExport[];
+  submissions: AjpesSubmission[];
+  currentFingerprint: string;
+  nextOffset: number | null;
+}
+
+export type AjpesEvidenceUploadRequestMime = typeof AjpesEvidenceUploadRequestMime[keyof typeof AjpesEvidenceUploadRequestMime];
+
+
+export const AjpesEvidenceUploadRequestMime = {
+  'application/pdf': 'application/pdf',
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export interface AjpesEvidenceUploadRequest {
+  exportId: string;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  filename: string;
+  mime: AjpesEvidenceUploadRequestMime;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  byteSize: number;
+}
+
+export interface AjpesEvidenceUpload {
+  id: string;
+  uploadURL: string;
+}
+
+export type AjpesSubmissionRequestOutcome = typeof AjpesSubmissionRequestOutcome[keyof typeof AjpesSubmissionRequestOutcome];
+
+
+export const AjpesSubmissionRequestOutcome = {
+  submitted: 'submitted',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface AjpesSubmissionRequest {
+  uploadId: string;
+  outcome: AjpesSubmissionRequestOutcome;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  submittedOn: string;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  reference: string;
+  /** @maxLength 4000 */
+  note: string;
+  attested: boolean;
+  supersedesId?: string | null;
+}
+
 export interface AjpesAnnualReport {
   year: number;
   company: AjpesAnnualCompany;
@@ -12664,6 +12786,14 @@ export type ConflictResponse = ErrorResponse;
  * Not found
  */
 export type NotFoundResponse = ErrorResponse;
+
+export type GetAjpesAnnualHistoryParams = {
+/**
+ * @minimum 0
+ * @maximum 100000
+ */
+offset?: number;
+};
 
 export type ConfirmCreditNotePackagingBody = {
   operationKey: string;

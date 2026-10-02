@@ -32,3 +32,9 @@ Priprava pojasnil in predaja javnega poročila sta ločeni od statistične predl
 **Why:** Gre za različna namena in različna dokazila. Poenostavljena skupna predložitev ni dovoljenje, da osnutek sklepa ali klik računovodje predstavljamo kot podpis ali dejansko oddajo.
 
 **How to apply:** Pri razširitvah javnega paketa ohrani ločeno potrditev njegove vsebine in preveri manjkajoče dejanske priloge za posebne profile. Ne ustvarjaj elektronskega podpisa, sprejetja sklepa ali potrdila oddaje zgolj iz prisotnosti besedila.
+
+Dokazilo oddaje velja za konkretni izvoz in njegov namen, ne za poljubno trenutno različico poročila istega podjetja in leta. Izid, vnesen po dokazilu, je ročna navedba odgovorne osebe, ne potrditev storitve AJPES.
+
+**Why:** Isti letnik ima lahko več popravljenih izvozov, statistični in javnoobjavni namen pa nista zamenljiva. Stara sprejeta oddaja zato ne dokazuje predložitve novega posnetka.
+
+**How to apply:** Pri nadaljnjih statusih in povzetkih vedno pokaži različico in namen; starejšega dokazila ne prenesi samodejno na novo vsebino. Ohraniti je treba prvotno dokazilo in izvirne bajte izvoza, ne zgolj naknadno regeneriranega dokumenta.
