@@ -981,14 +981,8 @@ function RealtimeSync() {
   return null;
 }
 
-function ProtectedRouter() {
+export function PosPageRoutes() {
   return (
-    <NastavitveProvider>
-      <RealtimeSync />
-      <NapravaProvider>
-      <AutoStartProvider>
-      <ZamenjajGesloOverlay />
-      <Layout>
         <Suspense fallback={<NalagamStran />}>
           <Switch>
           <Route path="/" component={HomeGuard} />
@@ -1037,6 +1031,18 @@ function ProtectedRouter() {
           <Route component={NotFound} />
           </Switch>
         </Suspense>
+  );
+}
+
+function ProtectedRouter() {
+  return (
+    <NastavitveProvider>
+      <RealtimeSync />
+      <NapravaProvider>
+      <AutoStartProvider>
+      <ZamenjajGesloOverlay />
+      <Layout>
+        <PosPageRoutes />
       </Layout>
       </AutoStartProvider>
       </NapravaProvider>
@@ -1206,7 +1212,7 @@ export function PosAuthProblem({
   );
 }
 
-function AuthGate() {
+export function AuthGate() {
   const { user, loading, authStatus, logout } = useAuth();
   const [location, setLocation] = useLocation();
 
