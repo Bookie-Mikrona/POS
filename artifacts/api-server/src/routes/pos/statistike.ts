@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, asc, count, desc, eq, gte, isNotNull, lt, lte, ne, sql, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, lt, lte, ne, sql, sum } from "drizzle-orm";
 import { artikliTable, blagajneTable, companiesTable, darilniBonGibiTable, db, dailyLunchSaleSnapshotsTable, enoteTable, kategorijeTable, mizeTable, narocilaTable, nastavitveTable, posCashReconciliationsTable, posUporabnikiTable, postavkeTable, prostoriTable, racuniTable, zPorocilaTable } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
 import { getBusinessDayBounds, getCurrentPosBusinessDate } from "../../lib/pos-business-day";
@@ -1699,7 +1699,7 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     const fvResult = await db.execute(sql`
       SELECT COALESCE(SUM(skupaj::numeric), 0) AS face
       FROM postavke
-      WHERE racun_id = ANY(${sql.raw(`ARRAY[${idList.join(",")}]::int[]`)})
+      WHERE ${inArray(postavkeTable.racunId, idList)}
     `);
     const fv = fvResult.rows[0] as { face: string } | undefined;
     return Number(fv?.face ?? 0);
@@ -2175,7 +2175,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     const fvRows = await db.execute(sql`
       SELECT racun_id, SUM(skupaj::numeric) AS face_value
       FROM postavke
-      WHERE racun_id = ANY(${sql.raw(`ARRAY[${specialIds.join(",")}]::int[]`)})
+      WHERE ${inArray(postavkeTable.racunId, specialIds)}
       GROUP BY racun_id
     `);
     for (const row of fvRows.rows as { racun_id: number; face_value: string }[]) {
@@ -2261,7 +2261,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
         SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100.0))                    AS osnova,
         SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric))     AS ddv
       FROM postavke p
-      WHERE p.racun_id = ANY(${sql.raw(`ARRAY[${racunIds.join(",")}]::int[]`)})
+      WHERE ${inArray(sql`p.racun_id`, racunIds)}
       GROUP BY p.racun_id, p.davek, COALESCE(p.vrsta_artikla, 'storitev')
       ORDER BY p.racun_id, p.davek, vrsta DESC
     `);
@@ -2288,7 +2288,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
         SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100.0))                   AS osnova,
         SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric))    AS ddv
       FROM postavke p
-      WHERE p.racun_id = ANY(${sql.raw(`ARRAY[${aktivniRacunIds.join(",")}]::int[]`)})
+      WHERE ${inArray(sql`p.racun_id`, aktivniRacunIds)}
       GROUP BY p.davek, COALESCE(p.vrsta_artikla, 'storitev')
       ORDER BY p.davek, vrsta DESC
     `);
@@ -2315,7 +2315,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
         FROM postavke p
         JOIN artikli a ON a.id = p.artikel_id
         JOIN racuni r ON r.id = p.racun_id
-        WHERE p.racun_id = ANY(${sql.raw(`ARRAY[${aktivniRacunIds.join(",")}]::int[]`)})
+        WHERE ${inArray(sql`p.racun_id`, aktivniRacunIds)}
         GROUP BY p.ime, a.enota_mere, p.davek, COALESCE(p.vrsta_artikla, 'storitev')
         ORDER BY p.ime, p.davek, vrsta DESC
       `)
