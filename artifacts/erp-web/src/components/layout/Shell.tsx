@@ -80,6 +80,8 @@ const MODULES: { name: string; path: string; icon: React.ElementType; requires: 
   { name: "Plačila", path: "/placila", icon: CreditCard, requires: "erp" },
   { name: "Uvoz izpiskov", path: "/bancni-izpis", icon: Banknote, requires: "erp" },
   { name: "Saldakonti", path: "/saldakonti", icon: BarChart3, requires: "erp" },
+  { name: "Kartica partnerja", path: "/kartica-partnerja", icon: BookMarked, requires: "erp" },
+  { name: "Promet partnerjev", path: "/promet-partnerjev", icon: BarChart3, requires: "erp" },
   { name: "DDV evidence", path: "/ddv", icon: Receipt, requires: "erp" },
   { name: "Dimenzije", path: "/dimenzije", icon: Layers, requires: "erp" },
   { name: "Poročila", path: "/porocila", icon: BarChart3, requires: "erp" },
@@ -321,7 +323,7 @@ function moduleFromPath(path: string): ActiveModuleView | null {
   const glkPaths = [
     "/dashboard", "/obdobja", "/temeljnice", "/glavna-knjiga",
     "/racuni", "/prejemnice", "/dokumenti", "/placila",
-    "/bancni-izpis", "/saldakonti", "/ddv", "/dimenzije", "/porocila",
+    "/bancni-izpis", "/saldakonti", "/kartica-partnerja", "/promet-partnerjev", "/ddv", "/dimenzije", "/porocila",
   ];
   if (glkPaths.some((p) => path === p || path.startsWith(p + "/"))) return "glk";
 

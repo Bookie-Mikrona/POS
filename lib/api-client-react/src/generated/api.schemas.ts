@@ -9796,6 +9796,266 @@ export interface ListPaymentsResponse {
   payments: PaymentRecord[];
 }
 
+export interface PaymentBatchInstruction {
+  paymentId: string;
+  amount: string;
+  executionDate: string;
+  creditorName: string;
+  creditorIban: string;
+  /** @nullable */
+  creditorBic?: string | null;
+  /** @nullable */
+  purpose?: string | null;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  model?: string | null;
+}
+
+export type PaymentBatchRecordStatus = typeof PaymentBatchRecordStatus[keyof typeof PaymentBatchRecordStatus];
+
+
+export const PaymentBatchRecordStatus = {
+  ready: 'ready',
+  exported: 'exported',
+  partially_executed: 'partially_executed',
+  executed: 'executed',
+  rejected: 'rejected',
+  cancelled: 'cancelled',
+} as const;
+
+export interface PaymentBatchRecord {
+  id: string;
+  bankAccountId: string;
+  executionDate: string;
+  status: PaymentBatchRecordStatus;
+  transactionCount: string;
+  controlSum: string;
+  /** @nullable */
+  exportedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ListPaymentBatchesResponse {
+  batches: PaymentBatchRecord[];
+}
+
+export interface PaymentBatchProposedAllocation {
+  invoiceId: string;
+  /** @exclusiveMinimum 0 */
+  amount: number;
+}
+
+export type CreatePaymentBatchBodyProposedPaymentsItem = {
+  counterpartyId: string;
+  arApAccountId: string;
+  /** @minItems 1 */
+  allocations: PaymentBatchProposedAllocation[];
+};
+
+/**
+ * Supply either saved paymentIds or periodId, paymentDate and proposedPayments. The server validates these mutually exclusive modes atomically.
+ */
+export interface CreatePaymentBatchBody {
+  bankAccountId: string;
+  /** Required with proposedPayments */
+  periodId?: string;
+  /** Required with proposedPayments */
+  paymentDate?: string;
+  /** Optional due-date cutoff for selected invoices */
+  cutoffDate?: string;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  paymentIds?: string[];
+  /**
+     * Direct supplier/AP-account groups. The server splits groups further when creditor instructions are incompatible.
+     * @minItems 1
+     * @maxItems 500
+     */
+  proposedPayments?: CreatePaymentBatchBodyProposedPaymentsItem[];
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  idempotencyKey: string;
+}
+
+export interface CreatePaymentBatchResponse {
+  batchId: string;
+  batch: PaymentBatchRecord;
+  payments: PaymentWithAllocations[];
+  replayed?: boolean;
+}
+
+export type PaymentBatchDetailItemsItemLifecycleStatus = typeof PaymentBatchDetailItemsItemLifecycleStatus[keyof typeof PaymentBatchDetailItemsItemLifecycleStatus];
+
+
+export const PaymentBatchDetailItemsItemLifecycleStatus = {
+  ready: 'ready',
+  partially_executed: 'partially_executed',
+  executed: 'executed',
+  rejected: 'rejected',
+  cancelled: 'cancelled',
+} as const;
+
+export type PaymentBatchDetailItemsItem = {
+  paymentId: string;
+  instruction: PaymentBatchInstruction;
+  lifecycleStatus?: PaymentBatchDetailItemsItemLifecycleStatus;
+  /** @nullable */
+  resolutionReason?: string | null;
+  /** @nullable */
+  resolvedBy?: string | null;
+  /** @nullable */
+  resolvedAt?: string | null;
+  /** @nullable */
+  releasedAt?: string | null;
+};
+
+export type PaymentBatchDetail = PaymentBatchRecord & ({
+  companyId: string;
+  executionDate?: string;
+  idempotencyKey: string;
+  /** @nullable */
+  xmlSnapshot?: string | null;
+  items: PaymentBatchDetailItemsItem[];
+});
+
+export type PaymentBatchLifecycleBodyAction = typeof PaymentBatchLifecycleBodyAction[keyof typeof PaymentBatchLifecycleBodyAction];
+
+
+export const PaymentBatchLifecycleBodyAction = {
+  cancel: 'cancel',
+  reject: 'reject',
+} as const;
+
+export interface PaymentBatchLifecycleBody {
+  action: PaymentBatchLifecycleBodyAction;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+  /**
+     * Required for partially executed batches; must contain only unexecuted remaining instructions.
+     * @minItems 1
+     */
+  paymentIds?: string[];
+  /** Required after an XML snapshot was exported because the bank may already have received it. */
+  confirmExportedRisk?: boolean;
+}
+
+export type PaymentBatchLifecycleResponseStatus = typeof PaymentBatchLifecycleResponseStatus[keyof typeof PaymentBatchLifecycleResponseStatus];
+
+
+export const PaymentBatchLifecycleResponseStatus = {
+  cancelled: 'cancelled',
+  rejected: 'rejected',
+  partially_executed: 'partially_executed',
+} as const;
+
+export interface PaymentBatchLifecycleResponse {
+  batchId: string;
+  status: PaymentBatchLifecycleResponseStatus;
+  paymentIds: string[];
+  releasedForRepackaging: string[];
+  reason: string;
+  /** @nullable */
+  exportedWarning: string | null;
+  monetaryReversal: false;
+}
+
+export interface PaymentBatchLifecycleConflict {
+  error: string;
+  confirmationRequired?: boolean;
+  warning?: string;
+}
+
+export type BankAccountMetadataBodySepaProfile = typeof BankAccountMetadataBodySepaProfile[keyof typeof BankAccountMetadataBodySepaProfile];
+
+
+export const BankAccountMetadataBodySepaProfile = {
+  pain00100103: 'pain.001.001.03',
+} as const;
+
+export interface BankAccountMetadataBody {
+  iban: string;
+  /**
+     * @nullable
+     * @pattern ^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$
+     */
+  bic?: string | null;
+  sepaProfile?: BankAccountMetadataBodySepaProfile;
+}
+
+export type BankAccountMetadata = BankAccountMetadataBody & {
+  bankAccountId: string;
+} & Required<Pick<BankAccountMetadataBody & {
+  bankAccountId: string;
+}, 'sepaProfile'>>;
+
+export type BankStatementAccountsResponsePeriodsItem = {
+  id: string;
+  name: string;
+  status: string;
+};
+
+export interface BankLedgerAccount {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface BankStatementAccountsResponse {
+  bankAccounts: BankLedgerAccount[];
+  arAccounts: BankLedgerAccount[];
+  apAccounts: BankLedgerAccount[];
+  periods: BankStatementAccountsResponsePeriodsItem[];
+  bankDetails: BankAccountMetadata[];
+}
+
+export interface ReconcileBankStatementLineBody {
+  paymentId: string;
+  /** Explicitly accept a planned-vs-actual execution date difference after reviewing the returned warning. */
+  confirmDateMismatch?: boolean;
+  /** Explicitly accept a payment-vs-bank statement reference difference after reviewing the returned warning. */
+  confirmReferenceMismatch?: boolean;
+}
+
+export type ReconcileBankStatementLineResponseStatus = typeof ReconcileBankStatementLineResponseStatus[keyof typeof ReconcileBankStatementLineResponseStatus];
+
+
+export const ReconcileBankStatementLineResponseStatus = {
+  draft: 'draft',
+  posted: 'posted',
+} as const;
+
+export interface ReconcileBankStatementLineResponse {
+  paymentId: string;
+  bankStatementLineId: string;
+  actualAmount: string;
+  status: ReconcileBankStatementLineResponseStatus;
+  requiresExplicitPosting: boolean;
+  warnings?: string[];
+}
+
+export type ReconcileBankStatementLineConflictRequiredConfirmationsItem = typeof ReconcileBankStatementLineConflictRequiredConfirmationsItem[keyof typeof ReconcileBankStatementLineConflictRequiredConfirmationsItem];
+
+
+export const ReconcileBankStatementLineConflictRequiredConfirmationsItem = {
+  confirmDateMismatch: 'confirmDateMismatch',
+  confirmReferenceMismatch: 'confirmReferenceMismatch',
+} as const;
+
+export interface ReconcileBankStatementLineConflict {
+  error: string;
+  confirmationRequired?: boolean;
+  warnings?: string[];
+  requiredConfirmations?: ReconcileBankStatementLineConflictRequiredConfirmationsItem[];
+}
+
 export interface PaymentAllocationBody {
   invoiceId: string;
   /** @minimum 0.01 */
@@ -9848,6 +10108,8 @@ export const OpenItemInvoiceType = {
 } as const;
 
 export interface OpenItem {
+  /** Active batch reserving this invoice; prevent selecting it again. */
+  activePaymentBatchId?: string | null;
   invoiceId: string;
   invoiceNumber: string;
   invoiceDate: string;
@@ -12938,6 +13200,199 @@ export const GetAgedAnalysisType = {
   issued: 'issued',
   received: 'received',
 } as const;
+
+export type GetPartnerLedgerParams = {
+partnerId?: string;
+accountId?: string;
+dateFrom?: string;
+/**
+ * As-of cut-off; defaults to today.
+ */
+dateTo?: string;
+/**
+ * Filters returned lines only; does not alter running balance.
+ */
+openOnly?: boolean;
+/**
+ * Drafts is a separate read-only comparison mode.
+ */
+mode?: GetPartnerLedgerMode;
+};
+
+export type GetPartnerLedgerMode = typeof GetPartnerLedgerMode[keyof typeof GetPartnerLedgerMode];
+
+
+export const GetPartnerLedgerMode = {
+  posted: 'posted',
+  drafts: 'drafts',
+} as const;
+
+export type GetPartnerLedger200Mode = typeof GetPartnerLedger200Mode[keyof typeof GetPartnerLedger200Mode];
+
+
+export const GetPartnerLedger200Mode = {
+  posted: 'posted',
+  drafts: 'drafts',
+} as const;
+
+export type GetPartnerLedger200OpeningBalancesItem = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  balance: string;
+};
+
+export type GetPartnerLedger200LinesItemEntryStatus = typeof GetPartnerLedger200LinesItemEntryStatus[keyof typeof GetPartnerLedger200LinesItemEntryStatus];
+
+
+export const GetPartnerLedger200LinesItemEntryStatus = {
+  posted: 'posted',
+  reversed: 'reversed',
+  draft: 'draft',
+} as const;
+
+export type GetPartnerLedger200LinesItemClosingsItem = { [key: string]: unknown };
+
+export type GetPartnerLedger200LinesItem = {
+  lineId: string;
+  partnerId: string;
+  partnerName: string;
+  partnerCity?: string | null;
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  entryId: string;
+  entryStatus: GetPartnerLedger200LinesItemEntryStatus;
+  documentType?: string;
+  documentNumber?: string | null;
+  description?: string;
+  documentDate?: string | null;
+  postingDate?: string;
+  taxDate?: string | null;
+  dueDate?: string | null;
+  debit: string;
+  credit: string;
+  runningBalance: string;
+  /** Open debit amount; intentionally not netted against open credit. */
+  openDebit: string;
+  /** Open credit amount; intentionally not netted against open debit. */
+  openCredit: string;
+  closings: GetPartnerLedger200LinesItemClosingsItem[];
+};
+
+export type GetPartnerLedger200 = {
+  asOfDate: string;
+  dateFrom: string | null;
+  mode: GetPartnerLedger200Mode;
+  /** Opening balance for the selected account; null for a multi-account card. */
+  openingBalance: string | null;
+  /** Full selected ledger balance at the cutoff, unaffected by openOnly. */
+  closingBalance?: string;
+  openingBalances: GetPartnerLedger200OpeningBalancesItem[];
+  lines: GetPartnerLedger200LinesItem[];
+};
+
+export type GetPartnerLedgerPdfParams = {
+partnerId?: string;
+accountId?: string;
+dateFrom?: string;
+dateTo?: string;
+openOnly?: boolean;
+mode?: GetPartnerLedgerPdfMode;
+};
+
+export type GetPartnerLedgerPdfMode = typeof GetPartnerLedgerPdfMode[keyof typeof GetPartnerLedgerPdfMode];
+
+
+export const GetPartnerLedgerPdfMode = {
+  posted: 'posted',
+  drafts: 'drafts',
+} as const;
+
+export type GetPartnerTurnoverParams = {
+dateFrom: string;
+dateTo: string;
+partnerId?: string;
+accountId?: string;
+openOnly?: boolean;
+};
+
+export type GetPartnerTurnover200RowsItem = {
+  partnerId?: string;
+  partnerCode?: string | null;
+  partnerName?: string;
+  partnerCity?: string | null;
+  accountId?: string;
+  accountCode?: string;
+  accountName?: string;
+  debit?: string;
+  credit?: string;
+  periodBalance?: string;
+  openDebit?: string;
+  openCredit?: string;
+};
+
+export type GetPartnerTurnover200AccountTotalsItem = {
+  accountId?: string;
+  accountCode?: string;
+  accountName?: string;
+  debit?: string;
+  credit?: string;
+  periodBalance?: string;
+  openDebit?: string;
+  openCredit?: string;
+};
+
+export type GetPartnerTurnover200Totals = {[key: string]: string};
+
+export type GetPartnerTurnover200 = {
+  dateFrom: string;
+  dateTo: string;
+  rows: GetPartnerTurnover200RowsItem[];
+  accountTotals: GetPartnerTurnover200AccountTotalsItem[];
+  totals: GetPartnerTurnover200Totals;
+  remainderSemantics: string;
+};
+
+export type GetPartnerTurnoverPdfParams = {
+dateFrom: string;
+dateTo: string;
+partnerId?: string;
+accountId?: string;
+openOnly?: boolean;
+};
+
+export type CreatePartnerSettlementsBodyAllocationsItem = {
+  sourceLineId: string;
+  targetLineId: string;
+  /** @pattern ^[0-9]+(\.[0-9]{1,2})?$ */
+  amount: string;
+};
+
+export type CreatePartnerSettlementsBody = {
+  /** @minItems 1 */
+  allocations: CreatePartnerSettlementsBodyAllocationsItem[];
+  effectiveDate: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+  reason?: string | null;
+};
+
+export type ReopenPartnerSettlementBody = {
+  /** @pattern ^[0-9]+(\.[0-9]{1,2})?$ */
+  amount: string;
+  effectiveDate: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+  /** @minLength 1 */
+  reason: string;
+};
 
 export type GetLedgerParams = {
 /**

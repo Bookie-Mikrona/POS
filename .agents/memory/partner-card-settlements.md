@@ -32,3 +32,15 @@ Pri preverjanju stare kartice preveri vsoto dejansko izvlečenih postavk proti n
 **Why:** Stari PDF-ji imajo rotirane besedilne koordinate, nadaljevalne strani drugačno višino glave in večvrstična zapiranja. Zgolj navidezno uspešno branje besedila lahko izpusti prvo postavko strani ali pripiše končni seštevek zadnji postavki; zgodovinski izpisi lahko vsebujejo tudi centno razliko med saldom in odprtimi ostanki.
 
 **How to apply:** Vizualno preveri stolpce, strani in končne vsote. Centne razlike najprej razišči v izvorni zgodovini; ne spreminjaj odprtih zneskov zato, da bi se prisilno ujemali s tekočim saldom.
+
+Uporabnik je za poslane zgodovinske podatke izrecno potrdil: »vsi poslani podatki so popolnoma preverjeno pravilni.«
+
+**Why:** Razlike v novem programu je treba najprej obravnavati kot težave obsega prenosa, preslikave ali izračuna, ne kot dovoljenje za popravljanje izvirnikov.
+
+**How to apply:** Ohrani izvorne listine in finančne zapise. Če manjka izvorna knjižba, ohrani dokazilo zapiranja in opozorilo o manjkajoči povezavi; ne izdeluj nadomestne knjižbe.
+
+Potrjen obseg je pet faz kartice/prometa partnerjev, skupnih odprtih postavk, priprave enega plačilnega paketa ter povezave z dejansko bančno izvedbo.
+
+**Why:** Ločeni osnutki za AJPES, eDavke in bančno dokumentacijo niso del uporabnikove odobritve teh petih faz.
+
+**How to apply:** Teh osnutkov ne vključi samodejno v izvedbo kartic in plačil.

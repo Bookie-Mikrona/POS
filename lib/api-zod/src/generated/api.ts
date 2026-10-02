@@ -13154,6 +13154,306 @@ export const VoidPaymentResponse = zod.object({
 
 
 /**
+ * @summary Download a SEPA XML for one draft payment using its selected bank account
+ */
+export const ExportSinglePaymentSepaXmlParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const ExportSinglePaymentSepaXmlResponse = zod.unknown()
+
+
+/**
+ * @summary List payment batches
+ */
+export const ListPaymentBatchesParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListPaymentBatchesResponse = zod.object({
+  "batches": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "executionDate": zod.coerce.date(),
+  "status": zod.enum(['ready', 'exported', 'partially_executed', 'executed', 'rejected', 'cancelled']),
+  "transactionCount": zod.string(),
+  "controlSum": zod.string(),
+  "exportedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * Submit exactly one of paymentIds (existing drafts) or proposedPayments with periodId/paymentDate and exact invoice allocation amounts. Direct mode creates all grouped drafts, allocations, batch instructions, reservations and audit evidence in one transaction.
+ * @summary Atomically create payment drafts from invoice allocations or package saved drafts
+ */
+export const CreatePaymentBatchParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createPaymentBatchBodyPaymentIdsMax = 500;
+
+export const createPaymentBatchBodyProposedPaymentsItemAllocationsItemAmountExclusiveMin = 0;
+export const createPaymentBatchBodyProposedPaymentsItemAllocationsItemAmountMultipleOf = 0.01;
+
+
+export const createPaymentBatchBodyProposedPaymentsMax = 500;
+
+export const createPaymentBatchBodyIdempotencyKeyMax = 128;
+
+
+
+export const CreatePaymentBatchBody = zod.object({
+  "bankAccountId": zod.string(),
+  "periodId": zod.string().optional().describe('Required with proposedPayments'),
+  "paymentDate": zod.coerce.date().optional().describe('Required with proposedPayments'),
+  "cutoffDate": zod.coerce.date().optional().describe('Optional due-date cutoff for selected invoices'),
+  "paymentIds": zod.array(zod.string()).min(1).max(createPaymentBatchBodyPaymentIdsMax).optional(),
+  "proposedPayments": zod.array(zod.object({
+  "counterpartyId": zod.string(),
+  "arApAccountId": zod.string(),
+  "allocations": zod.array(zod.object({
+  "invoiceId": zod.string(),
+  "amount": zod.number().gt(createPaymentBatchBodyProposedPaymentsItemAllocationsItemAmountExclusiveMin).multipleOf(createPaymentBatchBodyProposedPaymentsItemAllocationsItemAmountMultipleOf)
+})).min(1)
+})).min(1).max(createPaymentBatchBodyProposedPaymentsMax).optional().describe('Direct supplier\/AP-account groups. The server splits groups further when creditor instructions are incompatible.'),
+  "idempotencyKey": zod.string().min(1).max(createPaymentBatchBodyIdempotencyKeyMax)
+}).describe('Supply either saved paymentIds or periodId, paymentDate and proposedPayments. The server validates these mutually exclusive modes atomically.')
+
+export const CreatePaymentBatchResponse = zod.object({
+  "batchId": zod.string(),
+  "batch": zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "executionDate": zod.coerce.date(),
+  "status": zod.enum(['ready', 'exported', 'partially_executed', 'executed', 'rejected', 'cancelled']),
+  "transactionCount": zod.string(),
+  "controlSum": zod.string(),
+  "exportedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}),
+  "payments": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "direction": zod.enum(['inbound', 'outbound']),
+  "paymentDate": zod.coerce.date(),
+  "amount": zod.string().describe('Total payment amount'),
+  "reference": zod.string().nullish(),
+  "bankAccountId": zod.string(),
+  "bankAccountCode": zod.string(),
+  "bankAccountName": zod.string(),
+  "arApAccountId": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'void']),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "allocatedAmount": zod.string().describe('Sum of all allocations'),
+  "unallocatedAmount": zod.string().describe('amount - allocatedAmount'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "allocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "invoiceId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
+}))
+}))),
+  "replayed": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Get immutable payment batch instructions
+ */
+export const GetPaymentBatchParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "batchId": zod.coerce.string()
+})
+
+export const GetPaymentBatchResponse = zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "executionDate": zod.coerce.date(),
+  "status": zod.enum(['ready', 'exported', 'partially_executed', 'executed', 'rejected', 'cancelled']),
+  "transactionCount": zod.string(),
+  "controlSum": zod.string(),
+  "exportedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "companyId": zod.string(),
+  "executionDate": zod.coerce.date(),
+  "idempotencyKey": zod.string(),
+  "xmlSnapshot": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "paymentId": zod.string(),
+  "instruction": zod.object({
+  "paymentId": zod.string(),
+  "amount": zod.string(),
+  "executionDate": zod.coerce.date(),
+  "creditorName": zod.string(),
+  "creditorIban": zod.string(),
+  "creditorBic": zod.string().nullish(),
+  "purpose": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "model": zod.string().nullish()
+}),
+  "lifecycleStatus": zod.enum(['ready', 'partially_executed', 'executed', 'rejected', 'cancelled']).optional(),
+  "resolutionReason": zod.string().nullish(),
+  "resolvedBy": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "releasedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * Does not void payments, reverse journal entries, or edit XML/instruction snapshots. Releases only eligible unexecuted batch links for repackaging. Exported instructions require explicit bank-risk confirmation; partially executed batches require selected remaining paymentIds.
+ * @summary Cancel or reject unexecuted payment instructions with an audit reason
+ */
+export const ResolvePaymentBatchInstructionsParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "batchId": zod.coerce.string()
+})
+
+export const resolvePaymentBatchInstructionsBodyReasonMax = 1000;
+
+
+
+
+export const ResolvePaymentBatchInstructionsBody = zod.object({
+  "action": zod.enum(['cancel', 'reject']),
+  "reason": zod.string().min(1).max(resolvePaymentBatchInstructionsBodyReasonMax),
+  "paymentIds": zod.array(zod.string()).min(1).optional().describe('Required for partially executed batches; must contain only unexecuted remaining instructions.'),
+  "confirmExportedRisk": zod.boolean().optional().describe('Required after an XML snapshot was exported because the bank may already have received it.')
+})
+
+export const ResolvePaymentBatchInstructionsResponse = zod.object({
+  "batchId": zod.string(),
+  "status": zod.enum(['cancelled', 'rejected', 'partially_executed']),
+  "paymentIds": zod.array(zod.string()),
+  "releasedForRepackaging": zod.array(zod.string()),
+  "reason": zod.string(),
+  "exportedWarning": zod.string().nullable(),
+  "monetaryReversal": zod.literal(false)
+})
+
+
+/**
+ * @summary Download one SEPA XML file for all batch instructions (does not post payments)
+ */
+export const ExportPaymentBatchSepaXmlParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "batchId": zod.coerce.string()
+})
+
+export const ExportPaymentBatchSepaXmlResponse = zod.unknown()
+
+
+/**
+ * @summary List bank, AR/AP accounts and explicit bank IBAN/BIC mappings
+ */
+export const ListBankStatementAccountsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const listBankStatementAccountsResponseBankDetailsItemOneBicRegExp = new RegExp('^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$');
+export const listBankStatementAccountsResponseBankDetailsItemOneSepaProfileDefault = `pain.001.001.03`;
+
+export const ListBankStatementAccountsResponse = zod.object({
+  "bankAccounts": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string()
+})),
+  "arAccounts": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string()
+})),
+  "apAccounts": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string()
+})),
+  "periods": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "status": zod.string()
+})),
+  "bankDetails": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string().regex(listBankStatementAccountsResponseBankDetailsItemOneBicRegExp).nullish(),
+  "sepaProfile": zod.enum(['pain.001.001.03']).default(listBankStatementAccountsResponseBankDetailsItemOneSepaProfileDefault)
+}).and(zod.object({
+  "bankAccountId": zod.string()
+})))
+})
+
+
+/**
+ * @summary Set explicit IBAN/BIC and supported SEPA profile for a company bank account
+ */
+export const SetBankAccountMetadataParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "bankAccountId": zod.coerce.string()
+})
+
+export const setBankAccountMetadataBodyBicRegExp = new RegExp('^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$');
+export const setBankAccountMetadataBodySepaProfileDefault = `pain.001.001.03`;
+
+export const SetBankAccountMetadataBody = zod.object({
+  "iban": zod.string(),
+  "bic": zod.string().regex(setBankAccountMetadataBodyBicRegExp).nullish(),
+  "sepaProfile": zod.enum(['pain.001.001.03']).default(setBankAccountMetadataBodySepaProfileDefault)
+})
+
+export const setBankAccountMetadataResponseOneBicRegExp = new RegExp('^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$');
+export const setBankAccountMetadataResponseOneSepaProfileDefault = `pain.001.001.03`;
+
+export const SetBankAccountMetadataResponse = zod.object({
+  "iban": zod.string(),
+  "bic": zod.string().regex(setBankAccountMetadataResponseOneBicRegExp).nullish(),
+  "sepaProfile": zod.enum(['pain.001.001.03']).default(setBankAccountMetadataResponseOneSepaProfileDefault)
+}).and(zod.object({
+  "bankAccountId": zod.string()
+}))
+
+
+/**
+ * Does not create a payment or post a draft. Account, direction and amount remain strict. A date/reference mismatch returns warnings requiring explicit confirmation; draft allocations are adjusted to actual execution and still require explicit posting.
+ * @summary Link one registered bank statement line to an existing payment
+ */
+export const ReconcileBankStatementLineParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "lineId": zod.coerce.string()
+})
+
+export const ReconcileBankStatementLineBody = zod.object({
+  "paymentId": zod.string(),
+  "confirmDateMismatch": zod.boolean().optional().describe('Explicitly accept a planned-vs-actual execution date difference after reviewing the returned warning.'),
+  "confirmReferenceMismatch": zod.boolean().optional().describe('Explicitly accept a payment-vs-bank statement reference difference after reviewing the returned warning.')
+})
+
+export const ReconcileBankStatementLineResponse = zod.object({
+  "paymentId": zod.string(),
+  "bankStatementLineId": zod.string(),
+  "actualAmount": zod.string(),
+  "status": zod.enum(['draft', 'posted']),
+  "requiresExplicitPosting": zod.boolean(),
+  "warnings": zod.array(zod.string()).optional()
+})
+
+
+/**
  * @summary View one registered bank statement and its transaction lines
  */
 export const GetBankStatementDetailParams = zod.object({
@@ -13625,6 +13925,7 @@ export const GetOpenItemsQueryParams = zod.object({
 
 export const GetOpenItemsResponse = zod.object({
   "items": zod.array(zod.object({
+  "activePaymentBatchId": zod.string().nullish().describe('Active batch reserving this invoice; prevent selecting it again.'),
   "invoiceId": zod.string(),
   "invoiceNumber": zod.string(),
   "invoiceDate": zod.coerce.date(),
@@ -13681,6 +13982,206 @@ export const GetAgedAnalysisResponse = zod.object({
   "total": zod.string()
 })
 })
+
+
+/**
+ * Returns partner-tagged posted/reversed GL lines across all accounts, chronological running balance and independent open debit/credit amounts. dateFrom only filters returned lines; opening/running balance is calculated from the complete flow through dateTo. Drafts are read-only and require mode=drafts; draft data is never included by default and is unsuitable for settlement/payment preparation. Missing historic counterparts are retained as evidence warnings, never manufactured as postings.
+ * @summary Chronological partner GL card
+ */
+export const GetPartnerLedgerParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const getPartnerLedgerQueryModeDefault = `posted`;
+
+export const GetPartnerLedgerQueryParams = zod.object({
+  "partnerId": zod.coerce.string().optional(),
+  "accountId": zod.coerce.string().optional(),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional().describe('As-of cut-off; defaults to today.'),
+  "openOnly": zod.coerce.boolean().optional().describe('Filters returned lines only; does not alter running balance.'),
+  "mode": zod.enum(['posted', 'drafts']).default(getPartnerLedgerQueryModeDefault).describe('Drafts is a separate read-only comparison mode.')
+})
+
+export const GetPartnerLedgerResponse = zod.object({
+  "asOfDate": zod.coerce.date(),
+  "dateFrom": zod.coerce.date().nullable(),
+  "mode": zod.enum(['posted', 'drafts']),
+  "openingBalance": zod.string().nullable().describe('Opening balance for the selected account; null for a multi-account card.'),
+  "closingBalance": zod.string().optional().describe('Full selected ledger balance at the cutoff, unaffected by openOnly.'),
+  "openingBalances": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "lines": zod.array(zod.object({
+  "lineId": zod.string(),
+  "partnerId": zod.string(),
+  "partnerName": zod.string(),
+  "partnerCity": zod.string().nullish(),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "entryId": zod.string(),
+  "entryStatus": zod.enum(['posted', 'reversed', 'draft']),
+  "documentType": zod.string().optional(),
+  "documentNumber": zod.string().nullish(),
+  "description": zod.string().optional(),
+  "documentDate": zod.coerce.date().nullish(),
+  "postingDate": zod.coerce.date().optional(),
+  "taxDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "debit": zod.string(),
+  "credit": zod.string(),
+  "runningBalance": zod.string(),
+  "openDebit": zod.string().describe('Open debit amount; intentionally not netted against open credit.'),
+  "openCredit": zod.string().describe('Open credit amount; intentionally not netted against open debit.'),
+  "closings": zod.array(zod.record(zod.string(), zod.unknown()))
+}))
+})
+
+
+/**
+ * Uses the same filters and calculator as getPartnerLedger; open debit and credit are printed separately.
+ * @summary Export partner ledger card as PDF
+ */
+export const GetPartnerLedgerPdfParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const getPartnerLedgerPdfQueryModeDefault = `posted`;
+
+export const GetPartnerLedgerPdfQueryParams = zod.object({
+  "partnerId": zod.coerce.string().optional(),
+  "accountId": zod.coerce.string().optional(),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional(),
+  "openOnly": zod.coerce.boolean().optional(),
+  "mode": zod.enum(['posted', 'drafts']).default(getPartnerLedgerPdfQueryModeDefault)
+})
+
+export const GetPartnerLedgerPdfResponse = zod.unknown()
+
+
+/**
+ * Groups period debit and credit by account and partner. Open debit and open credit are separate; unresolved legacy remainder semantics are not guessed or netted.
+ * @summary Grouped partner turnover report
+ */
+export const GetPartnerTurnoverParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetPartnerTurnoverQueryParams = zod.object({
+  "dateFrom": zod.date(),
+  "dateTo": zod.date(),
+  "partnerId": zod.coerce.string().optional(),
+  "accountId": zod.coerce.string().optional(),
+  "openOnly": zod.coerce.boolean().optional()
+})
+
+export const GetPartnerTurnoverResponse = zod.object({
+  "dateFrom": zod.coerce.date(),
+  "dateTo": zod.coerce.date(),
+  "rows": zod.array(zod.object({
+  "partnerId": zod.string().optional(),
+  "partnerCode": zod.string().nullish(),
+  "partnerName": zod.string().optional(),
+  "partnerCity": zod.string().nullish(),
+  "accountId": zod.string().optional(),
+  "accountCode": zod.string().optional(),
+  "accountName": zod.string().optional(),
+  "debit": zod.string().optional(),
+  "credit": zod.string().optional(),
+  "periodBalance": zod.string().optional(),
+  "openDebit": zod.string().optional(),
+  "openCredit": zod.string().optional()
+})),
+  "accountTotals": zod.array(zod.object({
+  "accountId": zod.string().optional(),
+  "accountCode": zod.string().optional(),
+  "accountName": zod.string().optional(),
+  "debit": zod.string().optional(),
+  "credit": zod.string().optional(),
+  "periodBalance": zod.string().optional(),
+  "openDebit": zod.string().optional(),
+  "openCredit": zod.string().optional()
+})),
+  "totals": zod.record(zod.string(), zod.string()),
+  "remainderSemantics": zod.string()
+})
+
+
+/**
+ * Same grouped partner turnover calculator and filters as getPartnerTurnover.
+ * @summary Export grouped partner turnover as PDF
+ */
+export const GetPartnerTurnoverPdfParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetPartnerTurnoverPdfQueryParams = zod.object({
+  "dateFrom": zod.date(),
+  "dateTo": zod.date(),
+  "partnerId": zod.coerce.string().optional(),
+  "accountId": zod.coerce.string().optional(),
+  "openOnly": zod.coerce.boolean().optional()
+})
+
+export const GetPartnerTurnoverPdfResponse = zod.unknown()
+
+
+/**
+ * Atomically appends one close event per allocation. Every pair must be opposite-side posted/reversed GL lines of the same company, partner and account. amount must be positive and within each line's currently available remainder. Idempotency keys are unique per company; repeat requests do not create duplicate close events. No journal or payment is created.
+ * @summary Manually close partner GL lines
+ */
+export const CreatePartnerSettlementsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createPartnerSettlementsBodyAllocationsItemAmountRegExp = new RegExp('^[0-9]+(\\.[0-9]{1,2})?$');
+
+export const createPartnerSettlementsBodyIdempotencyKeyMax = 160;
+
+
+
+export const CreatePartnerSettlementsBody = zod.object({
+  "allocations": zod.array(zod.object({
+  "sourceLineId": zod.string(),
+  "targetLineId": zod.string(),
+  "amount": zod.string().regex(createPartnerSettlementsBodyAllocationsItemAmountRegExp)
+})).min(1),
+  "effectiveDate": zod.coerce.date(),
+  "idempotencyKey": zod.string().min(1).max(createPartnerSettlementsBodyIdempotencyKeyMax),
+  "reason": zod.string().nullish()
+})
+
+export const CreatePartnerSettlementsResponse = zod.void()
+
+
+/**
+ * Appends a partial/full reopen event linked to the exact close event, preserving its historical audit; journal lines remain unchanged.
+ * @summary Reopen some or all of one manual close
+ */
+export const ReopenPartnerSettlementParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string().describe('Original close event or stable historical closing ID')
+})
+
+export const reopenPartnerSettlementBodyAmountRegExp = new RegExp('^[0-9]+(\\.[0-9]{1,2})?$');
+export const reopenPartnerSettlementBodyIdempotencyKeyMax = 160;
+
+
+
+
+export const ReopenPartnerSettlementBody = zod.object({
+  "amount": zod.string().regex(reopenPartnerSettlementBodyAmountRegExp),
+  "effectiveDate": zod.coerce.date(),
+  "idempotencyKey": zod.string().min(1).max(reopenPartnerSettlementBodyIdempotencyKeyMax),
+  "reason": zod.string().min(1)
+})
+
+export const ReopenPartnerSettlementResponse = zod.void()
 
 
 /**

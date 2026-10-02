@@ -43,7 +43,10 @@ import type {
   AssignRoleBody,
   BadRequestResponse,
   BalanceSheetResponse,
+  BankAccountMetadata,
+  BankAccountMetadataBody,
   BankBalanceResponse,
+  BankStatementAccountsResponse,
   BankStatementDetail,
   BlagajnaPogled,
   BlagajnaPosodobitev,
@@ -69,6 +72,9 @@ import type {
   CreateInvoiceBody,
   CreateJournalEntryBody,
   CreateOfflineProvisioningChallengeBody,
+  CreatePartnerSettlementsBody,
+  CreatePaymentBatchBody,
+  CreatePaymentBatchResponse,
   CreatePaymentBody,
   CreatePeriodBody,
   CreatePosContractSummaryBody,
@@ -153,6 +159,12 @@ import type {
   GetOperativnaPorocilaQrFeedbackParams,
   GetOperativnaPorocilaZakljuckiParams,
   GetOperativnaPorocilaZalogeParams,
+  GetPartnerLedger200,
+  GetPartnerLedgerParams,
+  GetPartnerLedgerPdfParams,
+  GetPartnerTurnover200,
+  GetPartnerTurnoverParams,
+  GetPartnerTurnoverPdfParams,
   GetPlateWasteOverviewParams,
   GetPosContractSummaryPreviewParams,
   GetPreparedFoodConsumptionParams,
@@ -251,6 +263,7 @@ import type {
   ListNarocilaParams,
   ListOdsotnostiParams,
   ListOfflineFiscalReceiptsParams,
+  ListPaymentBatchesResponse,
   ListPaymentsParams,
   ListPaymentsResponse,
   ListPeriodsResponse,
@@ -345,6 +358,10 @@ import type {
   PartnerCenikInput,
   PartnerCenikItem,
   PartnerInput,
+  PaymentBatchDetail,
+  PaymentBatchLifecycleBody,
+  PaymentBatchLifecycleConflict,
+  PaymentBatchLifecycleResponse,
   PaymentWithAllocations,
   PaytenAndroidConfirmation,
   PaytenAndroidConfirmationResult,
@@ -418,11 +435,15 @@ import type {
   RacunUvozItem,
   RecognizeInventorySheet200,
   RecognizeInventorySheetBody,
+  ReconcileBankStatementLineBody,
+  ReconcileBankStatementLineConflict,
+  ReconcileBankStatementLineResponse,
   ReconcileOfflineFiscalReceiptBody,
   ReconcileZalogeResult,
   RegisterDocumentBody,
   RegistracijaProstoraOdgovor,
   RegistracijaProstoraTelo,
+  ReopenPartnerSettlementBody,
   RequestInventoryUploadUrl200,
   RequestInventoryUploadUrlBody,
   ResenStripePregledBona,
@@ -25197,6 +25218,703 @@ export const useVoidPayment = <TError = ErrorType<ErrorResponse>,
       return useMutation(getVoidPaymentMutationOptions(options));
     }
 
+export const getExportSinglePaymentSepaXmlUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payments/${id}/sepa.xml`
+}
+
+/**
+ * @summary Download a SEPA XML for one draft payment using its selected bank account
+ */
+export const exportSinglePaymentSepaXml = async (companyId: string,
+    id: string, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getExportSinglePaymentSepaXmlUrl(companyId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSinglePaymentSepaXmlQueryKey = (companyId: string,
+    id: string,) => {
+    return [
+    `/api/companies/${companyId}/payments/${id}/sepa.xml`
+    ] as const;
+    }
+
+
+export const getExportSinglePaymentSepaXmlQueryOptions = <TData = Awaited<ReturnType<typeof exportSinglePaymentSepaXml>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSinglePaymentSepaXml>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSinglePaymentSepaXmlQueryKey(companyId,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSinglePaymentSepaXml>>> = ({ signal }) => exportSinglePaymentSepaXml(companyId,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSinglePaymentSepaXml>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportSinglePaymentSepaXmlQueryResult = NonNullable<Awaited<ReturnType<typeof exportSinglePaymentSepaXml>>>
+export type ExportSinglePaymentSepaXmlQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Download a SEPA XML for one draft payment using its selected bank account
+ */
+
+export function useExportSinglePaymentSepaXml<TData = Awaited<ReturnType<typeof exportSinglePaymentSepaXml>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSinglePaymentSepaXml>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportSinglePaymentSepaXmlQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPaymentBatchesUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payment-batches`
+}
+
+/**
+ * @summary List payment batches
+ */
+export const listPaymentBatches = async (companyId: string, options?: RequestInit): Promise<ListPaymentBatchesResponse> => {
+
+  return customFetch<ListPaymentBatchesResponse>(getListPaymentBatchesUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPaymentBatchesQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/payment-batches`
+    ] as const;
+    }
+
+
+export const getListPaymentBatchesQueryOptions = <TData = Awaited<ReturnType<typeof listPaymentBatches>>, TError = ErrorType<unknown>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPaymentBatchesQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPaymentBatches>>> = ({ signal }) => listPaymentBatches(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPaymentBatches>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPaymentBatchesQueryResult = NonNullable<Awaited<ReturnType<typeof listPaymentBatches>>>
+export type ListPaymentBatchesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List payment batches
+ */
+
+export function useListPaymentBatches<TData = Awaited<ReturnType<typeof listPaymentBatches>>, TError = ErrorType<unknown>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPaymentBatchesQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePaymentBatchUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payment-batches`
+}
+
+/**
+ * Submit exactly one of paymentIds (existing drafts) or proposedPayments with periodId/paymentDate and exact invoice allocation amounts. Direct mode creates all grouped drafts, allocations, batch instructions, reservations and audit evidence in one transaction.
+ * @summary Atomically create payment drafts from invoice allocations or package saved drafts
+ */
+export const createPaymentBatch = async (companyId: string,
+    createPaymentBatchBody: CreatePaymentBatchBody, options?: RequestInit): Promise<CreatePaymentBatchResponse> => {
+
+  return customFetch<CreatePaymentBatchResponse>(getCreatePaymentBatchUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPaymentBatchBody)
+  }
+);}
+
+
+
+
+
+export const getCreatePaymentBatchMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentBatch>>, TError,{companyId: string;data: BodyType<CreatePaymentBatchBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPaymentBatch>>, TError,{companyId: string;data: BodyType<CreatePaymentBatchBody>}, TContext> => {
+
+const mutationKey = ['createPaymentBatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPaymentBatch>>, {companyId: string;data: BodyType<CreatePaymentBatchBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createPaymentBatch(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaymentBatchMutationResult = NonNullable<Awaited<ReturnType<typeof createPaymentBatch>>>
+    export type CreatePaymentBatchMutationBody = BodyType<CreatePaymentBatchBody>
+    export type CreatePaymentBatchMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Atomically create payment drafts from invoice allocations or package saved drafts
+ */
+export const useCreatePaymentBatch = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentBatch>>, TError,{companyId: string;data: BodyType<CreatePaymentBatchBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPaymentBatch>>,
+        TError,
+        {companyId: string;data: BodyType<CreatePaymentBatchBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePaymentBatchMutationOptions(options));
+    }
+
+export const getGetPaymentBatchUrl = (companyId: string,
+    batchId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payment-batches/${batchId}`
+}
+
+/**
+ * @summary Get immutable payment batch instructions
+ */
+export const getPaymentBatch = async (companyId: string,
+    batchId: string, options?: RequestInit): Promise<PaymentBatchDetail> => {
+
+  return customFetch<PaymentBatchDetail>(getGetPaymentBatchUrl(companyId,batchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPaymentBatchQueryKey = (companyId: string,
+    batchId: string,) => {
+    return [
+    `/api/companies/${companyId}/payment-batches/${batchId}`
+    ] as const;
+    }
+
+
+export const getGetPaymentBatchQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentBatch>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentBatch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaymentBatchQueryKey(companyId,batchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentBatch>>> = ({ signal }) => getPaymentBatch(companyId,batchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentBatch>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPaymentBatchQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentBatch>>>
+export type GetPaymentBatchQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get immutable payment batch instructions
+ */
+
+export function useGetPaymentBatch<TData = Awaited<ReturnType<typeof getPaymentBatch>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentBatch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPaymentBatchQueryOptions(companyId,batchId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResolvePaymentBatchInstructionsUrl = (companyId: string,
+    batchId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payment-batches/${batchId}/lifecycle`
+}
+
+/**
+ * Does not void payments, reverse journal entries, or edit XML/instruction snapshots. Releases only eligible unexecuted batch links for repackaging. Exported instructions require explicit bank-risk confirmation; partially executed batches require selected remaining paymentIds.
+ * @summary Cancel or reject unexecuted payment instructions with an audit reason
+ */
+export const resolvePaymentBatchInstructions = async (companyId: string,
+    batchId: string,
+    paymentBatchLifecycleBody: PaymentBatchLifecycleBody, options?: RequestInit): Promise<PaymentBatchLifecycleResponse> => {
+
+  return customFetch<PaymentBatchLifecycleResponse>(getResolvePaymentBatchInstructionsUrl(companyId,batchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(paymentBatchLifecycleBody)
+  }
+);}
+
+
+
+
+
+export const getResolvePaymentBatchInstructionsMutationOptions = <TError = ErrorType<PaymentBatchLifecycleConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolvePaymentBatchInstructions>>, TError,{companyId: string;batchId: string;data: BodyType<PaymentBatchLifecycleBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolvePaymentBatchInstructions>>, TError,{companyId: string;batchId: string;data: BodyType<PaymentBatchLifecycleBody>}, TContext> => {
+
+const mutationKey = ['resolvePaymentBatchInstructions'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolvePaymentBatchInstructions>>, {companyId: string;batchId: string;data: BodyType<PaymentBatchLifecycleBody>}> = (props) => {
+          const {companyId,batchId,data} = props ?? {};
+
+          return  resolvePaymentBatchInstructions(companyId,batchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolvePaymentBatchInstructionsMutationResult = NonNullable<Awaited<ReturnType<typeof resolvePaymentBatchInstructions>>>
+    export type ResolvePaymentBatchInstructionsMutationBody = BodyType<PaymentBatchLifecycleBody>
+    export type ResolvePaymentBatchInstructionsMutationError = ErrorType<PaymentBatchLifecycleConflict>
+
+    /**
+ * @summary Cancel or reject unexecuted payment instructions with an audit reason
+ */
+export const useResolvePaymentBatchInstructions = <TError = ErrorType<PaymentBatchLifecycleConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolvePaymentBatchInstructions>>, TError,{companyId: string;batchId: string;data: BodyType<PaymentBatchLifecycleBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolvePaymentBatchInstructions>>,
+        TError,
+        {companyId: string;batchId: string;data: BodyType<PaymentBatchLifecycleBody>},
+        TContext
+      > => {
+      return useMutation(getResolvePaymentBatchInstructionsMutationOptions(options));
+    }
+
+export const getExportPaymentBatchSepaXmlUrl = (companyId: string,
+    batchId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payment-batches/${batchId}/sepa.xml`
+}
+
+/**
+ * @summary Download one SEPA XML file for all batch instructions (does not post payments)
+ */
+export const exportPaymentBatchSepaXml = async (companyId: string,
+    batchId: string, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getExportPaymentBatchSepaXmlUrl(companyId,batchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportPaymentBatchSepaXmlQueryKey = (companyId: string,
+    batchId: string,) => {
+    return [
+    `/api/companies/${companyId}/payment-batches/${batchId}/sepa.xml`
+    ] as const;
+    }
+
+
+export const getExportPaymentBatchSepaXmlQueryOptions = <TData = Awaited<ReturnType<typeof exportPaymentBatchSepaXml>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportPaymentBatchSepaXml>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportPaymentBatchSepaXmlQueryKey(companyId,batchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportPaymentBatchSepaXml>>> = ({ signal }) => exportPaymentBatchSepaXml(companyId,batchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportPaymentBatchSepaXml>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportPaymentBatchSepaXmlQueryResult = NonNullable<Awaited<ReturnType<typeof exportPaymentBatchSepaXml>>>
+export type ExportPaymentBatchSepaXmlQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Download one SEPA XML file for all batch instructions (does not post payments)
+ */
+
+export function useExportPaymentBatchSepaXml<TData = Awaited<ReturnType<typeof exportPaymentBatchSepaXml>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportPaymentBatchSepaXml>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportPaymentBatchSepaXmlQueryOptions(companyId,batchId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListBankStatementAccountsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/bank-statements/accounts`
+}
+
+/**
+ * @summary List bank, AR/AP accounts and explicit bank IBAN/BIC mappings
+ */
+export const listBankStatementAccounts = async (companyId: string, options?: RequestInit): Promise<BankStatementAccountsResponse> => {
+
+  return customFetch<BankStatementAccountsResponse>(getListBankStatementAccountsUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankStatementAccountsQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/bank-statements/accounts`
+    ] as const;
+    }
+
+
+export const getListBankStatementAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listBankStatementAccounts>>, TError = ErrorType<unknown>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankStatementAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankStatementAccountsQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankStatementAccounts>>> = ({ signal }) => listBankStatementAccounts(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankStatementAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBankStatementAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listBankStatementAccounts>>>
+export type ListBankStatementAccountsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List bank, AR/AP accounts and explicit bank IBAN/BIC mappings
+ */
+
+export function useListBankStatementAccounts<TData = Awaited<ReturnType<typeof listBankStatementAccounts>>, TError = ErrorType<unknown>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankStatementAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBankStatementAccountsQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetBankAccountMetadataUrl = (companyId: string,
+    bankAccountId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/bank-statements/accounts/${bankAccountId}/metadata`
+}
+
+/**
+ * @summary Set explicit IBAN/BIC and supported SEPA profile for a company bank account
+ */
+export const setBankAccountMetadata = async (companyId: string,
+    bankAccountId: string,
+    bankAccountMetadataBody: BankAccountMetadataBody, options?: RequestInit): Promise<BankAccountMetadata> => {
+
+  return customFetch<BankAccountMetadata>(getSetBankAccountMetadataUrl(companyId,bankAccountId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bankAccountMetadataBody)
+  }
+);}
+
+
+
+
+
+export const getSetBankAccountMetadataMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setBankAccountMetadata>>, TError,{companyId: string;bankAccountId: string;data: BodyType<BankAccountMetadataBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setBankAccountMetadata>>, TError,{companyId: string;bankAccountId: string;data: BodyType<BankAccountMetadataBody>}, TContext> => {
+
+const mutationKey = ['setBankAccountMetadata'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setBankAccountMetadata>>, {companyId: string;bankAccountId: string;data: BodyType<BankAccountMetadataBody>}> = (props) => {
+          const {companyId,bankAccountId,data} = props ?? {};
+
+          return  setBankAccountMetadata(companyId,bankAccountId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetBankAccountMetadataMutationResult = NonNullable<Awaited<ReturnType<typeof setBankAccountMetadata>>>
+    export type SetBankAccountMetadataMutationBody = BodyType<BankAccountMetadataBody>
+    export type SetBankAccountMetadataMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set explicit IBAN/BIC and supported SEPA profile for a company bank account
+ */
+export const useSetBankAccountMetadata = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setBankAccountMetadata>>, TError,{companyId: string;bankAccountId: string;data: BodyType<BankAccountMetadataBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setBankAccountMetadata>>,
+        TError,
+        {companyId: string;bankAccountId: string;data: BodyType<BankAccountMetadataBody>},
+        TContext
+      > => {
+      return useMutation(getSetBankAccountMetadataMutationOptions(options));
+    }
+
+export const getReconcileBankStatementLineUrl = (companyId: string,
+    lineId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/bank-statements/lines/${lineId}/reconcile`
+}
+
+/**
+ * Does not create a payment or post a draft. Account, direction and amount remain strict. A date/reference mismatch returns warnings requiring explicit confirmation; draft allocations are adjusted to actual execution and still require explicit posting.
+ * @summary Link one registered bank statement line to an existing payment
+ */
+export const reconcileBankStatementLine = async (companyId: string,
+    lineId: string,
+    reconcileBankStatementLineBody: ReconcileBankStatementLineBody, options?: RequestInit): Promise<ReconcileBankStatementLineResponse> => {
+
+  return customFetch<ReconcileBankStatementLineResponse>(getReconcileBankStatementLineUrl(companyId,lineId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reconcileBankStatementLineBody)
+  }
+);}
+
+
+
+
+
+export const getReconcileBankStatementLineMutationOptions = <TError = ErrorType<ReconcileBankStatementLineConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileBankStatementLine>>, TError,{companyId: string;lineId: string;data: BodyType<ReconcileBankStatementLineBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileBankStatementLine>>, TError,{companyId: string;lineId: string;data: BodyType<ReconcileBankStatementLineBody>}, TContext> => {
+
+const mutationKey = ['reconcileBankStatementLine'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileBankStatementLine>>, {companyId: string;lineId: string;data: BodyType<ReconcileBankStatementLineBody>}> = (props) => {
+          const {companyId,lineId,data} = props ?? {};
+
+          return  reconcileBankStatementLine(companyId,lineId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileBankStatementLineMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileBankStatementLine>>>
+    export type ReconcileBankStatementLineMutationBody = BodyType<ReconcileBankStatementLineBody>
+    export type ReconcileBankStatementLineMutationError = ErrorType<ReconcileBankStatementLineConflict>
+
+    /**
+ * @summary Link one registered bank statement line to an existing payment
+ */
+export const useReconcileBankStatementLine = <TError = ErrorType<ReconcileBankStatementLineConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileBankStatementLine>>, TError,{companyId: string;lineId: string;data: BodyType<ReconcileBankStatementLineBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileBankStatementLine>>,
+        TError,
+        {companyId: string;lineId: string;data: BodyType<ReconcileBankStatementLineBody>},
+        TContext
+      > => {
+      return useMutation(getReconcileBankStatementLineMutationOptions(options));
+    }
+
 export const getGetBankStatementDetailUrl = (companyId: string,
     statementId: string,) => {
 
@@ -26384,6 +27102,514 @@ export function useGetAgedAnalysis<TData = Awaited<ReturnType<typeof getAgedAnal
 
 
 
+
+export const getGetPartnerLedgerUrl = (companyId: string,
+    params?: GetPartnerLedgerParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/partner-ledger?${stringifiedParams}` : `/api/companies/${companyId}/partner-ledger`
+}
+
+/**
+ * Returns partner-tagged posted/reversed GL lines across all accounts, chronological running balance and independent open debit/credit amounts. dateFrom only filters returned lines; opening/running balance is calculated from the complete flow through dateTo. Drafts are read-only and require mode=drafts; draft data is never included by default and is unsuitable for settlement/payment preparation. Missing historic counterparts are retained as evidence warnings, never manufactured as postings.
+ * @summary Chronological partner GL card
+ */
+export const getPartnerLedger = async (companyId: string,
+    params?: GetPartnerLedgerParams, options?: RequestInit): Promise<GetPartnerLedger200> => {
+
+  return customFetch<GetPartnerLedger200>(getGetPartnerLedgerUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnerLedgerQueryKey = (companyId: string,
+    params?: GetPartnerLedgerParams,) => {
+    return [
+    `/api/companies/${companyId}/partner-ledger`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPartnerLedgerQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerLedger>>, TError = ErrorType<void>>(companyId: string,
+    params?: GetPartnerLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnerLedgerQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnerLedger>>> = ({ signal }) => getPartnerLedger(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedger>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartnerLedgerQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnerLedger>>>
+export type GetPartnerLedgerQueryError = ErrorType<void>
+
+
+/**
+ * @summary Chronological partner GL card
+ */
+
+export function useGetPartnerLedger<TData = Awaited<ReturnType<typeof getPartnerLedger>>, TError = ErrorType<void>>(
+ companyId: string,
+    params?: GetPartnerLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartnerLedgerQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPartnerLedgerPdfUrl = (companyId: string,
+    params?: GetPartnerLedgerPdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/partner-ledger/pdf?${stringifiedParams}` : `/api/companies/${companyId}/partner-ledger/pdf`
+}
+
+/**
+ * Uses the same filters and calculator as getPartnerLedger; open debit and credit are printed separately.
+ * @summary Export partner ledger card as PDF
+ */
+export const getPartnerLedgerPdf = async (companyId: string,
+    params?: GetPartnerLedgerPdfParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetPartnerLedgerPdfUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnerLedgerPdfQueryKey = (companyId: string,
+    params?: GetPartnerLedgerPdfParams,) => {
+    return [
+    `/api/companies/${companyId}/partner-ledger/pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPartnerLedgerPdfQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError = ErrorType<void>>(companyId: string,
+    params?: GetPartnerLedgerPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnerLedgerPdfQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnerLedgerPdf>>> = ({ signal }) => getPartnerLedgerPdf(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartnerLedgerPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnerLedgerPdf>>>
+export type GetPartnerLedgerPdfQueryError = ErrorType<void>
+
+
+/**
+ * @summary Export partner ledger card as PDF
+ */
+
+export function useGetPartnerLedgerPdf<TData = Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError = ErrorType<void>>(
+ companyId: string,
+    params?: GetPartnerLedgerPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerLedgerPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartnerLedgerPdfQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPartnerTurnoverUrl = (companyId: string,
+    params: GetPartnerTurnoverParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/partner-turnover?${stringifiedParams}` : `/api/companies/${companyId}/partner-turnover`
+}
+
+/**
+ * Groups period debit and credit by account and partner. Open debit and open credit are separate; unresolved legacy remainder semantics are not guessed or netted.
+ * @summary Grouped partner turnover report
+ */
+export const getPartnerTurnover = async (companyId: string,
+    params: GetPartnerTurnoverParams, options?: RequestInit): Promise<GetPartnerTurnover200> => {
+
+  return customFetch<GetPartnerTurnover200>(getGetPartnerTurnoverUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnerTurnoverQueryKey = (companyId: string,
+    params?: GetPartnerTurnoverParams,) => {
+    return [
+    `/api/companies/${companyId}/partner-turnover`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPartnerTurnoverQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerTurnover>>, TError = ErrorType<void>>(companyId: string,
+    params: GetPartnerTurnoverParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerTurnover>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnerTurnoverQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnerTurnover>>> = ({ signal }) => getPartnerTurnover(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnerTurnover>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartnerTurnoverQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnerTurnover>>>
+export type GetPartnerTurnoverQueryError = ErrorType<void>
+
+
+/**
+ * @summary Grouped partner turnover report
+ */
+
+export function useGetPartnerTurnover<TData = Awaited<ReturnType<typeof getPartnerTurnover>>, TError = ErrorType<void>>(
+ companyId: string,
+    params: GetPartnerTurnoverParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerTurnover>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartnerTurnoverQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPartnerTurnoverPdfUrl = (companyId: string,
+    params: GetPartnerTurnoverPdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/partner-turnover/pdf?${stringifiedParams}` : `/api/companies/${companyId}/partner-turnover/pdf`
+}
+
+/**
+ * Same grouped partner turnover calculator and filters as getPartnerTurnover.
+ * @summary Export grouped partner turnover as PDF
+ */
+export const getPartnerTurnoverPdf = async (companyId: string,
+    params: GetPartnerTurnoverPdfParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetPartnerTurnoverPdfUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnerTurnoverPdfQueryKey = (companyId: string,
+    params?: GetPartnerTurnoverPdfParams,) => {
+    return [
+    `/api/companies/${companyId}/partner-turnover/pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPartnerTurnoverPdfQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerTurnoverPdf>>, TError = ErrorType<void>>(companyId: string,
+    params: GetPartnerTurnoverPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerTurnoverPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnerTurnoverPdfQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnerTurnoverPdf>>> = ({ signal }) => getPartnerTurnoverPdf(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnerTurnoverPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartnerTurnoverPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnerTurnoverPdf>>>
+export type GetPartnerTurnoverPdfQueryError = ErrorType<void>
+
+
+/**
+ * @summary Export grouped partner turnover as PDF
+ */
+
+export function useGetPartnerTurnoverPdf<TData = Awaited<ReturnType<typeof getPartnerTurnoverPdf>>, TError = ErrorType<void>>(
+ companyId: string,
+    params: GetPartnerTurnoverPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerTurnoverPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartnerTurnoverPdfQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePartnerSettlementsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/partner-settlements`
+}
+
+/**
+ * Atomically appends one close event per allocation. Every pair must be opposite-side posted/reversed GL lines of the same company, partner and account. amount must be positive and within each line's currently available remainder. Idempotency keys are unique per company; repeat requests do not create duplicate close events. No journal or payment is created.
+ * @summary Manually close partner GL lines
+ */
+export const createPartnerSettlements = async (companyId: string,
+    createPartnerSettlementsBody: CreatePartnerSettlementsBody, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getCreatePartnerSettlementsUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPartnerSettlementsBody)
+  }
+);}
+
+
+
+
+
+export const getCreatePartnerSettlementsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPartnerSettlements>>, TError,{companyId: string;data: BodyType<CreatePartnerSettlementsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPartnerSettlements>>, TError,{companyId: string;data: BodyType<CreatePartnerSettlementsBody>}, TContext> => {
+
+const mutationKey = ['createPartnerSettlements'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPartnerSettlements>>, {companyId: string;data: BodyType<CreatePartnerSettlementsBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createPartnerSettlements(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePartnerSettlementsMutationResult = NonNullable<Awaited<ReturnType<typeof createPartnerSettlements>>>
+    export type CreatePartnerSettlementsMutationBody = BodyType<CreatePartnerSettlementsBody>
+    export type CreatePartnerSettlementsMutationError = ErrorType<void>
+
+    /**
+ * @summary Manually close partner GL lines
+ */
+export const useCreatePartnerSettlements = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPartnerSettlements>>, TError,{companyId: string;data: BodyType<CreatePartnerSettlementsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPartnerSettlements>>,
+        TError,
+        {companyId: string;data: BodyType<CreatePartnerSettlementsBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePartnerSettlementsMutationOptions(options));
+    }
+
+export const getReopenPartnerSettlementUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/partner-settlements/${id}/reopen`
+}
+
+/**
+ * Appends a partial/full reopen event linked to the exact close event, preserving its historical audit; journal lines remain unchanged.
+ * @summary Reopen some or all of one manual close
+ */
+export const reopenPartnerSettlement = async (companyId: string,
+    id: string,
+    reopenPartnerSettlementBody: ReopenPartnerSettlementBody, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getReopenPartnerSettlementUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reopenPartnerSettlementBody)
+  }
+);}
+
+
+
+
+
+export const getReopenPartnerSettlementMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenPartnerSettlement>>, TError,{companyId: string;id: string;data: BodyType<ReopenPartnerSettlementBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reopenPartnerSettlement>>, TError,{companyId: string;id: string;data: BodyType<ReopenPartnerSettlementBody>}, TContext> => {
+
+const mutationKey = ['reopenPartnerSettlement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reopenPartnerSettlement>>, {companyId: string;id: string;data: BodyType<ReopenPartnerSettlementBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  reopenPartnerSettlement(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReopenPartnerSettlementMutationResult = NonNullable<Awaited<ReturnType<typeof reopenPartnerSettlement>>>
+    export type ReopenPartnerSettlementMutationBody = BodyType<ReopenPartnerSettlementBody>
+    export type ReopenPartnerSettlementMutationError = ErrorType<void>
+
+    /**
+ * @summary Reopen some or all of one manual close
+ */
+export const useReopenPartnerSettlement = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenPartnerSettlement>>, TError,{companyId: string;id: string;data: BodyType<ReopenPartnerSettlementBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reopenPartnerSettlement>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<ReopenPartnerSettlementBody>},
+        TContext
+      > => {
+      return useMutation(getReopenPartnerSettlementMutationOptions(options));
+    }
 
 export const getGetBankBalanceUrl = (companyId: string,) => {
 

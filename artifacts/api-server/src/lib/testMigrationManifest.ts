@@ -470,6 +470,26 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: [],
   },
+  {
+    file: "242-partner-ledger-settlements.sql",
+    classification: "schema",
+    dependsOn: ["241-annual-reports.sql"],
+  },
+  {
+    file: "243-payment-batch-bank-metadata.sql",
+    classification: "schema",
+    dependsOn: ["242-partner-ledger-settlements.sql"],
+  },
+  {
+    file: "244-payment-batch-idempotency-fingerprint.sql",
+    classification: "schema",
+    dependsOn: ["243-payment-batch-bank-metadata.sql"],
+  },
+  {
+    file: "245-payment-batch-instruction-lifecycle.sql",
+    classification: "schema",
+    dependsOn: ["244-payment-batch-idempotency-fingerprint.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

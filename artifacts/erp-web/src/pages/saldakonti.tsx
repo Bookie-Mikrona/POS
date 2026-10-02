@@ -104,6 +104,10 @@ export default function Saldakonti() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Saldakonti</h1>
         <p className="text-muted-foreground mt-1">Odprte postavke in starostna analiza terjatev ter obveznosti.</p>
+        <div className="flex gap-2 mt-3">
+          <Button variant="outline" size="sm" onClick={() => setLocation("/kartica-partnerja")}>Kartica partnerja</Button>
+          <Button variant="outline" size="sm" onClick={() => setLocation("/promet-partnerjev")}>Promet partnerjev</Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

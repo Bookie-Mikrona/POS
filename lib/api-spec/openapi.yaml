@@ -8122,6 +8122,200 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/payments/{id}/sepa.xml:
+    get:
+      operationId: exportSinglePaymentSepaXml
+      tags: [payments]
+      summary: Download a SEPA XML for one draft payment using its selected bank account
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: SEPA pain.001 XML; export does not post or settle the payment
+          content:
+            application/xml:
+              schema: { type: string }
+        "400":
+          description: Invalid payment instructions or missing selected bank account metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /companies/{companyId}/payment-batches:
+    get:
+      operationId: listPaymentBatches
+      tags: [payments]
+      summary: List payment batches
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Company payment batches
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListPaymentBatchesResponse" }
+    post:
+      operationId: createPaymentBatch
+      tags: [payments]
+      summary: Atomically create payment drafts from invoice allocations or package saved drafts
+      description: Submit exactly one of paymentIds (existing drafts) or proposedPayments with periodId/paymentDate and exact invoice allocation amounts. Direct mode creates all grouped drafts, allocations, batch instructions, reservations and audit evidence in one transaction.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePaymentBatchBody" }
+      responses:
+        "201":
+          description: Batch created atomically
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatePaymentBatchResponse" }
+        "200":
+          description: Previously created idempotent batch
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatePaymentBatchResponse" }
+        "409":
+          description: Duplicate, conflicting or previously packaged payment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /companies/{companyId}/payment-batches/{batchId}:
+    get:
+      operationId: getPaymentBatch
+      tags: [payments]
+      summary: Get immutable payment batch instructions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: batchId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Batch and saved instructions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentBatchDetail" }
+        "404":
+          description: Batch not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /companies/{companyId}/payment-batches/{batchId}/lifecycle:
+    post:
+      operationId: resolvePaymentBatchInstructions
+      tags: [payments]
+      summary: Cancel or reject unexecuted payment instructions with an audit reason
+      description: Does not void payments, reverse journal entries, or edit XML/instruction snapshots. Releases only eligible unexecuted batch links for repackaging. Exported instructions require explicit bank-risk confirmation; partially executed batches require selected remaining paymentIds.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: batchId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentBatchLifecycleBody" }
+      responses:
+        "200":
+          description: Instruction lifecycle resolution and released draft ids
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentBatchLifecycleResponse" }
+        "409":
+          description: Exported-bank confirmation required or an instruction is already executed/resolved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentBatchLifecycleConflict" }
+  /companies/{companyId}/payment-batches/{batchId}/sepa.xml:
+    get:
+      operationId: exportPaymentBatchSepaXml
+      tags: [payments]
+      summary: Download one SEPA XML file for all batch instructions (does not post payments)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: batchId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Immutable batch XML
+          content:
+            application/xml:
+              schema: { type: string }
+        "409":
+          description: Batch has already partially executed and has no prior export snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /companies/{companyId}/bank-statements/accounts:
+    get:
+      operationId: listBankStatementAccounts
+      tags: [payments]
+      summary: List bank, AR/AP accounts and explicit bank IBAN/BIC mappings
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Bank account selection and mapping data for statement/payment UI
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankStatementAccountsResponse" }
+  /companies/{companyId}/bank-statements/accounts/{bankAccountId}/metadata:
+    put:
+      operationId: setBankAccountMetadata
+      tags: [payments]
+      summary: Set explicit IBAN/BIC and supported SEPA profile for a company bank account
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: bankAccountId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BankAccountMetadataBody" }
+      responses:
+        "200":
+          description: Saved bank account mapping
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankAccountMetadata" }
+        "400":
+          description: Invalid IBAN, BIC or unsupported bank profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /companies/{companyId}/bank-statements/lines/{lineId}/reconcile:
+    post:
+      operationId: reconcileBankStatementLine
+      tags: [payments]
+      summary: Link one registered bank statement line to an existing payment
+      description: Does not create a payment or post a draft. Account, direction and amount remain strict. A date/reference mismatch returns warnings requiring explicit confirmation; draft allocations are adjusted to actual execution and still require explicit posting.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: lineId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReconcileBankStatementLineBody" }
+      responses:
+        "200":
+          description: Existing payment linked to actual bank evidence
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReconcileBankStatementLineResponse" }
+        "409":
+          description: Already reconciled, posted-payment conflict, or confirmation required for execution date/reference warnings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReconcileBankStatementLineConflict" }
   /companies/{companyId}/bank-statements/detail/{statementId}:
     get:
       operationId: getBankStatementDetail
@@ -8740,6 +8934,255 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/partner-ledger:
+    get:
+      operationId: getPartnerLedger
+      tags: [partner-ledger]
+      summary: Chronological partner GL card
+      description: >
+        Returns partner-tagged posted/reversed GL lines across all accounts, chronological running
+        balance and independent open debit/credit amounts. dateFrom only filters returned lines;
+        opening/running balance is calculated from the complete flow through dateTo. Drafts are
+        read-only and require mode=drafts; draft data is never included by default and is unsuitable
+        for settlement/payment preparation. Missing historic counterparts are retained as evidence
+        warnings, never manufactured as postings.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: partnerId, in: query, schema: { type: string } }
+        - { name: accountId, in: query, schema: { type: string } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date }, description: "As-of cut-off; defaults to today." }
+        - { name: openOnly, in: query, schema: { type: boolean }, description: "Filters returned lines only; does not alter running balance." }
+        - { name: mode, in: query, schema: { type: string, enum: [posted, drafts], default: posted }, description: "Drafts is a separate read-only comparison mode." }
+      responses:
+        "200":
+          description: Partner card
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  asOfDate: { type: string, format: date }
+                  dateFrom: { type: string, format: date, nullable: true }
+                  mode: { type: string, enum: [posted, drafts] }
+                  openingBalance:
+                    type: string
+                    nullable: true
+                    description: "Opening balance for the selected account; null for a multi-account card."
+                  closingBalance:
+                    type: string
+                    description: Full selected ledger balance at the cutoff, unaffected by openOnly.
+                  openingBalances:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        accountId: { type: string }
+                        accountCode: { type: string }
+                        accountName: { type: string }
+                        balance: { type: string }
+                      required: [accountId, accountCode, accountName, balance]
+                  lines:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        lineId: { type: string }
+                        partnerId: { type: string }
+                        partnerName: { type: string }
+                        partnerCity: { type: string, nullable: true }
+                        accountId: { type: string }
+                        accountCode: { type: string }
+                        accountName: { type: string }
+                        entryId: { type: string }
+                        entryStatus: { type: string, enum: [posted, reversed, draft] }
+                        documentType: { type: string }
+                        documentNumber: { type: string, nullable: true }
+                        description: { type: string }
+                        documentDate: { type: string, format: date, nullable: true }
+                        postingDate: { type: string, format: date }
+                        taxDate: { type: string, format: date, nullable: true }
+                        dueDate: { type: string, format: date, nullable: true }
+                        debit: { type: string }
+                        credit: { type: string }
+                        runningBalance: { type: string }
+                        openDebit: { type: string, description: "Open debit amount; intentionally not netted against open credit." }
+                        openCredit: { type: string, description: "Open credit amount; intentionally not netted against open debit." }
+                        closings: { type: array, items: { type: object, additionalProperties: true } }
+                      required: [lineId, partnerId, partnerName, accountId, accountCode, accountName, entryId, entryStatus, debit, credit, runningBalance, openDebit, openCredit, closings]
+                required: [asOfDate, dateFrom, mode, openingBalance, openingBalances, lines]
+        "401": { description: Unauthorized }
+        "403": { description: Company access denied }
+        "400": { description: Invalid filter }
+  /companies/{companyId}/partner-ledger/pdf:
+    get:
+      operationId: getPartnerLedgerPdf
+      tags: [partner-ledger]
+      summary: Export partner ledger card as PDF
+      description: Uses the same filters and calculator as getPartnerLedger; open debit and credit are printed separately.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: partnerId, in: query, schema: { type: string } }
+        - { name: accountId, in: query, schema: { type: string } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+        - { name: openOnly, in: query, schema: { type: boolean } }
+        - { name: mode, in: query, schema: { type: string, enum: [posted, drafts], default: posted } }
+      responses:
+        "200":
+          description: PDF document
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "403": { description: Company access denied }
+  /companies/{companyId}/partner-turnover:
+    get:
+      operationId: getPartnerTurnover
+      tags: [partner-ledger]
+      summary: Grouped partner turnover report
+      description: Groups period debit and credit by account and partner. Open debit and open credit are separate; unresolved legacy remainder semantics are not guessed or netted.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: dateFrom, in: query, required: true, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: true, schema: { type: string, format: date } }
+        - { name: partnerId, in: query, schema: { type: string } }
+        - { name: accountId, in: query, schema: { type: string } }
+        - { name: openOnly, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: Grouped report, totals, and explicit remainder semantics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dateFrom: { type: string, format: date }
+                  dateTo: { type: string, format: date }
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        partnerId: { type: string }
+                        partnerCode: { type: string, nullable: true }
+                        partnerName: { type: string }
+                        partnerCity: { type: string, nullable: true }
+                        accountId: { type: string }
+                        accountCode: { type: string }
+                        accountName: { type: string }
+                        debit: { type: string }
+                        credit: { type: string }
+                        periodBalance: { type: string }
+                        openDebit: { type: string }
+                        openCredit: { type: string }
+                  accountTotals:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        accountId: { type: string }
+                        accountCode: { type: string }
+                        accountName: { type: string }
+                        debit: { type: string }
+                        credit: { type: string }
+                        periodBalance: { type: string }
+                        openDebit: { type: string }
+                        openCredit: { type: string }
+                  totals: { type: object, additionalProperties: { type: string } }
+                  remainderSemantics: { type: string }
+                required: [dateFrom, dateTo, rows, accountTotals, totals, remainderSemantics]
+        "400": { description: Invalid period }
+        "403": { description: Company access denied }
+  /companies/{companyId}/partner-turnover/pdf:
+    get:
+      operationId: getPartnerTurnoverPdf
+      tags: [partner-ledger]
+      summary: Export grouped partner turnover as PDF
+      description: Same grouped partner turnover calculator and filters as getPartnerTurnover.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: dateFrom, in: query, required: true, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: true, schema: { type: string, format: date } }
+        - { name: partnerId, in: query, schema: { type: string } }
+        - { name: accountId, in: query, schema: { type: string } }
+        - { name: openOnly, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: PDF document
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "403": { description: Company access denied }
+  /companies/{companyId}/partner-settlements:
+    post:
+      operationId: createPartnerSettlements
+      tags: [partner-ledger]
+      summary: Manually close partner GL lines
+      description: >
+        Atomically appends one close event per allocation. Every pair must be opposite-side
+        posted/reversed GL lines of the same company, partner and account. amount must be positive
+        and within each line's currently available remainder. Idempotency keys are unique per
+        company; repeat requests do not create duplicate close events. No journal or payment is created.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                allocations:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    properties:
+                      sourceLineId: { type: string }
+                      targetLineId: { type: string }
+                      amount: { type: string, pattern: '^[0-9]+(\.[0-9]{1,2})?$' }
+                    required: [sourceLineId, targetLineId, amount]
+                effectiveDate: { type: string, format: date }
+                idempotencyKey: { type: string, minLength: 1, maxLength: 160 }
+                reason: { type: string, nullable: true }
+              required: [allocations, effectiveDate, idempotencyKey]
+      responses:
+        "201": { description: Appended settlement close events }
+        "400": { description: Invalid settlement request }
+        "403": { description: Permission denied }
+        "409": { description: Remaining balance conflict or duplicate idempotency key }
+  /companies/{companyId}/partner-settlements/{id}/reopen:
+    post:
+      operationId: reopenPartnerSettlement
+      tags: [partner-ledger]
+      summary: Reopen some or all of one manual close
+      description: Appends a partial/full reopen event linked to the exact close event, preserving its historical audit; journal lines remain unchanged.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: id, in: path, required: true, schema: { type: string }, description: Original close event or stable historical closing ID }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: string, pattern: '^[0-9]+(\.[0-9]{1,2})?$' }
+                effectiveDate: { type: string, format: date }
+                idempotencyKey: { type: string, minLength: 1, maxLength: 160 }
+                reason: { type: string, minLength: 1 }
+              required: [amount, effectiveDate, idempotencyKey, reason]
+      responses:
+        "201": { description: Appended reopen event }
+        "400": { description: Invalid reopen request }
+        "403": { description: Permission denied }
+        "409": { description: Close not found or requested amount exceeds active close }
   /companies/{companyId}/bank-balance:
     get:
       operationId: getBankBalance
@@ -21440,6 +21883,226 @@ components:
             $ref: "#/components/schemas/PaymentRecord"
       required:
         - payments
+    PaymentBatchInstruction:
+      type: object
+      properties:
+        paymentId: { type: string }
+        amount: { type: string }
+        executionDate: { type: string, format: date }
+        creditorName: { type: string }
+        creditorIban: { type: string }
+        creditorBic: { type: [string, "null"] }
+        purpose: { type: [string, "null"] }
+        reference: { type: [string, "null"] }
+        model: { type: [string, "null"] }
+      required: [paymentId, amount, executionDate, creditorName, creditorIban]
+    PaymentBatchRecord:
+      type: object
+      properties:
+        id: { type: string }
+        bankAccountId: { type: string }
+        executionDate: { type: string, format: date }
+        status: { type: string, enum: [ready, exported, partially_executed, executed, rejected, cancelled] }
+        transactionCount: { type: string }
+        controlSum: { type: string }
+        exportedAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+      required: [id, bankAccountId, executionDate, status, transactionCount, controlSum, createdAt]
+    ListPaymentBatchesResponse:
+      type: object
+      properties:
+        batches:
+          type: array
+          items: { $ref: "#/components/schemas/PaymentBatchRecord" }
+      required: [batches]
+    CreatePaymentBatchBody:
+      type: object
+      description: Supply either saved paymentIds or periodId, paymentDate and proposedPayments. The server validates these mutually exclusive modes atomically.
+      properties:
+        bankAccountId: { type: string }
+        periodId: { type: string, description: Required with proposedPayments }
+        paymentDate: { type: string, format: date, description: Required with proposedPayments }
+        cutoffDate: { type: string, format: date, description: Optional due-date cutoff for selected invoices }
+        paymentIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items: { type: string }
+        proposedPayments:
+          type: array
+          minItems: 1
+          maxItems: 500
+          description: Direct supplier/AP-account groups. The server splits groups further when creditor instructions are incompatible.
+          items:
+            type: object
+            properties:
+              counterpartyId: { type: string }
+              arApAccountId: { type: string }
+              allocations:
+                type: array
+                minItems: 1
+                items: { $ref: "#/components/schemas/PaymentBatchProposedAllocation" }
+            required: [counterpartyId, arApAccountId, allocations]
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+      required: [bankAccountId, idempotencyKey]
+    PaymentBatchProposedAllocation:
+      type: object
+      properties:
+        invoiceId: { type: string }
+        amount: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+      required: [invoiceId, amount]
+    CreatePaymentBatchResponse:
+      type: object
+      properties:
+        batchId: { type: string }
+        batch: { $ref: "#/components/schemas/PaymentBatchRecord" }
+        payments:
+          type: array
+          items: { $ref: "#/components/schemas/PaymentWithAllocations" }
+        replayed: { type: boolean }
+      required: [batchId, batch, payments]
+    PaymentBatchDetail:
+      allOf:
+        - $ref: "#/components/schemas/PaymentBatchRecord"
+        - type: object
+          properties:
+            companyId: { type: string }
+            executionDate: { type: string, format: date }
+            idempotencyKey: { type: string }
+            xmlSnapshot: { type: [string, "null"] }
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  paymentId: { type: string }
+                  instruction: { $ref: "#/components/schemas/PaymentBatchInstruction" }
+                  lifecycleStatus: { type: string, enum: [ready, partially_executed, executed, rejected, cancelled] }
+                  resolutionReason: { type: [string, "null"] }
+                  resolvedBy: { type: [string, "null"] }
+                  resolvedAt: { type: [string, "null"], format: date-time }
+                  releasedAt: { type: [string, "null"], format: date-time }
+                required: [paymentId, instruction]
+          required: [companyId, idempotencyKey, items]
+    PaymentBatchLifecycleBody:
+      type: object
+      properties:
+        action: { type: string, enum: [cancel, reject] }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+        paymentIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string }
+          description: Required for partially executed batches; must contain only unexecuted remaining instructions.
+        confirmExportedRisk:
+          type: boolean
+          description: Required after an XML snapshot was exported because the bank may already have received it.
+      required: [action, reason]
+    PaymentBatchLifecycleResponse:
+      type: object
+      properties:
+        batchId: { type: string }
+        status: { type: string, enum: [cancelled, rejected, partially_executed] }
+        paymentIds:
+          type: array
+          items: { type: string }
+        releasedForRepackaging:
+          type: array
+          items: { type: string }
+        reason: { type: string }
+        exportedWarning: { type: [string, "null"] }
+        monetaryReversal: { type: boolean, enum: [false] }
+      required: [batchId, status, paymentIds, releasedForRepackaging, reason, exportedWarning, monetaryReversal]
+    PaymentBatchLifecycleConflict:
+      type: object
+      properties:
+        error: { type: string }
+        confirmationRequired: { type: boolean }
+        warning: { type: string }
+      required: [error]
+    BankAccountMetadataBody:
+      type: object
+      properties:
+        iban: { type: string }
+        bic: { type: [string, "null"], pattern: "^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$" }
+        sepaProfile: { type: string, enum: [pain.001.001.03], default: pain.001.001.03 }
+      required: [iban]
+    BankAccountMetadata:
+      allOf:
+        - $ref: "#/components/schemas/BankAccountMetadataBody"
+        - type: object
+          properties:
+            bankAccountId: { type: string }
+          required: [bankAccountId, iban, sepaProfile]
+    BankStatementAccountsResponse:
+      type: object
+      properties:
+        bankAccounts:
+          type: array
+          items: { $ref: "#/components/schemas/BankLedgerAccount" }
+        arAccounts:
+          type: array
+          items: { $ref: "#/components/schemas/BankLedgerAccount" }
+        apAccounts:
+          type: array
+          items: { $ref: "#/components/schemas/BankLedgerAccount" }
+        periods:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              status: { type: string }
+            required: [id, name, status]
+        bankDetails:
+          type: array
+          items: { $ref: "#/components/schemas/BankAccountMetadata" }
+      required: [bankAccounts, arAccounts, apAccounts, periods, bankDetails]
+    BankLedgerAccount:
+      type: object
+      properties:
+        id: { type: string }
+        code: { type: string }
+        name: { type: string }
+      required: [id, code, name]
+    ReconcileBankStatementLineBody:
+      type: object
+      properties:
+        paymentId: { type: string }
+        confirmDateMismatch:
+          type: boolean
+          description: Explicitly accept a planned-vs-actual execution date difference after reviewing the returned warning.
+        confirmReferenceMismatch:
+          type: boolean
+          description: Explicitly accept a payment-vs-bank statement reference difference after reviewing the returned warning.
+      required: [paymentId]
+    ReconcileBankStatementLineResponse:
+      type: object
+      properties:
+        paymentId: { type: string }
+        bankStatementLineId: { type: string }
+        actualAmount: { type: string }
+        status: { type: string, enum: [draft, posted] }
+        requiresExplicitPosting: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+      required: [paymentId, bankStatementLineId, actualAmount, status, requiresExplicitPosting]
+    ReconcileBankStatementLineConflict:
+      type: object
+      properties:
+        error: { type: string }
+        confirmationRequired: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+        requiredConfirmations:
+          type: array
+          items: { type: string, enum: [confirmDateMismatch, confirmReferenceMismatch] }
+      required: [error]
     PaymentAllocationBody:
       type: object
       properties:
@@ -21511,6 +22174,10 @@ components:
     OpenItem:
       type: object
       properties:
+        activePaymentBatchId:
+          type: string
+          nullable: true
+          description: Active batch reserving this invoice; prevent selecting it again.
         invoiceId:
           type: string
         invoiceNumber:

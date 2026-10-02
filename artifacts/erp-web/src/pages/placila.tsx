@@ -20,6 +20,8 @@ import {
   useGetPayment,
   useCreatePayment,
   usePostPayment,
+  useCreatePaymentBatch,
+  getListPaymentBatchesQueryKey,
   useVoidPayment,
   useListCounterparties,
   useListPeriods,
@@ -46,6 +48,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PaymentBatchesPanel } from "@/components/payment-batches-panel";
+import { BankAccountMetadataDialog } from "@/components/bank-account-metadata-dialog";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Osnutek",
@@ -75,11 +79,11 @@ export default function Placila() {
   const { data, isLoading, error } = useListPayments(
     activeCompany?.id ?? "",
     {
-      direction: activeTab as "inbound" | "outbound",
+      direction: (activeTab === "outbound" ? "outbound" : "inbound") as "inbound" | "outbound",
       status: statusFilter !== "all" ? (statusFilter as any) : undefined,
       periodId: periodFilter !== "all" ? periodFilter : undefined,
     },
-    { query: { enabled: !!activeCompany?.id } as any }
+    { query: { enabled: !!activeCompany?.id && activeTab !== "batches" } as any }
   );
 
   const payments = data?.payments ?? [];
@@ -179,6 +183,7 @@ export default function Placila() {
           <TabsList>
             <TabsTrigger value="inbound">Prejeta plačila</TabsTrigger>
             <TabsTrigger value="outbound">Izplačila</TabsTrigger>
+            <TabsTrigger value="batches">Paketi za banko</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -221,7 +226,9 @@ export default function Placila() {
         )}
       </div>
 
-      {isLoading ? (
+      {activeTab === "batches" ? (
+        <PaymentBatchesPanel />
+      ) : isLoading ? (
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-[400px] w-full" />
@@ -315,7 +322,8 @@ export default function Placila() {
             setNewSheetOpen(open);
             if (!open && sspPrefill) setLocation("/placila");
           }}
-          defaultDirection={activeTab as "inbound" | "outbound"}
+          onBatchCreated={() => setActiveTab("batches")}
+          defaultDirection={activeTab === "outbound" ? "outbound" : "inbound"}
           sspPrefill={sspPrefill ?? undefined}
         />
       )}
@@ -347,7 +355,7 @@ export default function Placila() {
 // NEW PAYMENT SHEET
 // ---------------------------------------------------------------------------
 
-function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: { open: boolean, onOpenChange: (open: boolean) => void, defaultDirection: "inbound" | "outbound", sspPrefill?: { invoiceId: string; counterpartyId: string; arApAccountId: string; amount: string } }) {
+function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection, sspPrefill }: { open: boolean, onBatchCreated?: () => void, onOpenChange: (open: boolean) => void, defaultDirection: "inbound" | "outbound", sspPrefill?: { invoiceId: string; counterpartyId: string; arApAccountId: string; amount: string } }) {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
 
@@ -390,6 +398,10 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
     { query: { enabled: !!activeCompany?.id && open && formData.direction === "outbound" } as any },
   );
 
+  // Meja zapadlosti: independent of execution date. Empty = no due restriction.
+  const [cutoffDate, setCutoffDate] = useState(new Date().toISOString().split("T")[0]);
+  const [cutoffTouched, setCutoffTouched] = useState(false);
+  const [cutoffNotice, setCutoffNotice] = useState<string | null>(null);
   const [allocations, setAllocations] = useState<{ id: string; invoiceId: string; allocatedAmount: string }[]>([]);
 
   React.useEffect(() => {
@@ -438,6 +450,22 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
     .filter(item => item.invoiceType === "received")
     .sort((a, b) => (a.dueDate || a.invoiceDate).localeCompare(b.dueDate || b.invoiceDate));
 
+  const itemDue = (item: { dueDate?: string | null; invoiceDate: string }) => item.dueDate || item.invoiceDate;
+  const beyondCutoff = (item: { dueDate?: string | null; invoiceDate: string }) => !!cutoffDate && itemDue(item) > cutoffDate;
+
+  React.useEffect(() => {
+    if (formData.direction !== "outbound" || !cutoffDate) { return; }
+    const removed = allocations.filter(a => {
+      const it = supplierOpenItems.find(i => i.invoiceId === a.invoiceId);
+      return it && itemDue(it) > cutoffDate;
+    });
+    if (removed.length === 0) return;
+    const ids = new Set(removed.map(a => a.invoiceId));
+    setAllocations(cur => cur.filter(a => !ids.has(a.invoiceId)));
+    setCutoffNotice(`Zaradi meje zapadlosti ${new Date(cutoffDate).toLocaleDateString("sl-SI")} je bilo odstranjenih ${removed.length} izbranih računov, ki zapadejo pozneje.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cutoffDate, openItemsData]);
+
   const addAllocation = () => setAllocations([...allocations, { id: Math.random().toString(), invoiceId: "", allocatedAmount: "" }]);
   const removeAllocation = (id: string) => setAllocations(allocations.filter(a => a.id !== id));
   const updateAllocation = (id: string, field: string, val: string) => setAllocations(allocations.map(a => a.id === id ? { ...a, [field]: val } : a));
@@ -447,7 +475,7 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
       return;
     }
     const item = supplierOpenItems.find(openItem => openItem.invoiceId === invoiceId);
-    if (!item) return;
+    if (!item || item.activePaymentBatchId) return;
     setAllocations(current => [
       ...current,
       { id: `invoice-${invoiceId}`, invoiceId, allocatedAmount: item.remainingAmount },
@@ -494,6 +522,8 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
   }, [formData.direction, totals.allocated]);
 
   const createMut = useCreatePayment();
+  const batchMut = useCreatePaymentBatch();
+  const batchKeyRef = React.useRef(crypto.randomUUID());
 
   const buildPayload = (
     force = false,
@@ -557,18 +587,39 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
         group.allocations.push(allocation);
         groups.set(key, group);
       }
+      // One atomic request: server creates all supplier drafts and the batch, or nothing.
+      const proposedPayments = [...groups.values()]
+        .map(group => ({
+          counterpartyId: group.counterpartyId,
+          arApAccountId: group.arApAccountId,
+          allocations: group.allocations
+            .filter(a => a.invoiceId && parseFloat(a.allocatedAmount) > 0)
+            .map(a => ({ invoiceId: a.invoiceId, amount: parseFloat(a.allocatedAmount) })),
+        }))
+        .filter(g => g.allocations.length > 0);
+      if (proposedPayments.length === 0) return;
       try {
-        await Promise.all([...groups.values()].map(group => createMut.mutateAsync(buildPayload(force, group))));
+        await batchMut.mutateAsync({
+          companyId: activeCompany.id,
+          data: {
+            bankAccountId: formData.bankAccountId,
+            periodId: formData.periodId,
+            paymentDate: formData.paymentDate,
+            ...(cutoffDate ? { cutoffDate } : {}),
+            proposedPayments,
+            idempotencyKey: batchKeyRef.current,
+          },
+        });
         queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
+        queryClient.invalidateQueries({ queryKey: getListPaymentBatchesQueryKey(activeCompany.id) });
+        batchKeyRef.current = crypto.randomUUID();
         setDuplicateWarning(null);
         onOpenChange(false);
+        onBatchCreated?.();
       } catch (err: any) {
-        if (err?.status === 409 && err?.data?.duplicateOf?.paymentId) {
-          setDuplicateWarning({
-            paymentId: err.data.duplicateOf.paymentId,
-            message: err.data?.error ?? "Plačilo s temi podatki že obstaja v sistemu.",
-          });
-        }
+        // Server rejected the request: nothing was saved. A changed retry needs a new key.
+        if (err?.status && err.status < 500) batchKeyRef.current = crypto.randomUUID();
+        alert(`Paket ni bil ustvarjen, noben osnutek ni shranjen. ${err?.data?.error ?? err?.message ?? ""}`);
       }
       return;
     }
@@ -656,8 +707,19 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
             </div>
             <div className="space-y-2">
               <Label>Datum plačila <span className="text-destructive">*</span></Label>
-              <Input type="date" value={formData.paymentDate} onChange={e => setFormData(p => ({ ...p, paymentDate: e.target.value }))} />
+              <Input type="date" value={formData.paymentDate} onChange={e => {
+                const v = e.target.value;
+                setFormData(p => ({ ...p, paymentDate: v }));
+                if (!cutoffTouched) setCutoffDate(v);
+              }} />
             </div>
+            {formData.direction === "outbound" && (
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label>Meja zapadlosti (neobvezno)</Label>
+                <Input type="date" value={cutoffDate} onChange={e => { setCutoffTouched(true); setCutoffNotice(null); setCutoffDate(e.target.value); }} />
+                <p className="text-xs text-muted-foreground">Prazno = brez omejitve zapadlosti. Neodvisno od datuma izvedbe.</p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -716,6 +778,15 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
               <div>
                 <h3 className="text-sm font-semibold">Odprti računi dobavitelja</h3>
                 <p className="text-xs text-muted-foreground mt-1">Razvrščeno kronološko po datumu zapadlosti. Znesek lahko zmanjšate za delno plačilo.</p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <Button type="button" variant="outline" size="sm" disabled={openItemsLoading || supplierOpenItems.length === 0}
+                    onClick={() => setAllocations(supplierOpenItems.filter(item => !beyondCutoff(item) && !item.activePaymentBatchId)
+                      .map(item => ({ id: `invoice-${item.invoiceId}`, invoiceId: item.invoiceId, allocatedAmount: item.remainingAmount })))}>
+                    Izberi vse dovoljene postavke
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" disabled={allocations.length === 0} onClick={() => setAllocations([])}>Počisti izbor</Button>
+                  {activeCompany && formData.bankAccountId && <BankAccountMetadataDialog companyId={activeCompany.id} accountId={formData.bankAccountId} />}
+                </div>
               </div>
               <div className="rounded-md border bg-card overflow-hidden">
                 {openItemsLoading ? (
@@ -725,15 +796,18 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
                 ) : supplierOpenItems.map(item => {
                   const allocation = allocations.find(current => current.invoiceId === item.invoiceId);
                   const overdue = item.daysOverdue > 0;
+                  const future = beyondCutoff(item);
                   return (
                     <div key={item.invoiceId} className="grid grid-cols-[auto_1fr_120px] gap-3 items-center border-b last:border-b-0 p-3">
-                      <Checkbox checked={!!allocation} onCheckedChange={checked => toggleSupplierInvoice(item.invoiceId, checked === true)} />
+                      <Checkbox checked={!!allocation} disabled={!!item.activePaymentBatchId || (future && !allocation)} onCheckedChange={checked => toggleSupplierInvoice(item.invoiceId, checked === true)} />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium">{item.invoiceNumber}</span>
                           <Badge className={overdue ? "bg-red-600 hover:bg-red-600" : "bg-green-600 hover:bg-green-600"}>
                             {overdue ? `Zapadlo ${item.daysOverdue} dni` : "Še ni zapadlo"}
                           </Badge>
+                          {future && <Badge variant="outline">Po meji zapadlosti</Badge>}
+                          {item.activePaymentBatchId && <Badge variant="outline">V aktivnem plačilnem paketu</Badge>}
                         </div>
                         <div className="text-sm font-medium text-foreground/80 mt-1">{item.counterpartyName}</div>
                         <div className="text-xs text-muted-foreground mt-1">
@@ -743,7 +817,7 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
                       </div>
                       <Input
                         aria-label={`Znesek plačila za račun ${item.invoiceNumber}`}
-                        disabled={!allocation}
+                        disabled={!allocation || !!item.activePaymentBatchId}
                         type="number"
                         min="0.01"
                         max={item.remainingAmount}
@@ -757,6 +831,15 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
                 })}
               </div>
               <div className={`rounded-md border p-4 ${(exceedsBankBalance || missingBankStatementBalance) ? "border-destructive bg-destructive/10" : "bg-muted/30"}`}>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Vse odprte obveznosti</span>
+                  <span>{supplierOpenItems.reduce((t, i) => t + parseFloat(i.remainingAmount), 0).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{cutoffDate ? `Zapadle do ${new Date(cutoffDate).toLocaleDateString("sl-SI")}` : "Brez meje zapadlosti"}</span>
+                  <span>{supplierOpenItems.filter(i => !beyondCutoff(i)).reduce((t, i) => t + parseFloat(i.remainingAmount), 0).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}</span>
+                </div>
+                {cutoffNotice && <p className="text-sm text-amber-700 mb-2">{cutoffNotice}</p>}
                 <div className="flex justify-between font-semibold">
                   <span>Skupaj odkljukano za plačilo</span>
                   <span className={exceedsBankBalance ? "text-destructive" : ""}>
@@ -840,7 +923,7 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: {
 
         <SheetFooter className="mt-8 pt-4 border-t sticky bottom-0 bg-background pb-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Prekliči</Button>
-          <Button onClick={() => handleSave(false)} disabled={!canSave || createMut.isPending}>
+          <Button onClick={() => handleSave(false)} disabled={!canSave || createMut.isPending || batchMut.isPending}>
             {createMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Shrani plačilo
           </Button>

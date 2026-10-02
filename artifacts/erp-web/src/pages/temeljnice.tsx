@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useSearch } from "wouter";
 import { trackEvent } from "@/lib/analytics";
 import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
@@ -189,6 +190,14 @@ export default function Temeljnice() {
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [detailEntry, setDetailEntry] = useState<JournalEntry | null>(null);
   const [exportPeriodOpen, setExportPeriodOpen] = useState(false);
+  const search = useSearch();
+  const linkedEntryId = new URLSearchParams(search).get("id");
+  const linkedEntry = useGetJournalEntry(activeCompany?.id ?? "", linkedEntryId ?? "", {
+    query: { queryKey: ["journal-deep-link", activeCompany?.id, linkedEntryId], enabled: !!activeCompany?.id && !!linkedEntryId },
+  });
+  useEffect(() => {
+    if (linkedEntry.data) setDetailEntry(linkedEntry.data);
+  }, [linkedEntry.data]);
 
   const [stornoOpen, setStornoOpen] = useState(false);
   const [stornoEntry, setStornoEntry] = useState<JournalEntry | null>(null);

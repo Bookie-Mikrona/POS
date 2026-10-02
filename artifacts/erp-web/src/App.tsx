@@ -25,6 +25,8 @@ import Placeholder from "@/pages/placeholder";
 import Placila from "@/pages/placila";
 import BancniIzpis from "@/pages/bancni-izpis";
 import Saldakonti from "@/pages/saldakonti";
+import KarticaPartnerja from "@/pages/kartica-partnerja";
+import PrometPartnerjev from "@/pages/promet-partnerjev";
 import Ddv from "@/pages/ddv";
 import Dimenzije from "@/pages/dimenzije";
 import StroskovnaMesta from "@/pages/stroskovana-mesta";
@@ -400,7 +402,8 @@ function ClerkProviderWithRoutes() {
           <ProtectedRoute path="/placila" component={Placila} />
           <ProtectedRoute path="/bancni-izpis" component={BancniIzpis} />
           <ProtectedRoute path="/saldakonti" component={Saldakonti} />
-          
+          <ProtectedRoute path="/kartica-partnerja" component={KarticaPartnerja} />
+          <ProtectedRoute path="/promet-partnerjev" component={PrometPartnerjev} />
           <ProtectedRoute path="/ddv" component={Ddv} />
           
           <ProtectedRoute path="/stroskovana-mesta" component={StroskovnaMesta} />

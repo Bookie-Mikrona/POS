@@ -23,6 +23,8 @@ import {
   useListAccounts,
   useListCounterparties,
   getListPaymentsQueryKey,
+  useListPayments,
+  reconcileBankStatementLine,
 } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -86,8 +88,20 @@ interface TransactionWithSuggestions {
 
 type MatchDecision =
   | { kind: "matched"; invoiceId: string; invoiceNumber: string; counterpartyId: string; counterpartyName: string; allocatedAmount: string }
+  | { kind: "reconcile"; paymentId: string; label: string }
   | { kind: "skip" }
   | { kind: "pending" };
+
+interface PendingReconcileConfirm {
+  lineId: string;
+  paymentId: string;
+  label: string;
+  txDate: string;
+  txReference: string | null;
+  warnings: string[];
+  required: string[];
+  error?: string;
+}
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
@@ -392,6 +406,8 @@ export default function BancniIzpis() {
   const [confirming, setConfirming] = useState(false);
   const confirmInFlightRef = useRef(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [pendingConfirms, setPendingConfirms] = useState<PendingReconcileConfirm[]>([]);
+  const [retryBusy, setRetryBusy] = useState<string | null>(null);
   const [confirmResult, setConfirmResult] = useState<{ created: number; skipped: number; posted: number; postErrors: string[] } | null>(null);
   const [confirmProgress, setConfirmProgress] = useState<{
     current: number;
@@ -411,6 +427,9 @@ export default function BancniIzpis() {
   const bankAccounts = accounts.filter(a => a.code.startsWith("11"));
   const arAccounts = accounts.filter(a => a.code.startsWith("12") || a.code.startsWith("14"));
   const apAccounts = accounts.filter(a => a.code.startsWith("22") || a.code.startsWith("43"));
+
+  const { data: paymentsData } = useListPayments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const reconcilablePayments = (paymentsData?.payments ?? []).filter(p => p.status === "draft" || p.status === "posted");
 
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
@@ -542,7 +561,7 @@ export default function BancniIzpis() {
     setDecisions(prev => new Map(prev).set(txId, decision));
   };
 
-  const matchedCount = [...decisions.values()].filter(d => d.kind === "matched").length;
+  const matchedCount = [...decisions.values()].filter(d => d.kind === "matched" || d.kind === "reconcile").length;
   const skippedCount = [...decisions.values()].filter(d => d.kind === "skip").length;
   const pendingCount = [...decisions.values()].filter(d => d.kind === "pending").length;
   const duplicateCount = suggestions.filter(s => s.duplicateOf).length;
@@ -572,11 +591,12 @@ export default function BancniIzpis() {
     let skipped = 0;
     let posted = 0;
     const postErrors: string[] = [];
+    const pendingList: PendingReconcileConfirm[] = [];
 
     // Count only matched transactions for the progress total
     const toProcess = suggestions.filter(item => {
       const d = decisions.get(item.transaction.id);
-      return d && d.kind === "matched";
+      return d && (d.kind === "matched" || d.kind === "reconcile");
     });
     const total = toProcess.length;
     let processedIndex = 0;
@@ -601,6 +621,36 @@ export default function BancniIzpis() {
       const decision = decisions.get(tx.id);
       if (!decision || decision.kind === "skip") { skipped++; continue; }
       if (decision.kind === "pending") { skipped++; continue; }
+
+      if (decision.kind === "reconcile") {
+        processedIndex++;
+        const lineId = registered.lineIds[tx.id];
+        setConfirmProgress({ current: processedIndex, total, action: "creating", label: `Povezujem obstoječe plačilo ${processedIndex} od ${total}` });
+        try {
+          if (!lineId) throw new Error("Vrstica izpiska ni evidentirana");
+          const rec = await reconcileBankStatementLine(activeCompany.id, lineId, { paymentId: decision.paymentId });
+          created++;
+          // Reconcile never posts; post explicitly only a draft and only if the user chose posting.
+          if (autoPost && rec.status === "draft" && rec.requiresExplicitPosting) {
+            try { await postPayment(activeCompany.id, rec.paymentId); posted++; }
+            catch (e: any) { postErrors.push(`${tx.reference ?? tx.date}: ${e.message ?? "Napaka pri knjiženju"}`); }
+          }
+        } catch (e: any) {
+          if (e?.status === 409 && e?.data?.confirmationRequired) {
+            // Needs explicit user confirmation; do not retry automatically.
+            pendingList.push({
+              lineId: registered.lineIds[tx.id], paymentId: decision.paymentId, label: decision.label,
+              txDate: tx.date, txReference: tx.reference ?? null,
+              warnings: e.data.warnings ?? [], required: e.data.requiredConfirmations ?? [],
+            });
+            continue;
+          }
+          skipped++;
+          postErrors.push(`${tx.reference ?? tx.date}: povezava ni uspela - ${e?.data?.error ?? e.message ?? "napaka"}`);
+        }
+        continue;
+      }
+      if (decision.kind !== "matched") { skipped++; continue; }
 
       // matched
       processedIndex++;
@@ -669,13 +719,45 @@ export default function BancniIzpis() {
 
     queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
     await loadRegisteredStatements();
+    setPendingConfirms(pendingList);
     setConfirmResult({ created, skipped, posted, postErrors });
     setConfirmProgress(null);
     setConfirming(false);
     setStep("confirm");
   };
 
+  const confirmReconcile = async (c: PendingReconcileConfirm) => {
+    if (!activeCompany) return;
+    setRetryBusy(c.lineId);
+    try {
+      const rec = await reconcileBankStatementLine(activeCompany.id, c.lineId, {
+        paymentId: c.paymentId,
+        ...(c.required.includes("confirmDateMismatch") ? { confirmDateMismatch: true } : {}),
+        ...(c.required.includes("confirmReferenceMismatch") ? { confirmReferenceMismatch: true } : {}),
+      });
+      let posted = 0;
+      const errs: string[] = [];
+      if (autoPost && rec.status === "draft" && rec.requiresExplicitPosting) {
+        try { await postPayment(activeCompany.id, rec.paymentId); posted = 1; }
+        catch (e: any) { errs.push(`${c.txReference ?? c.txDate}: ${e.message ?? "Napaka pri knjiženju"}`); }
+      }
+      setPendingConfirms(cur => cur.filter(x => x.lineId !== c.lineId));
+      setConfirmResult(cur => cur && { ...cur, created: cur.created + 1, posted: cur.posted + posted, postErrors: [...cur.postErrors, ...errs] });
+      queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
+    } catch (e: any) {
+      const msg = e?.data?.error ?? e.message ?? "Povezava ni uspela";
+      setPendingConfirms(cur => cur.map(x => x.lineId === c.lineId ? { ...x, error: msg } : x));
+    } finally {
+      setRetryBusy(null);
+    }
+  };
+  const rejectReconcile = (c: PendingReconcileConfirm) => {
+    setPendingConfirms(cur => cur.filter(x => x.lineId !== c.lineId));
+    setConfirmResult(cur => cur && { ...cur, skipped: cur.skipped + 1 });
+  };
+
   const reset = () => {
+    setPendingConfirms([]);
     confirmInFlightRef.current = false;
     setStep("upload");
     setFile(null);
@@ -1108,6 +1190,7 @@ export default function BancniIzpis() {
                 decision={decisions.get(item.transaction.id) ?? { kind: "pending" }}
                 onDecision={d => setDecision(item.transaction.id, d)}
                 counterparties={counterparties}
+                existingPayments={reconcilablePayments}
                 duplicateOf={item.duplicateOf}
               />
             ))}
@@ -1154,6 +1237,27 @@ export default function BancniIzpis() {
       </Dialog>
 
       {/* ─── STEP 3: Confirm / Done ──────────────────────────────────────────── */}
+      {step === "confirm" && pendingConfirms.length > 0 && (
+        <div className="space-y-3 rounded-lg border-2 border-amber-400 bg-amber-50 p-4">
+          <h2 className="font-semibold text-amber-900">Potrebna potrditev ujemanja ({pendingConfirms.length})</h2>
+          <p className="text-sm text-amber-900">Podatki obstoječega plačila se razlikujejo od bančne vrstice. Poveži samo, če so razlike pravilne; sicer povezavo zavrni.</p>
+          {pendingConfirms.map(c => (
+            <div key={c.lineId} className="rounded-md border bg-background p-3 space-y-2 text-sm">
+              <div className="font-medium">{c.label}</div>
+              <div className="text-xs text-muted-foreground">Bančna vrstica: {c.txDate}{c.txReference ? ` · sklic ${c.txReference}` : ""}</div>
+              <ul className="list-disc pl-5 text-amber-800">{c.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+              {c.error && <p className="text-destructive">{c.error}</p>}
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => confirmReconcile(c)} disabled={retryBusy === c.lineId}>
+                  {retryBusy === c.lineId && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}Potrdi razliko in poveži
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => rejectReconcile(c)} disabled={retryBusy === c.lineId}>Ne poveži</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {step === "confirm" && confirmResult && (
         <div className="max-w-lg mx-auto text-center space-y-6 py-8">
           <div className={`h-20 w-20 rounded-full flex items-center justify-center mx-auto ${confirmResult.postErrors.length > 0 ? "bg-amber-100" : "bg-green-100"}`}>
@@ -1236,12 +1340,14 @@ function TransactionReviewRow({
   decision,
   onDecision,
   counterparties,
+  existingPayments,
   duplicateOf,
 }: {
   item: TransactionWithSuggestions;
   decision: MatchDecision;
   onDecision: (d: MatchDecision) => void;
   counterparties: any[];
+  existingPayments: any[];
   duplicateOf?: DuplicateInfo;
 }) {
   const tx = item.transaction;
@@ -1252,7 +1358,7 @@ function TransactionReviewRow({
 
   // Duplicate transactions get amber border even when skipped, to stay visually distinct
   const statusColor =
-    decision.kind === "matched" ? "border-green-500 bg-green-50"
+    (decision.kind === "matched" || decision.kind === "reconcile") ? "border-green-500 bg-green-50"
     : decision.kind === "skip" && duplicateOf ? "border-amber-400 bg-amber-50/40"
     : decision.kind === "skip" ? "border-muted bg-muted/20"
     : "border-amber-400 bg-amber-50";
@@ -1290,6 +1396,13 @@ function TransactionReviewRow({
             <Button variant="ghost" size="sm" onClick={() => onDecision({ kind: "pending" })}>
               <X className="h-3 w-3 mr-1" /> Razveljavi preskakovanje
             </Button>
+          ) : decision.kind === "reconcile" ? (
+            <>
+              <div className="text-xs text-green-700 font-medium">Obstoječe plačilo: {decision.label}</div>
+              <Button variant="ghost" size="sm" className="text-muted-foreground h-7 px-2" onClick={() => onDecision({ kind: "pending" })}>
+                <X className="h-3 w-3" />
+              </Button>
+            </>
           ) : decision.kind === "matched" ? (
             <>
               <div className="text-xs text-green-700 font-medium">
@@ -1331,8 +1444,26 @@ function TransactionReviewRow({
       )}
 
       {/* Suggestions */}
-      {decision.kind !== "matched" && decision.kind !== "skip" && (
+      {decision.kind !== "matched" && decision.kind !== "skip" && decision.kind !== "reconcile" && (
         <div className="mt-3 space-y-2">
+          {existingPayments.filter(p => p.direction === (isInbound ? "inbound" : "outbound")).length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Poveži z obstoječim osnutkom ali knjiženim plačilom (brez podvojitve):</p>
+              <Select value="" onValueChange={id => {
+                const p = existingPayments.find(x => x.id === id);
+                if (p) onDecision({ kind: "reconcile", paymentId: p.id, label: `${p.counterpartyName} ${parseFloat(p.amount).toFixed(2)} (${p.status === "draft" ? "osnutek" : "knjiženo"})` });
+              }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Izberite obstoječe plačilo" /></SelectTrigger>
+                <SelectContent>
+                  {existingPayments.filter(p => p.direction === (isInbound ? "inbound" : "outbound")).map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {new Date(p.paymentDate).toLocaleDateString("sl-SI")} - {p.counterpartyName} - {parseFloat(p.amount).toFixed(2)} - {p.status === "draft" ? "osnutek" : "knjiženo"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {item.suggestions.length > 0 ? (
             <>
               <p className="text-xs font-medium text-muted-foreground">Predlagana ujemanja:</p>

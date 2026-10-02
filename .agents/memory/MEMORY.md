@@ -91,6 +91,8 @@
 - [Knjiženje POS nabavnih listin](pos-receipt-booking.md) — 109 je samo denar na poti; dobavnico in dobavnico-fakturo knjiži po različnih tokovih 300/310/400, 160 in 220.
 - [Kartično plačilo darilnega bona](gift-voucher-card-payment.md) — gift intent preživi reload; provider se preveri pred FURS, attempt pa se lahko porabi le enkrat.
 - [PostgreSQL advisory lock in pool](postgres-advisory-lock-pool.md) — sejni lock mora držati isto namensko povezavo od pridobitve do sprostitve.
+- [Drizzle seznami ID-jev](drizzle-array-predicates.md) — JS polje v SQL interpolaciji ni nujno PG array; za zaklepne in druge predikate uporabi inArray.
+- [Pomnilnik TypeScript preverjanja](typescript-memory-budget.md) — API/ERP preverjanje potrebuje več kot 1 GiB heap; po potrebi uporabi 2 GiB samo za preverjevalnik.
 - [Viva Android callback](viva-android-callback.md) — Android ECR rezultat zahteva native Activity/custom URI; Chrome PWA ob povratku ne prejme transactionId.
 - [Payten Android attestation](payten-android-attestation.md) — status/checksum nista dokaz plačila; podpisan native rezultat mora vezati attempt, napravo, ECR, total in globalno referenco.
 - [Expo APK NDK na Replitu](expo-apk-ndk-replit.md) — Nix Android SDK je read-only; pred Expo root pluginom uporabi že nameščeni NDK, sicer Gradle skuša nameščati manjkajočo verzijo.
@@ -153,3 +155,4 @@
 - [Pregled preračuna tuje valute](document-fx-review.md) — ločeno potrjenih EUR osnov in DDV ne preračunavaj znova iz cene; ohrani decimalno zaokroževanje in izvorno sled.
 - [Namen AJPES izvoza](ajpes-annual-report-contract.md) — XLSX/PDF sledita predlogi JOLP; XML je namenjen dejanskemu uvozu v AJPES, ne splošni izmenjavi.
 - [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.
+- [Vrstni red apply_patch](apply-patch-hunk-order.md) — odseke iste datoteke razvrsti od začetka proti koncu; obratni vrstni red lahko zavrne pravilen kontekst.
