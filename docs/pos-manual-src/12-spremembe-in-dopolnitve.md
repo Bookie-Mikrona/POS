@@ -176,8 +176,8 @@ vloge, enote in dejanski dostop so pojasnjeni v poglavju 09.
 ## 8. Povzetek trenutne dokumentacije
 
 Ta dodatek združuje slovar, kontrolne sezname, učne in predajne pripomočke
-ter sklice na podrobne postopke. Priročnik je izdaja **v8.8**, datirana
-**03.10.2026**. To je različica dokumentacije, ne številka različice POS
+ter sklice na podrobne postopke. Priročnik je izdaja **v8.9**, datirana
+**04.10.2026**. To je različica dokumentacije, ne številka različice POS
 aplikacije.
 
 Seznam funkcij in zaslonov se lahko razlikuje glede na vlogo uporabnika,
@@ -1781,6 +1781,13 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-47cfbfb45934 package=lite -->
 ## 39. Kratka zgodovina dokumentacije
+
+**04.10.2026 — priročnik v8.9.** Dodan je postopek za zavitke, jabolčne,
+skutne in sadne pite ter torte. Program omogoča preračun recepta za pekač
+na en prodajni kos z izkoristkom surovin in izrecno uporabo v osnutku
+normativa. Dodani so primer osmih kosov, razlika med očiščeno in bruto
+količino, shranjevanje, priprava in prodaja brez dvojne porabe surovin ter
+ločitev tehnološkega odpada od kala pripravljenih kosov.
 
 **03.10.2026 — priročnik v8.8.** Izdaja vključuje spremembe POS od prejšnje
 izdaje: reorganizirana dejanja z artikli, kataloge PDF in varen Excel uvoz,

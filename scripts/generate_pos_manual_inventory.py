@@ -26,7 +26,7 @@ XLSX_OUTPUT = DOCS / "POS-Gostinstvo-sledljiv-inventar.xlsx"
 MD_OUTPUT = DOCS / "POS-Gostinstvo-sledljiv-inventar.md"
 
 AUDIT_FILES = [Path(f"/tmp/inventory-sl2-{index}.json") for index in range(1, 6)]
-REVIEW_DATE = date(2026, 10, 3)
+REVIEW_DATE = date(2026, 10, 4)
 INVENTORY_TITLE = "POS Gostinstvo — sledljiv inventar priročnika"
 
 STATUS_MAP = {

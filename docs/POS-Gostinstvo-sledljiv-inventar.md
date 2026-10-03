@@ -1,7 +1,7 @@
 # POS Gostinstvo — sledljiv inventar priročnika
 
-**Datum pregleda:** 03.10.2026
-**Število preverjenih uporabniških postopkov:** 82
+**Datum pregleda:** 04.10.2026
+**Število preverjenih uporabniških postopkov:** 83
 
 Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak pokritost uporabniškega postopka v priročniku.
 
@@ -9,7 +9,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Status | Število |
 |---|---:|
-| PRAVILNO | 82 |
+| PRAVILNO | 83 |
 | DELNO | 0 |
 | MANJKA | 0 |
 | NAPAČNO | 0 |
@@ -18,7 +18,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Stanje | Število |
 |---|---:|
-| IMPLEMENTIRANO | 80 |
+| IMPLEMENTIRANO | 81 |
 | NI IMPLEMENTIRANO | 1 |
 | NEPOTRJENO | 1 |
 
@@ -27,7 +27,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 | Pomembnost | Število |
 |---|---:|
 | KRITIČNO | 29 |
-| VISOKO | 43 |
+| VISOKO | 44 |
 | SREDNJE | 9 |
 | NIZKO | 1 |
 
@@ -42,6 +42,7 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 
 | ID | Področje | Funkcija | Pokritost | Pomembnost |
 |---|---|---|---|---|
+| NOR-BAKED-DESSERTS | Normativi | Zavitki, pite in torte: preračun pekača na kos z izkoristkom | PRAVILNO | VISOKO |
 | RAC-MONTHLY | Računi | POS-only mesečni račun pogodbeni firmi | PRAVILNO | KRITIČNO |
 | RAC-EDELIVERY | Računi | Native e-SLOG mesečnega računa in bizBox dostava | PRAVILNO | KRITIČNO |
 | MEN-ACTIONS | Meni | Dejanja, katalogi PDF in varen povratni Excel uvoz | PRAVILNO | VISOKO |

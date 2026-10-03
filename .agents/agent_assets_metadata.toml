@@ -1397,3 +1397,17 @@ mtime_ms = 1791015844667
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/4ac80aea-26ff-49d1-90e1-2f76e3f84b19/d866bd8b-a4f4-4f13-a7f0-f1fd16acde33"
 storage_version_token = "1791015996454936"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "CPYhfaKUu_JYM_1nQ_4q9"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v8.9.pdf"
+type = "pdf"
+title = "POS Gostinstvo — priročnik v8.9"
+description = "Izdaja 04.10.2026. Dodana navodila za zavitke, jabolčne, skutine in sadne pite ter torte: recept za pekač, preračun na kos, izkoristek surovin, shranjevanje normativa ter priprava in prodaja brez dvojne porabe."
+logical_id = "7fa0c3c5-61ba-40bf-8e41-057fb13f05a1"
+content_hash = "sha256:e39d1abdf49e3584a34bf053ed8124a6cc155cbb6a9edd7ed0e2b9e41d147317"
+size = 2635841
+mtime_ms = 1791071090072
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7fa0c3c5-61ba-40bf-8e41-057fb13f05a1/e7dfc929-bca7-497f-89ce-a369051b1743"
+storage_version_token = "1791071436265877"
+content_type = "application/pdf"

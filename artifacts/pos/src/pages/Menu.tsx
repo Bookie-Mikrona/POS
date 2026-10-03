@@ -69,6 +69,7 @@ import { AlergenEditor, AlergeniBadge, type AlergenSnapshot } from "@/components
 import { MulticourseMenuEditor } from "@/components/MulticourseMenuEditor";
 import { NormativeProposalReview } from "@/components/NormativeProposalReview";
 import { NormativeChangeHistoryPanel } from "@/components/NormativeChangeHistoryPanel";
+import { BatchNormativeCalculator } from "@/components/BatchNormativeCalculator";
 import { getNormativStaleMessage, NormativSaveAlert } from "@/components/NormativSaveAlert";
 import { clearProposalDraft, readProposalDraft, type NormativeProposalDraft } from "@/lib/normative-proposal-draft";
 import { posFetch } from "@/lib/pos-auth-headers";
@@ -3011,6 +3012,23 @@ export default function Menu() {
                     <p data-testid="text-smart-normative-unit-warning" className="text-xs text-amber-800">
                       Pametni predlog je trenutno na voljo samo za porcijske osnove. Normativ za polizdelek vnesite ročno na 1 {preparedFoodUnit}.
                     </p>
+                  )}
+                  {artMealType === "prepared" && normalizePreparedFoodUnit(artEnotaMere) === "porcija" && (
+                    <div className="space-y-2 rounded-md bg-muted/40 p-3">
+                      <p className="text-sm">
+                        Zavitke, pite in torte vodite kot pripravljeno hrano na kos.
+                        Dodajte surovine, nato recept za cel pekač preračunajte na en kos.
+                        Surovine se porabijo ob zaključku evidence priprave;
+                        prodaja odšteje pripravljeno porcijo, ne ponovno surovin.
+                      </p>
+                      <BatchNormativeCalculator items={normativItems} articles={artikli ?? []}
+                        disabled={normativStale || normativiFetching || loadingA}
+                        onApply={items => {
+                          setNormativItems(items);
+                          setNormativNapaka(null);
+                        }}
+                      />
+                    </div>
                   )}
                   {normativItems.length === 0 && !(editingArt && artJePica) ? (
                     <p className="text-sm text-muted-foreground">Ni določenih vhodnih artiklov.</p>

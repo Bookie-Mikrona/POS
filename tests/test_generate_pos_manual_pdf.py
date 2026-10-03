@@ -194,7 +194,7 @@ def test_manual_heading_package_assignments_match_migration_snapshot() -> None:
         )
 
     digest = hashlib.sha256("\n".join(assignments).encode()).hexdigest()
-    assert digest == "3228ff0fbaf0ccdd9d40137ad37089e99467a984027a4d27b8295726d8fd2fc9"
+    assert digest == "86cee6162d188b53b6eff5b1a9a48193038bde6af493678eb746b75c3b6357fa"
 
 
 def test_pdf_chapter_titles_match_pos_manual_navigation() -> None:
@@ -207,7 +207,7 @@ def test_pdf_chapter_titles_match_pos_manual_navigation() -> None:
 
 
 def test_published_manual_matches_versioned_pdf() -> None:
-    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "03.10.2026"
+    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "04.10.2026"
     assert generator.OUTPUT.exists()
     assert generator.PUBLIC_OUTPUT.read_bytes() == generator.OUTPUT.read_bytes()
 
@@ -217,6 +217,8 @@ def test_current_manual_covers_all_recent_pos_change_groups() -> None:
         "04-zaloge-dokumenti.md": [
             "pos-current-article-actions", "pos-current-automatic-drink-normatives",
             "pos-current-prepared-base-unit", "pos-current-pizza-modifier-kds-routing",
+            "pos-baked-desserts-tray-recipe", "pos-baked-desserts-tray-example",
+            "pos-baked-desserts-preparation-sale",
         ],
         "05-pripravljena-hrana-qr-telefon.md": [
             "pos-current-kds-status-notifications", "pos-current-kds-prepared-availability",

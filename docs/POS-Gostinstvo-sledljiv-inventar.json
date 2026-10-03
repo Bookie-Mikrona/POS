@@ -1,5 +1,17 @@
 [
   {
+    "id": "NOR-BAKED-DESSERTS", "domain": "Normativi", "feature": "Zavitki, pite in torte: preračun pekača na kos z izkoristkom",
+    "user_roles": ["vodja", "administrator"], "prerequisites": ["pripravljena hrana", "osnovna enota porcija", "izbrane surovine v normativu"],
+    "normal_flow": "Normativ → Recept za pekač → število kosov, količine in izkoristki → pregled Na kos → izrecna uporaba → običajno shranjevanje artikla.",
+    "exceptions_recovery": "Preklic ne spreminja osnutka; ob novem odprtju so količine pekača prazne. Neveljavne ali premajhne količine, izkoristek in število kosov blokirajo preračun. Zastarel normativ ostaja zaščiten z obstoječim shranjevalnim tokom.",
+    "business_effect": "Normativ na eno porcijo; tehnološki odpad je v bruto porabi, materialno razknjiževanje ob zaključku priprave, prodaja samo pripravljeno porcijo. Brez ustvarjanja zaloge ali računa s kalkulatorjem.",
+    "ui_evidence": ["artifacts/pos/src/pages/Menu.tsx", "artifacts/pos/src/components/BatchNormativeCalculator.tsx", "artifacts/pos/src/components/BatchNormativeCalculator.test.tsx"],
+    "api_evidence": ["artifacts/pos/src/lib/batch-normative.ts", "artifacts/pos/src/lib/batch-normative.test.ts", "artifacts/api-server/src/routes/pos/prepared-food.ts"],
+    "manual_evidence": ["docs/pos-manual-src/04-zaloge-dokumenti.md — Zavitki, pite in torte: recept za pekač in prodaja po kosih"],
+    "coverage_status": "PRAVILNO", "severity": "VISOKO", "implementation_status": "IMPLEMENTIRANO",
+    "gap_or_correction": "Dodani uporabniški preračun, izkoristek, bruto/neto primer, merske enote, izrecno shranjevanje ter pravilna priprava in prodaja. Uporabnik določi lastno recepturo, ne privzetih količin."
+  },
+  {
     "id": "RAC-MONTHLY", "domain": "Računi", "feature": "POS-only mesečni račun pogodbeni firmi",
     "user_roles": ["vodja", "administrator"], "prerequisites": ["aktivna enota", "pogodbeni cenik", "zaključen poslovni mesec"],
     "normal_flow": "Računi → Mesečni računi: predogled, specifikacija, rok plačila, izrecna izdaja in arhiv PDF.",

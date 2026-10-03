@@ -2468,3 +2468,64 @@ dodajanja, dokler ni jasno, ali je postavka že na naročilu.
 Spremembe skupin in modifikatorjev preverite tudi v naročilu. Obvestilo,
 osveževanje ali zapiranje dodatnega okna ni potrditev novega naročila:
 po uspešnem shranjevanju primerjajte postavke in količine v odprtem naročilu.
+
+<!-- pos-heading: id=pos-baked-desserts-tray-recipe package=standard -->
+## 46. Zavitki, pite in torte: recept za pekač in prodaja po kosih
+
+Jabolčni zavitek oziroma štrudelj, jabolčno, skutino in sadno pito ter
+torte, spečene vnaprej, vodite kot **Pripravljena hrana (zaloga)**.
+Osnovna enota naj bo **Porcija**, kar pomeni en standardni prodajni kos.
+Samostojna ponudba sladice na meniju ne pomeni, da morate za zalogo
+izbrati operativno vrsto à la carte.
+
+Pri zavitku normativ zajema testo, nadev in posip; pri piti testo ter
+sadni, skutni ali drug nadev. Izberite dejanske nabavne surovine iz
+šifranta in preverite njihove merske enote. Moka, drobtine oziroma zdrob,
+maslo, jajca, skuta in drugi dodatki vplivajo tudi na alergene.
+Spodnji primer je prikaz preračuna, ne predpisana receptura.
+
+1. V **Upravljanje menija** ustvarite ali odprite sladico. Izberite **Pripravljena hrana (zaloga)**, osnovo **Porcija**, prodajno ceno, kategorijo hrane in ustrezno kuhinjsko postajo.
+2. V razdelku **Normativ** dodajte surovine oziroma izberite obstoječe vrstice. Nato kliknite **Recept za pekač**.
+3. Vnesite **Število prodajnih kosov iz pekača**, npr. 8 ali 10. V polje **Za pekač** pri vsaki surovini vnesite količino za cel pekač v prikazani zalogovni enoti, ne količine za en kos.
+4. Če vnašate očiščeno količino, nastavite njen **Izkoristek (%)**. Če recept že navaja bruto nabavno količino, pustite **100 %**, da se tehnološki odpad ne upošteva dvakrat.
+5. Preverite stolpec **Na kos**. Kliknite **Uporabi normativ na kos**; preračun spremeni samo osnutek v obrazcu. **Prekliči** ne spremeni normativa.
+6. Preverite normative in alergene ter shranite artikel z običajnim gumbom. Šele uspešno shranjevanje trajno zapiše normativ na eno porcijo.
+
+Za nov preračun se količine pekača začnejo prazne: obstoječi normativ na
+kos se ne sme samodejno obravnavati kot recept za cel pekač.
+Kalkulator ne ustvari surovin, pripravljene zaloge, prodaje ali računa.
+Količine na kos se zaokrožijo na štiri decimalna mesta. Neveljavne ali
+premajhne količine in neveljaven izkoristek blokirajo uporabo preračuna.
+
+<!-- pos-heading: id=pos-baked-desserts-tray-example package=standard -->
+### Primer: osem kosov zavitka
+
+| Surovina | Količina za pekač | Izkoristek | Nabavna poraba na kos |
+| --- | --- | --- | --- |
+| Jabolka, zaloga v kg | 0,96 kg očiščenih jabolk | 80 % | 0,15 kg |
+| Moka, zaloga v kg | 0,24 kg | 100 % | 0,03 kg |
+| Maslo, zaloga v kg | 0,08 kg | 100 % | 0,01 kg |
+
+Formula je **količina za pekač ÷ (izkoristek / 100) ÷ število kosov**.
+Pri jabolkih to pomeni 120 g očiščenega nadeva, vendar 150 g nabavne
+porabe na kos. Če ste že vnesli 1,20 kg bruto jabolk za pekač, uporabite
+100 % izkoristek. Pri zalogi v kg vnesite 0,96, ne 960; kalkulator
+ne pretvarja gramov v kilograme samodejno.
+
+<!-- pos-heading: id=pos-baked-desserts-preparation-sale package=standard -->
+### Priprava, prodaja in kalo
+
+V dnevni evidenci priprave evidentirajte dejansko število izdelanih kosov:
+en pekač z osmimi kosi pomeni **8 pripravljenih porcij**.
+Surovine se materialno razknjižijo **ob zaključku dnevne evidence priprave**,
+po normativu oziroma potrjeni dejanski porabi. Ko natakar proda dva kosa,
+se pripravljena razpoložljivost zmanjša z osmih na šest; surovine se ne
+odpišejo še drugič.
+
+Olupki in tehnološki odpad surovin so že zajeti v bruto porabi normativa.
+Neprodani, poškodovani ali pokvarjeni pripravljeni kosi so ločeno kalo
+pripravljene hrane. Teh dveh vrst izgub ne združujte.
+Pri vključitvi sladice v sestavljeno malico ali kosilo povežite isto
+pripravljeno sladico in ustrezno število porcij, da se uporablja ista zaloga.
+Za običajno pripravljeno sladico uporabite davčno kategorijo hrane z
+9,5 % DDV, ob upoštevanju dejanske davčne obravnave ponudbe.
