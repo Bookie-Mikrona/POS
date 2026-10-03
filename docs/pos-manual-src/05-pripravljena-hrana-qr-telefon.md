@@ -1846,3 +1846,47 @@ oddaja QR naročila sama po sebi ni dokaz plačila.
 - [ ] Gost ve, da sta javna rezervacija in spletni nakup bona ločena od QR menija.
 - [ ] Javno povezavo enote in razpoložljivost posamezne spletne funkcije preveri
       osebje; spletnega bona ne obljubi brez aktivne Stripe povezave.
+
+<!-- pos-heading: id=pos-current-kds-status-notifications package=standard -->
+## Aktualna stanja KDS in obvestilo natakarju
+
+KDS in odprto naročilo prikazujeta usklajena stanja posamezne postavke:
+**Na čakanju**, **V pripravi**, **Pripravljeno** in **Predano**.
+Postavka na čakanju še ni aktivna priprava. Čas priprave se pri zadržanem
+hodu začne ob aktivaciji, ne že ob prvem zapisu naročila. Pri aktivni
+pripravi je prikaz običajno zelen, po desetih minutah oranžen in po
+dvajsetih rdeč. Barska priprava ima ločen poudarek **Pripravi pijačo**.
+
+Pri jedi, ki potrebuje več postaj, preverite vsako postajo. Pripravljena
+postavka na eni postaji ne pomeni, da je celotna jed že pripravljena.
+Pri večhodnem naročilu potrditev in napredovanje ostaneta vezana na pravi
+hod; zaradi barve ali obvestila ne sprostite vseh naslednjih hodov.
+
+Ko vse zahtevane postaje zaključijo postavko, se obvestilo o pripravljenosti
+pošlje na napravo, s katere je bila postavka naročena. Brez znane izvorne
+naprave program ne obvesti vseh naprav enote. Obvestilo lahko spremlja zvok;
+brskalnik ga lahko dovoli šele po kliku oziroma pritisku tipke v aplikaciji.
+Po približno osmih sekundah se obvestilo pomanjša; pomanjšano obvestilo je
+mogoče ponovno odpreti. Zapiranje obvestila ne prekliče jedi.
+
+Če zvoka ni, preverite glasnost, utišan zavihek in dovoljenje brskalnika.
+Če obvestila ni ali je povezava prekinjena, preverite dejansko stanje na
+KDS in naročilu. Ne naročajte nove porcije samo zato, ker opozorila niste
+slišali. Ponovno prejete dogodke preverite proti isti postavki.
+
+<!-- pos-heading: id=pos-current-kds-prepared-availability package=standard -->
+## Razpoložljivost pripravljene hrane v kuhinji
+
+Na kuhinjskem prikazu razpoložljivosti so jedi iz dnevne evidence za izbrani
+poslovni dan in količine, ki so še na voljo za **nova naročila**.
+Program je že odštel naročene postavke, tudi listke, ki jih trenutno vidite
+na KDS; teh količin ne odštevajte še enkrat.
+
+Zamrznjena zaloga ne postane prodajno razpoložljiva brez odtajanja.
+Pri picah preverite razpoložljivost po velikostih in ustrezne hlebčke.
+Pri polizdelkih na kg/l je prikazana dejanska nezamrznjena količina za
+nadaljnjo uporabo, ne število prodajnih porcij.
+
+Če se prikaže napaka ali nalaganje, ne obravnavajte manjkajočih podatkov
+kot potrjeno ničelno ali neomejeno zalogo. Uporabite ponovni poskus in
+primerjajte dnevno evidenco ter naročila. Preverite tudi datum in enoto.

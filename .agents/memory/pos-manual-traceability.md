@@ -8,6 +8,15 @@ preverjen po zadnjih dopolnitvah in nima odprte dokumentacijske vrzeli. Stanje
 izvedbe mora biti ločeno od pokritosti priročnika: neimplementirana ali še
 nepotrjena zmožnost je lahko pravilno dokumentirana kot omejitev.
 
+Posodobitev priročnika mora zajeti vse uporabniške spremembe POS od prejšnje
+izdaje, ne samo funkcije iz zadnjega pogovora.
+
+**Why:** uporabnik je ob posodobitvi izrecno zahteval »z vsemi spremembami«.
+Ozek dodatek o zadnji funkciji ni nadomestilo za posodobljeno izdajo.
+
+**How to apply:** primerjaj spremembe od zadnje izdane datoteke PDF z navodili,
+dopolni ustrezna poglavja in ohrani dokazila o obsegu pregleda.
+
 **Why:** Združeni status je odsotne funkcije napačno štel kot dokumentacijske
 napake, medtem ko so nekatera operativna navodila presegala dokazano izvedbo.
 

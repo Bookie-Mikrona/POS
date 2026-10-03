@@ -176,8 +176,8 @@ vloge, enote in dejanski dostop so pojasnjeni v poglavju 09.
 ## 8. Povzetek trenutne dokumentacije
 
 Ta dodatek združuje slovar, kontrolne sezname, učne in predajne pripomočke
-ter sklice na podrobne postopke. Priročnik je izdaja **v8.7**, datirana
-**27.09.2026**. To je različica dokumentacije, ne številka različice POS
+ter sklice na podrobne postopke. Priročnik je izdaja **v8.8**, datirana
+**03.10.2026**. To je različica dokumentacije, ne številka različice POS
 aplikacije.
 
 Seznam funkcij in zaslonov se lahko razlikuje glede na vlogo uporabnika,
@@ -1781,6 +1781,22 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-47cfbfb45934 package=lite -->
 ## 39. Kratka zgodovina dokumentacije
+
+**03.10.2026 — priročnik v8.8.** Izdaja vključuje spremembe POS od prejšnje
+izdaje: reorganizirana dejanja z artikli, kataloge PDF in varen Excel uvoz,
+samodejne normative pijač, pripravljene polizdelke na kg/l, pice in podizbire
+modifikatorjev, izrecno izključitev artikla iz KDS, usklajena stanja priprave,
+obvestila natakarju z zvokom in kuhinjski prikaz razpoložljivosti.
+Dopolnjeni so dnevna evidenca priprave, dejanska poraba in stroški,
+preverjanje dobavitelja ter DDV in tuje valute pri uvozu, pregled možnega
+osnovnega sredstva ter ločitev platformne prijave od operativne enote.
+
+V poglavju Plačilo, račun, FURS in tisk so navodila za mesečni račun
+pogodbeni firmi za malice, arhiv in PDF, prenos e-SLOG 2.0 ter oddajo prek
+bizBox. Dodani so pomen stanj oddaje, preverjanje dostave, prepoved ponovne
+oddaje pri nejasnem izidu, testno okolje in kontrolni seznam predaje.
+Mesečni postopek ne zahteva interne glavne knjige in ne ustvarja dodatne
+prodaje, DDV ali FURS zahtevka.
 
 **27.09.2026 — priročnik v8.7.** Posodobljeni so postopki in kontrole v
 obravnavanih poglavjih. Oznaka v8.7 velja za priročnik; iz nje ne izhaja

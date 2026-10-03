@@ -2217,3 +2217,24 @@ Preverjene poti API za povezane postopke:
 Pot API ne obide uporabniške avtorizacije, izbire enote ali validacije podatkov.
 Pri napaki shranite vidno sporočilo, pot zaslona, enoto, čas in identifikator
 dokumenta, če obstaja; ne poskušajte ponavljati poslovnega dejanja na slepo.
+
+<!-- pos-heading: id=pos-current-platform-unit-context package=lite -->
+## Platformni dostop, operativna enota in osveževanje
+
+Platformna prijava skrbnika brez aktivne POS enote ni operativna prijava
+v posamezno gostinsko enoto. V platformnem pogledu ne nastavljajte e-pošte,
+blagajne, KDS ali drugih podatkov enote. Za e-pošto uporabite operativno
+POS prijavo v pravi enoti in **Nastavitve → E-pošta**; te nastavitve niso
+e-poštne nastavitve celotne platforme.
+
+Po menjavi uporabnika, podjetja ali enote preverite glavo programa in
+počakajte na osvežitev. Stara naročila, dogodki KDS, opozorila in nastavitve
+prejšnje enote niso dokaz trenutnega stanja. Če povezava ne deluje,
+preverite seznam in aktivni kontekst pred novim poslovnim dejanjem.
+Obnovljena povezava ponovno uskladi podatke; ponavljanje ukaza pa lahko
+pomeni novo naročilo, zato ga ne uporabljajte namesto osvežitve.
+
+Pri odprtem naročilu oziroma pogovornem oknu lahko obvestila osvežujejo
+ozadje. Preverite, da izbrane velikosti, modifikatorji in vnesene količine
+ostanejo pravilni. Če se pojavi opozorilo ali zavrnitev, najprej primerjajte
+shranjene postavke in stanje priprave ter šele nato nadaljujte.

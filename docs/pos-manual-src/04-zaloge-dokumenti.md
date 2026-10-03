@@ -160,7 +160,7 @@ Za ročni vnos drobnega inventarja v **Upravljanje menija** odprite seznam artik
 
 Ta bližnjica ne ustvari prodajnega artikla, začetne količine, zalogovne knjižbe ali vrednotenja. Pri tej vrsti drobnega inventarja ni zavihka **Alergeni**, preverjanja alergenov ali obveznega alergenskega profila. To ne velja za živilske artikle, ki se prodajajo gostu: pri njih je treba alergene še vedno preveriti in ustrezno evidentirati.
 
-Če želite naložiti katalog predlog, uporabite **Naloži drobni inventar** in potrdite **Naloži v šifrant**. Uvoz velja samo za trenutno aktivno enoto. Doda manjkajoče predloge, obstoječe artikle pa preskoči; rezultat pokaže število dodanih in že prisotnih. Uvoz je varen za ponovitev: uporablja stabilne ključe predlog in primerja tudi normalizirana imena, zato ne ustvarja kopij zaradi velikih/malih črk ali diakritike.
+Če želite naložiti katalog predlog, odprite **Dejanja → Naloži predloge v aktivno enoto** in potrdite **Naloži v šifrant**. Uvoz velja samo za trenutno aktivno enoto. Doda manjkajoče predloge, obstoječe artikle pa preskoči; rezultat pokaže število dodanih in že prisotnih. Uvoz je varen za ponovitev: uporablja stabilne ključe predlog in primerja tudi normalizirana imena, zato ne ustvarja kopij zaradi velikih/malih črk ali diakritike.
 
 Katalog je razdeljen v sedem podskupin; prikazana pogostost popisa oziroma obnove je priporočilo, ne samodejni urnik:
 
@@ -1124,7 +1124,7 @@ Excel izvoz pripravi datoteko artiklov za pregled oziroma kontroliran popravek.
 
 Pred ponovnim uvozom izvoz pregledajte v urejevalniku preglednic.
 
-V **Upravljanje menija** izberite **Cenik PDF** za prenos datoteke
+V **Upravljanje menija → Dejanja** izberite **Cenik PDF** za prenos datoteke
 **cenik-z-alergeni.pdf**. Izvoz vsebuje aktivne prodajne artikle trenutne
 enote, razvrščene po kategoriji, z opisi, cenami in alergenskimi podatki ter
 sledi, kadar so evidentirani. Pri picah prikaže normalno ceno, malo in
@@ -2378,3 +2378,93 @@ nalaganje JPEG, PNG ali WebP. Če je nastala napačna različica, je ne
 objavite; uporabite **Zgodovina slike**, primerjajte vir in čas ter obnovite
 prejšnjo različico samo po odobritvi. Obnova spreminja javno vsebino, ne pa
 cene, DDV ali normativa, zato zahteva nov predogled in zapis pregleda.
+
+<!-- pos-heading: id=pos-current-article-actions package=lite -->
+## 42. Dejanja z artikli, katalogi in preverjen Excel uvoz
+
+V **Upravljanje menija** so skupna dejanja zbrana v gumbu **Dejanja**:
+**Nabavni katalog**, **Prodajni katalog**, **Katalog polizdelkov**,
+**Katalog drobnega inventarja**, **Cenik PDF**, **Izvozi šifrant Excel**,
+**Uvozi šifrant Excel**, **Uskladi DDV** in nalaganje predlog drobnega
+inventarja. Vidnost posamezne možnosti je odvisna od pravic uporabnika.
+Katalog je šifrantski pregled, ne inventura ali vrednotenje zaloge;
+cenik za gosta in interni katalog nista ista izpisa.
+
+1. Preverite aktivno enoto in izberite ustrezen prikaz prodajnih, nabavnih artiklov, polizdelkov ali drobnega inventarja.
+2. Za pregled prenesite ustrezen katalog PDF oziroma **Izvozi šifrant Excel**.
+3. Pri pripravi povratnega uvoza ohranite ID obstoječih artiklov in podatke izvozne datoteke. Za nov artikel vnesite ime, ceno in DDV.
+4. Odprite **Dejanja → Uvozi šifrant Excel**, naložite datoteko in preglejte suhi predogled. Napake so vezane na list in vrstico.
+5. Izberite preskok ali posodobitev obstoječih zapisov. Potrdite samo preverjene spremembe.
+6. Preverite število novih, posodobljenih in preskočenih zapisov ter napake. Vzorčno odprite spremenjene artikle.
+
+Če je bil artikel po izvozu že spremenjen, program lahko zavrne posodobitev
+zaradi zastarelega izvoznega posnetka. Ne odstranjujte ID-ja, da bi obšli
+zaščito; ponovno izvozite trenutne podatke in primerjajte spremembe.
+Excel uvoz ni nadomestilo za urejevalnik že obstoječih normativov:
+spremembe povezav in količin obstoječega normativa izvedite v zavihku
+**Normativ**, kjer se preverjajo krožne povezave, revizija in alergeni.
+
+<!-- pos-heading: id=pos-current-automatic-drink-normatives package=lite -->
+## 43. Samodejni normativ pijače iz prostornine
+
+Pri novem, samo prodajnem artiklu v davčni kategoriji alkoholne ali hladne
+pijače lahko program ob shranjevanju samodejno določi normativ, če je v
+imenu enolično zapisana prostornina. Primeri: **Vino 0,1 l**,
+**Sok 2 dl**, **Žganje 0,03 l**. Več različnih prostornin ali zapis paketa,
+kot je **6 × 0,75 l**, ni enoličen opis ene prodajne porcije.
+
+1. Vnesite pravilen naziv s prostornino ter preverite davčno kategorijo in prodajno oznako.
+2. Shranite artikel in preverite obvestilo o samodejno ustvarjenem normativu.
+3. Odprite **Normativ** ter preverite nabavni artikel, njegovo osnovno enoto in porabo ene prodajne enote.
+4. Če obstaja več možnih nabavnih artiklov ali neprimerna enota, izberite pravi vir in normativ določite ročno.
+
+Pri nabavni zalogi v litrih porcija **0,1 l** porabi **0,1 l**, tudi če ime
+nabavnega artikla vsebuje prostornino steklenice. Če je nabavna enota kos
+in steklenica vsebuje **0,75 l**, porcija **0,1 l** porabi približno
+**0,1333 kosa**. Če pri kosovnem viru prostornina ni prepoznana, program
+uporabi osnovo **1 l**; to pred prodajo preverite in po potrebi popravite.
+Če ustreznega nabavnega artikla ni, lahko nastane nov nabavni vir
+**ime pijače 1 liter** z enoto LTR. To ne pomeni dejanskega prejema zaloge
+ali potrjene nabavne cene.
+
+Neaktiven vir najprej uredite. Pri dvoumnem viru ali nepretvorljivi enoti
+ne predpostavljajte, da je shranjevanje ustvarilo pravilen normativ.
+Postopek ne pomeni samodejnega prepisovanja vseh obstoječih receptur.
+
+<!-- pos-heading: id=pos-current-prepared-base-unit package=standard -->
+## 44. Osnovna enota pripravljene jedi: porcija, kilogram ali liter
+
+Pri vrsti jedi **Pripravljena hrana (zaloga)** izberite **Osnovna enota
+pripravljene jedi**: **Porcija**, **Kilogram (kg)** ali **Liter (l)**.
+Jed na kg/l je polizdelek, ne neposredni prodajni ali nabavni artikel.
+Normativ vedno opisuje pripravo **1 izbrane osnovne enote**.
+
+Primer: normativ za **1 l omake** opisuje sestavine enega litra; poraba
+**0,2 l omake** v sestavljeni jedi uporablja to osnovo. Ne vnesite količine
+za cel lonec v normativ enega litra brez ustrezne preračunane osnove.
+
+Program ob spremembi oznake enote ne pretvori količin. Če ima artikel že
+zalogo, dnevno ali zgodovinsko evidenco ali je uporabljen v drugem normativu,
+sprememba enote ni dovoljena. Za drugo osnovo ustvarite nov polizdelek.
+Pametni predlog normativa za pripravljene polizdelke na kg/l ni na voljo:
+normativ vnesite ročno na **1 kg** oziroma **1 l**.
+
+<!-- pos-heading: id=pos-current-pizza-modifier-kds-routing package=standard -->
+## 45. Pica, podizbire modifikatorjev in KDS usmerjanje
+
+Oznaka pice oziroma postaja za pice ne spremeni sestavljene recepture v
+à la carte. Pri pici ohranite pravilno vrsto jedi in normative po velikostih;
+pri izbiri preverite velikost, ceno, dodatke in njihove povezane izbire.
+Prodajni artikel v normativu modifikatorja lahko zahteva svoje enonivojske
+podizbire. Počakajte, da se možnosti naložijo; sprememba ene zahtevane
+izbire ne sme izbrisati drugih potrjenih skupin.
+
+Pri prodajnem artiklu preverite postajo oziroma vrsto priprave. Za artikel,
+ki ne sme v pripravo na KDS, uporabite izrecno oznako **Ne prikazuj na KDS**.
+Prazna vrsta priprave ni nadomestilo za to oznako. Če program opozori,
+da artikel nima veljavne postaje, uredite usmerjanje; ne ponavljajte
+dodajanja, dokler ni jasno, ali je postavka že na naročilu.
+
+Spremembe skupin in modifikatorjev preverite tudi v naročilu. Obvestilo,
+osveževanje ali zapiranje dodatnega okna ni potrditev novega naročila:
+po uspešnem shranjevanju primerjajte postavke in količine v odprtem naročilu.

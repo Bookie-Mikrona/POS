@@ -2270,3 +2270,114 @@ status in morebitno zavrnitev ali manjkajočo preslikavo.
 - [ ] KIR/KPR ni zamenjan s POS ali skladiščnim poročilom.
 - [ ] XML izvoz, če ga pripravi računovodski sistem, ima shranjen rezultat,
       čas, uporabnika in morebitno povratno napako.
+
+<!-- pos-heading: id=pos-02-monthly-contract-invoices package=lite -->
+## 55. Mesečni račun pogodbeni firmi za malice
+
+Vodja enote ali administrator odpre **Računi → Mesečni računi**. Postopek
+je namenjen tudi gostincu, ki mu poslovne knjige vodi zunanji računovodja:
+ne zahteva računovodskih obdobij, kontov ali temeljnic v Bookie ERP.
+
+1. Preverite aktivno podjetje in enoto ter pogodbeni cenik izbrane firme.
+2. Izberite zaključen poslovni mesec in pogodbeno firmo.
+3. Kliknite **Pripravi predogled**. Preverite specifikacijo, dnevne račune, osnovo, DDV in skupni znesek.
+4. Preverite datum izdaje in rok plačila, ki izhaja iz pogojev partnerja.
+5. Po izrecni potrditvi izdajte mesečni račun.
+6. V arhivu **Izdani mesečni računi** prenesite PDF za firmo in zunanjega računovodjo. PDF vsebuje specifikacijo pogodbenih postavk ter prilogo z dnevnimi POS računi.
+
+V predogled pridejo samo še neobračunani, nestornirani negotovinski računi
+izbrane firme in aktivne enote. Firma mora imeti pogodbeni cenik te enote.
+Datum računa sledi gostinskemu poslovnemu dnevu. Odprtega poslovnega meseca
+ni mogoče obračunati.
+
+Številka se določi samodejno v ločeni seriji **M-POS-leto-zaporedna številka**.
+Izdani računi ostanejo v arhivu tudi po ponovnem odprtju programa. PDF
+uporablja podatke in cene ob izdaji; poznejša sprememba partnerja ne spremeni
+že izdanega dokumenta.
+
+Isti dnevni račun ne more biti ponovno obračunan niti v POS niti v ERP
+zbirniku. Mesečni račun ne ustvarja nove prodaje, novega DDV, temeljnice ali
+novega FURS zahtevka. Firma plača mesečni račun, ne še enkrat vseh njegovih
+dnevnih računov.
+
+Testni dokument je označen **TESTNI DOKUMENT – NI ZA PLAČILO**. Testnih in
+dejanskih računov ni dovoljeno združiti. Račune z neuspelim FURS pošiljanjem
+je treba najprej urediti.
+
+Izdane listine ne popravljajte z brisanjem ali prepisovanjem. Samostojni
+storno dnevnega računa, ki je že v mesečnem računu, je blokiran, ker bi
+znesek za plačilo na mesečnem računu ostal napačen. Popravek zahteva
+dobropis mesečnega dokumenta; ta poseben postopek še ni del tega obrazca.
+
+<!-- pos-heading: id=pos-02-monthly-contract-eslog-bizbox package=lite -->
+### 55.1 Prenos e-SLOG in oddaja prek bizBox
+
+1. Odprite **Računi → Mesečni računi** in v arhivu **Izdani mesečni računi** poiščite dokument.
+2. Za elektronsko datoteko kliknite **Prenesi e-SLOG**. Shranite preneseni XML; sam prenos ne pomeni oddaje prejemniku.
+3. Za oddajo preverite povezavo aktivnega podjetja v **Nastavitve → bizBox**. Preverite pošiljatelja, testno oziroma produkcijsko okolje ter podatke in e-naslov prejemnika.
+4. Pri dokumentu kliknite **Pošlji prek bizBox**. V potrditvi preverite številko računa in prejemnika. **Prekliči** zapre potrditev brez oddaje.
+5. Kliknite **Potrdi oddajo** in počakajte na rezultat. Oddaja uporablja povezavo tega podjetja, ne skupnega nadomestnega računa.
+6. Če ima dokument ID bizBox in dostava še ni zaključena, kliknite **Preveri dostavo**.
+
+XML je v izvornem formatu e-SLOG 2.0 in uporablja isto številko, datum, rok
+plačila, podatke partnerja in zneske kot izdani PDF. Vključuje reference na
+dnevne račune in ohrani njihove zneske DDV ter zaokrožitve. Sprememba
+partnerja po izdaji ne spremeni dokumenta. Prenos in oddaja ne ustvarita
+novega mesečnega računa, prodaje, DDV, temeljnice ali FURS zahtevka.
+
+Testni dokument se lahko odda samo v **testno okolje** bizBox; pošiljanje
+v produkcijo je blokirano. Za že oddani dokument preverjajte dostavo z
+istim računom bizBox in okoljem, prek katerih je bil oddan.
+
+<!-- pos-heading: id=pos-monthly-contract-delivery-states package=lite -->
+### 55.2 Stanja oddaje in varno nadaljevanje
+
+| Stanje v arhivu | Pomen in naslednji korak |
+| --- | --- |
+| Ni oddan | Dokument še ni oddan. Preverite nastavitve in uporabite Pošlji prek bizBox. |
+| Oddaja v teku | Oddaja poteka. Počakajte; ne odpirajte nove oddaje istega dokumenta. |
+| Prijava ni uspela | Dokument ni bil poslan. Popravite nastavitve in uporabite Ponovi prijavo in oddajo. |
+| Oddan | Ponudnik je vrnil ID dokumenta; to še ni potrjena dostava. Kliknite Preveri dostavo. |
+| V obdelavi | Dostava še ni potrjena. Pozneje ponovno uporabite Preveri dostavo, ne nove oddaje. |
+| Dostavljen | Ponudnik je izrecno potrdil dostavo. Nova oddaja ni potrebna. |
+| Zavrnjen | Razlog preverite v portalu bizBox. Samodejna ponovna oddaja ni dovoljena. |
+| Izid ni znan – preverite v bizBoxu | Po zunanji referenci preverite, ali je ponudnik dokument sprejel. Ponovno pošiljanje je blokirano. |
+
+Pri nejasnem izidu si zabeležite številko mesečnega računa, zunanjo referenco,
+okolje in morebitni ID bizBox. Izpad povezave ne pomeni, da ponudnik dokumenta
+ni sprejel. Ne izdajajte nadomestnega mesečnega računa in ne pošiljajte XML
+po drugi poti, dokler izid ni usklajen pri ponudniku.
+
+Če stanje ni dostopno, uporabite **Osveži status**. To osveži shranjeno stanje
+v programu; **Preveri dostavo** je ločen klic za preverjanje pri ponudniku.
+Ob napaki preverjanja zadnje shranjeno stanje ostane nespremenjeno.
+
+<!-- pos-heading: id=pos-monthly-contract-handover-checklist package=lite -->
+### 55.3 Kontrola pred predajo firmi in računovodstvu
+
+- [ ] Podjetje, enota, firma in zaključen poslovni mesec so pravilni.
+- [ ] Dnevni računi in specifikacija se ujemajo z osnovo, DDV in skupnim zneskom.
+- [ ] Datum izdaje, rok plačila in podatki partnerja so preverjeni.
+- [ ] PDF in e-SLOG pripadata isti številki mesečnega računa.
+- [ ] Firma ne prejme dveh zahtevkov za plačilo istega prometa.
+- [ ] Pri bizBox je zabeleženo dejansko stanje; Oddan ni zamenjan z Dostavljen.
+- [ ] Testni dokument ni namenjen plačilu in ni oddan v produkcijsko okolje.
+
+<!-- pos-heading: id=pos-current-togo-print-projection package=lite -->
+## 56. To Go embalaža in prikaz dodatkov na tiskanem računu
+
+Pri To Go preverite, da je način omogočen za izbrani artikel in da ima
+embalaža pravilno povezavo na jed. Na tiskanem računu se lahko cena
+embalaže z enako DDV stopnjo prišteje prikazani ceni glavne postavke.
+Naziv embalaže ostane informativen; zneska ne prištevajte še drugič.
+Glavna jed je lahko označena **To-Go**.
+
+To je samo način prikaza. Embalaža ostaja ločena zalogovna in računovodska
+postavka; njen DDV in poraba se ne izbrišeta. Drugi plačljivi dodatki in
+njihove podizbire se ne spremenijo v brezplačne vrstice.
+
+Pri različnih DDV stopnjah jedi in embalaže mora biti davčna razlika
+ohranjena. Če izvoz zavrne združitev, preverite podatke; ne spreminjajte
+stopnje zgolj zato, da bi izvoz uspel. Pri preizkusu tiskanja primerjajte
+celoten znesek računa, dodatke in embalažo z že izdanim dokumentom.
+Ponovni tisk ne ustvari nove prodaje ali novega računa.

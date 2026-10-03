@@ -3170,3 +3170,68 @@ Isti prenos se zaradi ponovnega klika ne sme izvesti dvakrat. Če je status
 neznan, najprej poiščite isto referenco in preverite gibanje na izvoru ter
 cilju. Ne ustvarjajte novega dogodka z drugačnimi količinami samo zato, da bi
 obšli opozorilo.
+
+<!-- pos-heading: id=pos-current-prepared-quantities-costing package=standard -->
+## Pripravljena hrana: merska osnova, dejanska poraba in zaključek
+
+V dnevni evidenci pripravljene hrane vsaka vrstica pokaže svojo osnovno
+enoto: **porcija**, **kg** ali **l**. Odtajano, pripravljeno, korekcije,
+zamrznjeno in kalo vnašajte v isti osnovi. Za kg/l so dovoljene decimalne
+količine; gumbi za manjši korak spreminjajo količino za **0,1**, za večji
+korak pa za **1**. Pri porcijah sta koraka **1** in **10**.
+
+1. Izberite pravi poslovni dan in preverite osnovno enoto vsake jedi.
+2. Vnesite dejansko odtajano in pripravljeno količino. Odtajanje je omejeno z razpoložljivo zamrznjeno zalogo.
+3. Pri pripravi odprite **Poraba artiklov** ter primerjajte predlagane surovine z dejansko porabo. Preverite merske enote in evidentirajte odstopanja, ne dodatne prodaje.
+4. Spremembe shranite z **Shrani vse** in ponovno preverite vsote ter prodane količine.
+5. Ob zaključku vnesite dejansko zamrznjeno količino. Oznaka **Vse** uporabi vso še razpoložljivo količino za zamrzovanje; uporabite jo samo, če je to fizično res.
+6. Pred zaključkom preverite izračun kala. Negativno kalo pomeni neskladje, ki ga je treba urediti, ne dovoljene dodatne zaloge.
+
+Osnovna kontrola je: **odtajano + pripravljeno + korekcija − prodano −
+zamrznjeno = kalo**. Pri polizdelku upoštevajte tudi dejansko porabo v
+sestavljenih jedeh, ki se evidentira prek normativa. Priprava porabi surovine;
+prodaja pripravljene jedi jih ne sme porabiti še enkrat.
+
+Zamrznjeno in nezamrznjeno stanje preverjajte ločeno. Strošek priprave in
+njegova razporeditev na porabljeno, preostalo oziroma kalo ni nova nabava.
+Ob odstopanju preverite zapis dejanske porabe in dnevno evidenco, ne
+spreminjajte starega normativa samo zato, da bi se ena dnevna vsota ujemala.
+
+<!-- pos-heading: id=pos-current-import-vat-fx-review package=lite -->
+## Uvoz prejemnice: dobavitelj, DDV in tuja valuta
+
+Po OCR ali e-SLOG prepoznavi preverite dobavitelja iz šifranta, državo,
+davčno identifikacijo, vrsto listine, datum in izvorne zneske.
+Predlagana razvrstitev ni potrjena računovodska odločitev.
+Slovenska sedemmestna matična številka in desetmestni zapis sedeža s
+končnico **000** lahko označujeta isto identiteto; druge končnice ne pomenijo
+samodejno istega sedeža. Enako ime samo po sebi ni dokaz istega dobavitelja.
+
+Pri nabavi iz tujine razlikujte domači DDV, oprostitev in samoobdavčitev.
+Prodajna davčna kategorija artikla ne določa samodejno pravilne nabavne
+DDV-kode. Če se država ali DDV-identifikator izbranega dobavitelja ne ujema
+z izvirnikom, najprej razrešite opozorilo in ne potrjujte napačnega partnerja.
+
+Pri tuji valuti ohranite izvorno valuto in zneske ter preverite datum,
+tečaj in EUR osnove oziroma DDV. Če so EUR osnove in DDV potrjeni ločeno,
+jih ne izračunavajte še enkrat iz zaokrožene cene na kos. Izvorna cena,
+tečaj in računovodski znesek imajo različne vloge.
+Če so podatki nepopolni ali neskladni, računovodski pregled opravite pred
+potrditvijo; izvoz ali OCR ne nadomestita izvorne listine.
+
+<!-- pos-heading: id=pos-current-import-fixed-asset-review package=lite -->
+## e-SLOG z možnim osnovnim sredstvom
+
+Če uvoz odpre **Računovodski pregled možnih osnovnih sredstev**, ne potrjujte
+teh vrstic kot običajno gostinsko materialno prejemnico.
+
+1. Izberite preverjenega dobavitelja iz šifranta in primerjajte izvorni e-SLOG.
+2. Za vsako prikazano vrstico preverite razvrstitev **Drugo osnovno sredstvo** ali **Nepremičnina**.
+3. Računovodja mora pregledati izvorno listino, dobavitelja in davčno obravnavo ter izrecno potrditi prikazano izjavo.
+4. Kliknite **Potrdi in ustvari ERP osnutek** samo po opravljenem pregledu in preverite nastali osnutek ERP prejetega računa.
+
+Opozorilo ni samodejna razvrstitev ali knjižba. Potrditev tega posebnega
+postopka pripravi ERP prejeti račun; ne pomeni samodejnega odprtja registra
+osnovnih sredstev, obračuna amortizacije ali fizičnega prejema gostinske
+zaloge. Če poslovne knjige vodi zunanji izvajalec, uskladite predajo z njim
+in ne odpirajte interne glavne knjige zgolj zaradi opozorila uvoza.

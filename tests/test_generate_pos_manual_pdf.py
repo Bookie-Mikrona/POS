@@ -194,7 +194,7 @@ def test_manual_heading_package_assignments_match_migration_snapshot() -> None:
         )
 
     digest = hashlib.sha256("\n".join(assignments).encode()).hexdigest()
-    assert digest == "c49c12f3253e18bd22d6ee75076311d9e1bb75ef2104a35392d4e8c24fb36a89"
+    assert digest == "3228ff0fbaf0ccdd9d40137ad37089e99467a984027a4d27b8295726d8fd2fc9"
 
 
 def test_pdf_chapter_titles_match_pos_manual_navigation() -> None:
@@ -207,6 +207,34 @@ def test_pdf_chapter_titles_match_pos_manual_navigation() -> None:
 
 
 def test_published_manual_matches_versioned_pdf() -> None:
-    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "27.09.2026"
+    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "03.10.2026"
     assert generator.OUTPUT.exists()
     assert generator.PUBLIC_OUTPUT.read_bytes() == generator.OUTPUT.read_bytes()
+
+
+def test_current_manual_covers_all_recent_pos_change_groups() -> None:
+    expected = {
+        "04-zaloge-dokumenti.md": [
+            "pos-current-article-actions", "pos-current-automatic-drink-normatives",
+            "pos-current-prepared-base-unit", "pos-current-pizza-modifier-kds-routing",
+        ],
+        "05-pripravljena-hrana-qr-telefon.md": [
+            "pos-current-kds-status-notifications", "pos-current-kds-prepared-availability",
+        ],
+        "06-izmene-porocila-nastavitve.md": [
+            "pos-02-monthly-contract-invoices", "pos-02-monthly-contract-eslog-bizbox",
+            "pos-monthly-contract-delivery-states", "pos-monthly-contract-handover-checklist",
+            "pos-current-togo-print-projection",
+        ],
+        "07-zacetek-dela-dostop.md": [
+            "pos-current-prepared-quantities-costing", "pos-current-import-vat-fx-review",
+            "pos-current-import-fixed-asset-review",
+        ],
+        "09-postopki-po-vlogah.md": ["pos-current-platform-unit-context"],
+    }
+    for filename, identifiers in expected.items():
+        source = (generator.SOURCE_DIR / filename).read_text(encoding="utf-8")
+        for identifier in identifiers:
+            assert f"id={identifier} " in source
+    shift = (generator.SOURCE_DIR / "02-placila-racuni-furs-tisk.md").read_text(encoding="utf-8")
+    assert "pos-02-monthly-contract-invoices" not in shift

@@ -1,7 +1,7 @@
 # POS Gostinstvo — sledljiv inventar priročnika
 
-**Datum pregleda:** 27.09.2026
-**Število preverjenih uporabniških postopkov:** 72
+**Datum pregleda:** 03.10.2026
+**Število preverjenih uporabniških postopkov:** 82
 
 Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak pokritost uporabniškega postopka v priročniku.
 
@@ -9,7 +9,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Status | Število |
 |---|---:|
-| PRAVILNO | 72 |
+| PRAVILNO | 82 |
 | DELNO | 0 |
 | MANJKA | 0 |
 | NAPAČNO | 0 |
@@ -18,7 +18,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Stanje | Število |
 |---|---:|
-| IMPLEMENTIRANO | 70 |
+| IMPLEMENTIRANO | 80 |
 | NI IMPLEMENTIRANO | 1 |
 | NEPOTRJENO | 1 |
 
@@ -26,8 +26,8 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Pomembnost | Število |
 |---|---:|
-| KRITIČNO | 25 |
-| VISOKO | 37 |
+| KRITIČNO | 29 |
+| VISOKO | 43 |
 | SREDNJE | 9 |
 | NIZKO | 1 |
 
@@ -42,6 +42,16 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 
 | ID | Področje | Funkcija | Pokritost | Pomembnost |
 |---|---|---|---|---|
+| RAC-MONTHLY | Računi | POS-only mesečni račun pogodbeni firmi | PRAVILNO | KRITIČNO |
+| RAC-EDELIVERY | Računi | Native e-SLOG mesečnega računa in bizBox dostava | PRAVILNO | KRITIČNO |
+| MEN-ACTIONS | Meni | Dejanja, katalogi PDF in varen povratni Excel uvoz | PRAVILNO | VISOKO |
+| NOR-DRINK-VOLUME | Normativi | Samodejni normativ prodajne pijače iz prostornine | PRAVILNO | VISOKO |
+| PRH-BASE-UNIT | Pripravljena hrana | Pripravljeni polizdelki na kg/l in dnevna evidenca v osnovni enoti | PRAVILNO | KRITIČNO |
+| KDS-READY-CURRENT | KDS | Usklajena stanja, obvestilo izvorni napravi in razpoložljivost | PRAVILNO | VISOKO |
+| MEN-PIZZA-ROUTING | Meni | Sestavljena pica, podizbire in izrecna izključitev iz KDS | PRAVILNO | VISOKO |
+| NAB-IMPORT-REVIEW | Nabava | Dobavitelj, DDV, tuja valuta in pregled možnega osnovnega sredstva | PRAVILNO | KRITIČNO |
+| NAP-CONTEXT-CURRENT | Dostop | Platformna prijava brez operativne enote in varno osveževanje | PRAVILNO | VISOKO |
+| TIS-TOGO-CURRENT | Tisk | To Go prikaz embalaže in ugnezdenih dodatkov | PRAVILNO | VISOKO |
 | AI-001 | AI | AI svetovalec za POS kontekst | PRAVILNO | SREDNJE |
 | QR-001 | Brskanje | Brskanje po javnem meniju, kategorijah, razpoložljivosti, alergenih in podrobnostih o izdelkih | PRAVILNO | SREDNJE |
 | POS-001 | Darilni boni | Stranka kupi darilni bon na spletu | PRAVILNO | VISOKO |
