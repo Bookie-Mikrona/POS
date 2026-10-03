@@ -24,7 +24,8 @@ export function parseDrinkVolumeName(name: string) {
   const normalized = name.normalize("NFC").trim();
   const matches = [...normalized.matchAll(new RegExp(VOLUME, "giu"))];
   const baseName = normalized.replace(new RegExp(VOLUME, "giu"), " ")
-    .replace(/\s+/g, " ").replace(/^[\s()/,;:–—-]+|[\s()/,;:–—-]+$/g, "").trim();
+    .replace(/\(\s*\)|\[\s*\]/g, " ")
+    .replace(/\s+/g, " ").replace(/^[\s/,;:–—-]+|[\s/,;:–—-]+$/g, "").trim();
   if (matches.length !== 1 || !baseName) return { baseName, liters: null };
   const match = matches[0];
   // A pack is not a serving. Do not silently interpret 6 × 0.75 l as 0.75 l.

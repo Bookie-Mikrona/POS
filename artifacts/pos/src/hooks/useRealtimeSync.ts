@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getNapravaId } from "@/lib/naprava";
 import { useNastavitve } from "@/contexts/NastavitveContext";
 import { hasActivePosUnit } from "@/lib/posUnitContext";
+import { createPosEventStream, type PosEventStream } from "@/lib/posEventStream";
 
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
@@ -14,7 +15,7 @@ export function useRealtimeSync() {
   useEffect(() => {
     if (!user || !hasActivePosUnit(user) || user.moraZamenjatiGeslo) return;
 
-    let es: EventSource | null = null;
+    let es: PosEventStream | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let destroyed = false;
 
@@ -23,8 +24,13 @@ export function useRealtimeSync() {
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
       const napravaId = getNapravaId();
       const enotaId = user!.enotaId ?? "";
-      es = new EventSource(
-        `${base}/api/events?napravaId=${encodeURIComponent(napravaId)}&enota_id=${encodeURIComponent(enotaId)}`
+      es = createPosEventStream(
+        `${base}/api/events?napravaId=${encodeURIComponent(napravaId)}&enota_id=${encodeURIComponent(enotaId)}`,
+        {
+          "X-Enota-Id": String(enotaId),
+          "X-Naprava-Id": napravaId,
+          ...(user!.companyId ? { "X-Company-Id": user!.companyId } : {}),
+        },
       );
 
       es.addEventListener("update", (e: MessageEvent) => {

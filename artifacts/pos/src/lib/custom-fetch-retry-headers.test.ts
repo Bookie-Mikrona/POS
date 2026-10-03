@@ -9,6 +9,24 @@ import {
 } from "@workspace/api-client-react";
 
 describe("customFetch 401 retry headers", () => {
+  it("vrne SSE response brez branja telesa ter pošlje prijavo in izrecno podjetje", async () => {
+    setAuthTokenGetter(() => "stream-test-token");
+    setEnotaIdGetter(() => "309");
+    const response = new Response("event: ping\ndata: {}\n\n", {
+      status: 200, headers: { "Content-Type": "text/event-stream" },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await customFetch<Response>("/pos/api/events", {
+      responseType: "stream", headers: { "X-Company-Id": "selected-company" },
+    })).toBe(response);
+    expect(response.bodyUsed).toBe(false);
+    const headers = new Headers(fetchMock.mock.calls[0][1].headers);
+    expect(headers.get("authorization")).toBe("Bearer stream-test-token");
+    expect(headers.get("x-company-id")).toBe("selected-company");
+    expect(headers.get("x-enota-id")).toBe("309");
+  });
+
   afterEach(() => {
     setAuthTokenGetter(null);
     setEnotaIdGetter(null);

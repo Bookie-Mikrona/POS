@@ -20,3 +20,9 @@ Zvok mora biti omogočen z uporabniško gesto pred prihodom obvestila; samodejno
 **Why:** Mobilni brskalniki omejujejo samodejno predvajanje. Naročanje že vključuje uporabniške dotike, ki lahko omogočijo poznejša obvestila.
 
 **How to apply:** Ponovno uporabi omogočen zvočni kontekst, počisti ga ob odhodu in nikoli ne skrij toasta zaradi napake zvoka.
+
+Povezava za obvestila mora uporabljati isto prijavo in izrecno izbiro podjetja kot običajni POS klici.
+
+**Why:** Ob razširitvi uporabnika na več podjetij lahko naročanje še deluje, tok obvestil brez podatka o izbranem podjetju pa je zavrnjen. Ne zanašaj se samo na piškotek ali ID enote.
+
+**How to apply:** Prijavo in podjetje pošlji v preverjenih HTTP glavah, ne prenašaj žetonov v URL. Ob menjavi prijave, podjetja ali enote prekini stari tok in zavrzi pozne dogodke.

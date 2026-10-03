@@ -20,6 +20,10 @@ describe("drink volume names", () => {
     expect(parseDrinkVolumeName("Dingač premium 2024 0,1 l").baseName).toBe("Dingač premium 2024");
     expect(drinkNameKey("DINGAČ")).toBe(drinkNameKey("dingac"));
     expect(drinkNameKey("Dingač premium")).not.toBe(drinkNameKey("Dingač"));
+    expect(parseDrinkVolumeName("Bela frankinja (Kerin, Krško) 0,1 l")).toEqual({
+      baseName: "Bela frankinja (Kerin, Krško)", liters: 0.1,
+    });
+    expect(parseDrinkVolumeName("Dingač (0,1 l)")).toEqual({ baseName: "Dingač", liters: 0.1 });
   });
 
   it.each(["Dingač", "Dingač 0 l", "Dingač 0,7 l / 0,75 l", "Dingač 6 × 0,75 l"])(

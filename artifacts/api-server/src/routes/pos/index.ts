@@ -134,7 +134,7 @@ const eventsHandler: RequestHandler = (req: Request, res: Response) => {
     catch { clearInterval(keepalive); }
   }, 25000);
 
-  req.on("close", () => {
+  res.on("close", () => {
     clearInterval(keepalive);
     removeClient(res);
   });

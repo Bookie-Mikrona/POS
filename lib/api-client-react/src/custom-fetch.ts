@@ -1,5 +1,5 @@
 export type CustomFetchOptions = RequestInit & {
-  responseType?: "json" | "text" | "blob" | "auto";
+  responseType?: "json" | "text" | "blob" | "auto" | "stream";
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -356,9 +356,12 @@ function inferResponseType(response: Response): "json" | "text" | "blob" {
 
 async function parseSuccessBody(
   response: Response,
-  responseType: "json" | "text" | "blob" | "auto",
+  responseType: "json" | "text" | "blob" | "auto" | "stream",
   requestInfo: { method: string; url: string },
 ): Promise<unknown> {
+  // Streaming callers must consume the body themselves; retain the normal
+  // authentication, tenant headers and expired-token retry in customFetch.
+  if (responseType === "stream") return response;
   if (hasNoBody(response, requestInfo.method)) {
     return null;
   }

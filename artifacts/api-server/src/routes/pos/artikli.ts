@@ -111,7 +111,7 @@ class NormativeRequestError extends Error {
   }
 }
 
-async function lockNormativeGraph(tx: any, enotaId: number): Promise<void> {
+export async function lockNormativeGraph(tx: any, enotaId: number): Promise<void> {
   await tx.execute(sql`
     SELECT pg_advisory_xact_lock(
       ${NORMATIVE_GRAPH_LOCK_NAMESPACE}::integer,
@@ -2268,7 +2268,7 @@ type PreparedNormativUpdate = {
   changed: boolean;
 };
 
-async function prepareNormativUpdate(
+export async function prepareNormativUpdate(
   id: number,
   tenotaId: number,
   body: UpdateNormativBody,
@@ -2426,7 +2426,7 @@ async function validateIngredientTypeChange(
   }
 }
 
-async function applyPreparedNormativUpdate(
+export async function applyPreparedNormativUpdate(
   tx: any,
   id: number,
   tenotaId: number,

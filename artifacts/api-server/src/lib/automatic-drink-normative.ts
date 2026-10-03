@@ -12,10 +12,10 @@ export class AutomaticDrinkNormativeError extends Error {
 /** The caller holds the unit business-day and normative-graph locks. Creating
  * the source and sale recipe in one transaction prevents orphaned sources and
  * duplicate one-liter articles on simultaneous saves. */
-export async function resolveAutomaticDrinkNormative(
+export async function resolveAutomaticDrinkPurchase(
   tx: Transaction,
   sale: typeof artikliTable.$inferSelect,
-  volume: { baseName: string; liters: number },
+  volume: { baseName: string },
 ) {
   const allPurchases = await tx.select({
     id: artikliTable.id, ime: artikliTable.ime, enotaMere: artikliTable.enotaMere,
@@ -52,6 +52,15 @@ export async function resolveAutomaticDrinkNormative(
     }).returning();
     source = created;
   }
+  return source;
+}
+
+export async function resolveAutomaticDrinkNormative(
+  tx: Transaction,
+  sale: typeof artikliTable.$inferSelect,
+  volume: { baseName: string; liters: number },
+) {
+  const source = await resolveAutomaticDrinkPurchase(tx, sale, volume);
   const quantity = drinkNormativeQuantity(volume.liters, source);
   if (quantity == null) {
     throw new AutomaticDrinkNormativeError(`Enote nabavnega artikla »${source.ime}« (${source.enotaMere ?? "kos"}) ni mogoče pretvoriti v porabo pijače. Ročno določite normativ.`);

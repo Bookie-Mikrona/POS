@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useRealtimeSync } from "./useRealtimeSync";
+import { createPosEventStream } from "@/lib/posEventStream";
+
+vi.mock("@/lib/posEventStream", () => ({ createPosEventStream: vi.fn() }));
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
@@ -38,10 +41,9 @@ describe("useRealtimeSync", () => {
       addEventListener: vi.fn(),
       close: vi.fn(),
     };
-    EventSourceSpy = vi.fn().mockImplementation(function () {
+    EventSourceSpy = vi.mocked(createPosEventStream).mockReset().mockImplementation(function () {
       return esInstance;
     });
-    vi.stubGlobal("EventSource", EventSourceSpy);
   });
 
   afterEach(() => {
@@ -114,6 +116,9 @@ describe("useRealtimeSync", () => {
     });
 
     renderHook(() => useRealtimeSync());
+    expect(EventSourceSpy.mock.calls[0]?.[1]).toMatchObject({
+      "X-Company-Id": "podjetje-a", "X-Enota-Id": "1",
+    });
     const handler = esInstance.addEventListener.mock.calls.find(
       ([eventName]) => eventName === "auth:pos-plan-changed",
     )?.[1] as (event: MessageEvent) => void;

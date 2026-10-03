@@ -3,6 +3,12 @@ name: Meni Gostilne Križišče
 description: Dogovorjena pravila za vnos cenika, pic, sestavin, pijač in alergenov v razvojno enoto Križišče.
 ---
 
+Cedevita je napitek iz vrečke, zmešane z vodo; ni litrska nabavna pijača.
+
+**Why:** Uporabnik je izrecno pojasnil, da prodajni artikel Cedevita nima navedene prostornine, ker se nabavlja v vrečkah.
+
+**How to apply:** Nabavni artikel vodi v kosih/vrečkah, ne ustvarjaj »Cedevita 1 liter« in ne predpostavljaj prodajne prostornine na podlagi drugih sokov.
+
 Pri ceniku Gostilne Križišče velika pica pomeni normalno velikost. Pičiči je normalna okrogla pica, katere osnovna sestavina je sir. Malic ne ustvarjaj kot prodajne artikle, ker nastanejo ločeno iz pripravljenih jedi.
 
 Paradižnikovo omako iz pelatov, sončničnega olja, soli in suhega origana sestavljaj neposredno v normativih pic, ki so omako že vsebovale; ne obravnavaj je kot samostojen nabavni artikel. Sadna pica in Pičiči omake nimata in jima sestavin omake ne dodajaj. Normativ je za normalno pico, mala uporabi sistemski faktor površine glede na premer.
