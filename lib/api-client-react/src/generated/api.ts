@@ -396,6 +396,10 @@ import type {
   PosEvent,
   PosEventInput,
   PosEventUpdate,
+  PosMonthlyInvoice,
+  PosMonthlyInvoiceInput,
+  PosMonthlyInvoicePartner,
+  PosMonthlyInvoicePreview,
   PosReceiptLinkInput,
   PosTipJournalPreview,
   PosljiEmailRacunaInput,
@@ -420,6 +424,7 @@ import type {
   PreparedFoodWasteRecordInput,
   PreparedFoodWasteRecordSummary,
   PreviewArtikelAlergeniNormativBody,
+  PreviewPosMonthlyInvoiceParams,
   PreviewPreparedFoodWasteRecordParams,
   Prostor,
   ProstorInput,
@@ -35031,4 +35036,360 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getHandleJavniStripeWebhookMutationOptions(options));
     }
+
+export const getListPosMonthlyInvoicePartnersUrl = () => {
+
+
+
+
+  return `/api/pos-monthly-invoices/partners`
+}
+
+export const listPosMonthlyInvoicePartners = async ( options?: RequestInit): Promise<PosMonthlyInvoicePartner[]> => {
+
+  return customFetch<PosMonthlyInvoicePartner[]>(getListPosMonthlyInvoicePartnersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPosMonthlyInvoicePartnersQueryKey = () => {
+    return [
+    `/api/pos-monthly-invoices/partners`
+    ] as const;
+    }
+
+
+export const getListPosMonthlyInvoicePartnersQueryOptions = <TData = Awaited<ReturnType<typeof listPosMonthlyInvoicePartners>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPosMonthlyInvoicePartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPosMonthlyInvoicePartnersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPosMonthlyInvoicePartners>>> = ({ signal }) => listPosMonthlyInvoicePartners({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPosMonthlyInvoicePartners>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPosMonthlyInvoicePartnersQueryResult = NonNullable<Awaited<ReturnType<typeof listPosMonthlyInvoicePartners>>>
+export type ListPosMonthlyInvoicePartnersQueryError = ErrorType<unknown>
+
+
+
+export function useListPosMonthlyInvoicePartners<TData = Awaited<ReturnType<typeof listPosMonthlyInvoicePartners>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPosMonthlyInvoicePartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPosMonthlyInvoicePartnersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewPosMonthlyInvoiceUrl = (params: PreviewPosMonthlyInvoiceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/pos-monthly-invoices/preview?${stringifiedParams}` : `/api/pos-monthly-invoices/preview`
+}
+
+export const previewPosMonthlyInvoice = async (params: PreviewPosMonthlyInvoiceParams, options?: RequestInit): Promise<PosMonthlyInvoicePreview> => {
+
+  return customFetch<PosMonthlyInvoicePreview>(getPreviewPosMonthlyInvoiceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewPosMonthlyInvoiceQueryKey = (params?: PreviewPosMonthlyInvoiceParams,) => {
+    return [
+    `/api/pos-monthly-invoices/preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getPreviewPosMonthlyInvoiceQueryOptions = <TData = Awaited<ReturnType<typeof previewPosMonthlyInvoice>>, TError = ErrorType<unknown>>(params: PreviewPosMonthlyInvoiceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewPosMonthlyInvoice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewPosMonthlyInvoiceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewPosMonthlyInvoice>>> = ({ signal }) => previewPosMonthlyInvoice(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewPosMonthlyInvoice>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PreviewPosMonthlyInvoiceQueryResult = NonNullable<Awaited<ReturnType<typeof previewPosMonthlyInvoice>>>
+export type PreviewPosMonthlyInvoiceQueryError = ErrorType<unknown>
+
+
+
+export function usePreviewPosMonthlyInvoice<TData = Awaited<ReturnType<typeof previewPosMonthlyInvoice>>, TError = ErrorType<unknown>>(
+ params: PreviewPosMonthlyInvoiceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewPosMonthlyInvoice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPreviewPosMonthlyInvoiceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPosMonthlyInvoicesUrl = () => {
+
+
+
+
+  return `/api/pos-monthly-invoices`
+}
+
+export const listPosMonthlyInvoices = async ( options?: RequestInit): Promise<PosMonthlyInvoice[]> => {
+
+  return customFetch<PosMonthlyInvoice[]>(getListPosMonthlyInvoicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPosMonthlyInvoicesQueryKey = () => {
+    return [
+    `/api/pos-monthly-invoices`
+    ] as const;
+    }
+
+
+export const getListPosMonthlyInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof listPosMonthlyInvoices>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPosMonthlyInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPosMonthlyInvoicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPosMonthlyInvoices>>> = ({ signal }) => listPosMonthlyInvoices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPosMonthlyInvoices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPosMonthlyInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof listPosMonthlyInvoices>>>
+export type ListPosMonthlyInvoicesQueryError = ErrorType<unknown>
+
+
+
+export function useListPosMonthlyInvoices<TData = Awaited<ReturnType<typeof listPosMonthlyInvoices>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPosMonthlyInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPosMonthlyInvoicesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getIssuePosMonthlyInvoiceUrl = () => {
+
+
+
+
+  return `/api/pos-monthly-invoices`
+}
+
+export const issuePosMonthlyInvoice = async (posMonthlyInvoiceInput: PosMonthlyInvoiceInput, options?: RequestInit): Promise<PosMonthlyInvoice> => {
+
+  return customFetch<PosMonthlyInvoice>(getIssuePosMonthlyInvoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(posMonthlyInvoiceInput)
+  }
+);}
+
+
+
+
+
+export const getIssuePosMonthlyInvoiceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issuePosMonthlyInvoice>>, TError,{data: BodyType<PosMonthlyInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issuePosMonthlyInvoice>>, TError,{data: BodyType<PosMonthlyInvoiceInput>}, TContext> => {
+
+const mutationKey = ['issuePosMonthlyInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issuePosMonthlyInvoice>>, {data: BodyType<PosMonthlyInvoiceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  issuePosMonthlyInvoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssuePosMonthlyInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof issuePosMonthlyInvoice>>>
+    export type IssuePosMonthlyInvoiceMutationBody = BodyType<PosMonthlyInvoiceInput>
+    export type IssuePosMonthlyInvoiceMutationError = ErrorType<unknown>
+
+    export const useIssuePosMonthlyInvoice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issuePosMonthlyInvoice>>, TError,{data: BodyType<PosMonthlyInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof issuePosMonthlyInvoice>>,
+        TError,
+        {data: BodyType<PosMonthlyInvoiceInput>},
+        TContext
+      > => {
+      return useMutation(getIssuePosMonthlyInvoiceMutationOptions(options));
+    }
+
+export const getDownloadPosMonthlyInvoicePdfUrl = (id: string,) => {
+
+
+
+
+  return `/api/pos-monthly-invoices/${id}/pdf`
+}
+
+export const downloadPosMonthlyInvoicePdf = async (id: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadPosMonthlyInvoicePdfUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadPosMonthlyInvoicePdfQueryKey = (id: string,) => {
+    return [
+    `/api/pos-monthly-invoices/${id}/pdf`
+    ] as const;
+    }
+
+
+export const getDownloadPosMonthlyInvoicePdfQueryOptions = <TData = Awaited<ReturnType<typeof downloadPosMonthlyInvoicePdf>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadPosMonthlyInvoicePdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadPosMonthlyInvoicePdfQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadPosMonthlyInvoicePdf>>> = ({ signal }) => downloadPosMonthlyInvoicePdf(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadPosMonthlyInvoicePdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadPosMonthlyInvoicePdfQueryResult = NonNullable<Awaited<ReturnType<typeof downloadPosMonthlyInvoicePdf>>>
+export type DownloadPosMonthlyInvoicePdfQueryError = ErrorType<unknown>
+
+
+
+export function useDownloadPosMonthlyInvoicePdf<TData = Awaited<ReturnType<typeof downloadPosMonthlyInvoicePdf>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadPosMonthlyInvoicePdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadPosMonthlyInvoicePdfQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

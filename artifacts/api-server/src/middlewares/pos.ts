@@ -91,7 +91,7 @@ const CAPABILITY_PATHS: CapabilityPathRule[] = [
   prefixes("delivery", "/dostava", "/naselja"),
   prefixes("checkout", "/narocila", "/blagajne", "/terminal", "/quick-switch", "/ai/glasovni-ukaz", "/ai/svetovalec"),
   prefixes("checkout", "/ai/agent", "/ai/normativ-primerjava"),
-  prefixes("receipts", "/racuni", "/print", "/kupec"),
+  prefixes("receipts", "/racuni", "/print", "/kupec", "/pos-monthly-invoices"),
   prefixes("receipts", "/offline-fiscal"),
   prefixes("shifts", "/izmene", "/odsotnosti", "/natakari"),
   prefixes("settings", "/nastavitve", "/poslovni-prostori", "/naprave", "/glasovni-sinonimi", "/partnerji", "/furs", "/bizbox-nastavitve", "/certifikat"),

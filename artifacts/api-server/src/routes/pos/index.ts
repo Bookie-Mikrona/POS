@@ -72,6 +72,7 @@ import dostavaRouter from "./dostava";
 import preparedFoodRouter from "./prepared-food";
 import plateWasteRouter from "./plate-waste";
 import kdsRouter from "./kds";
+import monthlyInvoicesRouter from "./monthly-invoices";
 import quickSwitchRouter from "./quick-switch";
 import eventsRouter from "./events";
 import offlineFiscalRouter from "./offline-fiscal";
@@ -403,6 +404,7 @@ export const protectedPosRouterMounts: ProtectedPosRouterMount[] = [
   { prefix: "", childRouter: preparedFoodRouter },
   { prefix: "", childRouter: plateWasteRouter },
   { prefix: "", childRouter: kdsRouter },
+  { prefix: "", childRouter: monthlyInvoicesRouter },
   { prefix: "", childRouter: eventsRouter },
   { prefix: "", childRouter: terminalRouter },
   { prefix: "", childRouter: temeljniceRouter },

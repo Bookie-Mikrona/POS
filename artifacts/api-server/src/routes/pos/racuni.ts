@@ -15,6 +15,7 @@ import * as net from "net";
 import iconv from "iconv-lite";
 import QRCode from "qrcode";
 import { logger } from "../../lib/logger";
+import { assertReceiptNotMonthlyBilled, MonthlyInvoiceError } from "../../lib/posMonthlyInvoice";
 import { readAll, readAllWithFallback, toResponse } from "./nastavitve";
 import { upsertPogostKupec } from "./kupec";
 // bcrypt: use (await import('bcryptjs')).default for hashing
@@ -3376,6 +3377,11 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
   if (racun.status === "storniran") {
     res.status(409).json({ error: "Račun je označen kot storniran, pripadajoči storno dokument pa manjka." }); return;
   }
+  try { await assertReceiptNotMonthlyBilled(racun.id); }
+  catch (e) {
+    if (e instanceof MonthlyInvoiceError) { res.status(e.status).json({ error: e.message }); return; }
+    throw e;
+  }
   // Naloži postavke izvornega računa za FURS zahtevek
   const izvornePostavke = await db.select().from(postavkeTable).where(eq(postavkeTable.racunId, racun.id));
   const [izvorniFursSnapshot] = await db.select().from(fursPayloadSnapshotsTable)
@@ -3447,6 +3453,7 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
   try {
     stornoRacun = await db.transaction(async (tx) => {
       await tx.execute(sql`SELECT id FROM racuni WHERE id = ${racun.id} AND enota_id = ${tenotaId} FOR UPDATE`);
+      await assertReceiptNotMonthlyBilled(racun.id, tx);
       const [already] = await tx.select().from(racuniTable)
         .where(and(eq(racuniTable.izvorniRacunId, racun.id), eq(racuniTable.jeStorno, true))).limit(1);
       if (already) throw Object.assign(new Error("already_reserved"), { code: "already_reserved", stornoId: already.id });
@@ -3525,6 +3532,7 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
       }
       return;
     }
+    if (err instanceof MonthlyInvoiceError) { res.status(err.status).json({ error: err.message }); return; }
     throw err;
   }
   const stornoAttemptId = randomUUID();

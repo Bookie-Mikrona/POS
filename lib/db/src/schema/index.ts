@@ -40,6 +40,7 @@ export * from "./vat-submissions";
 export * from "./goods-receipts";
 export * from "./pos-invoice-links";
 export * from "./pos-contract-invoices";
+export * from "./pos-monthly-invoices";
 export * from "./pos-receipt-booking-sources";
 export * from "./pos-credit-note-allocations";
 export * from "./ddv-zakljucek-settings";

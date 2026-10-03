@@ -18983,3 +18983,90 @@ export const HandleJavniStripeWebhookResponse = zod.object({
 })
 
 
+export const ListPosMonthlyInvoicePartnersResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "paymentTermsDays": zod.number()
+})
+export const ListPosMonthlyInvoicePartnersResponse = zod.array(ListPosMonthlyInvoicePartnersResponseItem)
+
+
+export const PreviewPosMonthlyInvoiceQueryParams = zod.object({
+  "month": zod.coerce.string(),
+  "counterpartyId": zod.coerce.string()
+})
+
+export const PreviewPosMonthlyInvoiceResponse = zod.object({
+  "month": zod.string(),
+  "counterpartyId": zod.string(),
+  "recipientName": zod.string(),
+  "paymentTermsDays": zod.number(),
+  "receiptCount": zod.number(),
+  "isTest": zod.boolean(),
+  "totalNet": zod.string(),
+  "totalVat": zod.string(),
+  "totalGross": zod.string(),
+  "receipts": zod.array(zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "date": zod.string(),
+  "gross": zod.string()
+})),
+  "vatBuckets": zod.array(zod.object({
+  "rate": zod.string(),
+  "net": zod.string(),
+  "vat": zod.string(),
+  "gross": zod.string()
+})),
+  "lines": zod.array(zod.object({
+  "label": zod.string(),
+  "quantity": zod.string(),
+  "gross": zod.string(),
+  "rate": zod.string()
+}))
+})
+
+
+export const ListPosMonthlyInvoicesResponseItem = zod.object({
+  "id": zod.string(),
+  "invoiceNumber": zod.string(),
+  "month": zod.string(),
+  "invoiceDate": zod.string(),
+  "dueDate": zod.string(),
+  "counterpartyName": zod.string(),
+  "receiptCount": zod.number(),
+  "totalGross": zod.string(),
+  "isTest": zod.boolean()
+})
+export const ListPosMonthlyInvoicesResponse = zod.array(ListPosMonthlyInvoicesResponseItem)
+
+
+export const IssuePosMonthlyInvoiceBody = zod.object({
+  "month": zod.string(),
+  "counterpartyId": zod.string(),
+  "invoiceDate": zod.string(),
+  "dueDate": zod.string(),
+  "expectedReceiptIds": zod.array(zod.number()),
+  "idempotencyKey": zod.string()
+})
+
+export const IssuePosMonthlyInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "invoiceNumber": zod.string(),
+  "month": zod.string(),
+  "invoiceDate": zod.string(),
+  "dueDate": zod.string(),
+  "counterpartyName": zod.string(),
+  "receiptCount": zod.number(),
+  "totalGross": zod.string(),
+  "isTest": zod.boolean()
+})
+
+
+export const DownloadPosMonthlyInvoicePdfParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadPosMonthlyInvoicePdfResponse = zod.unknown()
+
+

@@ -411,6 +411,7 @@ async function loadUnbilledContractReceipts(
       gte(contractBusinessDateSql, start),
       lte(contractBusinessDateSql, new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10)),
       isNull(posContractInvoiceReceiptsTable.id),
+      sql`NOT EXISTS (SELECT 1 FROM pos_monthly_invoice_receipts m WHERE m.receipt_id = ${racuniTable.id})`,
       sql`EXISTS (
         SELECT 1 FROM ${partnerCenikiTable}
         WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId}
@@ -1296,6 +1297,9 @@ router.post(
     try {
       invoiceId = await db.transaction(async (tx) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`${companyId}:${counterpartyId}:${month}:contract-summary`}))`);
+        const posOnlyClaims = await tx.execute(sql`SELECT receipt_id FROM pos_monthly_invoice_receipts
+          WHERE receipt_id IN (${sql.join(receipts.map(receipt => sql`${receipt.id}`), sql`,`)}) LIMIT 1`);
+        if (posOnlyClaims.rows.length) throw new Error("CONTRACT_SUMMARY_EXISTS");
         const [existing] = await tx
           .select({ id: invoicesTable.id })
           .from(invoicesTable)

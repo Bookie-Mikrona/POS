@@ -11209,6 +11209,74 @@ paths:
       responses:
         "200": { description: Webhook sprejet, content: { application/json: { schema: { $ref: "#/components/schemas/StripeWebhookResult" } } } }
         "400": { $ref: "#/components/responses/BadRequest" }
+  /pos-monthly-invoices/partners:
+    get:
+      operationId: listPosMonthlyInvoicePartners
+      tags: [pos]
+      responses:
+        "200":
+          description: Active contractual customers of the selected POS unit
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PosMonthlyInvoicePartner"
+  /pos-monthly-invoices/preview:
+    get:
+      operationId: previewPosMonthlyInvoice
+      tags: [pos]
+      parameters:
+        - {name: month, in: query, required: true, schema: {type: string}}
+        - {name: counterpartyId, in: query, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Unbilled contractual receipts and VAT breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PosMonthlyInvoicePreview"
+  /pos-monthly-invoices:
+    get:
+      operationId: listPosMonthlyInvoices
+      tags: [pos]
+      responses:
+        "200":
+          description: Issued monthly invoices of the selected unit
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PosMonthlyInvoice"
+    post:
+      operationId: issuePosMonthlyInvoice
+      tags: [pos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PosMonthlyInvoiceInput"
+      responses:
+        "201":
+          description: Issued immutable document, or the same result on replay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PosMonthlyInvoice"
+  /pos-monthly-invoices/{id}/pdf:
+    get:
+      operationId: downloadPosMonthlyInvoicePdf
+      tags: [pos]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: PDF invoice with immutable daily receipt specification
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
 components:
   securitySchemes:
     bearerAuth:
@@ -11246,6 +11314,84 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    PosMonthlyInvoicePartner:
+      type: object
+      required: [id, name, paymentTermsDays]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        paymentTermsDays: {type: integer}
+    PosMonthlyInvoiceReceipt:
+      type: object
+      required: [id, number, date, gross]
+      properties:
+        id: {type: integer}
+        number: {type: string}
+        date: {type: string}
+        gross: {type: string}
+    PosMonthlyInvoiceVat:
+      type: object
+      required: [rate, net, vat, gross]
+      properties:
+        rate: {type: string}
+        net: {type: string}
+        vat: {type: string}
+        gross: {type: string}
+    PosMonthlyInvoiceLine:
+      type: object
+      required: [label, quantity, gross, rate]
+      properties:
+        label: {type: string}
+        quantity: {type: string}
+        gross: {type: string}
+        rate: {type: string}
+    PosMonthlyInvoicePreview:
+      type: object
+      required: [month, counterpartyId, recipientName, paymentTermsDays, receiptCount, isTest, totalNet, totalVat, totalGross, receipts, vatBuckets, lines]
+      properties:
+        month: {type: string}
+        counterpartyId: {type: string}
+        recipientName: {type: string}
+        paymentTermsDays: {type: integer}
+        receiptCount: {type: integer}
+        isTest: {type: boolean}
+        totalNet: {type: string}
+        totalVat: {type: string}
+        totalGross: {type: string}
+        receipts:
+          type: array
+          items: {$ref: "#/components/schemas/PosMonthlyInvoiceReceipt"}
+        vatBuckets:
+          type: array
+          items: {$ref: "#/components/schemas/PosMonthlyInvoiceVat"}
+        lines:
+          type: array
+          items: {$ref: "#/components/schemas/PosMonthlyInvoiceLine"}
+    PosMonthlyInvoiceInput:
+      type: object
+      required: [month, counterpartyId, invoiceDate, dueDate, expectedReceiptIds, idempotencyKey]
+      properties:
+        month: {type: string}
+        counterpartyId: {type: string}
+        invoiceDate: {type: string}
+        dueDate: {type: string}
+        expectedReceiptIds:
+          type: array
+          items: {type: integer}
+        idempotencyKey: {type: string}
+    PosMonthlyInvoice:
+      type: object
+      required: [id, invoiceNumber, month, invoiceDate, dueDate, counterpartyName, receiptCount, totalGross, isTest]
+      properties:
+        id: {type: string}
+        invoiceNumber: {type: string}
+        month: {type: string}
+        invoiceDate: {type: string}
+        dueDate: {type: string}
+        counterpartyName: {type: string}
+        receiptCount: {type: integer}
+        totalGross: {type: string}
+        isTest: {type: boolean}
     AjpesAnnualProfile:
       type: object
       required: [legalForm, framework, size, periodStart, periodEnd, currentCriteria, previousCriteria, sizeBasis, previousYearException, microRegime, auditRequired, groupMember, consolidationRequired, simplifiedSubmission, foreignOperations, sfrRequired, cppsRequired, listed, specialRegime, confirmationBasis, confirmed]

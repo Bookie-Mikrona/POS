@@ -18,6 +18,7 @@ import { ChevronDown, ChevronRight, AlertCircle, RefreshCw, X, Printer, Banknote
 import { PartnerjiSelector } from "@/components/PartnerjiSelector";
 import { useToast } from "@/hooks/use-toast";
 import { poslovniDatumZaCas } from "@/lib/posCas";
+import { MonthlyInvoicesDialog } from "@/components/MonthlyInvoicesDialog";
 import { FursStateBadge, ReliabilityPanels, classifyFursReceipt } from "@/components/PaymentReliabilityPanels";
 
 function parseFursError(fursOdgovor: string | null | undefined): { koda: string; sporocilo: string } | null {
@@ -1356,6 +1357,8 @@ export default function Receipts() {
   const bizBoxKonfiguriran = !!((nastavitve as (typeof nastavitve & { bizBoxKonfiguriran?: boolean }) | undefined)?.bizBoxKonfiguriran);
   const imaTrr = user?.imaTrr ?? false;
   const lahkoVidiRefundAudit = ["admin", "admin_enote", "superadmin", "super_admin"].includes(user?.vloga ?? "");
+  const [mesecniOpen, setMesecniOpen] = useState(false);
+  const lahkoIzdaMesecne = ["admin", "admin_enote"].includes(user?.vloga ?? "");
   const nacinIPlacila = NACINI_PLACILA.filter(n => {
     if (n.value === "kartica" || n.value === "negotovinsko") return imaTrr;
     return true;
@@ -1502,7 +1505,16 @@ export default function Receipts() {
 
   return (
     <div className="p-2 sm:p-8 space-y-2 sm:space-y-6 flex-1 overflow-auto">
-      <h1 className="text-xl sm:text-3xl font-bold tracking-tight leading-tight">Arhiv računov</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight leading-tight">Arhiv računov</h1>
+        {lahkoIzdaMesecne && (
+          <Button type="button" variant="outline" onClick={() => setMesecniOpen(true)} data-testid="button-monthly-invoices">
+            <FileDown className="mr-2 h-4 w-4" />
+            Mesečni računi
+          </Button>
+        )}
+      </div>
+      {lahkoIzdaMesecne && <MonthlyInvoicesDialog open={mesecniOpen} onOpenChange={setMesecniOpen} />}
        <ReliabilityPanels />
       <UnknownVivaRefundsPanel enabled={lahkoVidiRefundAudit} />
 

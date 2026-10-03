@@ -5,6 +5,69 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export interface PosMonthlyInvoicePartner {
+  id: string;
+  name: string;
+  paymentTermsDays: number;
+}
+
+export interface PosMonthlyInvoiceReceipt {
+  id: number;
+  number: string;
+  date: string;
+  gross: string;
+}
+
+export interface PosMonthlyInvoiceVat {
+  rate: string;
+  net: string;
+  vat: string;
+  gross: string;
+}
+
+export interface PosMonthlyInvoiceLine {
+  label: string;
+  quantity: string;
+  gross: string;
+  rate: string;
+}
+
+export interface PosMonthlyInvoicePreview {
+  month: string;
+  counterpartyId: string;
+  recipientName: string;
+  paymentTermsDays: number;
+  receiptCount: number;
+  isTest: boolean;
+  totalNet: string;
+  totalVat: string;
+  totalGross: string;
+  receipts: PosMonthlyInvoiceReceipt[];
+  vatBuckets: PosMonthlyInvoiceVat[];
+  lines: PosMonthlyInvoiceLine[];
+}
+
+export interface PosMonthlyInvoiceInput {
+  month: string;
+  counterpartyId: string;
+  invoiceDate: string;
+  dueDate: string;
+  expectedReceiptIds: number[];
+  idempotencyKey: string;
+}
+
+export interface PosMonthlyInvoice {
+  id: string;
+  invoiceNumber: string;
+  month: string;
+  invoiceDate: string;
+  dueDate: string;
+  counterpartyName: string;
+  receiptCount: number;
+  totalGross: string;
+  isTest: boolean;
+}
+
 export type AjpesAnnualProfileLegalForm = typeof AjpesAnnualProfileLegalForm[keyof typeof AjpesAnnualProfileLegalForm];
 
 
@@ -14036,5 +14099,10 @@ steviloOseb: number;
 
 export type DeleteJavniProfilImage200 = {
   deleted: boolean;
+};
+
+export type PreviewPosMonthlyInvoiceParams = {
+month: string;
+counterpartyId: string;
 };
 

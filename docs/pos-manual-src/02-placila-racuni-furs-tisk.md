@@ -1370,3 +1370,42 @@ Pri predaji računovodstvu shranite številko računa, datum, DDV-kodo, osnovo,
 DDV, bruto znesek, način plačila in status. Storno oziroma vračilo mora imeti
 povezavo na izvirni račun; novega računa ne ustvarjajte samo za popravek.
 Odprta miza, rezervacija in nedokončano naročilo niso KIR.
+
+<!-- pos-heading: id=pos-02-monthly-contract-invoices package=lite -->
+## 27. Mesečni račun pogodbeni firmi za malice
+
+Vodja enote ali administrator odpre **Računi → Mesečni računi**. Ta postopek
+je namenjen tudi gostincu, ki mu poslovne knjige vodi zunanji računovodja:
+ne zahteva računovodskih obdobij, kontov ali temeljnic v Bookie ERP.
+
+1. Izberite zaključen poslovni mesec in pogodbeno firmo.
+2. Kliknite **Pripravi predogled**. Preverite specifikacijo, dnevne račune,
+   osnovo, DDV in skupni znesek.
+3. Preverite datum izdaje in rok plačila, ki izhaja iz pogojev partnerja.
+4. Po izrecni potrditvi izdajte mesečni račun.
+5. Prenesite PDF za pošiljanje firmi in zunanjemu računovodji. PDF vsebuje
+   specifikacijo pogodbenih postavk ter prilogo z dnevnimi POS računi.
+
+V predogled pridejo samo še neobračunani, nestornirani negotovinski računi
+izbrane firme in aktivne enote. Firma mora imeti pogodbeni cenik te enote.
+Datum računa sledi gostinskemu poslovnemu dnevu, ne le koledarskemu dnevu.
+Odprtega poslovnega meseca ni mogoče obračunati.
+
+Številka se določi samodejno v ločeni seriji **M-POS-leto-zaporedna številka**.
+Izdani računi ostanejo v arhivu tudi po ponovnem odprtju programa. PDF
+uporablja podatke in cene ob izdaji; poznejša sprememba partnerja ne spremeni
+že izdanega dokumenta.
+
+Isti dnevni račun ne more biti ponovno obračunan niti v POS niti v ERP
+zbirniku. Mesečni račun ne ustvarja nove prodaje, novega DDV ali novega
+FURS zahtevka. Firma plača mesečni račun, ne še enkrat vseh njegovih dnevnih
+računov.
+
+Testni dokument je izrecno označen **TESTNI DOKUMENT – NI ZA PLAČILO**.
+Testnih in dejanskih računov ni dovoljeno združiti. Račune z neuspelim
+FURS pošiljanjem je treba najprej urediti.
+
+Izdane listine ne popravljajte z brisanjem ali prepisovanjem. Samostojni
+storno dnevnega računa, ki je že v mesečnem računu, je blokiran, ker bi
+znesek za plačilo na mesečnem računu ostal napačen. Popravek zahteva
+dobropis mesečnega dokumenta; ta poseben postopek še ni del tega obrazca.
