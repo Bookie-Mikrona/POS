@@ -40,7 +40,7 @@ export async function monthlyInvoiceFacts(companyId: string, enotaId: number, co
   const [company] = await q.select({
     name: companiesTable.naziv, address: companiesTable.naslov, street: companiesTable.ulica,
     postal: companiesTable.postnaStevika, city: companiesTable.kraj, tax: companiesTable.podjetjeDavcna,
-    vat: companiesTable.idZaDdv, trr: companiesTable.trr,
+    vat: companiesTable.idZaDdv, trr: companiesTable.trr, registration: companiesTable.maticnaStevilka,
   }).from(companiesTable).where(eq(companiesTable.id, companyId));
   const businessDate = sql<string>`DATE((${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana') - (${enoteTable.zacetekDnevaUra}::time - TIME '00:00'))::text`;
   const end = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).toISOString().slice(0, 10);
@@ -102,8 +102,13 @@ export async function monthlyInvoiceFacts(companyId: string, enotaId: number, co
   }
   const snapshot: MonthlyInvoiceSnapshot = {
     issuer: { name: company.name, address: company.address || [company.street, [company.postal, company.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
-      taxId: company.vat || company.tax, iban: company.trr?.[0]?.iban ?? "", bic: company.trr?.[0]?.bic ?? "" },
-    recipient: { name: partner.name, address: [partner.address || partner.ulica, [partner.postCode, partner.city].filter(Boolean).join(" ")].filter(Boolean).join(", "), taxId: partner.idZaDdv || partner.taxId || "" },
+      taxId: company.vat || company.tax, iban: company.trr?.[0]?.iban ?? "", bic: company.trr?.[0]?.bic ?? "",
+      street: company.street, postalCode: company.postal, city: company.city, countryCode: "SI",
+      vatId: company.vat, registrationNumber: company.registration },
+    recipient: { name: partner.name, address: [partner.address || partner.ulica, [partner.postCode, partner.city].filter(Boolean).join(" ")].filter(Boolean).join(", "), taxId: partner.idZaDdv || partner.taxId || "",
+      street: partner.ulica || partner.address, postalCode: partner.postCode, city: partner.city,
+      vatId: partner.idZaDdv, endpointId: partner.eRacunNaslov, countryCode: partner.country,
+      registrationNumber: partner.registrationNumber },
     unitName: unit.ime, isTest: receipts.length > 0 && receipts.every(r => r.status === "testni"),
     totalGross: gross.toFixed(2), totalVat: vat.toFixed(2), totalNet: gross.minus(vat).toFixed(2),
     receipts: receipts.map(r => ({ id: r.id, number: r.number, date: r.date, gross: new Decimal(r.gross).toFixed(2) })),

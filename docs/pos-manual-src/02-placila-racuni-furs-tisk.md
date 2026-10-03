@@ -1409,3 +1409,31 @@ Izdane listine ne popravljajte z brisanjem ali prepisovanjem. Samostojni
 storno dnevnega računa, ki je že v mesečnem računu, je blokiran, ker bi
 znesek za plačilo na mesečnem računu ostal napačen. Popravek zahteva
 dobropis mesečnega dokumenta; ta poseben postopek še ni del tega obrazca.
+
+<!-- pos-heading: id=pos-02-monthly-contract-eslog-bizbox package=lite -->
+### 27.1 e-SLOG in oddaja prek bizBox
+
+V arhivu **Izdani mesečni računi** ima vsak dokument gumb **Prenesi e-SLOG**.
+XML je v izvornem formatu e-SLOG 2.0 in uporablja isto številko, datum, rok
+plačila, podatke partnerja in zneske kot izdani PDF. Vključuje tudi reference
+na dnevne račune; poznejše spremembe partnerja ne spremenijo dokumenta.
+
+Za elektronsko oddajo najprej nastavite povezavo aktivnega podjetja v
+**Nastavitve → bizBox**. Nato pri izdanem dokumentu izberite **Pošlji prek
+bizBox**, preverite prejemnika ter kliknite **Potrdi oddajo**. To ne ustvari
+novega mesečnega računa, temeljnice, prodaje ali FURS zahtevka.
+
+Po oddaji arhiv pokaže ID bizBox in stanje. **Oddan** pomeni sprejem zahtevka,
+ne še potrjene dostave. Z gumbom **Preveri dostavo** pridobite trenutno stanje
+pri ponudniku. **Dostavljen** je potrjena dostava, **Zavrnjen** pa zahteva
+pregled razloga v portalu bizBox.
+
+Pri neuspešni prijavi dokument še ni poslan in je mogoče po popravku
+nastavitev ponoviti oddajo. Pri stanju **Izid ni znan** ne ponavljajte
+pošiljanja: dokument v portalu preverite po prikazani zunanji referenci.
+Program blokira novo oddajo, ker izpad povezave ni dokaz, da bizBox dokumenta
+ni sprejel.
+
+Testni dokument se lahko odda samo v **testno okolje** bizBox. V produkcijsko
+okolje ga ni mogoče poslati. Pred uporabo dejanskih dokumentov preverite,
+da so nastavitve podjetja in prejemnikov e-naslov pravilni.

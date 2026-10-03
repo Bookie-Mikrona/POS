@@ -4,9 +4,15 @@ import { counterpartiesTable } from "./counterparties";
 import { enoteTable } from "./pos/enote";
 import { racuniTable } from "./pos/racuni";
 
+type MonthlyInvoiceParty = {
+  name: string; address: string; taxId: string;
+  street?: string | null; postalCode?: string | null; city?: string | null;
+  countryCode?: string | null; registrationNumber?: string | null;
+  vatId?: string | null; endpointId?: string | null;
+};
 export type MonthlyInvoiceSnapshot = {
-  issuer: { name: string; address: string; taxId: string; iban: string; bic: string };
-  recipient: { name: string; address: string; taxId: string };
+  issuer: MonthlyInvoiceParty & { iban: string; bic: string };
+  recipient: MonthlyInvoiceParty;
   unitName: string;
   isTest: boolean;
   totalNet: string;
@@ -45,4 +51,23 @@ export const posMonthlyInvoicesTable = pgTable("pos_monthly_invoices", {
 export const posMonthlyInvoiceReceiptsTable = pgTable("pos_monthly_invoice_receipts", {
   receiptId: integer("receipt_id").primaryKey().references(() => racuniTable.id, { onDelete: "restrict" }),
   invoiceId: uuid("invoice_id").notNull().references(() => posMonthlyInvoicesTable.id, { onDelete: "restrict" }),
+});
+
+export type MonthlyBizboxState = "sending" | "failed" | "unknown" | "submitted" | "processing" | "delivered" | "rejected";
+/** Transport reservation survives a lost HTTP response or process restart. No credentials or file bytes. */
+export const posMonthlyInvoiceDeliveriesTable = pgTable("pos_monthly_invoice_deliveries", {
+  invoiceId: uuid("invoice_id").primaryKey().references(() => posMonthlyInvoicesTable.id, { onDelete: "restrict" }),
+  state: text("state").$type<MonthlyBizboxState>().notNull(),
+  attemptId: uuid("attempt_id").notNull(),
+  attemptCount: integer("attempt_count").notNull().default(1),
+  environment: text("environment").$type<"test" | "produkcija">().notNull(),
+  accountHash: text("account_hash").notNull(),
+  fromAddress: text("from_address").notNull(),
+  toAddress: text("to_address").notNull(),
+  externalId: text("external_id").notNull(),
+  xmlHash: text("xml_hash").notNull(),
+  documentId: text("document_id"),
+  message: text("message"),
+  actorId: text("actor_id").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

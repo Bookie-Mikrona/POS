@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { pool } from "@workspace/db";
@@ -6,6 +6,14 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import router from "./monthly-invoices";
 import { assertReceiptNotMonthlyBilled, monthlyInvoiceFacts, validDate } from "../../lib/posMonthlyInvoice";
+import { loginBizbox, posljiBizbox, getBizboxDocMetadata } from "../../lib/eracun/bizbox";
+vi.mock("../../lib/kripto-bizbox", () => ({ desifrirajBizboxGeslo: () => "synthetic-test-password" }));
+vi.mock("../../lib/eracun/bizbox", async importOriginal => ({
+  ...await importOriginal<typeof import("../../lib/eracun/bizbox")>(),
+  loginBizbox: vi.fn().mockResolvedValue("synthetic-test-token"),
+  posljiBizbox: vi.fn().mockResolvedValue({ status: 201, body: "123456" }),
+  getBizboxDocMetadata: vi.fn().mockResolvedValue({ bizboxStatus: "dostavljeno", raw: '{"status":"delivered"}' }),
+}));
 
 const app = express();
 const ids: Record<string, any> = {};
@@ -23,6 +31,7 @@ app.use((e: Error, _req: any, res: any, _next: any) => res.status(500).json({ er
 beforeAll(async () => {
   ids.company = (await pool.query("INSERT INTO companies(podjetje_davcna,naziv,naslov,trr) VALUES($1,$2,$3,$4) RETURNING id",
     [`TEST-MONTHLY-${suffix}`, `Mesečni test ${suffix}`, "Testna ulica 1, 1000 Ljubljana", JSON.stringify([{ iban: "SI56000000000000000", bic: "TESTSIXX" }])])).rows[0].id;
+  await pool.query("UPDATE companies SET id_za_ddv=$2 WHERE id=$1", [ids.company, `SI${10000000 + parseInt(suffix, 16) % 90000000}`]);
   ids.unit = (await pool.query("INSERT INTO enote(company_id,ime,zacetek_dneva_ura) VALUES($1,$2,'04:00') RETURNING id", [ids.company, "Test malice"])).rows[0].id;
   ids.otherUnit = (await pool.query("INSERT INTO enote(company_id,ime) VALUES($1,$2) RETURNING id", [ids.company, "Druga testna enota"])).rows[0].id;
   ids.partner = (await pool.query("INSERT INTO counterparties(company_id,type,name,address,tax_id,payment_terms_days) VALUES($1,'customer',$2,'Testna 2, 1000 Ljubljana','12345678',15) RETURNING id", [ids.company, "Pogodbena firma"])).rows[0].id;
@@ -36,6 +45,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!ids.company) return;
+  await pool.query("DELETE FROM pos_monthly_invoice_deliveries WHERE invoice_id IN(SELECT id FROM pos_monthly_invoices WHERE company_id=$1)", [ids.company]);
   await pool.query("DELETE FROM pos_monthly_invoice_receipts WHERE invoice_id IN(SELECT id FROM pos_monthly_invoices WHERE company_id=$1)", [ids.company]);
   await pool.query("DELETE FROM pos_monthly_invoices WHERE company_id=$1", [ids.company]);
   await pool.query("DELETE FROM postavke WHERE narocilo_id=$1", [ids.order ?? -1]);
@@ -103,5 +113,55 @@ describe("POS-only monthly contractual invoice", () => {
     writeFileSync("/tmp/pos-monthly-test.pdf", pdf.body);
     expect((await request(app).get(`/pos-monthly-invoices/${issued.id}/pdf`).set("X-Other-Unit", "1")).status).toBe(404);
     expect((await request(app).get("/pos-monthly-invoices")).body[0].counterpartyName).toBe("Pogodbena firma");
+  });
+  it("exports native e-SLOG with preserved amounts, due date, references and test warning", async () => {
+    const response = await request(app).get(`/pos-monthly-invoices/${issued.id}/eslog`);
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('xmlns="urn:eslog:2.00"');
+    expect(response.text).toContain(issued.invoiceNumber);
+    expect(response.text).toContain(payload.dueDate);
+    expect(response.text).toContain("TESTNI DOKUMENT");
+    expect(response.text).toContain("Pogodbena firma");
+    expect(response.text).not.toContain("Spremenjen naziv");
+    writeFileSync("/tmp/monthly-eslog-test.xml", response.text);
+    for (const path of ["eslog", "bizbox"]) {
+      expect((await request(app).get(`/pos-monthly-invoices/${issued.id}/${path}`).set("X-Other-Unit", "1")).status).toBe(404);
+    }
+    expect((await request(app).post(`/pos-monthly-invoices/${issued.id}/bizbox`).set("X-Other-Unit", "1")).status).toBe(404);
+  });
+  it("requires tenant settings, blocks test-to-production, reserves concurrent submission once and checks delivery", async () => {
+    const endpoint = `/pos-monthly-invoices/${issued.id}/bizbox`;
+    expect((await request(app).post(endpoint)).status).toBe(422);
+    await pool.query("INSERT INTO bizbox_nastavitve (company_id,bizbox_user,bizbox_pass_enc,bizbox_okolje) VALUES ($1,'synthetic-monthly-user','synthetic-not-encrypted','prod')", [ids.company]);
+    expect((await request(app).post(endpoint)).status).toBe(422);
+    expect(posljiBizbox).not.toHaveBeenCalled();
+    await pool.query("UPDATE bizbox_nastavitve SET bizbox_okolje='test' WHERE company_id=$1", [ids.company]);
+    const responses = await Promise.all([request(app).post(endpoint), request(app).post(endpoint)]);
+    expect(responses.map(r => r.status)).toEqual([200, 200]);
+    expect(posljiBizbox).toHaveBeenCalledTimes(1);
+    expect((await request(app).post(endpoint)).body.state).toBe("submitted");
+    expect(posljiBizbox).toHaveBeenCalledTimes(1);
+    const args = vi.mocked(posljiBizbox).mock.calls[0];
+    expect(args[0]).toBe("demo.zzi.si");
+    expect(args[2]).toContain(`POS-MONTHLY-${issued.id}`);
+    expect(args[4]).toContain('<Invoice xmlns="urn:eslog:2.00"');
+    expect((await request(app).post(`${endpoint}/check`)).body.state).toBe("delivered");
+    expect((await request(app).get(endpoint)).body.documentId).toBe("123456");
+    expect(getBizboxDocMetadata).toHaveBeenCalledTimes(1);
+  });
+  it("never re-sends an ambiguous provider outcome; login failures alone remain safely retryable", async () => {
+    const endpoint = `/pos-monthly-invoices/${issued.id}/bizbox`;
+    await pool.query("DELETE FROM pos_monthly_invoice_deliveries WHERE invoice_id=$1", [issued.id]);
+    vi.mocked(loginBizbox).mockRejectedValueOnce(new Error("synthetic login error"));
+    expect((await request(app).post(endpoint)).body.state).toBe("failed");
+    vi.mocked(posljiBizbox).mockRejectedValueOnce(new Error("synthetic lost provider response"));
+    expect((await request(app).post(endpoint)).body.state).toBe("unknown");
+    const count = vi.mocked(posljiBizbox).mock.calls.length;
+    expect((await request(app).post(endpoint)).body.state).toBe("unknown");
+    expect(posljiBizbox).toHaveBeenCalledTimes(count);
+    role = "natakar";
+    expect((await request(app).post(endpoint)).status).toBe(403);
+    expect((await request(app).get(`/pos-monthly-invoices/${issued.id}/eslog`)).status).toBe(403);
+    role = "admin";
   });
 });

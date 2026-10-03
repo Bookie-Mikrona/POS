@@ -19070,3 +19070,55 @@ export const DownloadPosMonthlyInvoicePdfParams = zod.object({
 export const DownloadPosMonthlyInvoicePdfResponse = zod.unknown()
 
 
+export const DownloadPosMonthlyInvoiceEslogParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadPosMonthlyInvoiceEslogResponse = zod.unknown()
+
+
+export const GetPosMonthlyInvoiceBizboxParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetPosMonthlyInvoiceBizboxResponse = zod.object({
+  "state": zod.enum(['not_sent', 'sending', 'failed', 'unknown', 'submitted', 'processing', 'delivered', 'rejected']),
+  "documentId": zod.string().nullable(),
+  "environment": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "message": zod.string().nullable(),
+  "updatedAt": zod.string().nullable(),
+  "attemptCount": zod.number()
+})
+
+
+export const SendPosMonthlyInvoiceBizboxParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SendPosMonthlyInvoiceBizboxResponse = zod.object({
+  "state": zod.enum(['not_sent', 'sending', 'failed', 'unknown', 'submitted', 'processing', 'delivered', 'rejected']),
+  "documentId": zod.string().nullable(),
+  "environment": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "message": zod.string().nullable(),
+  "updatedAt": zod.string().nullable(),
+  "attemptCount": zod.number()
+})
+
+
+export const CheckPosMonthlyInvoiceBizboxParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CheckPosMonthlyInvoiceBizboxResponse = zod.object({
+  "state": zod.enum(['not_sent', 'sending', 'failed', 'unknown', 'submitted', 'processing', 'delivered', 'rejected']),
+  "documentId": zod.string().nullable(),
+  "environment": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "message": zod.string().nullable(),
+  "updatedAt": zod.string().nullable(),
+  "attemptCount": zod.number()
+})
+
+

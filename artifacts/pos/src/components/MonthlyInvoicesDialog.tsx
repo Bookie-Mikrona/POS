@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertCircle, FileDown, ExternalLink, RefreshCw, TriangleAlert, CheckCircle2 } from "lucide-react";
+import { MonthlyInvoiceEdelivery } from "./MonthlyInvoiceEdelivery";
 
 const MESECI = ["januar", "februar", "marec", "april", "maj", "junij", "julij", "avgust", "september", "oktober", "november", "december"];
 
@@ -219,7 +220,7 @@ export function MonthlyInvoicesDialog({ open, onOpenChange }: { open: boolean; o
         <DialogHeader>
           <DialogTitle>Mesečni računi</DialogTitle>
           <DialogDescription>
-            En račun za vsa kosila podjetja v zaključenem mesecu. Izdan račun je trajen, ga ni mogoče urejati ali brisati. E-pošte ne pošiljamo; PDF prenesite in ga posredujte sami.
+            En račun za vsa kosila podjetja v zaključenem mesecu. Izdan račun je trajen, ga ni mogoče urejati ali brisati. V arhivu prenesite PDF ali e-SLOG oziroma pošljite e-račun prek bizBox.
           </DialogDescription>
         </DialogHeader>
 
@@ -454,6 +455,8 @@ export function MonthlyInvoicesDialog({ open, onOpenChange }: { open: boolean; o
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+                  <MonthlyInvoiceEdelivery key={`${d.id}:${companyId}:${enotaId}`} id={d.id} number={d.invoiceNumber}
+                    recipient={d.counterpartyName} request={request} scope={scope} />
                 </li>
               ))}
             </ul>

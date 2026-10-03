@@ -5,6 +5,35 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export type PosMonthlyInvoiceBizboxState = typeof PosMonthlyInvoiceBizboxState[keyof typeof PosMonthlyInvoiceBizboxState];
+
+
+export const PosMonthlyInvoiceBizboxState = {
+  not_sent: 'not_sent',
+  sending: 'sending',
+  failed: 'failed',
+  unknown: 'unknown',
+  submitted: 'submitted',
+  processing: 'processing',
+  delivered: 'delivered',
+  rejected: 'rejected',
+} as const;
+
+export interface PosMonthlyInvoiceBizbox {
+  state: PosMonthlyInvoiceBizboxState;
+  /** @nullable */
+  documentId: string | null;
+  /** @nullable */
+  environment: string | null;
+  /** @nullable */
+  externalId: string | null;
+  /** @nullable */
+  message: string | null;
+  /** @nullable */
+  updatedAt: string | null;
+  attemptCount: number;
+}
+
 export interface PosMonthlyInvoicePartner {
   id: string;
   name: string;

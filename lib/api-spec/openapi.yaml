@@ -11277,6 +11277,57 @@ paths:
           content:
             application/pdf:
               schema: {type: string, format: binary}
+  /pos-monthly-invoices/{id}/eslog:
+    get:
+      operationId: downloadPosMonthlyInvoiceEslog
+      tags: [pos]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Native e-SLOG 2.0 XML from the issued snapshot
+          content:
+            application/xml:
+              schema: {type: string}
+        "422": {description: Issued snapshot cannot be exported safely}
+  /pos-monthly-invoices/{id}/bizbox:
+    get:
+      operationId: getPosMonthlyInvoiceBizbox
+      tags: [pos]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Persisted delivery state, without sending or contacting the provider
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PosMonthlyInvoiceBizbox"}
+    post:
+      operationId: sendPosMonthlyInvoiceBizbox
+      tags: [pos]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Reserved or submitted delivery, or replay of the existing result
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PosMonthlyInvoiceBizbox"}
+        "409": {description: Delivery requires manual reconciliation}
+        "422": {description: Missing settings or incompatible test or provider environment}
+  /pos-monthly-invoices/{id}/bizbox/check:
+    post:
+      operationId: checkPosMonthlyInvoiceBizbox
+      tags: [pos]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Delivery state after an explicit provider metadata check
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PosMonthlyInvoiceBizbox"}
+        "502": {description: Provider status could not be checked}
 components:
   securitySchemes:
     bearerAuth:
@@ -11314,6 +11365,19 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    PosMonthlyInvoiceBizbox:
+      type: object
+      required: [state, documentId, environment, externalId, message, updatedAt, attemptCount]
+      properties:
+        state:
+          type: string
+          enum: [not_sent, sending, failed, unknown, submitted, processing, delivered, rejected]
+        documentId: {type: [string, "null"]}
+        environment: {type: [string, "null"]}
+        externalId: {type: [string, "null"]}
+        message: {type: [string, "null"]}
+        updatedAt: {type: [string, "null"]}
+        attemptCount: {type: integer}
     PosMonthlyInvoicePartner:
       type: object
       required: [id, name, paymentTermsDays]

@@ -7,6 +7,7 @@ import type { PosRequest } from "../../middlewares/pos";
 import { localToday, validDate, validUuid, monthlyInvoiceFacts, MonthlyInvoiceError } from "../../lib/posMonthlyInvoice";
 import { monthlyInvoicePdf } from "../../lib/posMonthlyInvoicePdf";
 import { lockPosBusinessDay } from "../../lib/pos-z-helpers";
+import { checkMonthlyBizbox, monthlyBizboxDto, monthlyBizboxState, sendMonthlyBizbox, verifiedMonthlyXml } from "../../lib/posMonthlyInvoiceBizbox";
 
 const router = Router();
 router.use("/pos-monthly-invoices", (req, res, next) => {
@@ -106,5 +107,32 @@ router.get("/pos-monthly-invoices/:id/pdf", async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${i.invoiceNumber}.pdf"`);
   res.send(pdf);
+});
+async function issuedInvoice(req: PosRequest) {
+  const id = String(req.params.id);
+  if (!validUuid(id)) throw new MonthlyInvoiceError(404, "Račun ni najden.");
+  const [i] = await db.select().from(posMonthlyInvoicesTable).where(and(eq(posMonthlyInvoicesTable.id, id),
+    eq(posMonthlyInvoicesTable.companyId, req.companyId), eq(posMonthlyInvoicesTable.enotaId, req.enotaId)));
+  if (!i) throw new MonthlyInvoiceError(404, "Račun ni najden.");
+  return i;
+}
+router.get("/pos-monthly-invoices/:id/eslog", async (req, res) => {
+  try {
+    const i = await issuedInvoice(req as unknown as PosRequest), xml = await verifiedMonthlyXml(i);
+    res.setHeader("Cache-Control", "no-store"); res.type("application/xml");
+    res.setHeader("Content-Disposition", `attachment; filename="eracun-${i.invoiceNumber}.xml"`); res.send(xml);
+  } catch (e) { fail(e, res); }
+});
+router.get("/pos-monthly-invoices/:id/bizbox", async (req, res) => {
+  try { res.setHeader("Cache-Control", "no-store"); res.json(monthlyBizboxDto(await monthlyBizboxState(await issuedInvoice(req as unknown as PosRequest)))); }
+  catch (e) { fail(e, res); }
+});
+router.post("/pos-monthly-invoices/:id/bizbox", async (req, res) => {
+  try { res.json(await sendMonthlyBizbox(await issuedInvoice(req as unknown as PosRequest), (req as unknown as PosRequest).clerkUserId)); }
+  catch (e) { fail(e, res); }
+});
+router.post("/pos-monthly-invoices/:id/bizbox/check", async (req, res) => {
+  try { res.json(await checkMonthlyBizbox(await issuedInvoice(req as unknown as PosRequest))); }
+  catch (e) { fail(e, res); }
 });
 export default router;

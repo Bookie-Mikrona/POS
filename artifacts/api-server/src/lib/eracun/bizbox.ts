@@ -44,12 +44,13 @@ export function getBizboxHost(okolje: string | undefined): BizboxHost {
  *
  * @returns JWT/session žeton za nadaljnje klice
  */
-export async function loginBizbox(host: BizboxHost, user: string, pass: string): Promise<string> {
+export async function loginBizbox(host: BizboxHost, user: string, pass: string, timeoutMs?: number): Promise<string> {
   const urlEncUser = encodeURIComponent(user);
   const urlEncPass = encodeURIComponent(pass);
   const url = `https://${host}${BASE_PATH}/login?userName=${urlEncUser}&password=${urlEncPass}`;
 
   const resp = await fetch(url, {
+    signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `userName=${urlEncUser}&password=${urlEncPass}`,
@@ -150,6 +151,7 @@ export async function posljiBizbox(
   docFileName: string,
   docBytes: Buffer | string,
   isArchived = false,
+  timeoutMs?: number,
 ): Promise<{ status: number; body: string }> {
   const zipBuffer = await buildZip([
     { name: "envelope.xml", bytes: Buffer.from(envelopeXml, "utf-8") },
@@ -159,6 +161,7 @@ export async function posljiBizbox(
   const url = `https://${host}${BASE_PATH}/documents?guid=${encodeURIComponent(token)}&isArchived=${isArchived}`;
 
   const resp = await fetch(url, {
+    signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
     method: "POST",
     headers: { "Content-Type": "application/octet-stream" },
     body: zipBuffer,
@@ -229,10 +232,11 @@ export async function getBizboxDocMetadata(
   host: BizboxHost,
   token: string,
   docId: string,
+  timeoutMs?: number,
 ): Promise<{ bizboxStatus: "v_obdelavi" | "dostavljeno" | "zavrnjeno"; raw: string }> {
   const url = `https://${host}${BASE_PATH}/documents/${encodeURIComponent(docId)}/metaData?guid=${encodeURIComponent(token)}`;
 
-  const resp = await fetch(url, { method: "GET" });
+  const resp = await fetch(url, { method: "GET", signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined });
   const raw = await resp.text().catch(() => "");
 
   // 404/204 ali prazno telo — dokument morda še v obdelavi

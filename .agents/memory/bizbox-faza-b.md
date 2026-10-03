@@ -55,3 +55,26 @@ NI potrjen. Preveriti s testnim pošiljanjem na demo.zzi.si.
 
 **Why:** eDDress envelope je sintaksi-neodvisen, generator Faze A pa je UBL — 
 sprememba v EDIFACT bi zahtevala poln pregled generatorja, kar je večje delo.
+
+## Novi izvozi in dokaz dostave
+
+Pri novih e-SLOG izvozih uporabljaj izvorno sintakso e-SLOG 2.0, ne UBL,
+označenega z ovojnico ESLOG. Uradna dokumentacija, shema in vzorci so na
+https://epos.si/eslog v paketu e-SLOG-2.0-08-2020-SL.zip.
+
+**Why:** bizBox sprejem transportnega paketa ni dokaz skladnosti vsebine
+ali dostave prejemniku. Izvorni e-SLOG ima drugačno sintakso kot UBL;
+preverjanje mora vključevati dejanski izvoženi XML in uradno shemo.
+
+**How to apply:** loči uspešno oddajo od potrjene dostave. Splošen odgovor
+`ok` ali besedilo, ki zgolj vsebuje `delivered`, ni dokaz dostave.
+Po nejasnem POST izidu ne pošiljaj znova brez uskladitve pri ponudniku.
+
+Za nove večnajemniške oddaje ne uporabljaj skupnih platformskih poverilnic
+kot nadomestila za manjkajočo povezavo podjetja.
+
+**Why:** povezava določa dejanskega pošiljatelja in njegovo zunanje okolje;
+platformski nadomestni račun lahko dokument pošlje za napačno podjetje.
+
+**How to apply:** uporabljaj izrecno povezavo aktivnega podjetja. Za preverjanje
+že oddanega dokumenta ohrani tudi prvotno okolje in identiteto zunanjega računa.

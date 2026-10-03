@@ -397,6 +397,7 @@ import type {
   PosEventInput,
   PosEventUpdate,
   PosMonthlyInvoice,
+  PosMonthlyInvoiceBizbox,
   PosMonthlyInvoiceInput,
   PosMonthlyInvoicePartner,
   PosMonthlyInvoicePreview,
@@ -35392,4 +35393,276 @@ export function useDownloadPosMonthlyInvoicePdf<TData = Awaited<ReturnType<typeo
 
 
 
+
+export const getDownloadPosMonthlyInvoiceEslogUrl = (id: string,) => {
+
+
+
+
+  return `/api/pos-monthly-invoices/${id}/eslog`
+}
+
+export const downloadPosMonthlyInvoiceEslog = async (id: string, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getDownloadPosMonthlyInvoiceEslogUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadPosMonthlyInvoiceEslogQueryKey = (id: string,) => {
+    return [
+    `/api/pos-monthly-invoices/${id}/eslog`
+    ] as const;
+    }
+
+
+export const getDownloadPosMonthlyInvoiceEslogQueryOptions = <TData = Awaited<ReturnType<typeof downloadPosMonthlyInvoiceEslog>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadPosMonthlyInvoiceEslog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadPosMonthlyInvoiceEslogQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadPosMonthlyInvoiceEslog>>> = ({ signal }) => downloadPosMonthlyInvoiceEslog(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadPosMonthlyInvoiceEslog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadPosMonthlyInvoiceEslogQueryResult = NonNullable<Awaited<ReturnType<typeof downloadPosMonthlyInvoiceEslog>>>
+export type DownloadPosMonthlyInvoiceEslogQueryError = ErrorType<void>
+
+
+
+export function useDownloadPosMonthlyInvoiceEslog<TData = Awaited<ReturnType<typeof downloadPosMonthlyInvoiceEslog>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadPosMonthlyInvoiceEslog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadPosMonthlyInvoiceEslogQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPosMonthlyInvoiceBizboxUrl = (id: string,) => {
+
+
+
+
+  return `/api/pos-monthly-invoices/${id}/bizbox`
+}
+
+export const getPosMonthlyInvoiceBizbox = async (id: string, options?: RequestInit): Promise<PosMonthlyInvoiceBizbox> => {
+
+  return customFetch<PosMonthlyInvoiceBizbox>(getGetPosMonthlyInvoiceBizboxUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPosMonthlyInvoiceBizboxQueryKey = (id: string,) => {
+    return [
+    `/api/pos-monthly-invoices/${id}/bizbox`
+    ] as const;
+    }
+
+
+export const getGetPosMonthlyInvoiceBizboxQueryOptions = <TData = Awaited<ReturnType<typeof getPosMonthlyInvoiceBizbox>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPosMonthlyInvoiceBizbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPosMonthlyInvoiceBizboxQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPosMonthlyInvoiceBizbox>>> = ({ signal }) => getPosMonthlyInvoiceBizbox(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPosMonthlyInvoiceBizbox>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPosMonthlyInvoiceBizboxQueryResult = NonNullable<Awaited<ReturnType<typeof getPosMonthlyInvoiceBizbox>>>
+export type GetPosMonthlyInvoiceBizboxQueryError = ErrorType<unknown>
+
+
+
+export function useGetPosMonthlyInvoiceBizbox<TData = Awaited<ReturnType<typeof getPosMonthlyInvoiceBizbox>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPosMonthlyInvoiceBizbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPosMonthlyInvoiceBizboxQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendPosMonthlyInvoiceBizboxUrl = (id: string,) => {
+
+
+
+
+  return `/api/pos-monthly-invoices/${id}/bizbox`
+}
+
+export const sendPosMonthlyInvoiceBizbox = async (id: string, options?: RequestInit): Promise<PosMonthlyInvoiceBizbox> => {
+
+  return customFetch<PosMonthlyInvoiceBizbox>(getSendPosMonthlyInvoiceBizboxUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSendPosMonthlyInvoiceBizboxMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPosMonthlyInvoiceBizbox>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendPosMonthlyInvoiceBizbox>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['sendPosMonthlyInvoiceBizbox'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendPosMonthlyInvoiceBizbox>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  sendPosMonthlyInvoiceBizbox(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendPosMonthlyInvoiceBizboxMutationResult = NonNullable<Awaited<ReturnType<typeof sendPosMonthlyInvoiceBizbox>>>
+
+    export type SendPosMonthlyInvoiceBizboxMutationError = ErrorType<void>
+
+    export const useSendPosMonthlyInvoiceBizbox = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPosMonthlyInvoiceBizbox>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendPosMonthlyInvoiceBizbox>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getSendPosMonthlyInvoiceBizboxMutationOptions(options));
+    }
+
+export const getCheckPosMonthlyInvoiceBizboxUrl = (id: string,) => {
+
+
+
+
+  return `/api/pos-monthly-invoices/${id}/bizbox/check`
+}
+
+export const checkPosMonthlyInvoiceBizbox = async (id: string, options?: RequestInit): Promise<PosMonthlyInvoiceBizbox> => {
+
+  return customFetch<PosMonthlyInvoiceBizbox>(getCheckPosMonthlyInvoiceBizboxUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckPosMonthlyInvoiceBizboxMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPosMonthlyInvoiceBizbox>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkPosMonthlyInvoiceBizbox>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['checkPosMonthlyInvoiceBizbox'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkPosMonthlyInvoiceBizbox>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  checkPosMonthlyInvoiceBizbox(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckPosMonthlyInvoiceBizboxMutationResult = NonNullable<Awaited<ReturnType<typeof checkPosMonthlyInvoiceBizbox>>>
+
+    export type CheckPosMonthlyInvoiceBizboxMutationError = ErrorType<void>
+
+    export const useCheckPosMonthlyInvoiceBizbox = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPosMonthlyInvoiceBizbox>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkPosMonthlyInvoiceBizbox>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCheckPosMonthlyInvoiceBizboxMutationOptions(options));
+    }
 
