@@ -53,3 +53,4 @@ export * from "./os-amortizacija-obracun";
 // ── Skupni registri ──────────────────────────────────────────────────────────
 export * from "./ujp-prejemniki";
 export * from "./ajpes-subjekti";
+export * from "./pos/allergen-research-jobs";

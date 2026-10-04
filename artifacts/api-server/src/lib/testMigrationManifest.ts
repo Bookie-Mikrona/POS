@@ -519,6 +519,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["250-pos-article-kds-exclusion.sql"],
   },
+  {
+    file: "252-automatic-allergen-research.sql",
+    classification: "schema",
+    dependsOn: ["251-prepared-dessert-batches.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

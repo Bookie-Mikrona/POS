@@ -1,0 +1,1209 @@
+{
+  "unitId": 309,
+  "sourceDocumentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+  "sourceFile": "Evidenca_Alergenov_-_Katalog_Nabavnih_Artiklov_1791153106166.pdf",
+  "sourceSha256": "64b9204e8c8de365a8747b3d2588d01e8cbab3120fa79c37d2a8f55f3c5d7650",
+  "skippedConfirmed": [
+    {
+      "id": 25407,
+      "name": "Cviček ustekleničen (KZ Krško) 0,1 l"
+    },
+    {
+      "id": 25444,
+      "name": "Sir"
+    },
+    {
+      "id": 25458,
+      "name": "Jajca (sveža, kokošja)"
+    },
+    {
+      "id": 25460,
+      "name": "Tatarska omaka"
+    },
+    {
+      "id": 25461,
+      "name": "Morski sadeži"
+    },
+    {
+      "id": 25462,
+      "name": "Škampi"
+    },
+    {
+      "id": 25464,
+      "name": "Tuna"
+    },
+    {
+      "id": 25465,
+      "name": "Lignji"
+    },
+    {
+      "id": 25467,
+      "name": "Smetana"
+    },
+    {
+      "id": 25472,
+      "name": "Nacho sir"
+    },
+    {
+      "id": 25478,
+      "name": "Kebab omaka"
+    }
+  ],
+  "proposals": [
+    {
+      "id": 25393,
+      "name": "Laško steklenica 0,5 l",
+      "expectedRevision": 1,
+      "codes": [
+        "GLUTEN"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25393; naziv PDF: Laško / Union Pivo (Pijače). PDF navaja: Gluten. Opomba PDF: Vsebuje ječmenov slad. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. PDF združuje Laško/Union; ta šifra v aplikaciji velja za Laško steklenica 0,5 l, ne za vse izdelke obeh znamk. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "b904e1e0a9e606b6d96e244917cdf1cbac0534ebb99c1daba72fc4051d537060"
+    },
+    {
+      "id": 25445,
+      "name": "Šunka",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25445; naziv PDF: Šunka (kuhana). PDF navaja: Po deklaraciji. Opomba PDF: Možne sledi soje, mlečnih beljakovin. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "330ee8ce3377b890fbdd4fdb735e1c3e16f44e5027fa968184856cb7d2e390a1"
+    },
+    {
+      "id": 25448,
+      "name": "Koruza",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25448; naziv PDF: Koruza. PDF navaja: Brez alergenov. Opomba PDF: Sladka koruza v zrnju. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "ac61512f70cef7a2d084d50bc10b78ae6af01df3c14d5318595a2a2621398bb1"
+    },
+    {
+      "id": 25449,
+      "name": "Paprika",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25449; naziv PDF: Paprika. PDF navaja: Brez alergenov. Opomba PDF: Sveža zelenjava. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "62390e72982cd60e46fc0284f277958f9e73a2c3bf547416b3b23ecf0cc3fa43"
+    },
+    {
+      "id": 25452,
+      "name": "Hrenovka",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25452; naziv PDF: Hrenovka. PDF navaja: Po deklaraciji. Opomba PDF: Možne sledi soje, mleka, gorčice, zelene. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "07c26961b1968e75bb7ddad07a346d720777a0862e263e2c1bc86dce39e0f47b"
+    },
+    {
+      "id": 25453,
+      "name": "Pršut",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25453; naziv PDF: Pršut. PDF navaja: Brez alergenov. Opomba PDF: Sušeno mesni izdelek (meso + sol). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "830a3770d10292cd954dacbd74725fb59500d449324d2befac4ac5392c6cb014"
+    },
+    {
+      "id": 25454,
+      "name": "Olive",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25454; naziv PDF: Olive. PDF navaja: Brez alergenov. Opomba PDF: V slanici. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "277c578f36a94bd25ffdce4115b53a1ae73ca469eb5bc3b3d0760a6c626d7859"
+    },
+    {
+      "id": 25456,
+      "name": "Kumarice",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25456; naziv PDF: Kumarice. PDF navaja: Brez alergenov. Opomba PDF: Če so v kisu, lahko sledi gorčičnih semen. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "bedff4a5c9bf4fd646a7f296cc6bac7452aa32b729007e540ea5a47e6b0c366d"
+    },
+    {
+      "id": 25457,
+      "name": "Hren",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25457; naziv PDF: Hren. PDF navaja: Brez alergenov. Opomba PDF: Svež hren (če je namaz, preveri mleko/jajca). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "cce7795e331391937aa2a2d677795d9cb7e65ce4a131711792f1c8a292949f16"
+    },
+    {
+      "id": 25459,
+      "name": "Gobe",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25459; naziv PDF: Gobe. PDF navaja: Brez alergenov. Opomba PDF: Sveže/zamrznjene gobe. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "ca12be66698e6309893b186569af91437d29b813aec71b28f5741fecd9e86b0e"
+    },
+    {
+      "id": 25468,
+      "name": "Pikantna salama",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25468; naziv PDF: Pikantna salama. PDF navaja: Po deklaraciji. Opomba PDF: Možne sledi mleka/laktoze, soje, gorčice. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "f5fb90a3249e34d4e368351eb90950ee42c2dc5c90800d1d7b4fd5038346bc10"
+    },
+    {
+      "id": 25469,
+      "name": "Ajvar",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25469; naziv PDF: Ajvar. PDF navaja: Brez alergenov. Opomba PDF: Možne sledi zelene pri nekaterih proizvajalcih. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "a56feea3025b77ade17035ad2df036d58a078bb119df1df8a9d12f63e566921a"
+    },
+    {
+      "id": 25470,
+      "name": "Ostri feferoni",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25470; naziv PDF: Ostri feferoni. PDF navaja: Brez alergenov. Opomba PDF: Zelenjava. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "26490d14b77f70449c3f6443a998625de956b80ebe5c030348e43fd1a36a2bbf"
+    },
+    {
+      "id": 25473,
+      "name": "Mleto meso",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25473; naziv PDF: Mleto meso. PDF navaja: Brez alergenov. Opomba PDF: Sveže mlet svinjski/goveji kos. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "6f96bdf5361ebd3257235597d57d8061ee56d09476cf05d902a821fbf841eedc"
+    },
+    {
+      "id": 25474,
+      "name": "Čebula",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25474; naziv PDF: Čebula. PDF navaja: Brez alergenov. Opomba PDF: Sveža zelenjava. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "a1ac7d880204572e1737b233d1ec4d2849841ed8dcc68f22509a52e581c7928b"
+    },
+    {
+      "id": 25475,
+      "name": "Mešano kebab meso",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25475; naziv PDF: Mešano kebab meso. PDF navaja: Po deklaraciji. Opomba PDF: Možne sledi glutena, soje, zelene v začimbah. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "51ba965bd97583a9d7f3f5f6bb3e8a10a52ae8929efca57f90ad83b8a539e57f"
+    },
+    {
+      "id": 25476,
+      "name": "Paradižnik",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25476; naziv PDF: Paradižnik. PDF navaja: Brez alergenov. Opomba PDF: Sveža zelenjava. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "bade0864e04f1649ff6fe0c5f4721dd488f7b12ba25a87b076ab7937dbd9ed36"
+    },
+    {
+      "id": 25479,
+      "name": "Feferoni",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 25479; naziv PDF: Feferoni. PDF navaja: Brez alergenov. Opomba PDF: Če so v kisu, preveriti prisotnost sulfitov. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "50ca7a2aa060da10c31e9bf9d2b95a5c806b8657cf87b39a52fe4b51969c5d27"
+    },
+    {
+      "id": 26448,
+      "name": "Pelati",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 26448; naziv PDF: Pelati. PDF navaja: Brez alergenov. Opomba PDF: Konzerviran paradižnik. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "cff31bab6b229eaea0f1d6f25e9ac02686c1d7f7f448f398000e5c2f585834d1"
+    },
+    {
+      "id": 26449,
+      "name": "Olje sončnično",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 26449; naziv PDF: Olje sončnično. PDF navaja: Brez alergenov. Opomba PDF: Rastlinsko olje. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "0b66a1308dffdd6ceec8f1d16b8ece38d573c928496de6eabd1d78980fa47e34"
+    },
+    {
+      "id": 26668,
+      "name": "Moka pšenična gladka",
+      "expectedRevision": 1,
+      "codes": [
+        "GLUTEN"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 26668; naziv PDF: Moka pšenična gladka. PDF navaja: Gluten. Opomba PDF: Pšenični proizvod. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "07f93aadb17d3350a1d62231f3f649fac2e9e4f68780f1b79e54f61b4e022d80"
+    },
+    {
+      "id": 26669,
+      "name": "Kvas sveži",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 26669; naziv PDF: Kvas sveži. PDF navaja: Brez alergenov. Opomba PDF: Kvasovke niso na seznamu 14 alergenov. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "dcdba61186ed1a122f745b194577fd64a4774c3a45121df263b8f601a2cc78c8"
+    },
+    {
+      "id": 27409,
+      "name": "Fižol, kuhan/konzerviran, odcejen",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27409; naziv PDF: Fižol kuhan/konzerviran. PDF navaja: Brez alergenov. Opomba PDF: Konzervirana vrtnina. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "452854bf259328c1c5aed32f7f9c55fec3b52d54451c0587c6c78673963a124a"
+    },
+    {
+      "id": 27410,
+      "name": "Vinski kis",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27410; naziv PDF: Vinski kis. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "8ec67edeb2c0b102c8226f6226cfc0fdba8eca533da6eaf98691f852176ec1b2"
+    },
+    {
+      "id": 27411,
+      "name": "Poper",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27411; naziv PDF: Poper. PDF navaja: Brez alergenov. Opomba PDF: Mleti ali v zrnju. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "d78c2a90b18b0db8a1bdc07517c43b593324582311564425a8240317e4af0003"
+    },
+    {
+      "id": 27413,
+      "name": "Česen",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27413; naziv PDF: Česen. PDF navaja: Brez alergenov. Opomba PDF: Sveža zelenjava. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "47525a1f5731abde5115c22734931e774714f47b3457f7bbd1fa0489aff5b747"
+    },
+    {
+      "id": 27436,
+      "name": "Girice, zamrznjene",
+      "expectedRevision": 0,
+      "codes": [
+        "RIBE"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27436; naziv PDF: Girice, zamrznjene. PDF navaja: Ribe. Opomba PDF: Celotne ribice. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "c8bd2181b2764b313e8f1989da6a0ec1d07dd756469a565b9f319bb887299b85"
+    },
+    {
+      "id": 27437,
+      "name": "Pomfri krompirček, zamrznjen",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27437; naziv PDF: Pomfri krompirček zamrznjen. PDF navaja: Brez alergenov. Opomba PDF: Krompir; če je obdelan z moko, vsebuje gluten. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "33e1b0afd14247f1ac577929ac78d84dd822f86f883a596f469f4a45cadea054"
+    },
+    {
+      "id": 27438,
+      "name": "Moka pšenična ostra",
+      "expectedRevision": 2,
+      "codes": [
+        "GLUTEN"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27438; naziv PDF: Moka pšenična ostra. PDF navaja: Gluten. Opomba PDF: Pšenični proizvod. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "b760e89aa6d8e67e2873212dc5d023c91b31c13a95fb0b64e1e88eac118df5af"
+    },
+    {
+      "id": 27439,
+      "name": "Limona",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27439; naziv PDF: Limona. PDF navaja: Brez alergenov. Opomba PDF: Citrusi. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "5cc38627c78043cf24605070243e2bf22104eff579e37ff05659ecc540344d82"
+    },
+    {
+      "id": 27441,
+      "name": "Kruh (bel/meša) kg",
+      "expectedRevision": 1,
+      "codes": [
+        "GLUTEN"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27441; naziv PDF: Kruh (bel/mešan) kg. PDF navaja: Gluten. Opomba PDF: Pšenični/rženi kruh; sledi sezama, soje, mleka. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "980879579298824287c16692848f421a52ed544702e925bc7d0280869ac7c56f"
+    },
+    {
+      "id": 27442,
+      "name": "Mleko 3,5% 1l",
+      "expectedRevision": 2,
+      "codes": [
+        "MLEKO"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27442; naziv PDF: Mleko 3,5% 1l. PDF navaja: Mleko / Laktoza. Opomba PDF: Mlečni izdelek. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "0d50202ad1da617a6bd9c3db358bff9188513b1442e8f65a3aff5d039a7304e1"
+    },
+    {
+      "id": 27443,
+      "name": "Sladkor kristalni",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27443; naziv PDF: Sladkor kristalni / prah. PDF navaja: Brez alergenov. Opomba PDF: Sladilo. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Šifra je vezana samo na sladkor kristalni. Sladkor v prahu (27444) ni vključen v to povezavo.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "01fd3c13bb2d7faac1331b10925c64a199f633683afe3394a817ac3a5d612e81"
+    },
+    {
+      "id": 27588,
+      "name": "Riž",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27588; naziv PDF: Riž. PDF navaja: Brez alergenov. Opomba PDF: Žitarica brez glutena. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "de36f73966d8083e72c5a17c6fc5c581f71eb247480b28b91530a10bcd9d14c2"
+    },
+    {
+      "id": 27589,
+      "name": "Maslo",
+      "expectedRevision": 0,
+      "codes": [
+        "MLEKO"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27589; naziv PDF: Maslo. PDF navaja: Mleko / Laktoza. Opomba PDF: Mlečni izdelek. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "ab9529aff9c5cd7223e17cbfefe28788937dda7fb0b384ab2cc00712cc0afe95"
+    },
+    {
+      "id": 27591,
+      "name": "Krompir",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27591; naziv PDF: Krompir. PDF navaja: Brez alergenov. Opomba PDF: Sveža vrtnina. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "0513ad81548eeb5b4371d73053f9b1a416aee178bb31a94d8940e8e92d5dbc1b"
+    },
+    {
+      "id": 27593,
+      "name": "Ocvirki",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27593; naziv PDF: Ocvirki. PDF navaja: Brez alergenov. Opomba PDF: Svinjska mast in ocvirki. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "d64d49472b4a6bab24db069b58ea02bceb633645a62b18a41209742424e5e450"
+    },
+    {
+      "id": 27594,
+      "name": "Peteršilj",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27594; naziv PDF: Peteršilj. PDF navaja: Brez alergenov. Opomba PDF: Sveža začimba. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "ea83c3f64c96fd0a195e247a270467de6cdb0c19a115b47326e0ee740805464f"
+    },
+    {
+      "id": 27595,
+      "name": "Goveje meso – za golaž",
+      "expectedRevision": 1,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27595; naziv PDF: Goveje meso za golaž. PDF navaja: Brez alergenov. Opomba PDF: Sveže goveje meso. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "fe1d524310fcb37cfea1848b91aa3b69168efd276f46612f48d6bff607aedf04"
+    },
+    {
+      "id": 27596,
+      "name": "Paradižnikova mezga",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27596; naziv PDF: Paradižnikova mezga. PDF navaja: Brez alergenov. Opomba PDF: Ukuhan paradižnik. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "4aee6f1f4ec028d4fa094b086c2c043e1e6cd1cad72748d753caf8f5e764cde2"
+    },
+    {
+      "id": 27597,
+      "name": "Paprika mleta sladka",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27597; naziv PDF: Paprika mleta sladka. PDF navaja: Brez alergenov. Opomba PDF: Začimba. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "69b319077b2e8793bca098aada0447d54394cd26ffd2c21654fb721ccf1a930f"
+    },
+    {
+      "id": 27598,
+      "name": "Lovorjev list",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27598; naziv PDF: Lovorjev list. PDF navaja: Brez alergenov. Opomba PDF: Začimba. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "c35bf886cf4628ddbfff961b94c55d599b3838c5b03cc3cd866f5fe68b295ce7"
+    },
+    {
+      "id": 27830,
+      "name": "Drobtine (krušne)",
+      "expectedRevision": 0,
+      "codes": [
+        "GLUTEN"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27830; naziv PDF: Drobtine (krušne). PDF navaja: Gluten. Opomba PDF: Pšenični proizvod; sledi soje, mleka, sezama. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "5ead6dd645aaadf2b2b75aa0ac6d38a078d86705d31ed0b7f4b9237731087ba9"
+    },
+    {
+      "id": 27885,
+      "name": "Puranji file zrezek",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 27885; naziv PDF: Puranji file zrezek. PDF navaja: Brez alergenov. Opomba PDF: Sveže perutninsko meso. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "91de0372f19415dce19519ab5eef21af3e68b8b5047ad67cdfc13cc6d6c5ec47"
+    },
+    {
+      "id": 28120,
+      "name": "Mleko 3,8% Barista 1l",
+      "expectedRevision": 2,
+      "codes": [
+        "MLEKO"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 28120; naziv PDF: Mleko 3,8% Barista 1l. PDF navaja: Mleko / Laktoza. Opomba PDF: Mlečni izdelek. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "2d1f793fa98a3947ac9594e0d2d4bd43ec9bfe7e7223afe375e110298f710eaf"
+    },
+    {
+      "id": 30915,
+      "name": "Aluminijasta folija 10 m",
+      "expectedRevision": 2,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30915; naziv PDF: Aluminijasta folija 10 m. PDF navaja: Brez (Embalaža). Opomba PDF: Neživilski potrošni material. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "a27669a78dd507642af114035715538755aea84e3ef53ef40e1bb00f90a3dab4"
+    },
+    {
+      "id": 30916,
+      "name": "Posoda za hrano",
+      "expectedRevision": 1,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30916; naziv PDF: Posoda / Škatla za pico. PDF navaja: Brez (Embalaža). Opomba PDF: Embalaža za hrano. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Prejšnji vir: rocno.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "895b4127f078f2713124d30075845ceaa51ad77f532ff38c43ae946f784323f9"
+    },
+    {
+      "id": 30918,
+      "name": "Goveje meso - za juho",
+      "expectedRevision": 1,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30918; naziv PDF: Goveje meso za juho. PDF navaja: Brez alergenov. Opomba PDF: Sveže goveje meso. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "e0d311040ec0a36471c8460899dd59d223cd15e9c2c1e6b985f9c1c7d730c7d1"
+    },
+    {
+      "id": 30919,
+      "name": "Goveje kosti za juho",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30919; naziv PDF: Goveje kosti za juho. PDF navaja: Brez alergenov. Opomba PDF: Sveže meso/kosti. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "0b6870340e9fc15dca73f1b66fa8e55c6702b9dbe4296a391e00238f0928820f"
+    },
+    {
+      "id": 30920,
+      "name": "Korenje",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30920; naziv PDF: Korenje. PDF navaja: Brez alergenov. Opomba PDF: Sveža zelenjava. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "0cdbf78bcd3e90a7d9c3dbd4da534cadc6157e8e98a24e185936916c958f94b9"
+    },
+    {
+      "id": 30921,
+      "name": "Zelena (koren)",
+      "expectedRevision": 0,
+      "codes": [
+        "ZELENA"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30921; naziv PDF: Zelena (koren). PDF navaja: Zelena. Opomba PDF: Koreninska zelenjava - uradni alergen. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "f6262c954e8920cd120f39de13539cdc343af649e785635f885dfd7391c3835a"
+    },
+    {
+      "id": 30922,
+      "name": "Por",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30922; naziv PDF: Por. PDF navaja: Brez alergenov. Opomba PDF: Sveža zelenjava. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "562c3ad7335f14340b080f4aefd1b58b9de0bcbaa19c0ce5ef73a8e5d314e83a"
+    },
+    {
+      "id": 30923,
+      "name": "Peteršiljeva korenina",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30923; naziv PDF: Peteršiljeva korenina. PDF navaja: Brez alergenov. Opomba PDF: Koreninska zelenjava. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "a57e7a8e11cf6d97be1b334a44fe86ba7fcc63b5252bb410356e5cd4ab997bd4"
+    },
+    {
+      "id": 30924,
+      "name": "Rezanci za juho (jušni rezanci)",
+      "expectedRevision": 0,
+      "codes": [
+        "GLUTEN",
+        "JAJCA"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 30924; naziv PDF: Rezanci za juho. PDF navaja: Gluten     Jajca. Opomba PDF: Pšenični rezanci z jajci. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "146947311af3c1facf512c318f9a1ce2165fe3cec05d8c226aa0aa745319eca9"
+    },
+    {
+      "id": 32044,
+      "name": "Juice 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32044; naziv PDF: Juice 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Pomarančni sok. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "29b027a63c78dfe9d2b75f2578bd6618221a3fd0c10782b029d433283b087ecc"
+    },
+    {
+      "id": 32045,
+      "name": "Jabolčni ali ribezov sok 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32045; naziv PDF: Jabolčni ali ribezov sok 1l. PDF navaja: Brez alergenov. Opomba PDF: Sadni sok. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "1175c9737d2304c7aa502c0b2575609a142583339ee02fd2fbdb75058a852c03"
+    },
+    {
+      "id": 32046,
+      "name": "Breskov sok 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32046; naziv PDF: Breskov sok 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Sadni sok. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "1c0faa4672833e0f694df89f27aa607c1ffd27966a59e3e792b8e967adb43519"
+    },
+    {
+      "id": 32047,
+      "name": "Cedevita vrečka",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32047; naziv PDF: Cedevita vrečka. PDF navaja: Brez alergenov. Opomba PDF: Instant napitek. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "90337bfc6135c632dde5c7e6420ae8dad7265fb71ecbc63759230be0629b620c"
+    },
+    {
+      "id": 32048,
+      "name": "Radenska 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32048; naziv PDF: Radenska 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Mineralna voda. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "8893d6165c2722b34da4a2d34f7ea59eebe879d631b24c9ea0d9fc85571d7d2e"
+    },
+    {
+      "id": 32050,
+      "name": "Naravna limonada 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32050; naziv PDF: Naravna limonada 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Brezalkoholna pijača. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "08a60a0f2ab6878237d4542fd0d287bf6102b55b4d2cc2503211c5d81289d109"
+    },
+    {
+      "id": 32051,
+      "name": "Laško točeno svetlo 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "GLUTEN"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32051; naziv PDF: Laško točeno svetlo 1l. PDF navaja: Gluten. Opomba PDF: Vsebuje ječmenov slad. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "b844110964ee29e440bd64ab0f2c96c14c4e959a8daa56b88a4645813011f617"
+    },
+    {
+      "id": 32052,
+      "name": "Odprto rdeče (Kerin, Krško) 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32052; naziv PDF: Odprto rdeče Kerin 1l. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "689bd4030a362e398f5b3f87b39e89c81c4488c1a1d691f86637a4d93ad7efda"
+    },
+    {
+      "id": 32053,
+      "name": "Odprto belo, vrtovčan (Agroind Vipava) 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32053; naziv PDF: Odprto belo Vrtovčan 1l. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "36341a3ce9a2b314683802037ef71965caeed1947be74bab247ced05d2a14e3f"
+    },
+    {
+      "id": 32054,
+      "name": "Konjičan 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32054; naziv PDF: Konjičan 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "c69fd5f44b7ba0aa9f9d30c285549eff2fac4cbc8b343bf1b6c43c933873a97b"
+    },
+    {
+      "id": 32055,
+      "name": "Haložan 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32055; naziv PDF: Haložan 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "be64a49ab45eb3fa15e77358eb173bce424562dfd87c2b3cf0d402822d99a9e2"
+    },
+    {
+      "id": 32056,
+      "name": "Janževec 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32056; naziv PDF: Janževec 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "51ee48c6c824647c7eb01b6f5daa821abb93047e70556d9d963b515b02989a2d"
+    },
+    {
+      "id": 32057,
+      "name": "Ljutomerčan 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32057; naziv PDF: Ljutomerčan 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "10a80722aca36a3b24317dce34d8cee09839239be2c563b69b42a82f849ec3cf"
+    },
+    {
+      "id": 32058,
+      "name": "Teran 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32058; naziv PDF: Teran 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "470bee5bb985b5383778c89f0170e970c803f1935127dda4662443fc81d99b81"
+    },
+    {
+      "id": 32059,
+      "name": "Refošk 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32059; naziv PDF: Refošk 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "5d5be09fd47caaec14e356ba29d9bba3249254a7707a05033c496b3a06bbe4f4"
+    },
+    {
+      "id": 32060,
+      "name": "Modra frankinja (Kerin, Krško) 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32060; naziv PDF: Modra frankinja (Kerin) 1l. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "78b138dede5f1eaa39350720e9479e6efc840f54f58fdb294ba57e1ff26c48dd"
+    },
+    {
+      "id": 32061,
+      "name": "Metliška črnina 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32061; naziv PDF: Metliška črnina 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "e11ea7c928a70f0834b1b2d2077ef4220d6d98bfb9bcbc89f3ce1e8147db5798"
+    },
+    {
+      "id": 32062,
+      "name": "Bela frankinja (Kerin, Krško) 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32062; naziv PDF: Bela frankinja (Kerin) 1l. PDF navaja: Sulfiti. Opomba PDF: Vsebuje žveplov dioksid / sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "6afb2d30e896360560151ad5982049a44dd923ac0195eca2fdfccee7378eb588"
+    },
+    {
+      "id": 32063,
+      "name": "Rumeni muškat (Agroind Vipava) 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32063; naziv PDF: Rumeni muškat 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "a52e02a62170c9a3f98295862b9117c6fe94c9781112a2d07b33449b96749708"
+    },
+    {
+      "id": 32064,
+      "name": "Mošt Savinov 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "SULFITI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32064; naziv PDF: Mošt Savinov 1 liter. PDF navaja: Sulfiti. Opomba PDF: Vsebuje sulfite (> 10 mg/l). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "885304197b034153f14f9d2febff0cb0a693dbf31c66c816ea8fc09e18e338df"
+    },
+    {
+      "id": 32065,
+      "name": "Borovničevec 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32065; naziv PDF: Borovničevec 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Žgana pijača. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "0376407adae3b6dfb3d6bb0eb9b53c336ef6a3e386e945c7c06bdf6c1aea25ce"
+    },
+    {
+      "id": 32067,
+      "name": "Rum 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32067; naziv PDF: Rum 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Destilirana pijača. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "952366fcbd2a7dc3605ffb3b1877cc49b06ce73b3ddc88b3f6c4eb0d025abad9"
+    },
+    {
+      "id": 32069,
+      "name": "Jack Daniels 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32069; naziv PDF: Jack Daniels 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Viski (destiliran). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "7c2962762d213564c47ad31cc54da66a3f0b47ef20d0c7f5f1be3d2c8b478bf1"
+    },
+    {
+      "id": 32070,
+      "name": "Ballantine's 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32070; naziv PDF: Ballantine's 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Destilacija odstrani glutenske beljakovine. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "ee6d692ceda2e8a791ccca48bc4138c64ef8295febef6b69832d97fe9d460933"
+    },
+    {
+      "id": 32071,
+      "name": "Brinjevec 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32071; naziv PDF: Brinjevec 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Žgana pijača. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "aada61e53fc3a330c59b2325e3c7f6ce4b5f975b9effc0352d22a7962ab30c45"
+    },
+    {
+      "id": 32073,
+      "name": "Cezar 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32073; naziv PDF: Cezar 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Liker/žgana pijača. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "858bbfa4b31416e783b505b7fc759604a184b03f035d0c81f77889dc5740778a"
+    },
+    {
+      "id": 32074,
+      "name": "Gin 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32074; naziv PDF: Gin 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Destilirana pijača. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "5f4ac3325dd6bfd8748de1043e702f10e3630a1823c97ab648e634f3c5cd6c27"
+    },
+    {
+      "id": 32075,
+      "name": "Pelinkovec 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32075; naziv PDF: Pelinkovec 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Zeliščni liker. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "29b51255b92bcb3ea0be8d3b6287362a2bcd01fdf39ffa7b623517b49ae80942"
+    },
+    {
+      "id": 32076,
+      "name": "Hruškov liker 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32076; naziv PDF: Hruškov liker 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Liker. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "1c520fd1ca793dfd459a6d69f376ff123c57d25bf269ef2271ef27c11aaca251"
+    },
+    {
+      "id": 32078,
+      "name": "Jägermeister 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32078; naziv PDF: Jägermeister 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Zeliščni liker. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "1833b055484ae43c1e5699523d6c3f014216e44b9154219b523c3333e13aec31"
+    },
+    {
+      "id": 32079,
+      "name": "Jameson 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32079; naziv PDF: Jameson 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Viski (destiliran). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "2f6f6c143c7dae34c082278f4043c47846741c180e5a606347337ba0494112e2"
+    },
+    {
+      "id": 32080,
+      "name": "Jagodni sok 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32080; naziv PDF: Jagodni sok 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Sadni sok. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "444aeac9b8560ffcaab759b48ffd8c16a3aea8ad03afc288c9d48ac9851569d2"
+    },
+    {
+      "id": 32082,
+      "name": "Laško točeno temno 1 liter",
+      "expectedRevision": 0,
+      "codes": [
+        "GLUTEN"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32082; naziv PDF: Laško točeno temno 1l. PDF navaja: Gluten. Opomba PDF: Vsebuje ječmenov slad. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "679a94501a9ec8da9edbc443352865c0a3fbd4fa171f633b3d141c4eaf8a14fc"
+    },
+    {
+      "id": 32083,
+      "name": "Cynar 1 liter",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32083; naziv PDF: Cynar 1 liter. PDF navaja: Brez alergenov. Opomba PDF: Zeliščni liker. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "c9dd35bce58d7b0e69efd938be00da48ee5375e53345fb53b82607627006bfd1"
+    },
+    {
+      "id": 32346,
+      "name": "Skuta polnomastna",
+      "expectedRevision": 0,
+      "codes": [
+        "MLEKO"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32346; naziv PDF: Skuta polnomastna. PDF navaja: Mleko / Laktoza. Opomba PDF: Mlečni izdelek. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "45998889425ad24822fb7610eebc08e331230d0492c03ae42d326fc1cfc909c2"
+    },
+    {
+      "id": 32347,
+      "name": "Mak mleti",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32347; naziv PDF: Mak mleti. PDF navaja: Brez alergenov. Opomba PDF: Semena; možne sledi oreščkov in sezama. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "e8b4abd73a485418761f73c741f1ace59038cf95f73245cce4c3dc38307bd49e"
+    },
+    {
+      "id": 32348,
+      "name": "Orehi mleti",
+      "expectedRevision": 0,
+      "codes": [
+        "OREŠČKI"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32348; naziv PDF: Orehi mleti. PDF navaja: Oreščki (Oreh). Opomba PDF: Lupinasto sadje; možne sledi drugih oreščkov. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "e6ff764e49e909e1ea9fbe0876811fb57f5e02c8c2d528f9625b7800aefe8e74"
+    },
+    {
+      "id": 32349,
+      "name": "Jabolka",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32349; naziv PDF: Jabolka. PDF navaja: Brez alergenov. Opomba PDF: Sveže sadje. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "996708761497440123af847f8aa37ff87d8471f693da809d304b439adac22912"
+    },
+    {
+      "id": 32350,
+      "name": "Temna čokolada 64–70 % kakava",
+      "expectedRevision": 0,
+      "codes": [
+        "SOJA"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32350; naziv PDF: Temna čokolada 64-70%. PDF navaja: Soja. Opomba PDF: Sojin lecitin; možne sledi mleka, oreščkov. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "d6b8c4b0ee60b9bcd32fcce568adf9d52cce278c0fbcc1f73a3a9ce9009ae9a3"
+    },
+    {
+      "id": 32351,
+      "name": "Marelična marmelada",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32351; naziv PDF: Marelična marmelada. PDF navaja: Brez alergenov. Opomba PDF: Sadni namaz (preveri industrijske sulfite). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "00b455cf12037369fd5abd08a37ca5e58f4bcd1d1656dfe0da8c8446c5840ea4"
+    },
+    {
+      "id": 32352,
+      "name": "Kisla smetana",
+      "expectedRevision": 0,
+      "codes": [
+        "MLEKO"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32352; naziv PDF: Kisla smetana. PDF navaja: Mleko / Laktoza. Opomba PDF: Mlečni izdelek. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "799e7ed3f04266183cff2758489cba6d4b99225b2668529ebd2b5ed665118b4c"
+    },
+    {
+      "id": 32353,
+      "name": "Koruzni škrob",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32353; naziv PDF: Koruzni škrob. PDF navaja: Brez alergenov. Opomba PDF: Prirojeno brez glutena. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "a4c092d9568b3a27ca17eb9fc927026a74227a8296cb80cce032bb765dcaaabe"
+    },
+    {
+      "id": 32354,
+      "name": "Listnato testo masleno",
+      "expectedRevision": 0,
+      "codes": [
+        "GLUTEN",
+        "MLEKO"
+      ],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32354; naziv PDF: Listnato testo masleno. PDF navaja: Gluten     Mleko. Opomba PDF: Pšenična moka in maslo. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "3ca048a0016f166bdcf9fc1fcdcc1f8ee6627127acb1c96d596471ec399ebab6"
+    },
+    {
+      "id": 32357,
+      "name": "Cimet mleti",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32357; naziv PDF: Cimet mleti. PDF navaja: Brez alergenov. Opomba PDF: Začimba. Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "aa7c0e97ccd929510782bf33ea7b1bf56a56eab58e149f004a79a40c99869929"
+    },
+    {
+      "id": 32358,
+      "name": "Pecilni prašek",
+      "expectedRevision": 0,
+      "codes": [],
+      "traces": [],
+      "source": "drugo",
+      "note": "Nepreverjen predlog iz uporabnikovega PDF »Evidenca Alergenov – Katalog Nabavnih Artiklov«, datum izpisa 05.10.2026, enota Križišče. Šifra PDF: 32358; naziv PDF: Pecilni prašek. PDF navaja: Brez alergenov. Opomba PDF: Večina vsebuje koruzni škrob (preveri pšeničnega). Predlog ni preverjen po dejanski deklaraciji dobavitelja. Navedba »brez alergenov« ne pomeni potrjene odsotnosti alergenov; možne sledi ostajajo opombe, ne potrjen seznam sledi. Pecilni prašek ni potrjen kot brez glutena: preverite vrsto nosilnega škroba.",
+      "documentId": "52db6146-8352-4da4-a9aa-171914e6d633",
+      "hash": "a4e5168b7bb1b8f3b8358e0f15dbd32021d25c8719b82c7b185049b223f11535"
+    }
+  ]
+}

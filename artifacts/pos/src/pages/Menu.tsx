@@ -107,7 +107,9 @@ export default function Menu() {
   const lahkoVidiZgodovinoNormativa = ["admin", "admin_enote", "superadmin"].includes(user?.vloga ?? "");
 
   const { data: kategorije, isLoading: loadingK } = useListKategorije();
-  const { data: artikli, isLoading: loadingA } = useListArtikli();
+  const { data: artikli, isLoading: loadingA } = useListArtikli(undefined, {
+    query: { queryKey: getListArtikliQueryKey(), refetchInterval: 10_000 },
+  });
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const importDrobniInventar = useImportDrobniInventarPredloge();

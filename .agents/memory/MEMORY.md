@@ -115,6 +115,8 @@
 - [Pametno OCR uparjanje](ocr-pametno-uparjanje.md) — kanonične mere naj razširijo nabor; AI sme le predlagati dovoljen ID in nikoli sam potrditi.
 - [Povratna embalaža](povratna-embalaza.md) — fizična zaloga ostane skupna, dobaviteljski kavcijski saldo pa je ločen append-only promet s snapshot vrednostjo.
 - [Alergenski posnetek prejemnice](prejemnica-alergeni.md) — običajno urejanje ohrani zgodovinski posnetek; nova potrditev velja za novo vrstico ali zamenjan artikel.
+- [Katalog alergenov kot predlog](allergen-catalog-draft-policy.md) — generični PDF ni deklaracija; izrecna uskladitev vseh surovin vključuje tudi prej potrjene profile.
+- [Spletni alergeni novih surovin](automatic-ingredient-allergens.md) — vsaka nova nabavna surovina dobi samodejno spletno iskanje; rezultat ni potrjena deklaracija.
 - [Brisanje osnutkov temeljnic](journal-entry-draft-deletion.md) — osnutek je izbrisljiv z auditom; knjižene, stornirane in storno temeljnice niso.
 - [Celovitost POS priročnika](pos-manual-traceability.md) — izdaja je celovita šele po ločeni potrditvi izvedbe in dokumentacijske pokritosti vseh inventarnih postopkov.
 - [Upodabljanje POS priročnika](pos-manual-pdf-rendering.md) — PDF preštevilči naslove; medvrstični prelomi krepkega tiska v korakih se lahko izpišejo dobesedno.

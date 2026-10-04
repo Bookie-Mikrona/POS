@@ -127,6 +127,10 @@ export function AlergenEditor({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Status preverjenosti</Label>
+          <p className="text-xs text-muted-foreground">
+            Pri novi nabavni surovini se alergeni samodejno poiščejo na spletu v ozadju.
+            Rezultat ostane nepreverjen; po končanem iskanju ponovno odprite artikel za pregled virov.
+          </p>
           <Select
             disabled={disabled}
             value={value.alergeniStatus}

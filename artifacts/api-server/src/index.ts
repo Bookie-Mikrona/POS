@@ -8,6 +8,7 @@ import { startOfflineFiscalRunner } from "./services/pos/offline-fiscal-runner";
 import { startQrHistoryRetentionScheduler } from "./lib/qrHistoryRetention";
 import { startVoucherDeliveryRetryScheduler } from "./routes/publicVisits";
 import { startPublicProfileImageRetentionScheduler } from "./lib/publicProfileImageRetention";
+import { startAllergenResearchRunner } from "./lib/allergen-research-runner";
 
 const rawPort = process.env["PORT"];
 
@@ -54,4 +55,5 @@ app.listen(port, (err) => {
 
   // Remove abandoned staged public profile images with a process and database lock.
   startPublicProfileImageRetentionScheduler();
+  startAllergenResearchRunner();
 });
