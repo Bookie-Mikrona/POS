@@ -512,16 +512,19 @@ export default function Settings() {
   const jeAdminEnote = prijavljen?.vloga === "admin_enote";
   const jeUporabnik = !jeAdmin && !jeAdminEnote && !jeSuperAdmin;
   const lahkoNastaviNatakarPin = jeAdmin || jeAdminEnote;
+  const imaAktivnoEnoto = Boolean(prijavljen?.enotaId);
+  const lahkoUpravljaMize = imaAktivnoEnoto
+    && (jeSuperAdmin || (prijavljen?.capabilities ?? []).includes("tables"));
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-  const { data: mize } = useListMize();
+  const { data: mize } = useListMize({ query: { enabled: lahkoUpravljaMize } });
   const createMiza = useCreateMiza();
   const deleteMiza = useDeleteMiza();
   const updateMiza = useUpdateMiza();
   const bulkPozicija = useBulkPozicijaMize();
   const [tlorisSelectedProstorId, setTlorisSelectedProstorId] = useState<number | null>(null);
-  const { data: prostori } = useListProstori();
+  const { data: prostori } = useListProstori({ query: { enabled: lahkoUpravljaMize } });
   const createProstor = useCreateProstor();
   const updateProstorMut = useUpdateProstor();
   const deleteProstorMut = useDeleteProstor();
@@ -2550,6 +2553,23 @@ export default function Settings() {
         {/* ── Mize ──────────────────────────────────────────────── */}
         <TabsContent value="mize" className="space-y-6">
 
+        {!lahkoUpravljaMize ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{imaAktivnoEnoto ? "Mize v tej enoti niso omogočene" : "Najprej nastavite poslovno enoto"}</CardTitle>
+              <CardDescription>
+                {!imaAktivnoEnoto
+                  ? "Za dodajanje prostorov in miz najprej ustvarite ali izberite aktivno poslovno enoto."
+                  : "Za upravljanje miz mora paket podjetja vključevati mize, ta funkcija pa mora biti omogočena tudi na izbrani enoti."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {prikaziZavihekEnote(prijavljen?.vloga)
+                ? <Button type="button" onClick={() => setAktivniZavihek("enote")}>Odpri Enote</Button>
+                : <p className="text-sm text-muted-foreground">Za nastavitev poslovne enote se obrnite na skrbnika podjetja.</p>}
+            </CardContent>
+          </Card>
+        ) : (<>
         {/* Prostori management card */}
         <Card>
           <CardHeader>
@@ -2729,6 +2749,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+        </>)}
         </TabsContent>
 
         {/* ── Natakari ──────────────────────────────────────────── */}

@@ -21,6 +21,12 @@ Strežniška politika POS poti mora odpovedati zaprto: vsaka poslovna pot ima za
 
 **How to apply:** Specifične pod-poti razreši pred splošnimi družinami poti (npr. dostava znotraj naročila). Superadmin bypass ostane izrecen.
 
+Skrbnik podjetja in skrbnik enote morata lahko odpreti Nastavitve tudi brez zmožnosti `settings` ali še izbrane enote. Poslovni obrazci znotraj nastavitev ostanejo vezani na dejansko enoto in njene dovoljene funkcije.
+
+**Why:** Nastavitve so potrebne za začetno vzpostavitev ali popravljanje manjkajoče enote. Če navigacija dovoli vstop, preverjanje neposredne poti pa ga zavrne, nastane zavajajoče opozorilo in uporabnik težko opravi začetno nastavitev.
+
+**How to apply:** Administrativno izjemo uskladi med navigacijo in neposrednimi potmi, ne razširi je na poslovne funkcije. Brez enote prikaži navodilo za vzpostavitev namesto praznega obrazca za dodajanje miz.
+
 Začasne in mobilne enote morajo imeti veljavno obdobje delovanja ter matično enoto istega podjetja; same sebi ne morejo biti matične. Ta pravila veljajo tudi kot DB-omejitve. Dogodkovna povezava določa obdobje in lokacijo.
 
 **Why:** Delni ali zastareli dogodkovni podatki omogočijo začasno enoto zunaj dogodka oziroma jo napačno povežejo z drugim podjetjem.

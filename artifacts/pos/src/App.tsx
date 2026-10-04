@@ -35,7 +35,7 @@ import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
 import { UporabnikSidebarInfo } from "@/components/UporabnikSidebarInfo";
 import { AdminEnotaStaticInfo } from "@/components/AdminEnotaStaticInfo";
 import { SifrantiSidebar } from "@/components/SifrantiSidebar";
-import { NAV_CAPABILITY_BY_PATH, type UnitCapability } from "@/lib/unitProfiles";
+import { NAV_CAPABILITY_BY_PATH, canAccessPosRoute, type UnitCapability } from "@/lib/unitProfiles";
 import { CtiDohodniKlicPopup } from "@/components/CtiDohodniKlicPopup";
 import { AgentLauncher } from "@/components/AgentLauncher";
 import { BlagajnaProvider } from "@/contexts/BlagajnaContext";
@@ -605,18 +605,16 @@ function Layout({ children }: { children: React.ReactNode }) {
     return capability ? activeCapabilities.has(capability) : true;
   };
   useEffect(() => {
-    if (isSuperAdmin) return;
-    const pathRule = Object.entries(NAV_CAPABILITY_BY_PATH)
-      .sort(([a], [b]) => b.length - a.length)
-      .find(([path]) => path === "/" ? location === "/" : location === path || location.startsWith(`${path}/`));
-    if (!pathRule || activeCapabilities.has(pathRule[1])) return;
+    if (!user || canAccessPosRoute(location, (user.capabilities ?? []) as UnitCapability[], user.vloga)) return;
     toast({
-      title: "Funkcija v tej enoti ni omogočena",
-      description: "Prikaz je prilagojen profilu in izbranim funkcijam aktivne poslovne enote.",
+      title: user.enotaId ? "Funkcija v tej enoti ni omogočena" : "Ni izbrane aktivne poslovne enote",
+      description: user.enotaId
+        ? "Prikaz je prilagojen profilu in izbranim funkcijam aktivne poslovne enote."
+        : "V Nastavitvah najprej nastavite oziroma izberite poslovno enoto.",
       variant: "destructive",
     });
     navigate("/nastavitve", { replace: true });
-  }, [location, navigate, isSuperAdmin, user?.capabilities, toast]);
+  }, [location, navigate, user?.vloga, user?.enotaId, user?.capabilities, toast]);
   const visiblePrimaryNav = primaryNav.filter(item => canShowNav(item.href));
 
   const allNav = (isSuperAdmin ? [

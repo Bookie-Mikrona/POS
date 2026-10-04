@@ -132,3 +132,17 @@ export const NAV_CAPABILITY_BY_PATH: Record<string, UnitCapability> = {
   "/narocniki": "phone_orders",
   "/dogodki": "events",
 };
+
+/** Settings remain reachable for administrators, including initial unit setup. */
+export function canAccessPosRoute(
+  location: string,
+  capabilities: readonly UnitCapability[],
+  role?: string,
+): boolean {
+  if (role === "superadmin") return true;
+  if (location === "/nastavitve" && (role === "admin" || role === "admin_enote")) return true;
+  const rule = Object.entries(NAV_CAPABILITY_BY_PATH)
+    .sort(([a], [b]) => b.length - a.length)
+    .find(([path]) => path === "/" ? location === "/" : location === path || location.startsWith(`${path}/`));
+  return !rule || capabilities.includes(rule[1]);
+}

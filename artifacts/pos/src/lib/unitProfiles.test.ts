@@ -3,6 +3,7 @@ import {
   ALL_UNIT_CAPABILITIES,
   HOSPITALITY_PROFILES,
   NAV_CAPABILITY_BY_PATH,
+  canAccessPosRoute,
   profileDefaults,
 } from "./unitProfiles";
 
@@ -38,5 +39,22 @@ describe("profili gostinskih enot", () => {
     expect(NAV_CAPABILITY_BY_PATH["/zaloge"]).toBe("inventory");
     expect(NAV_CAPABILITY_BY_PATH["/operativna-porocila"]).toBe("operational_reports");
     expect(NAV_CAPABILITY_BY_PATH["/dogodki"]).toBe("events");
+  });
+
+  it.each(["admin", "admin_enote", "superadmin"])(
+    "%s lahko odpre nastavitve tudi brez aktivne enote",
+    role => expect(canAccessPosRoute("/nastavitve", [], role)).toBe(true),
+  );
+
+  it("administrativna izjema ne omogoči miz ali drugih poslovnih funkcij", () => {
+    expect(canAccessPosRoute("/", [], "admin")).toBe(false);
+    expect(canAccessPosRoute("/blagajna", [], "admin_enote")).toBe(false);
+    expect(canAccessPosRoute("/zaloge/123", [], "admin")).toBe(false);
+    expect(canAccessPosRoute("/", ["tables"], "admin")).toBe(true);
+  });
+
+  it("običajen uporabnik za nastavitve še vedno potrebuje zmožnost", () => {
+    expect(canAccessPosRoute("/nastavitve", [], "uporabnik")).toBe(false);
+    expect(canAccessPosRoute("/nastavitve", ["settings"], "uporabnik")).toBe(true);
   });
 });
