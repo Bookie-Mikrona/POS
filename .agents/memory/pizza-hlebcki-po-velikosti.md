@@ -3,7 +3,7 @@ name: Hlebčki za pico po velikosti
 description: Operativno pravilo za pripravljena testa, zalogo in porabo ene pice.
 ---
 
-Velikost pice določi en neprodajni pripravljen hlebček na kos: mala porabi mali hlebček, normalna normalnega. Surovine hlebčka se porabijo pri njegovi pripravi, ne ponovno pri izdaji računa; voda iz pipe ni nabavni artikel niti sestavina normativa. Ostale sestavine pice še naprej uporabljajo površinski faktor.
+Velikost pice določi en neprodajni pripravljen hlebček na kos: mala porabi mali hlebček, normalna normalnega. Surovine hlebčka se porabijo pri njegovi pripravi, ne ponovno pri izdaji računa. Ostale sestavine pice še naprej uporabljajo površinski faktor. Za vodo iz pipe velja splošno [pravilo receptov](tap-water-recipe-policy.md).
 
 **Why:** Dva hlebčka v skupnem normativu bi pri vsaki pici porabila oba; faktor površine pa bi pri mali pici odštel le del hlebčka. Ločen velikostni del normativa in posnetek izbranega hlebčka ohranita fizično zalogo ter zgodovino nespremenjeni ob poznejših spremembah nastavitev.
 

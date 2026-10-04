@@ -7,6 +7,7 @@
 - [QR meni uporabniški izrazi](qr-meni-uporabniski-izrazi.md) — glava kaže mizo in prostor; kategorije so vse vidne; artikel se doda v košarico, naročilo se odda pozneje.
 - [Cene in poraba pic](pizza-cene-po-velikostih.md) — cena sledi velikosti; plačljiv dodatek pri porabi vedno uporablja cel normativ s faktorjem 1.
 - [Hlebčki za pico po velikosti](pizza-hlebcki-po-velikosti.md) — ena pica porabi natanko en pripravljen hlebček svoje velikosti; surovine se porabijo pri pripravi, ne še pri prodaji.
+- [Pitna voda v receptih](tap-water-recipe-policy.md) — voda iz pipe ostane v navodilih priprave, nikoli kot nabavni artikel ali zalogovna sestavina.
 - [Operativna vrsta pice](pizza-operativni-tip.md) — postaja »pica« ne pomeni »ala_carte«; ohrani »composite« za izračun razpoložljivosti po velikostih.
 - [POS izbira podjetja](pos-izbira-podjetja.md) — več aktivnih POS vlog je dvoumnih; zahtevaj X-Company-Id, en sam vnos se lahko razreši samodejno
 - [POS kartične reference](pos-karticne-reference.md) — SumUp/Viva referenco je treba atomsko globalno rezervirati pred FURS klicem v vseh računskih tokovih

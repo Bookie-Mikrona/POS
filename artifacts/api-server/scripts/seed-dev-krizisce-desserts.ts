@@ -2,6 +2,7 @@
  * Explicit, development-only import of researched dessert drafts for Križišče.
  * Never overwrites existing articles, prices, normative rows, stock or documents.
  * Recipe quantities are per prepared portion, not per cake/tray.
+ * Tap water belongs only in preparation notes, never in purchase articles or stock norms.
  */
 import { pool } from "@workspace/db";
 import Decimal from "decimal.js";
@@ -39,8 +40,6 @@ const raw: Record<string, Raw> = {
   cinnamon: { name: "Cimet mleti", unit: "KGM" },
   bakingPowder: { name: "Pecilni prašek", unit: "KGM",
     note: "Recept navaja žličko; masa v kg še ni potrjena." },
-  water: { name: "Voda za pripravo sladic", unit: "LTR",
-    note: "Količina se vodi v litrih. Pri Sacher torti je navedenih 100 g vode; volumen pred vnosom preverite, ne pretvarjajte samodejno." },
 };
 type Recipe = {
   name: string; portions: number; source: string; origin: string;
@@ -61,9 +60,9 @@ const recipes: Recipe[] = [
     origin: "Uradna specifikacija izdelka, razdelek 3.6; ni potrjen hišni normativ Rajha.",
     batch: [["flour", "1.100"], ["butter", "0.350"], ["sugar", "0.420"], ["poppy", "0.300"],
       ["curd", "1.200"], ["walnut", "0.300"], ["apple", "1.500"], ["cream", "0.800"],
-      ["eggs", "5"], ["water", "0.100"]],
-    missing: "Voda za vlečeno testo; masa ene žlice olja oziroma njen volumen; masa šestih zavitkov vaniljevega sladkorja, soli in cimeta; izkoristek jabolk in odrezki testa; končna masa in cena.",
-    notes: "Za razvojno osnovo je izbrano maslo, smetanov preliv pa uporablja obstoječo Smetano. Dodatno neobvezno jajce v vlečenem testu ni vključeno. Razdelitev sestavin serije: moka 200 + 900 g; maslo 100 + 250 g; sladkor 100 + 100 + 100 + 120 g. Vsak nadev nastopi dvakrat, količin zato ne podvajamo. Razrez na 12 kosov je izrecna uporabnikova izbira, ne zahteva specifikacije. Za zaščiteno ime preverite dejansko maso kosa: specifikacija omejuje kos na 250 g, pri industrijski proizvodnji na 200 g.",
+      ["eggs", "5"]],
+    missing: "Masa ene žlice olja oziroma njen volumen; masa šestih zavitkov vaniljevega sladkorja, soli in cimeta; izkoristek jabolk in odrezki testa; končna masa in cena.",
+    notes: "Pitna voda iz pipe: 100 ml za pripravo po receptu; le tehnološko navodilo, brez nabavnega artikla ali zalogovne porabe. Dodatno vodo za vlečeno testo odmerite po postopku. Za razvojno osnovo je izbrano maslo, smetanov preliv pa uporablja obstoječo Smetano. Dodatno neobvezno jajce v vlečenem testu ni vključeno. Razdelitev sestavin serije: moka 200 + 900 g; maslo 100 + 250 g; sladkor 100 + 100 + 100 + 120 g. Vsak nadev nastopi dvakrat, količin zato ne podvajamo. Razrez na 12 kosov je izrecna uporabnikova izbira, ne zahteva specifikacije. Za zaščiteno ime preverite dejansko maso kosa: specifikacija omejuje kos na 250 g, pri industrijski proizvodnji na 200 g.",
   },
   {
     name: "Sacher torta", portions: 12,
@@ -71,7 +70,7 @@ const recipes: Recipe[] = [
     origin: "Primerjalni recept Jernej Kitchen za torto premera 20 cm; ne potrjen normativ gostinskega obrata.",
     batch: [["chocolate", "0.300"], ["butter", "0.130"], ["icing", "0.050"],
       ["sugar", "0.200"], ["flour", "0.130"], ["jam", "0.150"], ["eggs", "6"]],
-    missing: "Voda za preliv: 100 g (zaloga vode je v litrih, zato še ni vpisana v številčni normativ); sol po postopku; smetana in dekoracija ob postrežbi, če se uporabljata; končna masa in cena.",
+    missing: "Sol po postopku; smetana in dekoracija ob postrežbi, če se uporabljata; končna masa in cena.",
     notes: "Biskvit: 160 g čokolade, 130 g masla, 50 g sladkorja v prahu, 100 g sladkorja, 6 jajc in 130 g moke. Marmelada 150 g. Preliv: 140 g čokolade, 100 g sladkorja in 100 g vode.",
   },
   {
