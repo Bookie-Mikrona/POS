@@ -11,7 +11,7 @@
     "diagnose:event-transfers": "tsx scripts/diagnose-event-stock-transfers.ts",
     "predev": "pnpm run generate:srs-chart",
     "pretest": "tsx scripts/apply-test-migrations.ts",
-    "dev": "export NODE_ENV=development && tsx watch src/index.ts",
+    "dev": "export NODE_ENV=development && node --import tsx --watch src/index.ts",
     "prebuild": "pnpm run generate:srs-chart",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",

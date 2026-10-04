@@ -33,6 +33,7 @@ let otherIngredientId: number;
 
 function buildApp(activeEnotaId = enotaId) {
   const app = express();
+  app.use(express.json());
   app.use((req, _res, next) => {
     (req as any).enotaId = activeEnotaId;
     next();
@@ -274,6 +275,43 @@ describe("GET /prepared-food/daily/:date/:articleId/consumption", () => {
     ]);
     expect(dailyRows).toEqual([]);
     expect(stockRows).toEqual([]);
+  });
+
+  it("saves different cuts and consumes the same recipe even after the default changes", async () => {
+    await db.update(artikliTable).set({ enotaMere: "H87", recipeBatchPieces: 12 })
+      .where(eq(artikliTable.id, articleId));
+    try {
+      await db.insert(normativiTable).values({ artikelId: articleId, vhodniArtikelId: ingredientId, kolicina: "0.1000" });
+      const app = buildApp();
+      const path = `/prepared-food/daily/${EMPTY_NORM_DATE}/${articleId}`;
+      await supertest(app).put(path).send({
+        thawedQuantity: 0, preparedQuantity: 27, correctionQuantity: 0, frozenAtEndQuantity: 27,
+        preparationBatches: [{ batchCount: 1, piecesPerBatch: 15 }, { batchCount: 1, piecesPerBatch: 12 }],
+      }).expect(200);
+      const list = await supertest(app).get(`/prepared-food/daily/${EMPTY_NORM_DATE}`).expect(200);
+      const saved = list.body.find((r: { artikelId: number }) => r.artikelId === articleId);
+      expect(saved.preparedQuantity).toBe(27);
+      expect(saved.normativeBatchPieces).toBe(12);
+      expect(saved.preparationBatches).toHaveLength(2);
+      const preview = await supertest(app).get(`${path}/consumption?quantity=27&batchCount=2`).expect(200);
+      expect(preview.body.items[0].quantity).toBeCloseTo(2.4, 4);
+      // Reference yield and ingredient recipe must remain frozen for this preparation.
+      await db.update(artikliTable).set({ recipeBatchPieces: 15 }).where(eq(artikliTable.id, articleId));
+      await db.update(normativiTable).set({ kolicina: "0.0800" }).where(eq(normativiTable.artikelId, articleId));
+      const updatedPreview = await supertest(app).get(`${path}/consumption?quantity=27&batchCount=2`).expect(200);
+      expect(updatedPreview.body.items[0].quantity).toBeCloseTo(2.4, 4);
+      await supertest(app).put(path).send({
+        thawedQuantity: 0, preparedQuantity: 28, correctionQuantity: 0, frozenAtEndQuantity: 27,
+        preparationBatches: [{ batchCount: 1, piecesPerBatch: 15 }, { batchCount: 1, piecesPerBatch: 12 }],
+      }).expect(422);
+      await supertest(app).post(`${path}/close`).expect(200);
+      const actual = await supertest(app).get(`${path}/consumption`).expect(200);
+      expect(actual.body.source).toBe("actual");
+      expect(actual.body.preparedQuantity).toBe(27);
+      expect(actual.body.items[0].quantity).toBeCloseTo(2.4, 4);
+    } finally {
+      await db.update(artikliTable).set({ enotaMere: "KGM", recipeBatchPieces: null }).where(eq(artikliTable.id, articleId));
+    }
   });
 
   it("does not reveal catalog details for a foreign-unit ingredient reference", async () => {

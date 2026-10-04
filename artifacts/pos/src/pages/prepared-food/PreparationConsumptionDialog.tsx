@@ -13,6 +13,7 @@ export type ConsumptionSelection = {
   readOnly: boolean;
   closed: boolean;
   unsaved: boolean;
+  batchCount?: number;
 };
 
 function ingredientUnit(unit: string | null): string {
@@ -30,7 +31,8 @@ export function PreparationConsumptionDialog({
 }) {
   const quantity = parseDecimal(selection.quantity);
   const valid = Number.isFinite(quantity) && quantity >= 0;
-  const params = selection.closed ? undefined : { quantity: valid ? quantity : 0 };
+  const params = selection.closed ? undefined : { quantity: valid ? quantity : 0,
+    ...(selection.batchCount === undefined ? {} : { batchCount: selection.batchCount }) };
   const { data, isLoading, isError, refetch } = useGetPreparedFoodConsumption(
     date, selection.articleId, params,
     { query: { queryKey: getGetPreparedFoodConsumptionQueryKey(date, selection.articleId, params),
@@ -50,7 +52,7 @@ export function PreparationConsumptionDialog({
         </DialogHeader>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <label htmlFor="consumption-prepared-quantity">{actual ? "Pripravljeno:" : "Količina za pripravo:"}</label>
-          {!selection.readOnly && !actual ? (
+          {!selection.readOnly && !actual && selection.batchCount === undefined ? (
             <DecimalInput id="consumption-prepared-quantity" value={selection.quantity}
               onChange={event => onQuantityChange(event.target.value)} className="w-28"
               aria-label="Količina pripravljeno za izračun porabe" />

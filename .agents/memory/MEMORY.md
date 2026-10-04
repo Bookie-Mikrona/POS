@@ -155,3 +155,5 @@
 - [Vrstni red apply_patch](apply-patch-hunk-order.md) — odseke iste datoteke razvrsti od začetka proti koncu; obratni vrstni red lahko zavrne pravilen kontekst.
 - [Recharts tooltip testiranje](recharts-tooltip-testing.md) — jsdom brez dejanske postavitve lahko ne sproži hover tooltipa; preveri vezavo kategorijske osi in oznake.
 - [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.
+- [Razrez pripravljenih sladic](dessert-preparation-yields.md) — privzeti kosi iz normativa; kuhar izbere razrez vsake priprave, ne da bi samo razrez povečal porabo surovin.
+- [Native ESM nalaganje API](api-native-esm-loader.md) — zastoj CJS/CLI uvoza ne dokazuje napake API; obstoječi razvojni zaganjalnik ohranja native ESM način.

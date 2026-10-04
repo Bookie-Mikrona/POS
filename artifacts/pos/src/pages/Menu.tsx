@@ -220,6 +220,7 @@ export default function Menu() {
   const [artHappyHourCenaDruzinska, setArtHappyHourCenaDruzinska] = useState<string>("");
   const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">(DEFAULT_NEW_SALES_ARTICLE_TYPE);
   const [artMealType, setArtMealType] = useState<"ala_carte" | "prepared" | "composite">("ala_carte");
+  const [artRecipeBatchPieces, setArtRecipeBatchPieces] = useState<number | null>(null);
   const preparedFoodUnit = normalizePreparedFoodUnit(artEnotaMere);
   const preparedFoodMassUnit = artMealType === "prepared" && preparedFoodUnit !== "porcija";
   const [artCasPripraveMin, setArtCasPripraveMin] = useState("0");
@@ -951,6 +952,7 @@ export default function Menu() {
     setArtHappyHourCenaDruzinska("");
     setArtVrstaArtikla(DEFAULT_NEW_SALES_ARTICLE_TYPE);
     setArtMealType("ala_carte");
+    setArtRecipeBatchPieces(null);
     setArtCasPripraveMin("0");
     setArtSkupina("");
     setArtTaxCategory("food");
@@ -1031,6 +1033,7 @@ export default function Menu() {
     setArtHappyHourCenaDruzinska(a.happyHourCenaDruzinska != null ? String(a.happyHourCenaDruzinska) : "");
     setArtVrstaArtikla(drobniInventar ? "material" : (((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev"));
     setArtMealType((a.mealType as "ala_carte" | "prepared" | "composite") ?? "ala_carte");
+    setArtRecipeBatchPieces(a.recipeBatchPieces ?? null);
     setArtCasPripraveMin(String((a as typeof a & { casPripraveMin?: number }).casPripraveMin ?? 0));
     const shranjenaSkupina = (a as typeof a & { skupina?: string | null }).skupina ?? "";
     setArtSkupina(drobniInventar
@@ -1590,6 +1593,7 @@ export default function Menu() {
       pripravaVrsta: isProdajni ? artPripravaVrsta : null,
       kdsIzkljucen: artKdsIzkljucen,
       mealType: mealTypeForArticleSave(artMealType, artPolizdelek, artPripravaVrsta, artJePica),
+      recipeBatchPieces: artMealType === "prepared" && !preparedFoodMassUnit ? artRecipeBatchPieces : null,
       casPripraveMin: isProdajni ? casPripraveMin : 0,
       happyHourCena: isProdajni && artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
       happyHourCenaMala: isProdajni && artJePica && artHappyHourCenaMala !== "" ? parseDecimal(artHappyHourCenaMala) : null,
@@ -3022,12 +3026,19 @@ export default function Menu() {
                         prodaja odšteje pripravljeno porcijo, ne ponovno surovin.
                       </p>
                       <BatchNormativeCalculator items={normativItems} articles={artikli ?? []}
+                        defaultPieces={artRecipeBatchPieces}
                         disabled={normativStale || normativiFetching || loadingA}
-                        onApply={items => {
+                        onApply={(items, pieces) => {
                           setNormativItems(items);
+                          setArtRecipeBatchPieces(pieces);
                           setNormativNapaka(null);
                         }}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        {artRecipeBatchPieces
+                          ? `Privzeto ${artRecipeBatchPieces} kosov iz ene priprave. Spremenite v »Recept za pekač«; kuhar lahko razrez spremeni ob vsaki pripravi.`
+                          : "V »Recept za pekač« določite privzeto število kosov. Kuhar ga lahko ob pripravi spremeni."}
+                      </p>
                     </div>
                   )}
                   {normativItems.length === 0 && !(editingArt && artJePica) ? (

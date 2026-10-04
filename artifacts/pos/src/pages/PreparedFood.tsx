@@ -28,6 +28,8 @@ import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WasteRecordsPanel } from "@/pages/prepared-food/WasteRecordsPanel";
 import { PreparationConsumptionDialog } from "@/pages/prepared-food/PreparationConsumptionDialog";
+import { PreparationBatchEditor } from "@/pages/prepared-food/PreparationBatchEditor";
+import type { PreparationBatch } from "@workspace/api-client-react";
 import {
   formatPreparedFoodQuantity,
   preparedFoodQuantityLargeStep,
@@ -48,6 +50,7 @@ type EditState = {
   prepared: string;
   correction: string;
   frozen: string;
+  batches?: PreparationBatch[] | null;
 };
 
 function TouchQuantityInput({
@@ -144,6 +147,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
               prepared: String(row.preparedQuantity || 0),
               correction: String(row.correctionQuantity || 0),
               frozen: String(row.frozenAtEndQuantity || 0),
+              batches: row.preparationBatches ?? null,
             };
             changed = true;
           }
@@ -165,7 +169,8 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
   const updateEdit = useCallback((artikelId: number, field: keyof EditState, value: string) => {
     setEdits(prev => ({
       ...prev,
-      [artikelId]: { ...prev[artikelId], [field]: value }
+      [artikelId]: { ...prev[artikelId], [field]: value,
+        ...(field === "prepared" ? { batches: null } : {}) }
     }));
   }, []);
 
@@ -182,6 +187,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
         edit.prepared !== String(row.preparedQuantity || 0) ||
         edit.correction !== String(row.correctionQuantity || 0) ||
         edit.frozen !== String(row.frozenAtEndQuantity || 0)
+        || JSON.stringify(edit.batches ?? null) !== JSON.stringify(row.preparationBatches ?? null)
       );
     });
   }, [data, edits]);
@@ -189,7 +195,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
   const rowsWithCalculations = useMemo(() => {
     if (!data) return [];
     return data.map(row => {
-      const edit = edits[row.artikelId] || { thawed: String(row.thawedQuantity || 0), prepared: String(row.preparedQuantity || 0), correction: String(row.correctionQuantity || 0), frozen: String(row.frozenAtEndQuantity || 0) };
+      const edit: EditState = edits[row.artikelId] || { thawed: String(row.thawedQuantity || 0), prepared: String(row.preparedQuantity || 0), correction: String(row.correctionQuantity || 0), frozen: String(row.frozenAtEndQuantity || 0), batches: row.preparationBatches ?? null };
       const stock = stocks?.find(s => s.artikelId === row.artikelId);
       const availableThaw = Number(stock?.frozenQuantity ?? 0);
       const maxThaw = Number.isFinite(availableThaw) ? Math.max(0, availableThaw) : 0;
@@ -235,6 +241,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
           data: {
             thawedQuantity: parseQuantity(edit.thawed),
             preparedQuantity: parseQuantity(edit.prepared),
+            preparationBatches: edit.batches ?? null,
             correctionQuantity: parseQuantity(edit.correction),
             frozenAtEndQuantity: parseQuantity(edit.frozen)
           }
@@ -264,6 +271,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
           data: {
             thawedQuantity: parseQuantity(edit.thawed),
             preparedQuantity: parseQuantity(edit.prepared),
+            preparationBatches: edit.batches ?? null,
             correctionQuantity: parseQuantity(edit.correction),
             frozenAtEndQuantity: parseQuantity(edit.frozen)
           }
@@ -380,12 +388,23 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                        <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                         <span className={mobileLabel}>Pripravljeno</span>
                         <div className="flex flex-col items-end gap-1">
+                          {(row.normativeBatchPieces || row.defaultRecipeBatchPieces) && row.unitOfMeasure === "porcija" && (
+                            <PreparationBatchEditor name={row.articleName ?? `Artikel #${row.artikelId}`}
+                              defaultPieces={row.normativeBatchPieces ?? row.defaultRecipeBatchPieces ?? 1}
+                              value={row.isReadOnly ? row.preparationBatches ?? null : row.edit.batches ?? null}
+                              readOnly={row.isReadOnly} onChange={batches => setEdits(prev => ({
+                                ...prev, [row.artikelId]: { ...prev[row.artikelId], batches,
+                                  prepared: String(batches.reduce((sum, b) => sum + b.batchCount * b.piecesPerBatch, 0)) },
+                              }))} />
+                          )}
                           {row.isReadOnly ? (
                             <button type="button" className="text-right underline decoration-dotted underline-offset-4"
                               aria-label={`Poraba artiklov: ${row.articleName}`}
                               onClick={() => setConsumptionArticleId(row.artikelId)}>
                               {formatPreparedFoodQuantity(row.preparedQuantity)}
                             </button>
+                          ) : row.edit.batches != null || row.defaultRecipeBatchPieces ? (
+                            <span className="font-semibold">{formatPreparedFoodQuantity(row.edit.prepared)} kosov</span>
                           ) : (
                             <TouchQuantityInput label={row.unitOfMeasure === "porcija" ? "Pripravljeno" : `Pripravljeno (${row.unitOfMeasure})`} unit={row.unitOfMeasure} value={row.edit.prepared} onChange={(value) => updateEdit(row.artikelId, "prepared", value)} onInspect={() => setConsumptionArticleId(row.artikelId)} />
                           )}
@@ -456,8 +475,10 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
         <PreparationConsumptionDialog key={row.artikelId} date={date}
           selection={{ articleId: row.artikelId, articleName: row.articleName || `Artikel #${row.artikelId}`,
             quantity: row.isReadOnly ? String(row.preparedQuantity) : row.edit.prepared,
-            unit: row.unitOfMeasure, readOnly: row.isReadOnly, closed: row.isClosed,
-            unsaved: parseQuantity(row.edit.prepared) !== Number(row.preparedQuantity) }}
+            unit: row.unitOfMeasure, readOnly: row.isReadOnly || !!row.defaultRecipeBatchPieces, closed: row.isClosed,
+            unsaved: parseQuantity(row.edit.prepared) !== Number(row.preparedQuantity)
+              || JSON.stringify(row.edit.batches ?? null) !== JSON.stringify(row.preparationBatches ?? null),
+            batchCount: (row.isReadOnly ? row.preparationBatches : row.edit.batches)?.reduce((sum, b) => sum + b.batchCount, 0) }}
           onClose={() => setConsumptionArticleId(null)}
           onQuantityChange={value => updateEdit(row.artikelId, "prepared", value)} />
       ))}

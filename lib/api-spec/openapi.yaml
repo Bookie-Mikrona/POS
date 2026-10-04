@@ -10732,6 +10732,10 @@ paths:
           required: false
           description: Količina priprave za normativni predogled; pri zaključeni evidenci se prezre.
           schema: { type: number, minimum: 0, maximum: 999999.9999 }
+        - name: batchCount
+          in: query
+          required: false
+          schema: { type: number, minimum: 0, maximum: 10000 }
       responses:
         "200":
           description: Normativni predogled ali dokazljiva dejanska poraba zaprte evidence
@@ -12471,8 +12475,18 @@ components:
       properties:
         thawedQuantity: { type: number, minimum: 0 }
         preparedQuantity: { type: number, minimum: 0 }
+        preparationBatches:
+          type: [array, "null"]
+          maxItems: 100
+          items: { $ref: "#/components/schemas/PreparationBatch" }
         correctionQuantity: { type: number, description: Pozitiven ali negativen popravek pri razdeljevanju porcij }
         frozenAtEndQuantity: { type: number, minimum: 0 }
+    PreparationBatch:
+      type: object
+      required: [batchCount, piecesPerBatch]
+      properties:
+        batchCount: { type: integer, minimum: 1, maximum: 10000 }
+        piecesPerBatch: { type: integer, minimum: 1, maximum: 10000 }
     PreparedFoodAvailability:
       type: object
       required: [businessDate, items, modifierItems]
@@ -12564,6 +12578,11 @@ components:
         artikelId: { type: integer }
         thawedQuantity: { type: number }
         preparedQuantity: { type: number }
+        preparationBatches:
+          type: [array, "null"]
+          items: { $ref: "#/components/schemas/PreparationBatch" }
+        normativeBatchPieces: { type: [integer, "null"] }
+        defaultRecipeBatchPieces: { type: [integer, "null"] }
         correctionQuantity: { type: number }
         soldQuantity: { type: number }
         frozenAtEndQuantity: { type: number }
@@ -12816,6 +12835,7 @@ components:
         - jeSkupinskiNabavniArtikel
         - vrstaArtikla
       properties:
+        recipeBatchPieces: { type: [integer, "null"], minimum: 1, maximum: 10000 }
         id:
           type: integer
         alergeni:
@@ -13026,6 +13046,7 @@ components:
       required:
         - ime
       properties:
+        recipeBatchPieces: { type: [integer, "null"], minimum: 1, maximum: 10000 }
         pripravaVrsta:
           type: [string, "null"]
           enum: [pica, hrana, pijaca, null]

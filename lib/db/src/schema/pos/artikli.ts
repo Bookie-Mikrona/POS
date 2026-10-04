@@ -86,6 +86,8 @@ export const artikliTable = pgTable("artikli", {
   netoDelezOdst: numeric("neto_delez_odst", { precision: 7, scale: 4 }),
   /** Monotonic optimistic-concurrency revision for the complete normative. */
   normativRevision: integer("normativ_revision").notNull().default(1),
+  /** Yield of one recipe batch; ingredient norms remain per reference portion. */
+  recipeBatchPieces: integer("recipe_batch_pieces"),
   jePica: boolean("je_pica").notNull().default(false),
   /** Postaja priprave prodajnega artikla; null pomeni starejši/neopredeljen zapis. */
   pripravaVrsta: text("priprava_vrsta", { enum: ["pica", "hrana", "pijaca"] }),

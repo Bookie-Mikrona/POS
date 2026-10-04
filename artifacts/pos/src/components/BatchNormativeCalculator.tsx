@@ -10,10 +10,11 @@ type Props = {
   items: NormativItem[];
   articles: { id: number; ime: string; enotaMere?: string | null }[];
   disabled?: boolean;
-  onApply: (items: NormativItem[]) => void;
+  defaultPieces?: number | null;
+  onApply: (items: NormativItem[], pieces: number) => void;
 };
 
-export function BatchNormativeCalculator({ items, articles, disabled, onApply }: Props) {
+export function BatchNormativeCalculator({ items, articles, disabled, defaultPieces, onApply }: Props) {
   const [open, setOpen] = useState(false);
   const [portions, setPortions] = useState("8");
   const [rows, setRows] = useState<BatchIngredient[]>([]);
@@ -30,8 +31,10 @@ export function BatchNormativeCalculator({ items, articles, disabled, onApply }:
       <Button type="button" size="sm" variant="outline" disabled={disabled || !items.length}
         onClick={() => {
           // Existing per-portion quantities must never be mistaken for a tray recipe.
-          setRows(items.map(item => ({ ...item, kolicina: "", yieldPercent: "100" })));
-          setPortions("8");
+          setRows(items.map(item => ({ ...item,
+            kolicina: defaultPieces ? String(Number(item.kolicina) * defaultPieces) : "",
+            yieldPercent: "100" })));
+          setPortions(String(defaultPieces ?? 12));
           setOpen(true);
         }}>
         Recept za pekač
@@ -93,7 +96,7 @@ export function BatchNormativeCalculator({ items, articles, disabled, onApply }:
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Prekliči</Button>
             <Button type="button" disabled={disabled || !!error} onClick={() => {
               // Validate again at the action boundary, not only for the preview.
-              onApply(calculateBatchNormative(rows, portions));
+              onApply(calculateBatchNormative(rows, portions), Number(portions.replace(",", ".")));
               setOpen(false);
             }}>Uporabi normativ na kos</Button>
           </DialogFooter>

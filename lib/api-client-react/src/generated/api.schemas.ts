@@ -1686,11 +1686,29 @@ export interface TipSettlementInput {
   settledAt: string;
 }
 
+export interface PreparationBatch {
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  batchCount: number;
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  piecesPerBatch: number;
+}
+
 export interface PreparedFoodDailyInput {
   /** @minimum 0 */
   thawedQuantity: number;
   /** @minimum 0 */
   preparedQuantity: number;
+  /**
+     * @maxItems 100
+     * @nullable
+     */
+  preparationBatches?: PreparationBatch[] | null;
   /** Pozitiven ali negativen popravek pri razdeljevanju porcij */
   correctionQuantity: number;
   /** @minimum 0 */
@@ -1799,6 +1817,12 @@ export interface PreparedFoodDailyLedger {
   artikelId: number;
   thawedQuantity: number;
   preparedQuantity: number;
+  /** @nullable */
+  preparationBatches?: PreparationBatch[] | null;
+  /** @nullable */
+  normativeBatchPieces?: number | null;
+  /** @nullable */
+  defaultRecipeBatchPieces?: number | null;
   correctionQuantity: number;
   soldQuantity: number;
   frozenAtEndQuantity: number;
@@ -2185,6 +2209,12 @@ export interface ModSkupinaFull {
 }
 
 export interface Artikel {
+  /**
+     * @minimum 1
+     * @maximum 10000
+     * @nullable
+     */
+  recipeBatchPieces?: number | null;
   id: number;
   alergeni?: AlergenKoda[];
   alergeniSledi?: AlergenKoda[];
@@ -2412,6 +2442,12 @@ export const ArtikelInputMealType = {
 } as const;
 
 export interface ArtikelInput {
+  /**
+     * @minimum 1
+     * @maximum 10000
+     * @nullable
+     */
+  recipeBatchPieces?: number | null;
   /**
      * Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)
      * @nullable
@@ -14094,6 +14130,11 @@ export type GetPreparedFoodConsumptionParams = {
  * @maximum 999999.9999
  */
 quantity?: number;
+/**
+ * @minimum 0
+ * @maximum 10000
+ */
+batchCount?: number;
 };
 
 export type CreateOfflineProvisioningChallengeBody = {

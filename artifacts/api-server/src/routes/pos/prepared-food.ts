@@ -39,6 +39,7 @@ import { buildPreparedFoodWasteRecordPdf } from "../../lib/prepared-food-waste-p
 import { isPosBusinessDayClosed, lockPosBusinessDay } from "../../lib/pos-z-helpers";
 import type { PosRequest } from "../../middlewares/pos";
 import { preparedFoodUnitLabel } from "../../lib/prepared-food-units";
+import { productionTotals } from "../../lib/preparation-batches";
 
 const router: IRouter = Router();
 const dateOk = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -49,6 +50,8 @@ const mapLedger = (
 ) => ({
   id: row.id, enotaId: row.enotaId, businessDate: row.businessDate, artikelId: row.artikelId,
   thawedQuantity: Number(row.thawedQuantity), preparedQuantity: Number(row.preparedQuantity),
+  preparationBatches: row.preparationBatches ?? null,
+  normativeBatchPieces: row.normativeBatchPieces ?? null,
   correctionQuantity: Number(row.correctionQuantity),
   soldQuantity: Number(row.soldQuantity), frozenAtEndQuantity: Number(row.frozenAtEndQuantity),
   wasteQuantity: Number(row.wasteQuantity), wasteValue: row.wasteValue == null ? null : Number(row.wasteValue),
@@ -539,11 +542,14 @@ router.get("/prepared-food/daily/:date/:articleId/consumption", async (req: Requ
     date: parsedDate,
   });
   const rawQuantity = req.query.quantity;
+  const rawBatchCount = req.query.batchCount;
   const query = GetPreparedFoodConsumptionQueryParams.safeParse(
-    rawQuantity === undefined ? {} : { quantity: rawQuantity },
+    { ...(rawQuantity === undefined ? {} : { quantity: rawQuantity }),
+      ...(rawBatchCount === undefined ? {} : { batchCount: rawBatchCount }) },
   );
   if (!params.success || !query.success || (rawQuantity !== undefined && typeof rawQuantity !== "string")
     || (typeof rawQuantity === "string" && rawQuantity.trim() === "")
+    || (rawBatchCount !== undefined && (typeof rawBatchCount !== "string" || rawBatchCount.trim() === "" || !Number.isFinite(Number(rawBatchCount))))
     || (query.success && query.data.quantity !== undefined && !Number.isFinite(query.data.quantity))) {
     res.status(400).json({ error: "Neveljavna količina predogleda porabe." });
     return;
@@ -555,6 +561,7 @@ router.get("/prepared-food/daily/:date/:articleId/consumption", async (req: Requ
     name: artikliTable.ime,
     mealType: artikliTable.mealType,
     unitOfMeasure: artikliTable.enotaMere,
+    recipeBatchPieces: artikliTable.recipeBatchPieces,
   }).from(artikliTable).where(and(
     eq(artikliTable.id, params.data.articleId),
     eq(artikliTable.enotaId, enotaId),
@@ -629,7 +636,11 @@ router.get("/prepared-food/daily/:date/:articleId/consumption", async (req: Requ
 
   const preparedQuantity = query.data.quantity
     ?? (ledger ? Number(ledger.preparedQuantity) : 0);
-  const recipe = await db.select({
+  const recipeQuantity = query.data.batchCount !== undefined
+    ? query.data.batchCount * (ledger?.normativeBatchPieces ?? article.recipeBatchPieces ?? 1)
+    : query.data.quantity !== undefined ? preparedQuantity
+      : productionTotals(ledger?.preparationBatches, ledger?.normativeBatchPieces, preparedQuantity).recipeQuantity;
+  const currentRecipe = await db.select({
     ingredientId: normativiTable.vhodniArtikelId,
     quantityPerUnit: normativiTable.kolicina,
     ingredientName: artikliTable.ime,
@@ -640,6 +651,14 @@ router.get("/prepared-food/daily/:date/:articleId/consumption", async (req: Requ
       eq(artikliTable.enotaId, enotaId),
     ))
     .where(eq(normativiTable.artikelId, article.id));
+  const snapshot = (query.data.batchCount !== undefined || (query.data.quantity === undefined && ledger?.preparationBatches != null))
+    ? ledger?.preparationRecipeSnapshot : null;
+  const recipe = snapshot == null ? currentRecipe : await Promise.all(snapshot.map(async n => {
+    const [ingredient] = await db.select({ ingredientName: artikliTable.ime, ingredientUnitOfMeasure: artikliTable.enotaMere })
+      .from(artikliTable).where(and(eq(artikliTable.id, n.ingredientId), eq(artikliTable.enotaId, enotaId)));
+    return { ingredientId: n.ingredientId, quantityPerUnit: n.quantity,
+      ingredientName: ingredient?.ingredientName ?? null, ingredientUnitOfMeasure: ingredient?.ingredientUnitOfMeasure ?? null };
+  }));
   const hasUnavailableIngredient = recipe.some((row) => row.ingredientName == null);
   const items = recipe.map((row) => {
     const quantityPerUnit = Number(row.quantityPerUnit);
@@ -648,7 +667,7 @@ router.get("/prepared-food/daily/:date/:articleId/consumption", async (req: Requ
       ingredientName: row.ingredientName ?? "Sestavina ni na voljo v tej poslovni enoti",
       unitOfMeasure: row.ingredientUnitOfMeasure,
       quantityPerUnit,
-      quantity: quantityPerUnit * preparedQuantity,
+      quantity: quantityPerUnit * recipeQuantity,
     };
   });
   const message = recipe.length === 0
@@ -682,6 +701,7 @@ router.get("/prepared-food/daily/:date", async (req: Request, res: Response): Pr
         id: artikliTable.id,
         name: artikliTable.ime,
         unitOfMeasure: artikliTable.enotaMere,
+        defaultRecipeBatchPieces: artikliTable.recipeBatchPieces,
       }).from(artikliTable).where(and(
         eq(artikliTable.enotaId, enotaId),
         eq(artikliTable.mealType, "prepared"),
@@ -705,11 +725,11 @@ router.get("/prepared-food/daily/:date", async (req: Request, res: Response): Pr
         ? Number(ledger.soldQuantity)
         : await soldQuantity(enotaId, businessDate, article.id, tx);
       if (ledger) {
-        return mapLedger({ ...ledger, soldQuantity: String(sold) }, {
+        return { ...mapLedger({ ...ledger, soldQuantity: String(sold) }, {
           articleName: article.name,
           unitOfMeasure: preparedFoodUnitLabel(article.unitOfMeasure),
           editable: !ledger.closedAt && (!latest || businessDate >= latest),
-        });
+        }), defaultRecipeBatchPieces: article.defaultRecipeBatchPieces };
       }
       return {
         id: -article.id,
@@ -718,6 +738,9 @@ router.get("/prepared-food/daily/:date", async (req: Request, res: Response): Pr
         artikelId: article.id,
         thawedQuantity: 0,
         preparedQuantity: 0,
+        preparationBatches: null,
+        normativeBatchPieces: null,
+        defaultRecipeBatchPieces: article.defaultRecipeBatchPieces,
         correctionQuantity: 0,
         soldQuantity: sold,
         frozenAtEndQuantity: 0,
@@ -755,6 +778,8 @@ router.put("/prepared-food/daily/:date/:articleId", async (req: Request, res: Re
       const [article] = await tx.select({
         id: artikliTable.id,
         mealType: artikliTable.mealType,
+        recipeBatchPieces: artikliTable.recipeBatchPieces,
+        unitOfMeasure: artikliTable.enotaMere,
       })
         .from(artikliTable)
         .where(and(eq(artikliTable.id, params.data.articleId), eq(artikliTable.enotaId, enotaId)));
@@ -779,9 +804,26 @@ router.put("/prepared-food/daily/:date/:articleId", async (req: Request, res: Re
         eq(preparedFoodDailyLedgersTable.artikelId, article.id),
       )).for("update");
       if (existing?.closedAt) throw new Error("Dnevna evidenca je že zaključena.");
+      const batches = body.data.preparationBatches === undefined
+        ? existing?.preparationBatches ?? null : body.data.preparationBatches;
+      const referencePieces = batches == null ? null
+        : existing?.normativeBatchPieces ?? article.recipeBatchPieces;
+      if (batches != null && preparedFoodUnitLabel(article.unitOfMeasure) !== "porcija") {
+        throw new Error("Razrez na kose je dovoljen samo pri pripravi v porcijah.");
+      }
+      const production = productionTotals(batches, referencePieces, body.data.preparedQuantity);
+      if (Math.abs(production.pieces - body.data.preparedQuantity) > 0.00005) {
+        throw new Error("Pripravljena količina se ne ujema s številom kosov posameznih priprav.");
+      }
+      const recipeSnapshot = batches == null ? null : existing?.preparationRecipeSnapshot
+        ?? await tx.select({ ingredientId: normativiTable.vhodniArtikelId, quantity: normativiTable.kolicina })
+          .from(normativiTable).where(eq(normativiTable.artikelId, article.id));
       const values = {
         thawedQuantity: String(body.data.thawedQuantity),
         preparedQuantity: String(body.data.preparedQuantity),
+        preparationBatches: batches,
+        normativeBatchPieces: referencePieces,
+        preparationRecipeSnapshot: recipeSnapshot,
          correctionQuantity: String(body.data.correctionQuantity),
         soldQuantity: String(sold),
         frozenAtEndQuantity: String(body.data.frozenAtEndQuantity),
@@ -840,10 +882,12 @@ router.post("/prepared-food/daily/:date/:articleId/close", async (req: Request, 
       .for("update");
     if (!stock) throw new Error("Zaloga pripravljene hrane ne obstaja.");
     const currentSold = await soldQuantity(enotaId, businessDate, ledger.artikelId, tx);
-    const recipe = await tx.select({
+    const currentRecipe = await tx.select({
       quantity: normativiTable.kolicina,
       ingredientId: normativiTable.vhodniArtikelId,
     }).from(normativiTable).where(eq(normativiTable.artikelId, ledger.artikelId));
+    const recipe = ledger.preparationBatches == null ? currentRecipe
+      : ledger.preparationRecipeSnapshot ?? currentRecipe;
     const ingredientIds = [...new Set(recipe.map((norm) => norm.ingredientId))].sort((a, b) => a - b);
     // Recompute first to lock each stock row and snapshot the transactionally current WAC.
     await recomputeZaloge(ingredientIds, tx);
@@ -861,12 +905,14 @@ router.post("/prepared-food/daily/:date/:articleId/close", async (req: Request, 
       ...norm,
       wac: wacByIngredient.get(norm.ingredientId) ?? 0,
     }));
-    const preparedCost = preparedMaterialUnitCost(norms.map((n) => ({ quantity: Number(n.quantity), wac: Number(n.wac ?? 0) })));
+    const production = productionTotals(ledger.preparationBatches, ledger.normativeBatchPieces, Number(ledger.preparedQuantity));
+    const preparedCost = preparedMaterialUnitCost(norms.map((n) => ({ quantity: Number(n.quantity), wac: Number(n.wac ?? 0) })))
+      * (production.pieces > 0 ? production.recipeQuantity / production.pieces : 1);
      const allocation = allocatePreparedFood({ thawedQuantity: Number(ledger.thawedQuantity), preparedQuantity: Number(ledger.preparedQuantity), correctionQuantity: Number(ledger.correctionQuantity), soldQuantity: currentSold, frozenAtEndQuantity: Number(ledger.frozenAtEndQuantity), thawedCostPerPortion: Number(stock.frozenCostPerPortion), preparedCostPerPortion: preparedCost });
     for (const norm of norms) {
       const quantity = -preparedMaterialQuantityForProduction(
         Number(norm.quantity),
-        Number(ledger.preparedQuantity),
+        production.recipeQuantity,
       );
       const unitCost = Number(norm.wac ?? 0);
       await tx.insert(zalogaGibiTable).values({

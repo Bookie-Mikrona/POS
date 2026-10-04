@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   serial,
@@ -60,6 +61,9 @@ export const preparedFoodDailyLedgersTable = pgTable("prepared_food_daily_ledger
     .references(() => artikliTable.id, { onDelete: "restrict" }),
   thawedQuantity: numeric("thawed_quantity", { precision: 14, scale: 4 }).notNull().default("0"),
   preparedQuantity: numeric("prepared_quantity", { precision: 14, scale: 4 }).notNull().default("0"),
+  preparationBatches: jsonb("preparation_batches").$type<Array<{ batchCount: number; piecesPerBatch: number }> | null>(),
+  normativeBatchPieces: integer("normative_batch_pieces"),
+  preparationRecipeSnapshot: jsonb("preparation_recipe_snapshot").$type<Array<{ ingredientId: number; quantity: string }> | null>(),
   /** Korekcija računalniške količine na dejansko količino v posodi. */
   correctionQuantity: numeric("correction_quantity", { precision: 14, scale: 4 }).notNull().default("0"),
   /** Izračunana količina prodanih vrhnjih postavk; ni uporabniški vnos. */
