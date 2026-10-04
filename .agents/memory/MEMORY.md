@@ -142,5 +142,6 @@
 - [Samostojne postavke GK](native-ledger-open-items.md) — odprtost in plačila brez nadomestnih računov; neznana zapadlost in ločeni strani ostanejo razvidni.
 - [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.
 - [Razrez pripravljenih sladic](dessert-preparation-yields.md) — privzeti kosi iz normativa; kuhar izbere razrez vsake priprave, ne da bi samo razrez povečal porabo surovin.
+- [Receptne pretvorbe žličk](recipe-spoon-gram-conversions.md) — bogat ščepec soli 1 g; ½ žličke pecilnega praška 2,5 g; poravnana žlička cimeta 4 g.
 - [Obseg razvojnega okolja](development-environment-scope.md) — uporabnik dela izključno v dev; neskladje z naslovom na posnetku najprej razjasni, ne diagnosticiraj drugega okolja.
 - [Razvojna orodja in okolje](development-tooling-guides.md) — zaganjalniki, TypeScript, OpenAPI, paketi, razvojni 502, preizkusi in poti prenosov.
