@@ -18,7 +18,7 @@ export function PreparationBatchEditor({ name, defaultPieces, value, readOnly, o
   const setField = (index: number, key: keyof PreparationBatch, number: number) =>
     setDraft(prev => prev.map((b, i) => i === index ? { ...b, [key]: number } : b));
   return <>
-    <Button type="button" size="sm" variant="outline" aria-label={`Priprave in razrez: ${name}`}
+    <Button type="button" size="sm" variant="outline" className="h-auto min-h-8 max-w-full whitespace-normal px-2 py-1 text-xs lg:w-full" aria-label={`Priprave in razrez: ${name}`}
       onClick={() => { setDraft(value?.map(b => ({ ...b })) ?? (readOnly ? [] : [{ batchCount: 1, piecesPerBatch: defaultPieces }])); setOpen(true); }}>
       Priprave in razrez{value?.length ? ` (${value.length})` : ""}
     </Button>

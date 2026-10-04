@@ -181,6 +181,10 @@ describe("PreparedFoodPage - Daily Ledger", () => {
 
     await openTestDate();
 
+    // Editable controls need reserved column width, with scrolling on narrow desktops.
+    expect(screen.getByRole("table", { name: "Dnevna evidenca pripravljene hrane" }).className)
+      .toContain("lg:min-w-[1040px]");
+
     // Inputs for thawed, prepared, correction, frozen
     fireEvent.click(screen.getByRole("button", { name: "Odtajano: povečaj za eno" }));
     fireEvent.click(screen.getByRole("button", { name: "Odtajano: povečaj za eno" }));
@@ -194,6 +198,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
       thawedQuantity: 12,
       preparedQuantity: 6,
       correctionQuantity: 0,
+      preparationBatches: null,
       frozenAtEndQuantity: 2 // unchanged
     });
   });
@@ -282,6 +287,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
       thawedQuantity: 10,
       preparedQuantity: 0.35,
       correctionQuantity: 0,
+      preparationBatches: null,
       frozenAtEndQuantity: 2,
     });
   });
@@ -302,6 +308,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
       thawedQuantity: 10,
       preparedQuantity: 5,
       correctionQuantity: 0.025,
+      preparationBatches: null,
       frozenAtEndQuantity: 2,
     });
   });

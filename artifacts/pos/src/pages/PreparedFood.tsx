@@ -83,7 +83,7 @@ function TouchQuantityInput({
     onChange(String(Math.min(maxQuantity ?? Infinity, allowNegative ? next : Math.max(0, next))));
   };
   return (
-    <div className="flex items-stretch justify-end gap-1">
+    <div className="flex shrink-0 items-stretch justify-end gap-1">
       <div className="flex flex-col gap-0.5">
         <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za ${accessibleLargeStepLabel}`} onClick={() => adjust(largeStep)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
           +{largeStepLabel}
@@ -104,7 +104,7 @@ function TouchQuantityInput({
         readOnly={portionBased}
         aria-label={label}
         onChange={portionBased ? undefined : event => onChange(event.target.value)}
-        className="text-center font-semibold"
+        className="shrink-0 text-center font-semibold"
         style={{ height: 32, width: 44, fontSize: 12 }}
       />
       <div className="flex flex-col gap-0.5">
@@ -347,18 +347,18 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
           <div className="py-8 text-center text-muted-foreground">Ni artiklov z operativnim načinom "Pripravljena hrana".</div>
         ) : (
           <div className="rounded-md border p-3 lg:p-0">
-              <Table aria-label="Dnevna evidenca pripravljene hrane" className={`block w-full table-fixed lg:table ${isCompactReadOnlyTable ? "lg:text-xs" : ""}`}>
+              <Table aria-label="Dnevna evidenca pripravljene hrane" className={`block w-full table-fixed lg:table ${isCompactReadOnlyTable ? "lg:text-xs" : "lg:min-w-[1040px]"}`}>
                <TableHeader className="hidden lg:table-header-group">
                 <TableRow>
                   <TableHead className={isCompactReadOnlyTable ? "w-28 !px-1 text-[11px]" : "w-32"}>Artikel</TableHead>
-                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-24 text-right"}>Odtajano</TableHead>
-                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-24 text-right"}>Pripravljeno</TableHead>
-                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-24 text-right"}>Korekcija</TableHead>
-                  <TableHead className={isCompactReadOnlyTable ? "w-14 !px-1 text-right text-[11px]" : "w-16 text-right"}>Skupaj</TableHead>
+                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-32 text-right"}>Odtajano</TableHead>
+                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-40 text-right"}>Pripravljeno</TableHead>
+                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-32 text-right"}>Korekcija</TableHead>
+                  <TableHead className={isCompactReadOnlyTable ? "w-14 !px-1 text-right text-[11px]" : "w-20 text-right"}>Skupaj</TableHead>
                   <TableHead className={isCompactReadOnlyTable ? "w-14 !px-1 text-right text-[11px]" : "w-16 text-right"}>Prodano</TableHead>
                   <TableHead className={isCompactReadOnlyTable ? "w-24 !px-1 text-right text-[11px]" : "w-44 text-right"}>Zamrznjeno</TableHead>
                   <TableHead className={isCompactReadOnlyTable ? "w-14 !px-1 text-right text-[11px]" : "w-16 text-right"}>Kalo</TableHead>
-                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-16 text-right"}>Stanje</TableHead>
+                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-24 text-right"}>Stanje</TableHead>
                 </TableRow>
               </TableHeader>
                <TableBody className="block lg:table-row-group">
