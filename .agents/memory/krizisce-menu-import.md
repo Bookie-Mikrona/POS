@@ -30,3 +30,9 @@ Ustekleničene oziroma drugače pakirane pijače so nabavno-prodajno blago z nor
 **Why:** Uporabnik je ta pravila izrecno potrdil pri vnosu razvojnega cenika, da se prodaja, zaloga in prilagoditve pic obnašajo enotno.
 
 **How to apply:** Pri prihodnjih popravkih ali ponovnem uvozu cenika za Križišče ohrani ta pravila, razen če uporabnik izrecno določi drugače.
+
+Razrez raziskovanih razvojnih sladic je uporabnik 2026-10-04 določil na 12 kosov za prekmursko gibanico, Sacher torto premera 20 cm in jabolčno pito premera 20 cm. Homanov objavljeni zgodovinski recept ostane osnova za 10 kosov.
+
+**Why:** Število 12 je izrecna uporabnikova poslovna izbira, ne izplen, ki bi ga potrjevali spletni viri ali uradna specifikacija. Ne pomeni potrjene mase porcije.
+
+**How to apply:** Pri teh recepturah ne nadomesti uporabnikovega razreza z ocenjenim številom kosov. Pri gibanici ločeno preveri dejansko maso kosa in pogoje zaščitenega imena; nepopolna spletna receptura sama ne potrjuje končnega proizvodnega normativa.
