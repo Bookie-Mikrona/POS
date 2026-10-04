@@ -30,7 +30,6 @@
 - [Samodejno iskanje dobavitelja](poisci-dobavitelja.md) — DDG Lite → bizi.si slug → scrape davčne; brez API ključa; vsi 3 MANJKA_DOBAVITELJ bloki pokrite
 - [Escape v dropdownu znotraj dialoga](escape-dropdown-dialog.md) — Radix capture vs. React bubble: onEscapeKeyDown na DialogContent je edino pravo mesto; stopPropagation() ne deluje
 - [Native file picker v dialogu](native-file-picker-dialog.md) — Radix dialog lahko interpretira fokus sistemskega izbirnika datotek kot zapiranje; med izbiro prepreči outside close.
-- [lib/db rebuild in migracija](libdb-rebuild-migracija.md) — stale .d.ts po spremembi sheme: rebuild z `cd lib/db && npx tsc -p tsconfig.json`; drizzle date() = ISO string; psql za migracije; tsx za teste
 - [UBL InvoiceLine AllowanceCharge](ubl-linijski-rabat.md) — parser-eslog ni bral InvoiceLine/AllowanceCharge (samo Price/AllowanceCharge); POS007 validacija zdaj primerja min(bruto, neto) razliko
 - [bizBox Faza B](bizbox-faza-b.md) — ročna oddaja e-SLOG prek ZZI; modul bizbox.ts; JSZip STORE; eDDress iz davčne; env poverilnice; UBL≠EDIFACT opozorilo
 - [OS amortizacija pravilo](os-amortizacija-pravilo.md) — 022 migracija; naslednji_dan|naslednji_mesec; usklajenost izpis/pregled (023 vhodni_podpis); 3b stornacija POST /storno
@@ -52,7 +51,6 @@
 - [Privzete konto nastavitve](privzete-konto-nastavitve.md) — novi seed je fill-only in serializiran po podjetju; obstoječih podjetij ne spreminja samodejno.
 - [Dostop cron endpointov](cron-endpoint-access.md) — scheduled poti morajo biti pred POS requireEnota in brez CRON_SECRET vedno odpovedati zaprto.
 - [Prijava Clerk v POS](clerk-pos-guides.md) — povezane omejitve host-aware SDK-ja, prevodov, E2E, prehodnih 401 in obsega varoval.
-- [OpenAPI generator](openapi-uuid-generator.md) — omejitve uuid/uri in povezano opozorilo o nepovezanem driftu generiranih datotek.
 - [FURS certifikat scope](furs-certifikat-scope.md) — premise override je legacy disk-pot; globalni upload in resolver nista usklajena, zato naj bo en šifriran company vir.
 - [PostgreSQL backup manifest](postgres-backup-manifest.md) — DDL dump ni tekstovno idempotenten; pred restore preveri odtis, po njem strukturo in pravilno obravnavaj neuporabljene sekvence.
 - [XLSX native numerika](xlsx-native-numerics.md) — typed kanal je opt-in; Excel formule v numeričnih poljih berejo cached number, GTIN in besedilo vedno ostaneta text.
@@ -78,11 +76,8 @@
 - [Zaključek dostave](preklic-dostave.md) — preklicana ali dostavljena dostava izgine iz aktivnega seznama, glavni status naročila pa ostane za ročno obravnavo.
 - [POS prihodki po kategorijah](pos-prihodki-po-kategorijah.md) — prihodkovni konto sledi nespremenljivemu posnetku POS kategorije; DDV ostane agregiran po stopnji.
 - [Podjetniške in FURS DDV kode](company-furs-vat-links.md) — podjetniška koda kaže na točno verzijo FURS kode; temeljnična vrstica hrani oba ločena ID-ja.
-- [Podvojen API watcher](api-workflow-duplicate-watcher.md) — po restartu preveri EADDRINUSE in eno samo procesno drevo; star tsx child lahko še vedno drži port 8080.
-- [Ponovni zagon razvojnega okolja](compute-restart-ui.md) — ko Ctrl+K v Project Editorju ne deluje, dokumentirani `kill 1` znova zažene compute; nato obnovi potrebne workflowe.
 - [Testna podjetja in davčna sled](test-companies-fiscal-trace.md) — testne najemnike loči od dejanskih, vendar jih ne briši po imenu; nekateri hranijo POS račune.
 - [Odhod podjetja in mešane kopije](company-offboarding-policy.md) — stranka prejme svoj preverljiv izvoz; stare skupne kopije ostanejo le do posebej dogovorjenega roka.
-- [Razvojni 502 in glavni Run](dev-preview-main-run.md) — aktivni posamezni workflowi ne izključijo ustavljenega glavnega app stanja; pri 502 preveri in zaženi Run.
 - [Menijski DDV in snapshot postavke](menu-ddv-snapshot.md) — davčna klasifikacija in menijski kontekst sta ločena; zgodovine ne izpeljuj iz trenutnega artikla.
 - [DDV kategorija Pijača-jed](food-drink-ddv.md) — pripravljena pijača-jed ostane 9,5 %; dodan sladkor se pri shranjevanju vedno normalizira na false.
 - [Identiteta nabavnih listin](purchase-source-identity.md) — vrsta listine je klasifikacija, ne del poslovne identitete; ERP match atomarno lastni GL in KPR knjiženje.
@@ -90,18 +85,13 @@
 - [Kartično plačilo darilnega bona](gift-voucher-card-payment.md) — gift intent preživi reload; provider se preveri pred FURS, attempt pa se lahko porabi le enkrat.
 - [PostgreSQL advisory lock in pool](postgres-advisory-lock-pool.md) — sejni lock mora držati isto namensko povezavo od pridobitve do sprostitve.
 - [Drizzle seznami ID-jev](drizzle-array-predicates.md) — JS polje v SQL interpolaciji ni nujno PG array; za zaklepne in druge predikate uporabi inArray.
-- [Pomnilnik TypeScript preverjanja](typescript-memory-budget.md) — API/ERP preverjanje potrebuje več kot 1 GiB heap; po potrebi uporabi 2 GiB samo za preverjevalnik.
 - [Viva Android callback](viva-android-callback.md) — Android ECR rezultat zahteva native Activity/custom URI; Chrome PWA ob povratku ne prejme transactionId.
 - [Payten Android attestation](payten-android-attestation.md) — status/checksum nista dokaz plačila; podpisan native rezultat mora vezati attempt, napravo, ECR, total in globalno referenco.
 - [Expo APK NDK na Replitu](expo-apk-ndk-replit.md) — Nix Android SDK je read-only; pred Expo root pluginom uporabi že nameščeni NDK, sicer Gradle skuša nameščati manjkajočo verzijo.
 - [Viva Bridge Android ABI](viva-bridge-android-abi.md) — ARM64 je primaren za moderne telefone; armeabi-v7a je ločen preverjen paket za ZCS Z92.
 - [Expo Metro produkcijski build](expo-metro-production-build.md) — Expo CLI 54 in Metro 0.83 se razhajata v dogodkih watcherja; produkcijski izhod piši zunaj opazovanega projekta.
 - [Windows lokalni POS gateway](windows-local-gateway.md) — en Windows single-writer za offline gotovinske račune; LAN zahteva TLS, OS trust, pairing in brez samodejnega failoverja.
-- [API bundle in workspace odvisnosti](api-bundle-workspace-dependencies.md) — zunanje odvisnosti notranjih workspace paketov lahko po Publish pruning-u manjkajo; vključiti jih je treba v bundle.
 - [Identiteta natakarja v poročilih](natakar-report-identity.md) — promet združuj po trajnem natakari ID-ju; ime na računu je le zgodovinski posnetek.
-- [PNPM varnostni overrides](pnpm-security-overrides.md) — globalne varnostne pripone dodajaj v korenski package.json; vzporedni workspace overrides se ne združijo.
-- [Python PDF generator](python-pdf-generator.md) — priročnik generiraj z `uv run python`; neposredni `python3` lahko naloži nezdružljiv Pillow iz `.pythonlibs`.
-- [Delovni imenik pnpm filtra](pnpm-filter-cwd.md) — `pnpm --filter ... exec` požene skript iz mape paketa, ne iz korena repozitorija.
 - [Kadrovske POS ure](kadrovske-pos-ure.md) — efektivne ure odštejejo neplačane odmore; nadure so po lokalnem dnevu; poprave, potrditve in napitnine ostanejo sledljive.
 - [Natakar na odmoru](natakar-na-odmoru.md) — odprt odmor začasno odstrani natakarja iz izdaje računa; račun se izda brez natakarja.
 - [Operativna poročila – obseg](operativna-porocila-scope.md) — admin vidi vse enote podjetja, admin_enote svojo; poslovni interval se izračuna za vsako enoto posebej.
@@ -111,7 +101,6 @@
 - [Dogodkovni prenosi zaloge](event-stock-transfers.md) — zgodovina mora uskladiti poslano = porabljeno + preostalo + vrnjeno in omejiti preostalo na dogodkovno količino.
 - [Večhodni POS in QR meni](multicourse-qr-menu.md) — menijska cena, vina in KDS hodi imajo ločene vloge; napredovanje sledi pairingGroupId + courseSequence.
 - [Izbor blagajne pri izdaji računa](receipt-register-selection.md) — aktivna blagajna zahteva ekspliciten ID trenutne enote; legacy fallback velja le brez aktivnih blagajn.
-- [CodeExecution shell poti](codeexecution-shell-paths.md) — vrstice iz callback shellExec lahko vsebujejo skriti CR; pred uporabo kot readFile/writeFile pot jih vedno trimaj.
 - [POS AI svetovalec](pos-ai-svetovalec.md) — LLM samo svetuje; kritične blokade so deterministične, nad svežim tenant-scoped naročilom in ločene od modela.
 - [Spletna primerjava normativov](normative-web-comparison.md) — citati veljajo le iz tipiziranih iskalnih rezultatov; več virov, deterministične enote, brez samodejnih zapisov.
 - [Začetni spletni normativ](initial-smart-normative.md) — manjkajoče nabavne surovine nastanejo šele ob potrditvi z izbrano DDV kategorijo; spletni URL ne dokazuje vsebine recepta.
@@ -144,7 +133,6 @@
 - [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.
 - [EU nabava osnovnega sredstva](eu-os-prejeti-racun.md) — OCR/e-SLOG predlog mora biti potrjen; dobaviteljeva obveznost je neto, DDV samoobdavčitve pa ločen in uravnotežen.
 - [Bookie Old zgodovinska GK](bookie-old-guides.md) — preslikava K2 in zapiranja, dovoljen obseg zgodovinskih računov ter primerjava oddanih bruto izpisov.
-- [Poti predstavljenih datotek](present-asset-paths.md) — za sredstva v knjižnici uporabi ASCII ime datoteke; Unicode v poti lahko odpove pri prenosu.
 - [AJPES JOLP preverjanje](ajpes-jolp-preverjanje.md) — javni JOLP lahko zahteva prijavo; številk iz zbirnih portalov ne obravnavaj kot dokazilo o razporeditvi dobička.
 - [Učni viri kontiranja](ocr-approved-learning.md) — ročno potrjena predloga je učni vir tudi pred knjiženjem; nepregledan osnutek računa ni potrjena zgodovina.
 - [Slovenska matična številka](slovenian-party-registration.md) — 7 mest in 10-mestni sedež s končnico 000 sta ista identiteta; druge končnice niso samodejno enakovredne.
@@ -152,9 +140,7 @@
 - [Namen AJPES izvoza](ajpes-annual-report-contract.md) — XLSX/PDF sledita predlogi JOLP; XML je namenjen dejanskemu uvozu v AJPES, ne splošni izmenjavi.
 - [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.
 - [Samostojne postavke GK](native-ledger-open-items.md) — odprtost in plačila brez nadomestnih računov; neznana zapadlost in ločeni strani ostanejo razvidni.
-- [Vrstni red apply_patch](apply-patch-hunk-order.md) — odseke iste datoteke razvrsti od začetka proti koncu; obratni vrstni red lahko zavrne pravilen kontekst.
-- [Recharts tooltip testiranje](recharts-tooltip-testing.md) — jsdom brez dejanske postavitve lahko ne sproži hover tooltipa; preveri vezavo kategorijske osi in oznake.
 - [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.
 - [Razrez pripravljenih sladic](dessert-preparation-yields.md) — privzeti kosi iz normativa; kuhar izbere razrez vsake priprave, ne da bi samo razrez povečal porabo surovin.
-- [Native ESM nalaganje API](api-native-esm-loader.md) — zastoj CJS/CLI uvoza ne dokazuje napake API; obstoječi razvojni zaganjalnik ohranja native ESM način.
 - [Obseg razvojnega okolja](development-environment-scope.md) — uporabnik dela izključno v dev; neskladje z naslovom na posnetku najprej razjasni, ne diagnosticiraj drugega okolja.
+- [Razvojna orodja in okolje](development-tooling-guides.md) — zaganjalniki, TypeScript, OpenAPI, paketi, razvojni 502, preizkusi in poti prenosov.
