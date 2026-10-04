@@ -157,3 +157,4 @@
 - [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.
 - [Razrez pripravljenih sladic](dessert-preparation-yields.md) — privzeti kosi iz normativa; kuhar izbere razrez vsake priprave, ne da bi samo razrez povečal porabo surovin.
 - [Native ESM nalaganje API](api-native-esm-loader.md) — zastoj CJS/CLI uvoza ne dokazuje napake API; obstoječi razvojni zaganjalnik ohranja native ESM način.
+- [Obseg razvojnega okolja](development-environment-scope.md) — uporabnik dela izključno v dev; neskladje z naslovom na posnetku najprej razjasni, ne diagnosticiraj drugega okolja.
