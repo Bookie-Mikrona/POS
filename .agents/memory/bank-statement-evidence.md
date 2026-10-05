@@ -20,3 +20,9 @@ Ročna primerjava knjiženega salda s stanjem, ki ga računovodja prepiše z izp
 **Why:** Knjiženi saldo in dokazljivo stanje banke imata različna namena; nepotrjen ročni vnos ne sme prepisati dokumentarne sledi izpiskov. Primerjava je smiselna le za isti TRR in isti presečni datum.
 
 **How to apply:** Vnos za primerjavo jasno loči od uvoza izpiska in od razpoložljivega kritja. Ob primerjavi zgodovinskega izpiska uporabi knjiženi saldo na njegov datum, ne današnjega.
+
+Bančni izpisek lahko vsebuje izplačila dobaviteljem, plač, DDV in druge vrste prometa. En skupni konto obveznosti ni ustrezna računovodska predpostavka za celoten izpisek; protikonto mora slediti posamezni transakciji oziroma njeni izvorni obveznosti.
+
+**Why:** Uporabnik je izrecno opozoril, da izplačila niso vedno na 2200000 ali enem drugem skupnem kontu.
+
+**How to apply:** Pri razširitvi uvoza podpri različne protikonte po vrsticah ter transakcije brez dobaviteljskega računa. Skupna nastavitev je lahko le predlog, ne brezpogojno kontiranje vseh izplačil.
