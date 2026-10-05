@@ -114,7 +114,11 @@ export default function Racuni() {
     { query: { enabled: !!activeCompany?.id } as any }
   );
 
-  const invoices = data?.invoices ?? [];
+  // API orders oldest first; reverse a copy only for this list's display.
+  const invoices = useMemo(
+    () => [...(data?.invoices ?? [])].reverse(),
+    [data?.invoices],
+  );
 
   const [newSheetOpen, setNewSheetOpen] = useState(false);
   const [contractSummaryOpen, setContractSummaryOpen] = useState(false);

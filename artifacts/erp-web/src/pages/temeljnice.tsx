@@ -152,7 +152,11 @@ export default function Temeljnice() {
     { query: { enabled: !!activeCompany?.id } as any }
   );
 
-  const entries = entriesData?.entries ?? [];
+  // API orders oldest first; reverse a copy only for this list's display.
+  const entries = useMemo(
+    () => [...(entriesData?.entries ?? [])].reverse(),
+    [entriesData?.entries],
+  );
 
   const { data: pendingDraftsData } = useListJournalEntries(
     activeCompany?.id ?? "",
