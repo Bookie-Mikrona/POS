@@ -8,23 +8,28 @@ import { normalizirajAlergenProfil } from "./alergeni";
 
 let started = false;
 let running = 0;
+let nextAttemptAt = 0;
 
 /** Lease tokens prevent a timed-out/restarted worker overwriting a newer attempt. */
-export async function runNextAllergenResearch() {
+export async function runNextAllergenResearch(scope?: { enotaId: number; articleIds: number[] }) {
+  // A concurrency cap alone does not limit fast 429 responses or tool/token usage.
+  if (Date.now() < nextAttemptAt) return false;
+  nextAttemptAt = Date.now() + 20_000;
   const token = randomUUID();
   const claimed = await pool.query<{ id: number; artikel_id: number; enota_id: number; attempts: number }>(`
     WITH candidate AS (
       SELECT id FROM pos_allergen_research_jobs
       WHERE ((status='pending' AND attempts < 3 AND available_at <= now())
         OR (status='working' AND lease_until < now()))
+        AND ($2::int IS NULL OR (enota_id=$2 AND artikel_id=ANY($3::int[])))
       ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1
     )
     UPDATE pos_allergen_research_jobs j SET status='working',attempts=j.attempts+1,
       lease_token=$1,lease_until=now()+interval '3 minutes'
     FROM candidate c WHERE j.id=c.id RETURNING j.id,j.artikel_id,j.enota_id,j.attempts
-  `, [token]);
+  `, [token, scope?.enotaId ?? null, scope?.articleIds ?? null]);
   const job = claimed.rows[0];
-  if (!job) return false;
+  if (!job) { nextAttemptAt = 0; return false; }
   let expectedRevision: number | undefined;
   try {
     const [article] = await db.select().from(artikliTable).where(and(
@@ -60,10 +65,23 @@ export async function runNextAllergenResearch() {
     });
   } catch (error) {
     // Store only a generic operational error; upstream errors can contain credentials.
-    logger.warn({ jobId: job.id, artikelId: job.artikel_id }, "Automatic allergen research failed");
-    const failedLease = await pool.query(`UPDATE pos_allergen_research_jobs SET status=$3,available_at=now()+interval '1 minute',
+    const detail = error as { name?: string; message?: string; status?: number; headers?: Headers; cause?: { code?: string } };
+    const retryHeaderSeconds = Number(typeof detail.headers?.get === "function" ? detail.headers.get("retry-after") : null);
+    const retryDelay = detail.status === 429
+      ? Math.max(75_000, Number.isFinite(retryHeaderSeconds) ? Math.min(600_000, retryHeaderSeconds * 1000) : 0)
+      : 60_000;
+    if (detail.status === 429) nextAttemptAt = Math.max(nextAttemptAt, Date.now() + retryDelay);
+    const reason = typeof detail.message === "string" && /^(Spletno iskanje|Spletni odgovor|Spletni viri|Alergen nima|Neveljaven dokaz)/.test(detail.message)
+      ? detail.message : error instanceof SyntaxError ? "Neveljaven JSON odgovora." : "Napaka spletnega klica ali zapisa.";
+    logger.warn({
+      jobId: job.id, artikelId: job.artikel_id, reason,
+      httpStatus: typeof detail.status === "number" ? detail.status : undefined,
+      sqlState: /^[A-Z0-9]{5}$/.test(detail.cause?.code ?? "") ? detail.cause!.code : undefined,
+    }, "Automatic allergen research failed");
+    const failedLease = await pool.query(`UPDATE pos_allergen_research_jobs SET status=$3,
+      available_at=now()+($5::int * interval '1 millisecond'),
       lease_until=NULL,lease_token=NULL,error=$4 WHERE id=$1 AND lease_token=$2`,
-    [job.id, token, job.attempts >= 3 ? "failed" : "pending", "Spletno iskanje alergenov ni uspelo."]);
+    [job.id, token, job.attempts >= 3 ? "failed" : "pending", "Spletno iskanje alergenov ni uspelo.", retryDelay]);
     if (failedLease.rowCount && job.attempts >= 3 && expectedRevision !== undefined) {
       await db.transaction(async tx => {
         await tx.execute(sql`SELECT id FROM artikli WHERE id=${job.artikel_id} AND enota_id=${job.enota_id} FOR UPDATE`);

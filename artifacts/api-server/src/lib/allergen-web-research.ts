@@ -7,6 +7,7 @@ export type AllergenWebResearch = {
   contains: Evidence[];
   traces: Evidence[];
   note: string;
+  searchSources?: string[];
 };
 
 function safeUrl(value: string) {
@@ -53,6 +54,7 @@ export function parseAllergenWebResearch(content: unknown[]): AllergenWebResearc
     contains: evidence(parsed.contains),
     traces: evidence(parsed.traces),
     note: parsed.note.slice(0, 500),
+    searchSources: [...urls],
   };
 }
 
@@ -66,6 +68,9 @@ export async function researchIngredientAllergens(name: string): Promise<Allerge
 Ime lahko vsebuje znamko ali embalažo. Prednost imajo proizvajalčeva deklaracija in trgovčev seznam sestavin.
 Pri čisti generični surovini smeš uporabiti splošni vir za TOČNO to surovino (npr. pšenična moka).
 Pri predelanem izdelku ne prenašaj podatkov druge znamke ali drugega izdelka. Če identitete ni mogoče ujemati, identityMatch=false.
+Generičen naziv sestavljenega izdelka (npr. mešano kebab meso ali pecilni prašek) NI dokaz ujemanja z deklaracijo ene znamke.
+Če za tak izdelek ime ne določa znamke, izdelkovne oznake ali GTIN, uporabi identityMatch=false; možne alergene navedi samo v note.
+Če naziv označuje neživilski material ali embalažo, to izrecno povej v note; ne obravnavaj ga kot živilo brez alergenov.
 Ne sklepaj na odsotnost alergenov, ne zamenjuj sestavin z možnimi sledmi. Pogojne ali generične možne sledi vpiši samo v note;
 v traces sme le konkretno opozorilo za ujemajoči izdelek. Ne predpostavljaj soje v čokoladi ali sulfitov brez ustreznega vira.
 Za vsak alergen navedi URL iz dejanskih rezultatov iskanja. Ne izmišljaj virov.
@@ -91,7 +96,11 @@ export function mergeAutomaticAllergens(
     ? "Samodejno spletno iskanje alergenov – NEPREVERJENO."
     : "Samodejno spletno iskanje: za ta izdelek ni dovolj ustreznih dokazov. NEPREVERJENO; ni potrjeno brez alergenov.";
   const oldNote = typeof current.alergeniOpombaVira === "string" ? current.alergeniOpombaVira : "";
-  const sourceNote = urls.map(url => `Vir: ${url}`).join("\n");
+  const sourceNote = [
+    ...urls.map(url => `Vir alergena: ${url}`),
+    ...(research.searchSources ?? []).filter(url => !urls.includes(url)).slice(0, 2)
+      .map(url => `Pregledan spletni vir (ni potrjena deklaracija): ${url}`),
+  ].join("\n");
   const note = [prefix, research.note, sourceNote, oldNote ? `Prejšnja opomba: ${oldNote}` : ""].filter(Boolean).join("\n");
   // Never cut a source URL in half; retry/report explicit failure instead.
   if (note.length > 2000) throw new Error("Spletni viri presegajo dolžino alergenske opombe.");

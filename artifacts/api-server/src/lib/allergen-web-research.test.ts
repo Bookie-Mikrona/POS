@@ -14,7 +14,7 @@ const current = {
 
 describe("automatic ingredient allergen research", () => {
   it("accepts only a typed live source with valid EU codes", () => {
-    expect(parseAllergenWebResearch(response(base))).toEqual(base);
+    expect(parseAllergenWebResearch(response(base))).toEqual({ ...base, searchSources: [source] });
   });
   it("rejects URLs invented in model text", () => {
     expect(() => parseAllergenWebResearch(response({
@@ -60,6 +60,13 @@ describe("automatic ingredient allergen research", () => {
     });
     expect(merged.alergeni).toEqual(["GLUTEN"]);
     expect(merged.alergeniSledi).toEqual(["SEZAM"]);
+  });
+  it("retains real searched sources even when no product declaration matches", () => {
+    const result = parseAllergenWebResearch(response({ ...base, identityMatch: false, contains: [] }));
+    const merged = mergeAutomaticAllergens({ ...current, alergeni: [], alergeniSledi: [] }, result);
+    expect(merged.alergeniOpombaVira).toContain(source);
+    expect(merged.alergeniOpombaVira).toContain("ni potrjena deklaracija");
+    expect(merged.alergeni).toEqual([]);
   });
   it("reports overly long evidence rather than silently corrupting a URL", () => {
     expect(() => mergeAutomaticAllergens({
