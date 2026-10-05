@@ -35,7 +35,7 @@ import { resolveCompanyVatCodeLinks } from "../lib/journalVatCodeLinks";
 import { getPosReceiptBookingVatEvidence } from "../lib/posReceiptBooking";
 import {
   deleteDraftJournalEntry,
-  JournalEntryDeletionError,
+  getJournalEntryDeletionFailure,
 } from "../lib/journalEntryDeletion";
 import { isReservedOpeningReference, loadAnnualOpening, matchesAnnualOpening } from "../lib/annualOpening";
 
@@ -629,20 +629,10 @@ router.delete(
         return;
       }
       res.json({ deleted: true, id });
-    } catch (error: any) {
-      if (error instanceof JournalEntryDeletionError && error.code === "NOT_DELETABLE") {
-        res.status(400).json({ error: "Izbrisati je mogoče samo osnutek temeljnice" });
-        return;
-      }
-      if (error instanceof JournalEntryDeletionError && error.code === "REPORTED_VAT") {
-        res.status(409).json({ error: "Osnutka ni mogoče izbrisati, ker vsebuje DDV podatke, vključene v poročilo" });
-        return;
-      }
-      if (error?.code === "23503") {
-        res.status(409).json({ error: "Osnutka ni mogoče izbrisati, ker je povezan z drugim zaščitenim poslovnim zapisom" });
-        return;
-      }
-      throw error;
+    } catch (error: unknown) {
+      const failure = getJournalEntryDeletionFailure(error);
+      if (failure.status === 500) console.error("Brisanje osnutka temeljnice ni uspelo", error);
+      res.status(failure.status).json({ error: failure.message });
     }
   },
 );

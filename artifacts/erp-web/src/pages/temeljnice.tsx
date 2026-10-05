@@ -4,6 +4,7 @@ import { trackEvent } from "@/lib/analytics";
 import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react";
+import { getJournalEntryDeletionErrorMessage } from "@/lib/journalEntryDeletionError";
 
 import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users, Info, Receipt, Download, ChevronDown } from "lucide-react";
 
@@ -26,6 +27,7 @@ import {
   useListProjects,
   useListDepartments,
   getListJournalEntriesQueryKey,
+  getListInvoicesQueryKey,
   useListCompanyFursVatCodes,
   useListVatCodes,
   type JournalEntry,
@@ -227,15 +229,21 @@ export default function Temeljnice() {
     const sourceNote = entry.createdBy === "pos-receipt-booking"
       ? "\n\nOsnutek boste lahko pozneje ponovno pripravili iz POS prejemnice."
       : "";
-    if (!window.confirm(`Ali res želite izbrisati osnutek temeljnice »${entry.reference || entry.description}«?${sourceNote}`)) return;
+    if (!window.confirm(`Ali res želite izbrisati osnutek temeljnice »${entry.reference || entry.description}«?${sourceNote}\nPovezani osnutki računov ostanejo shranjeni; odstrani se samo njihova povezava s temeljnico.`)) return;
     deleteMut.mutate({ companyId: activeCompany.id, id: entry.id }, {
       onSuccess: () => {
         trackEvent("journal_entry_draft_deleted");
         setDetailEntry(null);
         queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey(activeCompany.id) });
+        const invoicesKey = getListInvoicesQueryKey(activeCompany.id)[0];
+        queryClient.invalidateQueries({
+          predicate: query => typeof query.queryKey[0] === "string"
+            && typeof invoicesKey === "string"
+            && (query.queryKey[0] === invoicesKey || query.queryKey[0].startsWith(`${invoicesKey}/`)),
+        });
       },
-      onError: (error: any) => {
-        window.alert(error?.data?.error ?? error?.message ?? "Osnutka ni bilo mogoče izbrisati.");
+      onError: (error: unknown) => {
+        window.alert(getJournalEntryDeletionErrorMessage(error));
       },
     });
   };
