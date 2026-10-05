@@ -532,6 +532,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     file: "254-prepared-norm-portion.sql",
     classification: "schema",
   },
+  {
+    file: "255-partner-liability-payment-scope.sql",
+    classification: "integrity",
+    dependsOn: ["248-payment-ledger-allocations.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

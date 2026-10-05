@@ -444,8 +444,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
     message: string;
   } | null>(null);
 
-  const cpTypeForPayment = formData.direction === "inbound" ? "customer" : "supplier";
-  const validCounterparties = counterparties.filter(c => c.type === cpTypeForPayment || c.type === "both");
+  const validCounterparties = counterparties;
 
   const bankAccounts = accounts.filter(a =>
     formData.direction === "outbound"
@@ -454,10 +453,11 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
   );
   const selectedBankBalance = bankBalanceData?.accounts.find(a => a.accountId === formData.bankAccountId);
   
-  const arapPrefix = formData.direction === "inbound" ? "120" : "220";
   const arapAccounts = accounts.filter(a =>
-    a.code.startsWith(arapPrefix) || a.code.startsWith("14") || a.code.startsWith("43") ||
-    (sspPrefill?.arApAccountId === a.id),
+    a.isActive && a.allowsPosting !== false && (
+      (formData.direction === "outbound" ? a.type === "liability" : a.type === "asset") ||
+      (sspPrefill?.arApAccountId === a.id)
+    ),
   );
 
   // Invoices for selected counterparty and direction
@@ -705,7 +705,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
               <Label>{formData.direction === "outbound" ? "Obseg" : "Partner"} <span className="text-destructive">*</span></Label>
               {formData.direction === "outbound" ? (
                 <div className="h-10 rounded-md border bg-muted/30 px-3 flex items-center text-sm font-medium">
-                  Vsi dobavitelji z odprtimi računi
+                  Vsi partnerji z odprtimi obveznostmi — računi, plače, DDV in druge knjižbe
                 </div>
               ) : (
                 <Select disabled={!!sspPrefill} value={formData.counterpartyId} onValueChange={val => setFormData(p => ({ ...p, counterpartyId: val }))}>
@@ -808,7 +808,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
           {formData.direction === "outbound" ? (
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold">Odprti računi dobavitelja</h3>
+                <h3 className="text-sm font-semibold">Odprte obveznosti partnerja</h3>
                 <p className="text-xs text-muted-foreground mt-1">Razvrščeno po datumu zapadlosti. Znesek lahko zmanjšate za delno plačilo.</p>
                 {hasUnknownNativeMaturity && <p className="text-xs text-amber-700 mt-1">Postavke GK brez roka niso vključene pri izbiri vseh, ker njihove zapadlosti ni mogoče ugotoviti. Po preverjanju jih lahko izberete ročno; niso samodejno označene kot zapadle.</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -825,7 +825,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
                 {openItemsLoading ? (
                   <div className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
                 ) : supplierOpenItems.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-muted-foreground">Dobavitelj nima odprtih računov.</div>
+                  <div className="p-6 text-center text-sm text-muted-foreground">Partner nima odprtih obveznosti.</div>
                 ) : supplierOpenItems.map(item => {
                   const itemIdentity = allocationIdentity(item as any);
                   const allocation = allocations.find(current => current.invoiceId === itemIdentity?.invoiceId && current.journalLineId === itemIdentity?.journalLineId);

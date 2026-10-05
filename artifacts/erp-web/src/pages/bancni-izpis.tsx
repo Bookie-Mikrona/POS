@@ -24,6 +24,7 @@ import {
   useListCounterparties,
   getListPaymentsQueryKey,
   useListPayments,
+  useListInvoices,
   reconcileBankStatementLine,
 } from "@workspace/api-client-react";
 
@@ -88,6 +89,7 @@ interface TransactionWithSuggestions {
 
 type MatchDecision =
   | { kind: "matched"; invoiceId: string; invoiceNumber: string; counterpartyId: string; counterpartyName: string; allocatedAmount: string }
+  | { kind: "standalone"; counterpartyId: string; arApAccountId: string }
   | { kind: "reconcile"; paymentId: string; label: string }
   | { kind: "skip" }
   | { kind: "pending" };
@@ -425,8 +427,12 @@ export default function BancniIzpis() {
   // Samo knjižljivi konti — skupinski/sintetični konti (allowsPosting=false) niso na voljo za izbiro
   const accounts = (accountsData?.accounts ?? []).filter(a => a.isActive && a.allowsPosting !== false);
   const bankAccounts = accounts.filter(a => a.code.startsWith("11"));
-  const arAccounts = accounts.filter(a => a.code.startsWith("12") || a.code.startsWith("14"));
-  const apAccounts = accounts.filter(a => a.code.startsWith("22") || a.code.startsWith("43"));
+  const arAccounts = accounts;
+  const apAccounts = accounts;
+  const { data: invoicesData } = useListInvoices(activeCompany?.id ?? "", {}, {
+    query: { enabled: !!activeCompany?.id } as any,
+  });
+  const invoices = invoicesData?.invoices ?? [];
 
   const { data: paymentsData } = useListPayments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
   const reconcilablePayments = (paymentsData?.payments ?? []).filter(p => p.status === "draft" || p.status === "posted");
@@ -561,7 +567,7 @@ export default function BancniIzpis() {
     setDecisions(prev => new Map(prev).set(txId, decision));
   };
 
-  const matchedCount = [...decisions.values()].filter(d => d.kind === "matched" || d.kind === "reconcile").length;
+  const matchedCount = [...decisions.values()].filter(d => d.kind === "matched" || d.kind === "reconcile" || d.kind === "standalone").length;
   const skippedCount = [...decisions.values()].filter(d => d.kind === "skip").length;
   const pendingCount = [...decisions.values()].filter(d => d.kind === "pending").length;
   const duplicateCount = suggestions.filter(s => s.duplicateOf).length;
@@ -577,6 +583,17 @@ export default function BancniIzpis() {
     if (!wizardCompanyIdRef.current || activeCompany.id !== wizardCompanyIdRef.current) {
       setShowCompanyChangedDialog(true);
       return;
+    }
+    for (const item of suggestions) {
+      const decision = decisions.get(item.transaction.id);
+      if (decision?.kind !== "matched" && decision?.kind !== "standalone") continue;
+      const accountId = decision.kind === "standalone"
+        ? decision.arApAccountId
+        : invoices.find(invoice => invoice.id === decision.invoiceId)?.arApAccountId;
+      if (!decision.counterpartyId || !accounts.some(account => account.id === accountId)) {
+        setConfirmError(`Transakcija ${item.transaction.reference ?? item.transaction.date}: izberite partnerja in aktiven knjižljiv protikonto.`);
+        return;
+      }
     }
     // React state is not updated synchronously, so a fast second click can enter
     // this handler before `confirming` disables the button. Acquire a synchronous
@@ -596,7 +613,7 @@ export default function BancniIzpis() {
     // Count only matched transactions for the progress total
     const toProcess = suggestions.filter(item => {
       const d = decisions.get(item.transaction.id);
-      return d && (d.kind === "matched" || d.kind === "reconcile");
+      return d && (d.kind === "matched" || d.kind === "reconcile" || d.kind === "standalone");
     });
     const total = toProcess.length;
     let processedIndex = 0;
@@ -650,12 +667,14 @@ export default function BancniIzpis() {
         }
         continue;
       }
-      if (decision.kind !== "matched") { skipped++; continue; }
+      if (decision.kind !== "matched" && decision.kind !== "standalone") { skipped++; continue; }
 
       // matched
       processedIndex++;
       const direction = tx.amount > 0 ? "inbound" : "outbound";
-      const arApAccountId = direction === "inbound" ? arAccountId : apAccountId;
+      const arApAccountId = decision.kind === "standalone"
+        ? decision.arApAccountId
+        : invoices.find(invoice => invoice.id === decision.invoiceId)?.arApAccountId;
       const counterpartyId = decision.counterpartyId;
 
       // If the user explicitly chose to import a transaction that was flagged as a
@@ -673,6 +692,8 @@ export default function BancniIzpis() {
 
       let paymentId: string | null = null;
       try {
+        if (!arApAccountId) throw new Error("Za transakcijo manjka protikonto. Preverite račun oziroma izberite konto.");
+        if (!registered.lineIds[tx.id]) throw new Error("Vrstica izpiska ni evidentirana.");
         paymentId = await createPaymentApi(activeCompany.id, {
           direction,
           counterpartyId,
@@ -683,12 +704,12 @@ export default function BancniIzpis() {
           bankAccountId,
           arApAccountId,
           notes: tx.description ?? null,
-          allocations: [
+          allocations: decision.kind === "matched" ? [
             {
               invoiceId: decision.invoiceId,
               allocatedAmount: parseFloat(decision.allocatedAmount),
             },
-          ],
+          ] : [],
           bankStatementLineId: registered.lineIds[tx.id],
           force: forceImport,
         });
@@ -696,6 +717,7 @@ export default function BancniIzpis() {
       } catch (e: any) {
         // Record partial failure but continue
         skipped++;
+        postErrors.push(`${txLabel}: ${e.message ?? "Plačila ni bilo mogoče ustvariti"}`);
         continue;
       }
 
@@ -1000,7 +1022,7 @@ export default function BancniIzpis() {
               </div>
 
               <div className="space-y-2">
-                <Label>Konto terjatev (za prejeta plačila)</Label>
+                <Label>Privzeti protikonto za prilive (neobvezno)</Label>
                 <Select value={arAccountId} onValueChange={setArAccountId}>
                   <SelectTrigger>
                     <SelectValue placeholder="npr. 1200 Terjatve" />
@@ -1014,7 +1036,7 @@ export default function BancniIzpis() {
               </div>
 
               <div className="space-y-2">
-                <Label>Konto obveznosti (za izplačila)</Label>
+                <Label>Privzeti protikonto za odlive (neobvezno)</Label>
                 <Select value={apAccountId} onValueChange={setApAccountId}>
                   <SelectTrigger>
                     <SelectValue placeholder="npr. 2200 Obveznosti" />
@@ -1074,7 +1096,7 @@ export default function BancniIzpis() {
           <div className="flex justify-end">
             <Button
               onClick={handleParse}
-              disabled={!file || !periodId || !bankAccountId || (!arAccountId && !apAccountId) || parsing || matching}
+              disabled={!file || !periodId || !bankAccountId || parsing || matching}
             >
               {(parsing || matching) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {parsing
@@ -1093,6 +1115,13 @@ export default function BancniIzpis() {
       {/* ─── STEP 2: Review ──────────────────────────────────────────────────── */}
       {step === "review" && (
         <div className="space-y-4">
+          {confirmError && (
+            <Alert variant="destructive" role="alert">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Preverite podatke transakcije</AlertTitle>
+              <AlertDescription>{confirmError}</AlertDescription>
+            </Alert>
+          )}
           {/* Skipped rows warning */}
           {skippedRows.length > 0 && (
             <Alert variant="default" className="border-amber-200 bg-amber-50 text-amber-900 [&>svg]:text-amber-600">
@@ -1176,7 +1205,7 @@ export default function BancniIzpis() {
               </Button>
               <Button size="sm" onClick={handleConfirm} disabled={matchedCount === 0 || confirming}>
                 {confirming && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                Poknjiži {matchedCount} plačil <ChevronRight className="ml-1 h-3 w-3" />
+                Potrdi {matchedCount} transakcij <ChevronRight className="ml-1 h-3 w-3" />
               </Button>
             </div>
           </div>
@@ -1192,6 +1221,11 @@ export default function BancniIzpis() {
                 counterparties={counterparties}
                 existingPayments={reconcilablePayments}
                 duplicateOf={item.duplicateOf}
+                accounts={accounts}
+                defaultAccountId={item.transaction.amount > 0 ? arAccountId : apAccountId}
+                invoiceAccountId={decisions.get(item.transaction.id)?.kind === "matched"
+                  ? invoices.find(invoice => invoice.id === (decisions.get(item.transaction.id) as Extract<MatchDecision, { kind: "matched" }>).invoiceId)?.arApAccountId ?? ""
+                  : ""}
               />
             ))}
           </div>
@@ -1202,7 +1236,7 @@ export default function BancniIzpis() {
             </Button>
             <Button onClick={handleConfirm} disabled={matchedCount === 0 || confirming}>
               {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Poknjiži {matchedCount} plačil
+              Potrdi {matchedCount} transakcij
             </Button>
           </div>
         </div>
@@ -1288,14 +1322,14 @@ export default function BancniIzpis() {
           {confirmResult.postErrors.length > 0 && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Napake pri samodejnem knjiženju</AlertTitle>
+              <AlertTitle>Napake pri obdelavi izpiska</AlertTitle>
               <AlertDescription>
                 <ul className="mt-1 space-y-1 text-left list-disc list-inside">
                   {confirmResult.postErrors.map((e, i) => (
                     <li key={i} className="text-xs">{e}</li>
                   ))}
                 </ul>
-                <p className="mt-2 text-xs">Plačila so bila ustvarjena — poknjižite jih ročno v seznamu plačil.</p>
+                <p className="mt-2 text-xs">Preverite navedene transakcije. Uspešno ustvarjeni osnutki so v seznamu plačil; neuspešne vrstice ostanejo v evidenci izpiska.</p>
               </AlertDescription>
             </Alert>
           )}
@@ -1335,13 +1369,16 @@ function StepIndicator({ num, label, active, done }: { num: number; label: strin
 
 // ─── Transaction review row ───────────────────────────────────────────────────
 
-function TransactionReviewRow({
+export function TransactionReviewRow({
   item,
   decision,
   onDecision,
   counterparties,
   existingPayments,
   duplicateOf,
+  accounts,
+  defaultAccountId,
+  invoiceAccountId,
 }: {
   item: TransactionWithSuggestions;
   decision: MatchDecision;
@@ -1349,6 +1386,9 @@ function TransactionReviewRow({
   counterparties: any[];
   existingPayments: any[];
   duplicateOf?: DuplicateInfo;
+  accounts: Array<{ id: string; code: string; name: string }>;
+  defaultAccountId: string;
+  invoiceAccountId: string;
 }) {
   const tx = item.transaction;
   const isInbound = tx.amount > 0;
@@ -1358,13 +1398,55 @@ function TransactionReviewRow({
 
   // Duplicate transactions get amber border even when skipped, to stay visually distinct
   const statusColor =
-    (decision.kind === "matched" || decision.kind === "reconcile") ? "border-green-500 bg-green-50"
+    (decision.kind === "matched" || decision.kind === "reconcile" || decision.kind === "standalone") ? "border-green-500 bg-green-50"
     : decision.kind === "skip" && duplicateOf ? "border-amber-400 bg-amber-50/40"
     : decision.kind === "skip" ? "border-muted bg-muted/20"
     : "border-amber-400 bg-amber-50";
 
   return (
     <div className={`border-2 rounded-lg p-4 transition-colors ${statusColor}`}>
+      {decision.kind === "matched" && (
+        <p className="text-sm mb-3">
+          Protikonto računa: {accounts.find(account => account.id === invoiceAccountId)
+            ? `${accounts.find(account => account.id === invoiceAccountId)!.code} — ${accounts.find(account => account.id === invoiceAccountId)!.name}`
+            : "Račun nima razpoložljivega knjižljivega konta"}
+        </p>
+      )}
+      {decision.kind !== "reconcile" && (
+        <div className="mb-3 space-y-2">
+          {decision.kind !== "standalone" ? (
+            <Button variant="outline" size="sm" onClick={() => onDecision({
+              kind: "standalone", counterpartyId: "", arApAccountId: defaultAccountId,
+            })}>Brez računa — izberi protikonto</Button>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Protikonto transakcije</Label>
+                <Select value={decision.arApAccountId} onValueChange={value => onDecision({ ...decision, arApAccountId: value })}>
+                  <SelectTrigger><SelectValue placeholder="Izberite knjižljiv konto" /></SelectTrigger>
+                  <SelectContent>{accounts.map(account => (
+                    <SelectItem key={account.id} value={account.id}>{account.code} — {account.name}</SelectItem>
+                  ))}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Partner / prejemnik oziroma plačnik</Label>
+                <Select value={decision.counterpartyId} onValueChange={value => onDecision({ ...decision, counterpartyId: value })}>
+                  <SelectTrigger><SelectValue placeholder="Izberite partnerja" /></SelectTrigger>
+                  <SelectContent>{counterparties.map(partner => (
+                    <SelectItem key={partner.id} value={partner.id}>{partner.name}</SelectItem>
+                  ))}</SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                Samostojna transakcija brez računa. Knjiži celoten znesek na izbrani protikonto;
+                ne ustvarja računa, DDV evidence ali samodejnega zapiranja drugih obveznosti.
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => onDecision({ kind: "pending" })}>Prekliči izbiro</Button>
+            </div>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         {/* Transaction info */}
         <div className="flex-1 min-w-0">

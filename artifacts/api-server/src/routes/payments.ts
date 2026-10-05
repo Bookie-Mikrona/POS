@@ -513,7 +513,10 @@ router.post(
       return;
     }
     if (bankStatementLineId) {
-      const [statementLine] = await db.select({ id: bankStatementLinesTable.id })
+      const [statementLine] = await db.select({
+        id: bankStatementLinesTable.id, amount: bankStatementLinesTable.amount,
+        bookingDate: bankStatementLinesTable.bookingDate, currency: bankStatementLinesTable.currency,
+      })
         .from(bankStatementLinesTable)
         .innerJoin(bankStatementsTable, eq(bankStatementsTable.id, bankStatementLinesTable.statementId))
         .where(and(
@@ -524,6 +527,12 @@ router.post(
         .limit(1);
       if (!statementLine) {
         res.status(400).json({ error: "Vrstica bančnega izpiska ne pripada izbranemu podjetju ali bančnemu kontu" });
+        return;
+      }
+      if (statementLine.currency !== "EUR" || statementLine.bookingDate !== paymentDate
+        || Math.abs(Math.abs(Number(statementLine.amount)) - amount) > 0.005
+        || (Number(statementLine.amount) > 0 ? "inbound" : "outbound") !== direction) {
+        res.status(400).json({ error: "Datum, smer, valuta in znesek plačila morajo ustrezati vrstici bančnega izpiska" });
         return;
       }
     }
@@ -548,11 +557,24 @@ router.post(
       }
     }
 
-    const [arApAcc] = await db.select({ id: accountsTable.id })
+    const [arApAcc] = await db.select({
+      id: accountsTable.id, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting,
+      requiresCostCenter: accountsTable.requiresCostCenter, costCenterPolicy: accountsTable.costCenterPolicy,
+      requiresProject: accountsTable.requiresProject,
+    })
       .from(accountsTable)
       .where(and(eq(accountsTable.id, arApAccountId), eq(accountsTable.companyId, companyId)))
       .limit(1);
     if (!arApAcc) { res.status(400).json({ error: "Konto terjatev/obveznosti ni najden ali ne pripada temu podjetju" }); return; }
+    if (!arApAcc.isActive || arApAcc.allowsPosting === false) {
+      res.status(400).json({ error: "Protikonto ni aktiven ali ne dovoljuje knjiženja" });
+      return;
+    }
+    if (bankStatementLineId && !allocations?.length && !ledgerAllocations.length
+      && (arApAcc.requiresCostCenter || arApAcc.costCenterPolicy === "required" || arApAcc.requiresProject)) {
+      res.status(400).json({ error: "Izbrani protikonto zahteva stroškovno mesto ali projekt. To transakcijo vnesite s potrebnimi dimenzijami v temeljnici; uvoz je ne bo knjižil brez njih." });
+      return;
+    }
 
     // Validacija poravnav
     if (allocations && allocations.length > 0) {
@@ -607,6 +629,10 @@ router.post(
         res.status(400).json({
           error: `Prejeto plačilo (inbound) je mogoče poravnati samo z izdanimi računi, izplačilo (outbound) samo s prejetimi`,
         });
+        return;
+      }
+      if (validInvoices.some(invoice => invoice.arApAccountId !== arApAccountId)) {
+        res.status(400).json({ error: "Protikonto plačila mora biti enak kontu obveznosti oziroma terjatve povezanega računa" });
         return;
       }
       // SŠP is a receivable to the configured public payer, never a discount.
@@ -1053,6 +1079,9 @@ router.post(
           throw Object.assign(new Error("Poravnani račun(i) ne obstajajo v tem podjetju"), { statusCode: 400 });
         }
         for (const inv of lockedInvoices) {
+          if (inv.arApAccountId !== payment.arApAccountId) {
+            throw Object.assign(new Error("Protikonto plačila ne ustreza kontu povezanega računa"), { statusCode: 400 });
+          }
           if (inv.counterpartyId !== payment.counterpartyId) {
             throw Object.assign(new Error("Poravnava vsebuje račun drugega partnerja"), { statusCode: 400 });
           }
@@ -1747,20 +1776,17 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
         for (const group of proposedPayments!) {
           if (!group || typeof group.counterpartyId !== "string" || typeof group.arApAccountId !== "string"
             || !Array.isArray(group.allocations) || !group.allocations.length) {
-            throw Object.assign(new Error("Vsaka predlagana skupina potrebuje dobavitelja, konto obveznosti in dodelitve"), { status: 400 });
+            throw Object.assign(new Error("Vsaka predlagana skupina potrebuje partnerja, konto obveznosti in dodelitve"), { status: 400 });
           }
           const [apAccount] = await tx.select({
-            code: accountsTable.code, type: accountsTable.type, isOpenItem: accountsTable.isOpenItem,
+            code: accountsTable.code, type: accountsTable.type,
             isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting,
           }).from(accountsTable).where(and(
             eq(accountsTable.id, group.arApAccountId), eq(accountsTable.companyId, companyId),
           )).limit(1);
-          const containsInvoice = group.allocations.some(allocation => typeof allocation?.invoiceId === "string");
           if (!apAccount || !apAccount.isActive || apAccount.allowsPosting === false
-            || (containsInvoice
-              ? (!apAccount.code.startsWith("22") && !apAccount.code.startsWith("43"))
-              : (apAccount.type !== "liability" || !apAccount.isOpenItem))) {
-            throw Object.assign(new Error("Konto obveznosti ni aktiven/knjižljiv ali ni konto dobaviteljev"), { status: 400 });
+            || apAccount.type !== "liability") {
+            throw Object.assign(new Error("Konto obveznosti ni aktiven, knjižljiv ali nima vrste obveznosti"), { status: 400 });
           }
           for (const allocation of group.allocations) {
             const hasInvoice = typeof allocation?.invoiceId === "string";
@@ -1910,8 +1936,8 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
           const invoice = selection.invoiceId ? invoiceById.get(selection.invoiceId)! : null;
           const nativeItem = selection.journalLineId ? nativeItemsByLine.get(selection.journalLineId)! : null;
           const recipient = invoice ? null : recipientById.get(selection.group.counterpartyId);
-          if (!invoice && (!recipient || (recipient.type !== "supplier" && recipient.type !== "both") || !recipient.isActive)) {
-            throw Object.assign(new Error("Prejemnik izbrane odprte postavke ni aktiven dobavitelj"), { status: 409 });
+          if (!invoice && (!recipient || !recipient.isActive)) {
+            throw Object.assign(new Error("Prejemnik izbrane odprte postavke ni aktiven partner"), { status: 409 });
           }
           const recipientTrr = invoice?.counterpartyTrr ?? recipient?.trr;
           const counterpartyIban = invoice?.counterpartyIban ?? recipient?.iban;

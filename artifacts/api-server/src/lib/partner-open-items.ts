@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
   accountsTable,
   counterpartiesTable,
@@ -409,11 +409,14 @@ export async function loadUnifiedOpenItems(
   const openItemAccounts = await executor.select({
     id: accountsTable.id, type: accountsTable.type,
   })
-    .from(accountsTable).where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isOpenItem, true)));
+    .from(accountsTable).where(and(
+      eq(accountsTable.companyId, companyId),
+      or(eq(accountsTable.isOpenItem, true), eq(accountsTable.type, "liability")),
+    ));
   const openAccountById = new Map(openItemAccounts.map((account) => [account.id, account]));
   for (const line of cardLines) {
     const account = openAccountById.get(line.accountId);
-    if (!account || mappedGlIds.has(line.lineId)
+    if (!account || !line.partnerId || mappedGlIds.has(line.lineId)
       || (counterpartyId && line.partnerId !== counterpartyId)
       || (filters.accountId && line.accountId !== filters.accountId)) continue;
     const openDebit = new Decimal(line.openDebit);

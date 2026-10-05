@@ -19,6 +19,7 @@ vi.mock("@workspace/api-client-react", async () => ({
   useListPeriods: () => ({ data: state.periods }),
   useListCounterparties: () => ({ data: state.counterparties }),
   useListPayments: () => ({ data: state.payments }),
+  useListInvoices: () => ({ data: { invoices: [] } }),
 }));
 // Preserve the controlled value even before options arrive, without driving
 // unrelated Radix popovers. The real page still owns loading and validation.

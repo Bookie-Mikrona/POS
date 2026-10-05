@@ -20,3 +20,9 @@ Pri več računih, povezanih z isto knjižbo, se zapiranja ne razporeja na slepo
 **Why:** Eno ročno zapiranje skupne knjižbe ne pomeni enakega zapiranja vsakega povezanega računa. Takšna domneva bi isti učinek odštela večkrat.
 
 **How to apply:** Pri poznejših izboljšavah uparjanja ohrani izrecno obravnavo dvoumnosti; za samodejno razdelitev je potreben dodaten dokaz o pripadnosti zapiranja računu.
+
+Partnerske obveznosti vključujejo plače, DDV, prispevke in druge obveznosti iz temeljnic, ne samo prejetih računov dobaviteljev. Partner je dovoljen na vseh knjižljivih kontih; pri obveznosti s partnerjem sama manjkajoča oznaka saldakonta ne sme preprečiti priprave plačila.
+
+**Why:** Uporabnik je 2026-10-05 izrecno zahteval partnerja tudi pri knjiženju temeljnic, plačilo teh odprtih postavk in skupni paket za banko.
+
+**How to apply:** Plačilnih postopkov ne omejuj na dobaviteljske partnerje ali prefiksa 22/43. Ohraniti morajo dejanskega partnerja, konto in izvorno knjižbeno vrstico ter ločiti pripravo/izvoz paketa od dejanskega zapiranja obveznosti.

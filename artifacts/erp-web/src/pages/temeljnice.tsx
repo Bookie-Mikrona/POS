@@ -1129,7 +1129,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                       ?? (selAcc?.requiresCostCenter ? "required" : "allowed");
                     const reqCostCenter = costCenterPolicy === "required";
                     const reqProject = selAcc?.requiresProject ?? false;
-                    const showPartner = counterparties.length > 0 || reqPartner;
+                    const showPartner = true;
                     const showCostCenter = costCenterPolicy !== "not_allowed"
                       && (costCenters.length > 0 || reqCostCenter);
                     const showProject = projects.length > 0 || reqProject;
@@ -1154,6 +1154,9 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                             </Select>
                             {reqPartner && !line.partnerId && (
                               <p className="text-xs text-destructive">Za ta konto je poslovni partner obvezen.</p>
+                            )}
+                            {counterparties.length === 0 && (
+                              <p className="text-xs text-muted-foreground">Partnerja najprej dodajte v register partnerjev.</p>
                             )}
                           </div>
                         )}
