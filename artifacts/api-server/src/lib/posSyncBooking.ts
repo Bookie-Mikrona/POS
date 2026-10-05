@@ -52,8 +52,10 @@ import {
   postavkeTable,
   zalogaGibiTable,
   artikliTable,
-  journalEntriesTable,
-  journalEntryLinesTable,
+  journalEntriesTable as erpEntriesTable,
+  journalEntryLinesTable as erpLinesTable,
+  posBookingDraftsTable,
+  posBookingDraftLinesTable,
   posReceiptBookingSourcesTable,
   invoicesTable,
   invoiceLinesTable,
@@ -66,6 +68,7 @@ import {
 } from "@workspace/db";
 import { createVatLedgerEntries, type EntryMeta, type VatLine } from "./vatLedger";
 import { businessDateForInstant, getBusinessDayBounds } from "./pos-business-day";
+import { resolvePosBookingPeriod } from "./posBookingPeriod";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -91,6 +94,19 @@ interface SyncResult {
   skipped: Array<{ ref: string; reason: string }>;
 }
 
+export interface ZZPostavka {
+  vrstaArtikla: string | null;
+  kolicina: number;
+  cenaKos: number;
+  drobniInventar?: boolean;
+}
+
+// Ista računovodska pravila, dve fizično ločeni shrambi. Izbor je nespremenljiv
+// za celoten sync, zato so sočasne sinhronizacije različnih podjetij varne.
+function createBookingEngine(
+  journalEntriesTable: typeof erpEntriesTable | typeof posBookingDraftsTable,
+  journalEntryLinesTable: typeof erpLinesTable | typeof posBookingDraftLinesTable,
+) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function dec(v: string | number | null | undefined): Decimal {
@@ -99,7 +115,7 @@ function dec(v: string | number | null | undefined): Decimal {
 }
 
 /** Knjiži neto agregat; negativni storno obrne stran in vedno uporabi absolutni znesek. */
-export function pushSignedLine(
+function pushSignedLine(
   lines: SyncLine[], accountId: string, normalSide: "debit" | "credit", amount: Decimal,
   desc: string, extra: Omit<SyncLine, "accountId" | "side" | "amount" | "desc"> = {},
 ): void {
@@ -290,7 +306,7 @@ async function hasPostedUnitEntry(
 type BookingModule = "PRODAJA" | "PORABA" | "LASTREPR";
 type BookingFrequency = "daily" | "monthly";
 
-export function getEffectiveBookingFrequency(
+function getEffectiveBookingFrequency(
   settings: {
     salesBookingFrequency?: string | null;
     consumptionBookingFrequency?: string | null;
@@ -418,7 +434,7 @@ async function deleteMonthlySalesDraft(
   const sspInvoiceNumber = `POS-SSP-${month}-E${enotaId}`;
   await db.transaction(async tx => {
     // 1. Pobriši SŠP draft invoice (kaskadira na invoice_lines)
-    await tx.delete(invoicesTable).where(and(
+    if (journalEntriesTable === erpEntriesTable) await tx.delete(invoicesTable).where(and(
       eq(invoicesTable.companyId, companyId),
       eq(invoicesTable.invoiceNumber, sspInvoiceNumber),
       eq(invoicesTable.status, "draft"),
@@ -467,7 +483,7 @@ async function deleteExistingOpeningStockDrafts(
 
 async function insertEntry(
   companyId: string,
-  periodId: string,
+  periodId: string | null,
   datum: string,
   description: string,
   ref: string,
@@ -574,7 +590,7 @@ async function ensureCounterparty(
 
 // ── Prihodkovni konto za vrsta × DDV (deljeno med T1, T4, KIR) ───────────────
 
-export function getRevenueAccount(
+function getRevenueAccount(
   vrsta: string,
   davekPct: Decimal,
   settings: {
@@ -622,7 +638,7 @@ async function loadCategoryRevenueAccounts(companyId: string): Promise<Map<numbe
   return new Map(rows.map((row) => [row.categoryId, row.accountId]));
 }
 
-export function getCategoryRevenueAccount(
+function getCategoryRevenueAccount(
   categoryId: number | null,
   vrsta: string,
   davekPct: Decimal,
@@ -660,19 +676,8 @@ async function syncPosBookingForDayUnlocked(
   const salesFrequency = getEffectiveBookingFrequency(settings, "PRODAJA", datum);
   const consumptionFrequency = getEffectiveBookingFrequency(settings, "PORABA", datum);
 
-  // 2. Odprto računovodsko obdobje
-  const [period] = await db
-    .select({ id: accountingPeriodsTable.id })
-    .from(accountingPeriodsTable)
-    .where(
-      and(
-        eq(accountingPeriodsTable.companyId, companyId),
-        lte(accountingPeriodsTable.startDate, datum),
-        gte(accountingPeriodsTable.endDate, datum),
-        notInArray(accountingPeriodsTable.status, ["locked"]),
-      ),
-    )
-    .limit(1);
+  // 2. Obdobje je obvezno samo za interno GK, ne za samostojni POS.
+  const period = await resolvePosBookingPeriod(companyId, datum);
 
   if (!period) {
     return {
@@ -1123,7 +1128,7 @@ async function syncPosBookingForDayUnlocked(
     // Pred ponovno izdelavo osnutka odstranimo le star neknjižen dokument;
     // potrjene oziroma plačane zgodovine nikoli ne spreminjamo.
     const sspInvoiceNumber = `POS-SSP-${datum}-E${enota.id}`;
-    if (subvencija.gt("0.005")) {
+    if (period.id && subvencija.gt("0.005")) {
       await db.delete(invoicesTable).where(and(
         eq(invoicesTable.companyId, companyId),
         eq(invoicesTable.invoiceNumber, sspInvoiceNumber),
@@ -1133,7 +1138,7 @@ async function syncPosBookingForDayUnlocked(
     }
     await deleteExistingUnitDrafts(companyId, datum, enota.id, "PRODAJA");
     const salesEntryId = await insertEntry(companyId, period.id, datum, `Dnevna prodaja POS — ${datum}`, prodajaRef, merged);
-    if (subvencija.gt("0.005") && settings.subsidyReceivableAccountId && settings.subsidyCounterpartyId) {
+    if (period.id && subvencija.gt("0.005") && settings.subsidyReceivableAccountId && settings.subsidyCounterpartyId) {
       const [existingSspInvoice] = await db.select({ id: invoicesTable.id })
         .from(invoicesTable)
         .where(and(
@@ -1464,6 +1469,9 @@ async function syncPosBookingForDayUnlocked(
 
   // ── KIR: Knjiga izdanih računov ──────────────────────────────────────────────
   async function syncKir(): Promise<void> {
+    // Samostojni POS pripravi temeljnice, ne knjiži interne GK/KIR.
+    if (!period?.id) return;
+    const kirPeriodId = period.id;
     if (!settings.kirArAccountId) {
       skipped.push({ ref: `POS:KIR:${datum}`, reason: "KIR AR konto (terjatve do kupcev) ni nastavljen — KIR preskočen" });
       return;
@@ -1703,7 +1711,7 @@ async function syncPosBookingForDayUnlocked(
             type: "issued",
             sourceType: "pos-sync",
             counterpartyId: params.counterpartyId,
-            periodId: period.id,
+            periodId: kirPeriodId,
             invoiceNumber: params.invoiceNumber,
             invoiceDate: params.invoiceDate,
             dueDate: params.dueDate ?? null,
@@ -1988,7 +1996,7 @@ async function syncPosBookingForDayUnlocked(
  * fragile uniqueness constraint to historical journal references.  The
  * month key is acquired before the day key, matching the monthly wrapper.
  */
-export async function syncPosBookingForDay(
+async function syncPosBookingForDay(
   companyId: string,
   datum: string,
 ): Promise<SyncResult> {
@@ -2045,14 +2053,7 @@ async function syncPosBookingForMonthUnlocked(
     return { created, skipped: [{ ref: "vse", reason: "POS nastavitve knjiženja niso konfigurirane" }] };
   }
   const categoryRevenueAccounts = await loadCategoryRevenueAccounts(companyId);
-  const [period] = await db.select({ id: accountingPeriodsTable.id }).from(accountingPeriodsTable)
-    .where(and(
-      eq(accountingPeriodsTable.companyId, companyId),
-      lte(accountingPeriodsTable.startDate, start),
-      gte(accountingPeriodsTable.endDate, end),
-      notInArray(accountingPeriodsTable.status, ["locked"]),
-    ))
-    .limit(1);
+  const period = await resolvePosBookingPeriod(companyId, start, end);
   if (!period) {
     return { created, skipped: [{ ref: "vse", reason: `Ni odprtega računovodskega obdobja za cel mesec ${month}` }] };
   }
@@ -2328,7 +2329,7 @@ async function syncPosBookingForMonthUnlocked(
         const entryId = await insertEntry(companyId, period.id, end, `Mesečna prodaja POS — ${month}`, prodajaRef, merged);
         const subsidy = dec(sales.subvencija);
         const sspInvoiceNumber = `POS-SSP-${month}-E${enota.id}`;
-        if (subsidy.gt("0.005") && settings.subsidyReceivableAccountId && settings.subsidyCounterpartyId) {
+        if (period.id && subsidy.gt("0.005") && settings.subsidyReceivableAccountId && settings.subsidyCounterpartyId) {
           // SSP draft invoice je bil že izbrisan v deleteMonthlySalesDraft —
           // preverimo le, da ga drug proces ni vmes ustvaril (race guard).
           const [existing] = await db.select({ id: invoicesTable.id }).from(invoicesTable)
@@ -2551,7 +2552,7 @@ async function syncPosBookingForMonthUnlocked(
  * Holding the transaction lock across the complete operation prevents a
  * scheduler run and a manual frequency-switch run from racing on drafts.
  */
-export async function syncPosBookingForMonth(
+async function syncPosBookingForMonth(
   companyId: string,
   month: string,
 ): Promise<SyncResult> {
@@ -2576,13 +2577,6 @@ export async function syncPosBookingForMonth(
 
 // ── Začetna zaloga — otvoritvena temeljnica ───────────────────────────────────
 
-export interface ZZPostavka {
-  vrstaArtikla: string | null;
-  kolicina: number;
-  cenaKos: number;
-  drobniInventar?: boolean;
-}
-
 /**
  * Ustvari ali osveži otvoritveno temeljnico za začetne zaloge:
  *   DR 310/300 (konto zalog) / CR 990 (otvoritveni konto)
@@ -2591,7 +2585,7 @@ export interface ZZPostavka {
  * Idempotentna — obstoječi osnutek iste enote pobriše in ustvari novega.
  * Potrjene temeljnice ne briše.
  */
-export async function bookZacetnaZaloga(
+async function bookZacetnaZaloga(
   companyId: string,
   enotaId: number,
   leto: number,
@@ -2658,19 +2652,7 @@ export async function bookZacetnaZaloga(
     return { created: null, skipped: { reason: "Otvoritveni konto bilance stanja (990/900) ni nastavljen v POS nastavitvah" } };
   }
 
-  // Odprto računovodsko obdobje
-  const [period] = await db
-    .select({ id: accountingPeriodsTable.id })
-    .from(accountingPeriodsTable)
-    .where(
-      and(
-        eq(accountingPeriodsTable.companyId, companyId),
-        lte(accountingPeriodsTable.startDate, datum),
-        gte(accountingPeriodsTable.endDate, datum),
-        notInArray(accountingPeriodsTable.status, ["locked"]),
-      ),
-    )
-    .limit(1);
+  const period = await resolvePosBookingPeriod(companyId, datum);
 
   if (!period) {
     return { created: null, skipped: { reason: `Ni odprtega računovodskega obdobja za ${datum}` } };
@@ -2743,4 +2725,32 @@ export async function bookZacetnaZaloga(
   await insertEntry(companyId, period.id, datum, `POS začetne zaloge ${leto}`, ref, merged);
 
   return { created: ref, skipped: null };
+}
+
+return { pushSignedLine, getEffectiveBookingFrequency, getRevenueAccount,
+  getCategoryRevenueAccount, syncPosBookingForDay, syncPosBookingForMonth, bookZacetnaZaloga };
+}
+
+const erpEngine = createBookingEngine(erpEntriesTable, erpLinesTable);
+const posEngine = createBookingEngine(posBookingDraftsTable, posBookingDraftLinesTable);
+export const pushSignedLine = erpEngine.pushSignedLine;
+export const getEffectiveBookingFrequency = erpEngine.getEffectiveBookingFrequency;
+export const getRevenueAccount = erpEngine.getRevenueAccount;
+export const getCategoryRevenueAccount = erpEngine.getCategoryRevenueAccount;
+
+async function bookingEngine(companyId: string, from: string, to = from) {
+  const period = await resolvePosBookingPeriod(companyId, from, to);
+  return period?.id === null ? posEngine : erpEngine;
+}
+
+export async function syncPosBookingForDay(companyId: string, datum: string) {
+  return (await bookingEngine(companyId, datum)).syncPosBookingForDay(companyId, datum);
+}
+
+export async function syncPosBookingForMonth(companyId: string, month: string) {
+  return (await bookingEngine(companyId, `${month}-01`)).syncPosBookingForMonth(companyId, month);
+}
+
+export async function bookZacetnaZaloga(companyId: string, enotaId: number, leto: number, datum: string, postavke: ZZPostavka[]) {
+  return (await bookingEngine(companyId, datum)).bookZacetnaZaloga(companyId, enotaId, leto, datum, postavke);
 }

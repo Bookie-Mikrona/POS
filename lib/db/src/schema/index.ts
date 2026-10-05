@@ -54,3 +54,4 @@ export * from "./os-amortizacija-obracun";
 export * from "./ujp-prejemniki";
 export * from "./ajpes-subjekti";
 export * from "./pos/allergen-research-jobs";
+export * from "./pos/booking-drafts";

@@ -8,6 +8,29 @@
 import * as zod from 'zod';
 
 
+/**
+ * Zahteva POS administratorja podjetja, vključen ERP modul in odprta obdobja. Nikoli ne knjiži samodejno in ne prepiše že prenesenih temeljnic.
+ * @summary Izrecno prenesi izbrane POS osnutke v interno GK
+ */
+export const TransferPosBookingDraftsHeader = zod.object({
+  "X-Enota-Id": zod.number()
+})
+
+export const transferPosBookingDraftsBodyIdsMax = 100;
+
+
+
+export const TransferPosBookingDraftsBody = zod.object({
+  "ids": zod.array(zod.string()).min(1).max(transferPosBookingDraftsBodyIdsMax),
+  "confirmed": zod.boolean()
+})
+
+export const TransferPosBookingDraftsResponse = zod.object({
+  "created": zod.array(zod.string()),
+  "alreadyTransferred": zod.array(zod.string())
+})
+
+
 export const getAjpesAnnualReportPathYearMin = 2000;
 export const getAjpesAnnualReportPathYearMax = 2100;
 

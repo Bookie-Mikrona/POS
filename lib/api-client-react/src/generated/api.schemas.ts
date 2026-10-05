@@ -12926,6 +12926,20 @@ export type ConflictResponse = ErrorResponse;
  */
 export type NotFoundResponse = ErrorResponse;
 
+export type TransferPosBookingDraftsBody = {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  ids: string[];
+  confirmed: true;
+};
+
+export type TransferPosBookingDrafts200 = {
+  created: string[];
+  alreadyTransferred: string[];
+};
+
 export type GetAjpesAnnualHistoryParams = {
 /**
  * @minimum 0

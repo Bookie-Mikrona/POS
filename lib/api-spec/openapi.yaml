@@ -85,6 +85,53 @@ tags:
   - name: daily-lunch
     description: Unit and business-date scoped daily lunch offers
 paths:
+  /temeljnice/prenos-v-gk:
+    post:
+      operationId: transferPosBookingDrafts
+      tags: [entries]
+      summary: Izrecno prenesi izbrane POS osnutke v interno GK
+      description: Zahteva POS administratorja podjetja, vključen ERP modul in odprta obdobja. Nikoli ne knjiži samodejno in ne prepiše že prenesenih temeljnic.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: X-Enota-Id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, confirmed]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { type: string }
+                confirmed:
+                  type: boolean
+                  const: true
+      responses:
+        "200":
+          description: Ustvarjeni osnutki in že prenesene temeljnice
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created, alreadyTransferred]
+                properties:
+                  created:
+                    type: array
+                    items: { type: string }
+                  alreadyTransferred:
+                    type: array
+                    items: { type: string }
+        "400":
+          description: Manjka potrditev, veljavna izbira, ERP modul ali odprto obdobje
+        "403":
+          description: Prenos je dovoljen samo administratorju podjetja
   /companies/{companyId}/reports/ajpes/{year}:
     get:
       operationId: getAjpesAnnualReport

@@ -1,14 +1,19 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, notLike, or } from "drizzle-orm";
 import {
   db,
-  journalEntriesTable,
-  journalEntryLinesTable,
+  journalEntriesTable as journalEntriesTableErp,
+  journalEntryLinesTable as journalEntryLinesTableErp,
   accountsTable,
   accountingPeriodsTable,
+  posBookingDraftsTable,
+  posBookingDraftLinesTable,
+  companyModulesTable,
 } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
 import { syncPosBookingForDay, syncPosBookingForMonth } from "../../lib/posSyncBooking";
+import { transferPosDrafts } from "../../lib/posDraftTransfer";
+import { z } from "zod";
 
 const router: IRouter = Router();
 
@@ -32,6 +37,12 @@ router.get("/temeljnice", async (req, res): Promise<void> => {
     return;
   }
 
+  const allEntries: Array<{ id: string; entryDate: string; createdAt: Date } & Record<string, unknown>> = [];
+  // POS arhiv ostane viden tudi po poznejšem vklopu GK, vendar se ne prenese vanjo.
+  for (const [journalEntriesTable, journalEntryLinesTable] of [
+    [journalEntriesTableErp, journalEntryLinesTableErp],
+    [posBookingDraftsTable, posBookingDraftLinesTable],
+  ] as const) {
   const entries = await db
     .select({
       id: journalEntriesTable.id,
@@ -44,7 +55,7 @@ router.get("/temeljnice", async (req, res): Promise<void> => {
       periodName: accountingPeriodsTable.name,
     })
     .from(journalEntriesTable)
-    .innerJoin(
+    .leftJoin(
       accountingPeriodsTable,
       eq(accountingPeriodsTable.id, journalEntriesTable.periodId),
     )
@@ -53,13 +64,17 @@ router.get("/temeljnice", async (req, res): Promise<void> => {
         eq(journalEntriesTable.companyId, companyId),
         gte(journalEntriesTable.entryDate, od),
         lte(journalEntriesTable.entryDate, doParam),
+        // Kopija po izrecnem prenosu se prikazuje v GK, ne še enkrat poleg
+        // izvirnika v POS (sicer bi skupni znesek v POS šteli dvakrat).
+        journalEntriesTable === journalEntriesTableErp
+          ? or(isNull(journalEntriesTable.reference), notLike(journalEntriesTable.reference, "POS:PRENOS:%"))
+          : undefined,
       ),
     )
     .orderBy(asc(journalEntriesTable.entryDate), desc(journalEntriesTable.createdAt));
 
   if (entries.length === 0) {
-    res.json({ temeljnice: [] });
-    return;
+    continue;
   }
 
   const entryIds = entries.map((e) => e.id);
@@ -104,7 +119,36 @@ router.get("/temeljnice", async (req, res): Promise<void> => {
     };
   });
 
-  res.json({ temeljnice });
+  const isPosArchive = journalEntriesTable === posBookingDraftsTable;
+  allEntries.push(...temeljnice.map(entry => ({ ...entry, posArchive: isPosArchive })));
+  }
+  allEntries.sort((a, b) => a.entryDate.localeCompare(b.entryDate) || b.createdAt.getTime() - a.createdAt.getTime());
+  const [erp] = await db.select({ id: companyModulesTable.id }).from(companyModulesTable)
+    .where(and(eq(companyModulesTable.companyId, companyId), eq(companyModulesTable.module, "erp"))).limit(1);
+  const role = (req as PosRequest).vloga;
+  res.json({ temeljnice: allEntries, canTransfer: Boolean(erp) && role === "admin" });
+});
+
+router.post("/temeljnice/prenos-v-gk", async (req, res): Promise<void> => {
+  const context = req as PosRequest;
+  if (context.vloga !== "admin") {
+    res.status(403).json({ error: "Prenos v GK lahko izvede samo administrator." });
+    return;
+  }
+  const parsed = z.object({
+    ids: z.array(z.string().uuid()).min(1).max(100),
+    confirmed: z.literal(true),
+  }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Izberite temeljnice in izrecno potrdite prenos v GK." });
+    return;
+  }
+  try {
+    res.json(await transferPosDrafts(context.companyId, parsed.data.ids, context.clerkUserId));
+  } catch (error) {
+    req.log.warn({ err: error }, "Explicit POS draft transfer failed");
+    res.status(400).json({ error: error instanceof Error ? error.message : "Prenos ni uspel." });
+  }
 });
 
 /**

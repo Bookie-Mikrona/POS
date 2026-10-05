@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, ChevronRight, Search, RefreshCw } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
 import { poslovniDatumZaCas } from "@/lib/posCas";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -28,6 +30,7 @@ interface Temeljnica {
   postedAt: string | null;
   skupajDebet: number;
   vrstice: Vrstica[];
+  posArchive?: boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -68,6 +71,10 @@ export default function Temeljnice() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const [canTransfer, setCanTransfer] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferring, setTransferring] = useState(false);
 
   // ── Ročni sync ──────────────────────────────────────────────────────────────
   const [syncDatum, setSyncDatum] = useState<string>(danes);
@@ -121,18 +128,35 @@ export default function Temeljnice() {
     setLoading(true);
     setTemeljnice(null);
     setExpanded(new Set());
+    setSelected(new Set());
     try {
-      const data = await customFetch<{ temeljnice: Temeljnica[] }>(
+      const data = await customFetch<{ temeljnice: Temeljnica[]; canTransfer?: boolean }>(
         `/api/temeljnice?od=${od}&do=${do_}`,
         { credentials: "include" },
       );
       setTemeljnice(data.temeljnice);
+      setCanTransfer(data.canTransfer === true);
     } catch (e: any) {
       toast({ title: "Napaka", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }, [od, do_, toast]);
+
+  async function transferToLedger() {
+    setTransferring(true);
+    try {
+      const result = await customFetch<{ created: string[]; alreadyTransferred: string[] }>("/api/temeljnice/prenos-v-gk", {
+        method: "POST", credentials: "include",
+        body: JSON.stringify({ ids: [...selected], confirmed: true }),
+      });
+      toast({ title: "Prenos v GK", description: `Ustvarjenih osnutkov: ${result.created.length}. Že prenesenih: ${result.alreadyTransferred.length}.` });
+      setTransferOpen(false);
+      await isci();
+    } catch (error) {
+      toast({ title: "Prenos ni izveden", description: error instanceof Error ? error.message : "Neznana napaka", variant: "destructive" });
+    } finally { setTransferring(false); }
+  }
 
   function toggle(id: string) {
     setExpanded(prev => {
@@ -211,12 +235,51 @@ export default function Temeljnice() {
       )}
 
       {/* Seznam */}
+      {temeljnice?.some(t => t.posArchive) && (
+        <div className="mb-4 rounded border p-3 text-sm">
+          <p>POS temeljnice so ločene od interne glavne knjige. Vklop GK jih ne prenese samodejno.</p>
+          {canTransfer && <Button className="mt-2" variant="outline" size="sm"
+            disabled={selected.size === 0 || selected.size > 100 || transferring}
+            onClick={() => setTransferOpen(true)}>
+            Prenesi izbrane POS temeljnice v GK ({selected.size})
+          </Button>}
+        </div>
+      )}
+      <Dialog open={transferOpen} onOpenChange={open => { if (!transferring) setTransferOpen(open); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Potrdi prenos v glavno knjigo</DialogTitle>
+            <DialogDescription>
+              Izbranih POS temeljnic: {selected.size}. Ustvarjeni bodo osnutki v GK, ne potrjene knjižbe.
+              Za vse datume mora biti odprto obdobje GK. Že prenesene temeljnice se ne podvojijo ali prepišejo.
+              Izvirniki ostanejo v POS. Prenos se izvede samo s to potrditvijo.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={transferring} onClick={() => setTransferOpen(false)}>Prekliči</Button>
+            <Button disabled={transferring || selected.size === 0 || selected.size > 100} onClick={transferToLedger}>
+              {transferring ? "Prenašam…" : "Potrdi prenos v GK"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {!loading && temeljnice && temeljnice.length > 0 && (
         <div className="space-y-1.5">
           {temeljnice.map(t => {
             const odprta = expanded.has(t.id);
             return (
               <div key={t.id} className="border rounded-md overflow-hidden bg-white">
+                {canTransfer && t.posArchive && (
+                  <label className="flex items-center gap-2 px-3 pt-2 text-xs">
+                    <Checkbox aria-label={`Izberi za prenos: ${t.reference}`} checked={selected.has(t.id)} disabled={transferring}
+                      onCheckedChange={checked => setSelected(prev => {
+                        const next = new Set(prev);
+                        if (checked === true) next.add(t.id); else next.delete(t.id);
+                        return next;
+                      })} />
+                    Izberi POS temeljnico za prenos v GK
+                  </label>
+                )}
                 {/* Glava */}
                 <button
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"

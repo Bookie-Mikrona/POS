@@ -507,6 +507,8 @@ import type {
   TlorisResetInput,
   TogglePostavkaPripravljeno200,
   TogglePostavkaPripravljenoInput,
+  TransferPosBookingDrafts200,
+  TransferPosBookingDraftsBody,
   TrialBalanceResponse,
   UnauthorizedResponse,
   UnknownVivaRefundList,
@@ -577,6 +579,78 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getTransferPosBookingDraftsUrl = () => {
+
+
+
+
+  return `/api/temeljnice/prenos-v-gk`
+}
+
+/**
+ * Zahteva POS administratorja podjetja, vključen ERP modul in odprta obdobja. Nikoli ne knjiži samodejno in ne prepiše že prenesenih temeljnic.
+ * @summary Izrecno prenesi izbrane POS osnutke v interno GK
+ */
+export const transferPosBookingDrafts = async (transferPosBookingDraftsBody: TransferPosBookingDraftsBody, options?: RequestInit): Promise<TransferPosBookingDrafts200> => {
+
+  return customFetch<TransferPosBookingDrafts200>(getTransferPosBookingDraftsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(transferPosBookingDraftsBody)
+  }
+);}
+
+
+
+
+
+export const getTransferPosBookingDraftsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferPosBookingDrafts>>, TError,{data: BodyType<TransferPosBookingDraftsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transferPosBookingDrafts>>, TError,{data: BodyType<TransferPosBookingDraftsBody>}, TContext> => {
+
+const mutationKey = ['transferPosBookingDrafts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transferPosBookingDrafts>>, {data: BodyType<TransferPosBookingDraftsBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  transferPosBookingDrafts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TransferPosBookingDraftsMutationResult = NonNullable<Awaited<ReturnType<typeof transferPosBookingDrafts>>>
+    export type TransferPosBookingDraftsMutationBody = BodyType<TransferPosBookingDraftsBody>
+    export type TransferPosBookingDraftsMutationError = ErrorType<void>
+
+    /**
+ * @summary Izrecno prenesi izbrane POS osnutke v interno GK
+ */
+export const useTransferPosBookingDrafts = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferPosBookingDrafts>>, TError,{data: BodyType<TransferPosBookingDraftsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transferPosBookingDrafts>>,
+        TError,
+        {data: BodyType<TransferPosBookingDraftsBody>},
+        TContext
+      > => {
+      return useMutation(getTransferPosBookingDraftsMutationOptions(options));
+    }
 
 export const getGetAjpesAnnualReportUrl = (companyId: string,
     year: number,) => {
