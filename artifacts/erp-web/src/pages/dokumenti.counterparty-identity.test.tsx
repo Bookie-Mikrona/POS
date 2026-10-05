@@ -331,7 +331,7 @@ describe("DocumentReviewForm — partner identity and document roles", () => {
       counterpartyTaxId: "87654321",
     }));
 
-    expect(screen.getByText(/partnerja ni v sistemu/)).toBeInTheDocument();
+    expect(screen.getByText(/ni bilo mogoče zanesljivo povezati/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Ustvari partnerja iz AI podatkov/ })).toBeInTheDocument();
   });
 
@@ -354,6 +354,65 @@ describe("DocumentReviewForm — partner identity and document roles", () => {
       { id: "person-2", name: "Borut Stanič SP", type: "supplier" },
     ];
     renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p." }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("Izberite partnerja");
+  });
+
+  it("recognizes the bank-statement name without the registered business prefix using the payer IBAN and address", () => {
+    state.counterparties = [{
+      id: "existing-trade-name", name: "TEHNOS BORUT STANIČ, S.P.", type: "both",
+      taxId: "11223344", address: "Testna ulica 2", postCode: "3270", city: "Laško",
+      iban: "SI56040010000000001",
+    }];
+    renderForm(createDocument({
+      counterpartyName: "BORUT STANIČ, S.P.", counterpartyAddress: "TESTNA ULICA 2, 3270 LAŠKO",
+      rawText: "Transakcijski račun: SI56 0400 1000 0000 002\nPlačnik: BANK, SI56 0400 1000 0000 001, BORUT STANIČ, S.P., TESTNA ULICA 2, 3270 LAŠKO",
+    }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("TEHNOS BORUT STANIČ, S.P.");
+    expect(screen.queryByText(/ni bilo mogoče zanesljivo povezati/)).not.toBeInTheDocument();
+    expect(state.createCounterpartyMutate).not.toHaveBeenCalled();
+  });
+
+  it("requires address or party-specific bank evidence for a missing business prefix", () => {
+    state.counterparties = [{ id: "trade-name", name: "TEHNOS BORUT STANIČ, S.P.", type: "supplier" }];
+    renderForm(createDocument({ counterpartyName: "BORUT STANIČ, S.P." }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("Izberite partnerja");
+    expect(screen.getByText(/ni bilo mogoče zanesljivo povezati/)).toBeInTheDocument();
+  });
+
+  it("matches a missing business prefix by complete address without any bank account", () => {
+    state.counterparties = [{ id: "trade-name", name: "TEHNOS STANIČ BORUT S.P.", type: "supplier",
+      address: "Testna 2", postCode: "3270", city: "Laško" }];
+    renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p.", counterpartyAddress: "TESTNA 2, 3270 LAŠKO" }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("TEHNOS STANIČ BORUT S.P.");
+  });
+
+  it("never uses the document owner's unrelated IBAN to match the printed partner", () => {
+    state.counterparties = [{ id: "trade-name", name: "TEHNOS BORUT STANIČ S.P.", type: "supplier",
+      iban: "SI56040010000000001" }];
+    renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p.",
+      rawText: "Transakcijski račun: SI56040010000000001\nPlačnik: BORUT STANIČ, S.P." }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("Izberite partnerja");
+  });
+
+  it("does not let a missing business prefix override conflicting tax or bank identities", () => {
+    state.counterparties = [{ id: "trade-name", name: "TEHNOS BORUT STANIČ S.P.", type: "supplier",
+      taxId: "11223344", iban: "SI56040010000000001", address: "Testna 2", postCode: "3270", city: "Laško" }];
+    renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p.", counterpartyTaxId: "99887755",
+      counterpartyAddress: "TESTNA 2, 3270 LAŠKO" }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("Izberite partnerja");
+    cleanup();
+    renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p.",
+      counterpartyAddress: "TESTNA 2, 3270 LAŠKO",
+      rawText: "Plačnik: BORUT STANIČ, S.P., SI56040010000000002" }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("Izberite partnerja");
+  });
+
+  it("keeps a partial trade name ambiguous when two catalog partners have the same complete address", () => {
+    state.counterparties = [
+      { id: "trade-name-a", name: "TEHNOS BORUT STANIČ S.P.", type: "supplier", address: "Testna 2", postCode: "3270", city: "Laško" },
+      { id: "trade-name-b", name: "OBRT BORUT STANIČ S.P.", type: "supplier", address: "Testna 2", postCode: "3270", city: "Laško" },
+    ];
+    renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p.", counterpartyAddress: "TESTNA 2, 3270 LAŠKO" }));
     expect(getSelectForLabel("Partner")).toHaveTextContent("Izberite partnerja");
   });
 

@@ -387,7 +387,10 @@ export async function runOcrWithClaude(
 
   // Pridobi kontekst (partnerji + konte + pretekle knjižbe) za boljše predloge
   const [counterparties, accounts, vatCodes, recentBookingRows, templateRows] = await Promise.all([
-    db.select({ id: counterpartiesTable.id, name: counterpartiesTable.name, taxId: counterpartiesTable.taxId })
+    db.select({
+      id: counterpartiesTable.id, name: counterpartiesTable.name, taxId: counterpartiesTable.taxId,
+      address: counterpartiesTable.address, postCode: counterpartiesTable.postCode, city: counterpartiesTable.city,
+    })
       .from(counterpartiesTable)
       .where(and(eq(counterpartiesTable.companyId, companyId), eq(counterpartiesTable.isActive, true))),
     db.select({ id: accountsTable.id, code: accountsTable.code, name: accountsTable.name, type: accountsTable.type, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })

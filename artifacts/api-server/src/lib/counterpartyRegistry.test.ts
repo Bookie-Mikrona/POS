@@ -56,4 +56,12 @@ describe("sole proprietor identity", () => {
     expect(findScopedCounterparty({ name: "Borut Stanič, s.p.", taxId: "12341234" }, company, [existing])).toBeUndefined();
     expect(findScopedCounterparty({ name: "Borut Stanič, s.p." }, company, [existing, { ...existing, id: "another" }])).toBeUndefined();
   });
+  it("matches a missing registered business prefix only with the complete address", () => {
+    const catalogPartner = { ...existing, name: "TEHNOS BORUT STANIČ, S.P.",
+      address: "Testna 2", postCode: "3270", city: "Laško" };
+    expect(findScopedCounterparty({ name: "BORUT STANIČ, S.P.", address: "TESTNA 2, 3270 LAŠKO" }, company, [catalogPartner])?.id).toBe("existing");
+    expect(findScopedCounterparty({ name: "BORUT STANIČ, S.P." }, company, [catalogPartner])).toBeUndefined();
+    expect(findScopedCounterparty({ name: "BORUT STANIČ, S.P.", address: "TESTNA 2, 3270 LAŠKO", taxId: "99887755" }, company, [catalogPartner])).toBeUndefined();
+    expect(findScopedCounterparty({ name: "BORUT STANIČ, S.P.", address: "TESTNA 2, 3270 LAŠKO" }, company, [catalogPartner, { ...catalogPartner, id: "duplicate" }])).toBeUndefined();
+  });
 });

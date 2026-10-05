@@ -274,12 +274,18 @@ function findOcrCounterpartyMatch(
     name: string;
     taxId?: string | null;
     registrationNumber?: string | null;
+    address?: string | null;
+    postCode?: string | null;
+    city?: string | null;
+    iban?: string | null;
   }>,
   ocr: {
     counterpartyName?: string | null;
     suggestedCounterpartyName?: string | null;
     counterpartyTaxId?: string | null;
     counterpartyRegistrationNumber?: string | null;
+    counterpartyAddress?: string | null;
+    rawText?: string | null;
   },
 ) {
   const ocrTaxIdentity = normalizeCounterpartyTaxIdentity(ocr.counterpartyTaxId);
@@ -306,8 +312,47 @@ function findOcrCounterpartyMatch(
   const nameMatches = counterparties.filter(counterparty =>
     normalizeCounterpartyLegalName(counterparty.name) === normalizedOcrName,
   );
-  if (nameMatches.length !== 1 || hasIdentifierConflict(nameMatches[0])) return "";
-  return nameMatches[0].id;
+  if (nameMatches.length) {
+    if (nameMatches.length !== 1 || hasIdentifierConflict(nameMatches[0])) return "";
+    return nameMatches[0].id;
+  }
+
+  // Banks often omit an s.p.'s business name. Partial names alone are NOT
+  // identity evidence: require the full address or a party-specific IBAN.
+  if (!normalizedOcrName.startsWith("sp:")) return "";
+  const personTokens = normalizedOcrName.slice(3).split("|");
+  const compact = (value: string | null | undefined) =>
+    value?.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}\s]+/gu, "") ?? "";
+  const printedName = compact(ocr.counterpartyName || ocr.suggestedCounterpartyName);
+  const partyIbans = new Set((ocr.rawText ?? "").split(/\r?\n/)
+    .filter(line => printedName && compact(line).includes(printedName))
+    .flatMap(line => line.match(/\bSI\s*\d\s*\d(?:\s*\d){15}\b/gi) ?? [])
+    .map(iban => iban.replace(/\s/g, "").toUpperCase()));
+  const anchoredMatches = counterparties.filter(counterparty => {
+    if (hasIdentifierConflict(counterparty)) return false;
+    const registeredName = normalizeCounterpartyLegalName(counterparty.name);
+    if (!registeredName.startsWith("sp:")) return false;
+    const registeredTokens = registeredName.slice(3).split("|");
+    // Preserve token multiplicity, not just a set of words.
+    const remainingTokens = [...registeredTokens];
+    if (!personTokens.every(token => {
+      const index = remainingTokens.indexOf(token);
+      if (index < 0) return false;
+      remainingTokens.splice(index, 1);
+      return true;
+    })) return false;
+    const iban = counterparty.iban?.replace(/\s/g, "").toUpperCase();
+    const ibanMatches = partyIbans.size === 1 && !!iban && partyIbans.has(iban);
+    // A different explicitly printed bank account must not be ignored.
+    if (partyIbans.size === 1 && iban && !ibanMatches) return false;
+    const addressMatches = !!counterparty.address?.trim()
+      && !!counterparty.postCode?.trim() && !!counterparty.city?.trim()
+      && compact(ocr.counterpartyAddress) === compact(
+        `${counterparty.address} ${counterparty.postCode} ${counterparty.city}`,
+      );
+    return ibanMatches || addressMatches;
+  });
+  return anchoredMatches.length === 1 ? anchoredMatches[0].id : "";
 }
 
 function periodContainsDate(
@@ -371,17 +416,17 @@ export default function Dokumenti() {
   }, [documents, activeCompany?.id, queryClient, selectedDocId]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] gap-4">
+    <div className="flex min-h-0 flex-col lg:h-[calc(100dvh-140px)] gap-3">
       <div className="flex justify-between items-end shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dokumenti v obdelavi</h1>
-          <p className="text-muted-foreground mt-1">Naložite dokumente za AI-prepoznavo in predlog; računovodja pregleda podatke pred ustvarjanjem osnutka.</p>
+          <h1 className="text-2xl xl:text-3xl font-bold tracking-tight">Dokumenti v obdelavi</h1>
+          <p className="text-muted-foreground mt-1 text-sm max-w-3xl">Naložite dokumente za AI-prepoznavo in predlog; računovodja pregleda podatke pred ustvarjanjem osnutka.</p>
         </div>
       </div>
 
-      <div className="flex flex-1 gap-6 min-h-0">
+      <div className="flex flex-1 flex-col lg:flex-row gap-3 xl:gap-5 min-h-0">
         {/* Left Column: List */}
-        <div className="w-[380px] flex flex-col border rounded-xl bg-card shadow-sm overflow-hidden shrink-0">
+        <div className="w-full lg:w-[260px] xl:w-[320px] max-h-[320px] lg:max-h-none flex flex-col border rounded-xl bg-card shadow-sm overflow-hidden shrink-0">
           <div className="p-4 border-b bg-muted/20 shrink-0">
             <DocumentUpload company={activeCompany} />
           </div>
@@ -436,7 +481,7 @@ export default function Dokumenti() {
         </div>
 
         {/* Right Column: Detail Panel */}
-        <div className="flex-1 flex flex-col border rounded-xl bg-card shadow-sm overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col border rounded-xl bg-card shadow-sm overflow-hidden min-w-0 min-h-[70dvh] lg:min-h-0">
           {!selectedDocId ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
               <div className="h-16 w-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
@@ -527,7 +572,7 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
   return (
     <div className="flex flex-col h-full">
       {/* Detail Header */}
-      <div className="px-6 py-4 border-b flex items-center justify-between shrink-0 bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/50">
+      <div className="px-4 xl:px-6 py-3 border-b flex flex-wrap items-center justify-between gap-2 shrink-0 bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/50">
         <div className="flex items-center gap-4 min-w-0">
           <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
             <FileText className="h-5 w-5" />
@@ -583,7 +628,7 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
             </Alert>
           </div>
         ) : doc.status === "done" || doc.status === "confirmed" || doc.status === "rejected" ? (
-          <div className="p-6 space-y-6">
+          <div className="p-3 xl:p-6 space-y-4 xl:space-y-6">
             {/* Stalne reže preprečijo, da bi osvežitev statusa ponovno namestila PDF iframe. */}
             <div className={doc.status === "done" ? "hidden" : undefined}>
               {doc.status === "confirmed" ? (
@@ -1309,6 +1354,8 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     suggestedCounterpartyName: ocr?.suggestedCounterpartyName,
     counterpartyTaxId: ocr?.counterpartyTaxId,
     counterpartyRegistrationNumber: ocrCounterpartyRegistrationNumber,
+    counterpartyAddress: ocr?.counterpartyAddress,
+    rawText: ocr?.rawText,
   });
 
   useEffect(() => {
@@ -1644,7 +1691,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   return (
     <div className="space-y-6">
       {/* 2-Column OCR Overview */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4 xl:gap-6">
         
         {/* Left: Extracted Data Panel */}
         <Card className="shadow-none border-border">
@@ -2281,7 +2328,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 xl:gap-6">
             <div className="space-y-2">
               <Label>Tip dokumenta</Label>
               <Select value={form.documentType} onValueChange={v => {
@@ -2305,7 +2352,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
             </div>
 
             {isGrossExpenseEligible && (
-              <div className="md:col-span-2 xl:col-span-3 rounded-xl border border-amber-300 bg-amber-50/60 p-4 space-y-3">
+              <div className="sm:col-span-2 2xl:col-span-3 rounded-xl border border-amber-300 bg-amber-50/60 p-4 space-y-3">
                 <div>
                   <h4 className="font-semibold text-sm">Obravnava vstopnega DDV</h4>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -2432,7 +2479,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                   <Alert className="py-2 px-3 border-amber-200 bg-amber-50 text-amber-900">
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
                     <AlertDescription className="text-xs ml-1">
-                      AI je prepoznal "<strong>{ocr.counterpartyName}</strong>", a partnerja ni v sistemu.
+                      AI je prepoznal "<strong>{ocr.counterpartyName}</strong>", vendar ga ni bilo mogoče zanesljivo povezati z obstoječim partnerjem. Preverite seznam partnerjev in podatke, preden ustvarite novega.
                     </AlertDescription>
                   </Alert>
                   <Button

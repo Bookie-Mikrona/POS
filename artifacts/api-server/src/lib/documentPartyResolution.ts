@@ -29,6 +29,9 @@ export type ScopedCounterparty = {
   id: string;
   name: string;
   taxId?: string | null;
+  address?: string | null;
+  postCode?: string | null;
+  city?: string | null;
 };
 
 /** Remove formatting while preserving country prefixes other than the Slovenian equivalence. */
@@ -198,6 +201,24 @@ export function findScopedCounterparty(
     const name = normalizeAlias(party.name);
     if (!name) return undefined;
     matches = counterparties.filter(counterparty => normalizeAlias(counterparty.name) === name);
+    if (!matches.length && name.startsWith("SP:") && party.address?.trim()) {
+      const normalizeAddress = (value: string) => value.normalize("NFKC").toUpperCase().replace(/[\p{P}\p{S}\s]+/gu, "");
+      const tokens = name.slice(3).split("|");
+      matches = counterparties.filter(counterparty => {
+        const registeredName = normalizeAlias(counterparty.name);
+        if (!registeredName.startsWith("SP:") || !counterparty.address?.trim()
+          || !counterparty.postCode?.trim() || !counterparty.city?.trim()) return false;
+        const remainingTokens = registeredName.slice(3).split("|");
+        return tokens.every(token => {
+          const index = remainingTokens.indexOf(token);
+          if (index < 0) return false;
+          remainingTokens.splice(index, 1);
+          return true;
+        }) && normalizeAddress(party.address!) === normalizeAddress(
+          `${counterparty.address} ${counterparty.postCode} ${counterparty.city}`,
+        );
+      });
+    }
   }
 
   // Never pick an arbitrary person when two sole proprietors share a name.
