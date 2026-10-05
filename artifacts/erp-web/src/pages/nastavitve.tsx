@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Building2, Users, Save, UserPlus, AlertCircle, AlertTriangle, CheckCircle2, Loader2, Trash2, Plus, X, RefreshCw, Database, Store, CalendarDays, KeyRound, FileText } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
+import { ScannerBridgeSettings } from "@/components/documents/scanner-bridge";
 import { useGetCompany, useGetMe, useAssignRole, useListCounterparties, useListNatakari } from "@workspace/api-client-react";
 import type { CompanyWithRole, RoleAssignment, TipAllocation, TipPolicy } from "@workspace/api-client-react";
 
@@ -3167,6 +3168,7 @@ export default function Nastavitve() {
           </TabsContent>
         )}
       </Tabs>
+      <ScannerBridgeSettings />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { trackEvent } from "@/lib/analytics";
+import { ScannerCapture } from "./scanner-bridge";
 
 type UploadItem = {
   name: string;
@@ -32,17 +33,18 @@ export function DocumentUpload({ company }: { company: CompanyWithRole | null })
   const inputRef = useRef<HTMLInputElement>(null);
   const inFlight = useRef(false);
   const [uploading, setUploading] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [batch, setBatch] = useState<{ companyName: string; items: UploadItem[] } | null>(null);
 
   useEffect(() => {
-    if (!uploading) return;
+    if (!uploading && !scannerOpen) return;
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warnBeforeLeaving);
     return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
-  }, [uploading]);
+  }, [uploading, scannerOpen]);
 
   const updateItem = (index: number, patch: Partial<UploadItem>) => {
     setBatch(previous => previous && ({
@@ -54,14 +56,20 @@ export function DocumentUpload({ company }: { company: CompanyWithRole | null })
   const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = "";
-    if (!files.length || !company || company.role === "viewer" || inFlight.current) return;
+    if (scannerOpen) return;
+    await uploadFiles(files, company);
+  };
+
+  const uploadFiles = async (files: File[], targetCompany: CompanyWithRole | null): Promise<boolean> => {
+    if (!files.length || !targetCompany || targetCompany.role === "viewer" || inFlight.current) return false;
 
     // Freeze the target tenant before awaiting anything, including for later files.
-    const companyId = company.id;
+    const companyId = targetCompany.id;
+    let allUploaded = true;
     inFlight.current = true;
     setUploading(true);
     setBatch({
-      companyName: company.kratekNaziv || company.naziv || company.id,
+      companyName: targetCompany.kratekNaziv || targetCompany.naziv || targetCompany.id,
       items: files.map(file => ({ name: file.name, status: "queued" })),
     });
 
@@ -96,6 +104,7 @@ export function DocumentUpload({ company }: { company: CompanyWithRole | null })
           updateItem(index, { status: "uploaded" });
           void queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(companyId) });
         } catch (error) {
+          allUploaded = false;
           const message = error instanceof Error ? error.message : "Nalaganje ni uspelo.";
           updateItem(index, {
             status: "error",
@@ -120,6 +129,7 @@ export function DocumentUpload({ company }: { company: CompanyWithRole | null })
       inFlight.current = false;
       setUploading(false);
     }
+    return allUploaded;
   };
 
   const items = batch?.items ?? [];
@@ -137,17 +147,23 @@ export function DocumentUpload({ company }: { company: CompanyWithRole | null })
         accept=".pdf,.jpg,.jpeg,.png,.webp"
         aria-label="Izberite dokumente za nalaganje"
         className="hidden"
-        disabled={uploading || !company || company.role === "viewer"}
+        disabled={uploading || scannerOpen || !company || company.role === "viewer"}
         onChange={handleFiles}
       />
       <Button
         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-        disabled={uploading || !company || company.role === "viewer"}
+        disabled={uploading || scannerOpen || !company || company.role === "viewer"}
         onClick={() => inputRef.current?.click()}
       >
         {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
         {uploading ? `Nalaganje ${Math.min(finished + 1, items.length)}/${items.length}…` : "Naloži dokumente"}
       </Button>
+      <ScannerCapture
+        disabled={uploading || !company || company.role === "viewer"}
+        companyName={company?.kratekNaziv || company?.naziv || company?.id || ""}
+        onCapture={file => uploadFiles([file], company)}
+        onOpenChange={setScannerOpen}
+      />
       {!batch && <p className="mt-2 text-xs text-muted-foreground">Izberete lahko več datotek hkrati s Ctrl ali Shift.</p>}
       {batch && (
         <div className="mt-3 space-y-2 text-xs">

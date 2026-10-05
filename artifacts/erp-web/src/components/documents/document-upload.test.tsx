@@ -318,4 +318,77 @@ describe("DocumentUpload", () => {
     expect(input.value).toBe("");
     queryClient.clear();
   });
+
+  it("previews an HP scan and uploads only on confirmation to the company captured before scanning", async () => {
+    const { queryClient, rerender, invalidateQueries } = renderUpload(company("scan-original"));
+    const scanResult = deferred<Response>();
+    const bridgeFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/health")) return new Response(JSON.stringify({
+        status: "ok", version: "1.0", scanners: [{ id: "hp-1", name: "HP ScanJet" }],
+      }));
+      if (url.endsWith("/scan")) return scanResult.promise;
+      return new Response("", { status: 200 });
+    });
+    vi.stubGlobal("fetch", bridgeFetch);
+
+    fireEvent.click(screen.getByRole("button", { name: "Skeniraj s HP skenerjem" }));
+    await screen.findByRole("option", { name: "HP ScanJet" });
+    fireEvent.click(screen.getByRole("button", { name: "Skeniraj dokument" }));
+    expect(screen.getByText("Naloži dokumente").closest("button")).toBeDisabled();
+    expect(mocks.requestUpload).not.toHaveBeenCalled();
+    expect(bridgeFetch).toHaveBeenCalledWith("http://localhost:8765/scan", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ deviceId: "hp-1", dpi: 300, color: false, format: "png" }),
+    }));
+    rerender(<QueryClientProvider client={queryClient}><DocumentUpload company={company("scan-new")} /></QueryClientProvider>);
+    await act(async () => scanResult.resolve(new Response(JSON.stringify({ image: "c2Nhbg==", mimeType: "image/png" }))));
+    await screen.findByAltText("Predogled skeniranega dokumenta");
+    expect(screen.getByText("Short scan-original")).toBeInTheDocument();
+    expect(mocks.registerDocument).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Naloži sken za AI" }));
+    await screen.findByText("Uspešno naloženih 1 od 1 dokumentov.");
+    expect(mocks.registerDocument).toHaveBeenCalledWith(expect.objectContaining({
+      companyId: "scan-original", data: expect.objectContaining({ mimeType: "image/png", fileSizeBytes: 4 }),
+    }));
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "scan-original"] });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    queryClient.clear();
+  });
+
+  it("keeps the scan preview on registration failure and never uploads a cancelled scan", async () => {
+    const { queryClient } = renderUpload();
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(JSON.stringify(
+      url.endsWith("/health")
+        ? { status: "ok", scanners: [{ id: "hp-1", name: "HP ScanJet" }] }
+        : url.endsWith("/scan") ? { image: "c2Nhbg==", mimeType: "image/png" } : {},
+    ))));
+    fireEvent.click(screen.getByRole("button", { name: "Skeniraj s HP skenerjem" }));
+    await screen.findByRole("option", { name: "HP ScanJet" });
+    fireEvent.click(screen.getByRole("button", { name: "Skeniraj dokument" }));
+    await screen.findByAltText("Predogled skeniranega dokumenta");
+    fireEvent.click(screen.getByRole("button", { name: "Prekliči" }));
+    expect(mocks.requestUpload).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Skeniraj s HP skenerjem" }));
+    await screen.findByRole("option", { name: "HP ScanJet" });
+    fireEvent.click(screen.getByRole("button", { name: "Skeniraj dokument" }));
+    await screen.findByAltText("Predogled skeniranega dokumenta");
+    mocks.registerDocument.mockRejectedValueOnce(new Error("Registration failed"));
+    fireEvent.click(screen.getByRole("button", { name: "Naloži sken za AI" }));
+    await screen.findByText(/Sken je ohranjen/);
+    expect(screen.getByAltText("Predogled skeniranega dokumenta")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    queryClient.clear();
+  });
+
+  it("shows actionable errors for an unavailable bridge without uploading documents", async () => {
+    const { queryClient } = renderUpload();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    fireEvent.click(screen.getByRole("button", { name: "Skeniraj s HP skenerjem" }));
+    await screen.findByText(/Most ni dosegljiv/);
+    expect(screen.getByRole("button", { name: "Skeniraj dokument" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Prenesi ScannerBridge.exe" })).toHaveAttribute("href", "/api/downloads/ScannerBridge.exe");
+    expect(mocks.requestUpload).not.toHaveBeenCalled();
+    queryClient.clear();
+  });
 });
