@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
 import { useAuth } from "@clerk/react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -85,10 +86,16 @@ export default function Placila() {
 
   const [activeTab, setActiveTab] = useState<string>("inbound");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [periodFilter, setPeriodFilter] = useState<string>("all");
+  const [periodSelection, setPeriodSelection] = useState<{ companyId: string; value: string } | null>(null);
+  const setPeriodFilter = (value: string) => {
+    if (activeCompany) setPeriodSelection({ companyId: activeCompany.id, value });
+  };
 
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
+  const periodFilter = periodSelection && periodSelection.companyId === activeCompany?.id
+    ? periodSelection.value
+    : defaultAccountingPeriod(periods);
 
   const { data, isLoading, error } = useListPayments(
     activeCompany?.id ?? "",
@@ -97,7 +104,7 @@ export default function Placila() {
       status: statusFilter !== "all" ? (statusFilter as any) : undefined,
       periodId: periodFilter !== "all" ? periodFilter : undefined,
     },
-    { query: { enabled: !!activeCompany?.id && activeTab !== "batches" } as any }
+    { query: { enabled: !!activeCompany?.id && !!periodsData && activeTab !== "batches" } as any }
   );
 
   const payments = data?.payments ?? [];
