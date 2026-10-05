@@ -124,6 +124,7 @@
 - [DDV poročila in izvoz](kirkpr-export-safety.md) — enoten obseg in popolna davčna sled; eDavki morajo vključevati samostojna RP-O in PD-O.
 - [Meni Gostilne Križišče](krizisce-menu-import.md) — velika pica pomeni normalno; malice niso artikli; pice uporabljajo sestavinske normative in skupne ter lastne modifikatorje.
 - [Križišče POS brez interne GK](krizisce-pos-only.md) — poslovne knjige vodi zunanji izvajalec; ne odpiraj obdobij, razvojno testiranje osnovnih sredstev ohrani.
+- [Prikaz POS temeljnic](pos-temeljnice-prikaz.md) — prikaži ime pripadajoče enote namesto internih oznak, kot je E309; tehnične reference ostanejo nespremenjene.
 - [Skupinski nabavni artikli](generic-purchase-articles.md) — dobaviteljeva postavka ohrani identiteto; skupna zaloga združuje le postavke z isto kanonično e-SLOG enoto.
 - [Git prenosi in tihe izgube](git-transfer-tree-audit.md) — po vsakem prenosu primerjaj celotno drevo s stanjem pred prenosom; zgodovina lahko skrije množične izgube.
 - [Stripe boni po gostincu](stripe-boni-po-gostincu.md) — spletni bon uporablja neposredno plačilo povezanega računa podjetja; brez povezave ni platformskega nadomestnega plačila.

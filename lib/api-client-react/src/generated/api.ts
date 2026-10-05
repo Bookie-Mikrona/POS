@@ -135,6 +135,7 @@ import type {
   EventTransferDiagnosticReport,
   EventTransferMovementDetail,
   ExportOperativnaPorocilaQrFeedbackParams,
+  ExportPosJournalEntriesParams,
   ExportTipsPayrollCsvParams,
   ExportZalogePdfParams,
   ForbiddenResponse,
@@ -579,6 +580,90 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getExportPosJournalEntriesUrl = (params: ExportPosJournalEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/temeljnice/izvoz?${stringifiedParams}` : `/api/temeljnice/izvoz`
+}
+
+/**
+ * @summary Izvozi temeljnice aktivnega podjetja za izbrano obdobje
+ */
+export const exportPosJournalEntries = async (params: ExportPosJournalEntriesParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportPosJournalEntriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportPosJournalEntriesQueryKey = (params?: ExportPosJournalEntriesParams,) => {
+    return [
+    `/api/temeljnice/izvoz`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportPosJournalEntriesQueryOptions = <TData = Awaited<ReturnType<typeof exportPosJournalEntries>>, TError = ErrorType<void>>(params: ExportPosJournalEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportPosJournalEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportPosJournalEntriesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportPosJournalEntries>>> = ({ signal }) => exportPosJournalEntries(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportPosJournalEntries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportPosJournalEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof exportPosJournalEntries>>>
+export type ExportPosJournalEntriesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Izvozi temeljnice aktivnega podjetja za izbrano obdobje
+ */
+
+export function useExportPosJournalEntries<TData = Awaited<ReturnType<typeof exportPosJournalEntries>>, TError = ErrorType<void>>(
+ params: ExportPosJournalEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportPosJournalEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportPosJournalEntriesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getTransferPosBookingDraftsUrl = () => {
 

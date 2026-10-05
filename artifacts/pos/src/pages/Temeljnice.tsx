@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronRight, Search, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, RefreshCw, Download } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
 import { poslovniDatumZaCas } from "@/lib/posCas";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,9 +31,16 @@ interface Temeljnica {
   skupajDebet: number;
   vrstice: Vrstica[];
   posArchive?: boolean;
+  enotaIme?: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function nazivTemeljnice(t: Temeljnica): string {
+  if (!/:E\d+$/.test(t.reference)) return t.reference;
+  const naziv = t.description?.replace(/\s*[—–-]\s*\d{4}-\d{2}(?:-\d{2})?$/, "") || "POS temeljnica";
+  return `${naziv} · ${t.enotaIme || "Enota ni več na voljo"}`;
+}
 
 function danes(): string {
   return poslovniDatumZaCas();
@@ -75,6 +82,37 @@ export default function Temeljnice() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferring, setTransferring] = useState(false);
+  const [exporting, setExporting] = useState<"xlsx" | "csv" | null>(null);
+
+  async function exportPeriod(format: "xlsx" | "csv") {
+    if (!od || !do_ || od > do_) {
+      toast({ title: "Neveljavno obdobje", description: "Izberite datuma Od in Do; Od mora biti pred ali enak datumu Do.", variant: "destructive" });
+      return;
+    }
+    setExporting(format);
+    let url: string | undefined;
+    try {
+      const params = new URLSearchParams({ od, do: do_, format });
+      const blob = await customFetch<Blob>(`/api/temeljnice/izvoz?${params}`, {
+        credentials: "include", responseType: "blob",
+      });
+      url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `temeljnice-${od}-${do_}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast({ title: "Izvoz ni uspel", description: error instanceof Error ? error.message : "Neznana napaka pri izvozu.", variant: "destructive" });
+    } finally {
+      if (url) {
+        const downloadUrl = url;
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      }
+      setExporting(null);
+    }
+  }
 
   // ── Ročni sync ──────────────────────────────────────────────────────────────
   const [syncDatum, setSyncDatum] = useState<string>(danes);
@@ -195,6 +233,16 @@ export default function Temeljnice() {
           <Search className="w-4 h-4" />
           Pokaži
         </Button>
+        <Button onClick={() => exportPeriod("xlsx")} variant="outline" size="sm" className="gap-1"
+          disabled={exporting !== null || !od || !do_ || od > do_}>
+          <Download className="w-4 h-4" />
+          {exporting === "xlsx" ? "Izvažam…" : "Izvozi Excel"}
+        </Button>
+        <Button onClick={() => exportPeriod("csv")} variant="outline" size="sm" className="gap-1"
+          disabled={exporting !== null || !od || !do_ || od > do_}>
+          <Download className="w-4 h-4" />
+          {exporting === "csv" ? "Izvažam…" : "Izvozi CSV"}
+        </Button>
       </div>
 
       {/* Ročni sync */}
@@ -271,7 +319,7 @@ export default function Temeljnice() {
               <div key={t.id} className="border rounded-md overflow-hidden bg-white">
                 {canTransfer && t.posArchive && (
                   <label className="flex items-center gap-2 px-3 pt-2 text-xs">
-                    <Checkbox aria-label={`Izberi za prenos: ${t.reference}`} checked={selected.has(t.id)} disabled={transferring}
+                    <Checkbox aria-label={`Izberi za prenos: ${nazivTemeljnice(t)}`} checked={selected.has(t.id)} disabled={transferring}
                       onCheckedChange={checked => setSelected(prev => {
                         const next = new Set(prev);
                         if (checked === true) next.add(t.id); else next.delete(t.id);
@@ -291,8 +339,8 @@ export default function Temeljnice() {
                   <span className="text-xs text-muted-foreground w-20 shrink-0">
                     {datumSlo(t.entryDate)}
                   </span>
-                  <span className="font-mono text-sm font-medium flex-1 truncate">
-                    {t.reference}
+                  <span className="text-sm font-medium flex-1 truncate">
+                    {nazivTemeljnice(t)}
                   </span>
                   <span className="text-sm tabular-nums text-right w-24 shrink-0">
                     {eur(t.skupajDebet)}

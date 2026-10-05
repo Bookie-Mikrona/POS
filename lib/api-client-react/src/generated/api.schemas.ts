@@ -12926,6 +12926,20 @@ export type ConflictResponse = ErrorResponse;
  */
 export type NotFoundResponse = ErrorResponse;
 
+export type ExportPosJournalEntriesParams = {
+od: string;
+do: string;
+format: ExportPosJournalEntriesFormat;
+};
+
+export type ExportPosJournalEntriesFormat = typeof ExportPosJournalEntriesFormat[keyof typeof ExportPosJournalEntriesFormat];
+
+
+export const ExportPosJournalEntriesFormat = {
+  xlsx: 'xlsx',
+  csv: 'csv',
+} as const;
+
 export type TransferPosBookingDraftsBody = {
   /**
      * @minItems 1

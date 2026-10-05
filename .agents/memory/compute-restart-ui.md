@@ -8,3 +8,9 @@ description: Alternativa, kadar ukazna paleta v Replit Project Editorju ni doseg
 **Why:** V tem okolju uporabnik ni našel ukaza Restart compute in Ctrl+K ni imel učinka, medtem ko je dokumentirani ukaz iz lupine sprožil pričakovano ponovno povezavo.
 
 **How to apply:** Pred zagonom opozori na začasno prekinitev predogledov. Po ponovni povezavi zaženi samo potrebne upravljane storitve in preveri njihove dnevnike; nepotrebnih storitev ne zaganjaj samodejno.
+
+Po nepričakovani prekinitvi compute preveri, ali so zadnji popravki dejansko ostali v datotekah; uspešen izpis urejanja pred prekinitvijo ni dovolj.
+
+**Why:** Ob prekinitvi »SERVER unexpectedly disconnected« se je okolje obnovilo z večino sprememb, vendar brez najnovejšega majhnega popravka. Naslednje preverjanje je zato znova našlo že popravljeno napako.
+
+**How to apply:** Primerjaj trenutno vsebino prizadetega odseka in delovni diff, preden popravek ponoviš. Ne razveljavljaj širših sprememb ali zaganjaj vseh nepovezanih storitev.

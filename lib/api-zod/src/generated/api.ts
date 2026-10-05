@@ -9,6 +9,22 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Izvozi temeljnice aktivnega podjetja za izbrano obdobje
+ */
+export const ExportPosJournalEntriesQueryParams = zod.object({
+  "od": zod.coerce.string(),
+  "do": zod.coerce.string(),
+  "format": zod.enum(['xlsx', 'csv'])
+})
+
+export const ExportPosJournalEntriesHeader = zod.object({
+  "X-Enota-Id": zod.number()
+})
+
+export const ExportPosJournalEntriesResponse = zod.unknown()
+
+
+/**
  * Zahteva POS administratorja podjetja, vključen ERP modul in odprta obdobja. Nikoli ne knjiži samodejno in ne prepiše že prenesenih temeljnic.
  * @summary Izrecno prenesi izbrane POS osnutke v interno GK
  */
