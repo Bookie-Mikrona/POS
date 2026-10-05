@@ -57,11 +57,17 @@ V normativu modifikatorja so kot vhodni artikli primerni tudi prodajni à la car
 
 **How to apply:** Kjer je treba ločiti končne jedi od polizdelkov, kombiniraj `mealType` z zastavico prodajnega artikla. Prodajni `prepared` je končna jed; neprodajni `prepared` je polizdelek.
 
-Pripravljena hrana se vodi v porcijah, kg ali l. Pripravljena jed v kg/l je vedno nenabavni in neprodajni polizdelek; gostu se prodaja porcija drugega artikla, ki ga porablja prek normativa sestavljene prodajne jedi ali modifikatorja (npr. 0,35 kg golaža). Normativ priprave velja za 1 izbrano osnovno enoto, ne za poljubno velik lonec.
+Pripravljena hrana se vodi v porcijah, kg ali l. Pripravljena jed v kg/l je vedno nenabavni in neprodajni polizdelek; gostu se prodaja porcija drugega artikla, ki ga porablja prek normativa sestavljene prodajne jedi ali modifikatorja (npr. 0,35 kg golaža). Normativ je dovoljeno vnašati na eno normalno porcijo z izrecno določeno maso oziroma prostornino (npr. 400 g); za pripravo in zalogo se preračuna na osnovni kg/l.
 
 **Why:** Uporabnik je izrecno določil ločitev kuhinjske količinske evidence od prodajne porcije. Ne želimo pretvorbe prodajne cene po teži niti neposredne prodaje kg/l pripravljenega polizdelka. Potrdil je tudi, da za krvavice, sarme in polnjene paprike ne dodajamo osnovne enote »kos«: nabava je v kg, dodatno štetje kosov ob nabavi pa bi oteževalo delo.
 
 **How to apply:** Ohrani pripravljene osnovne enote porcija/kg/l; prikaz kosa jedi gostu ni razlog za uvedbo kosovne nabavne evidence. Obstoječih porcij ali hlebčkov ne pretvarjaj samodejno. Sprememba osnovne enote ne pomeni preračuna recepta; ko obstaja količinska zgodovina ali normativna uporaba, potrebuje drug artikel ali posebej dogovorjen sledljiv pretvorbeni postopek. Porcijski AI predlog ni veljaven recept za 1 kg/l.
+
+Normalna porcija je le referenca za vnos normativa, ne prodajna cena ali nova zalogovna enota. Kuhar še naprej vnaša pripravljeno količino v kg/l, prodajni artikli pa lahko porabljajo različne velikosti porcij tega polizdelka.
+
+**Why:** Uporabnik je opustil predlog neposredne porcijske prodaje in cene ter izrecno ohranil obvezni polizdelek, ker so možne različne velikosti porcij. Zahteval je vnos sestavin za normalno porcijo, npr. 400 g.
+
+**How to apply:** Ohrani recept na osnovno enoto kot izračunsko osnovo; prikaz in vnos sestavin preračunaj z deklarirano normalno porcijo. Starih receptov brez deklaracije ne reinterpretiraj in ne spreminjaj zaloge samo zaradi nastavitve reference.
 
 Izrecno odobrena pretvorba obstoječega polizdelka z znanim faktorjem je uskladitev merske osnove, ne nova priprava ali sprememba računov. Tudi pri obstoječi prodaji mora ohraniti število gostovih porcij in denarne vrednosti.
 

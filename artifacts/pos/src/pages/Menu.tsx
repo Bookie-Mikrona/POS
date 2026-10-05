@@ -95,6 +95,7 @@ import { EslogUnitPicker, displayEslogUnit } from "@/components/EslogUnitPicker"
 import { canonicalEslogUnit, isGroupablePurchaseUnit } from "@/lib/skupinski-nabavni-artikel";
 import { mealTypeForArticleSave } from "@/lib/article-meal-type";
 import { normalizePreparedFoodUnit, preparedFoodUnitCode, type PreparedFoodUnit } from "@/lib/prepared-food-unit";
+import { preparedNormPortionFactor, portionNormQuantity, baseNormQuantity } from "@/lib/prepared-norm-portion";
 
 type KategorijaDialogMode = "nova" | "uredi";
 type ArtDialogMode = "nov" | "uredi";
@@ -223,8 +224,22 @@ export default function Menu() {
   const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">(DEFAULT_NEW_SALES_ARTICLE_TYPE);
   const [artMealType, setArtMealType] = useState<"ala_carte" | "prepared" | "composite">("ala_carte");
   const [artRecipeBatchPieces, setArtRecipeBatchPieces] = useState<number | null>(null);
+  const [artNormalPortionSmallUnit, setArtNormalPortionSmallUnit] = useState("");
   const preparedFoodUnit = normalizePreparedFoodUnit(artEnotaMere);
   const preparedFoodMassUnit = artMealType === "prepared" && preparedFoodUnit !== "porcija";
+  const normPortionFactor = preparedNormPortionFactor(preparedFoodMassUnit, artNormalPortionSmallUnit);
+  const hasNormPortion = preparedFoodMassUnit && parseDecimal(artNormalPortionSmallUnit) > 0;
+
+  function changeNormalPortion(value: string) {
+    const nextFactor = preparedNormPortionFactor(preparedFoodMassUnit, value);
+    setNormativItems(items => items.map(item => {
+      const quantity = parseDecimal(item.kolicina);
+      return Number.isFinite(quantity)
+        ? { ...item, kolicina: portionNormQuantity(baseNormQuantity(quantity, normPortionFactor), nextFactor) }
+        : item;
+    }));
+    setArtNormalPortionSmallUnit(value);
+  }
   const [artCasPripraveMin, setArtCasPripraveMin] = useState("0");
   const [artSkupina, setArtSkupina] = useState<string>("");
   const [artTaxCategory, setArtTaxCategory] = useState<"food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "vat_super_reduced_5" | "other">("food");
@@ -353,7 +368,12 @@ export default function Menu() {
     copyPickerSearch,
     setCopyPickerOpen,
     setCopyPickerSearch,
-  } = useKopirajNormativ({ setNormativItems, setNormativNapaka });
+  } = useKopirajNormativ({
+    setNormativItems: items => setNormativItems(items.map(item => ({
+      ...item, kolicina: portionNormQuantity(parseDecimal(item.kolicina), normPortionFactor),
+    }))),
+    setNormativNapaka,
+  });
 
   // ── Excel uvoz ────────────────────────────────────────────────
   type UvozKorak = "izbira" | "predogled" | "rezultat";
@@ -701,7 +721,7 @@ export default function Menu() {
     if (existingNormativi && normativExpectedRevision === null) {
       setNormativItems(existingNormativi.normativi.map(n => ({
         vhodniArtikelId: n.vhodniArtikelId,
-        kolicina: String(n.kolicina),
+        kolicina: portionNormQuantity(n.kolicina, normPortionFactor),
         ime: n.vhodniArtikelIme ?? undefined,
       })));
       setNormativExpectedRevision(existingNormativi.normativRevision);
@@ -715,7 +735,7 @@ export default function Menu() {
       if (!result.data) throw result.error ?? new Error("Normativa ni bilo mogoče osvežiti.");
       setNormativItems(result.data.normativi.map(n => ({
         vhodniArtikelId: n.vhodniArtikelId,
-        kolicina: String(n.kolicina),
+        kolicina: portionNormQuantity(n.kolicina, normPortionFactor),
         ime: n.vhodniArtikelIme ?? undefined,
       })));
       setNormativExpectedRevision(result.data.normativRevision);
@@ -955,6 +975,7 @@ export default function Menu() {
     setArtVrstaArtikla(DEFAULT_NEW_SALES_ARTICLE_TYPE);
     setArtMealType("ala_carte");
     setArtRecipeBatchPieces(null);
+    setArtNormalPortionSmallUnit("");
     setArtCasPripraveMin("0");
     setArtSkupina("");
     setArtTaxCategory("food");
@@ -1036,6 +1057,7 @@ export default function Menu() {
     setArtVrstaArtikla(drobniInventar ? "material" : (((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev"));
     setArtMealType((a.mealType as "ala_carte" | "prepared" | "composite") ?? "ala_carte");
     setArtRecipeBatchPieces(a.recipeBatchPieces ?? null);
+    setArtNormalPortionSmallUnit(a.preparedNormPortionQuantity == null ? "" : portionNormQuantity(a.preparedNormPortionQuantity, 1000));
     setArtCasPripraveMin(String((a as typeof a & { casPripraveMin?: number }).casPripraveMin ?? 0));
     const shranjenaSkupina = (a as typeof a & { skupina?: string | null }).skupina ?? "";
     setArtSkupina(drobniInventar
@@ -1516,6 +1538,12 @@ export default function Menu() {
       return;
     }
 
+    if (preparedFoodMassUnit && artNormalPortionSmallUnit !== "" &&
+      (!Number.isFinite(parseDecimal(artNormalPortionSmallUnit)) || parseDecimal(artNormalPortionSmallUnit) < 0.001 || parseDecimal(artNormalPortionSmallUnit) > 10000000)) {
+      setArtDialogTab("normativ");
+      setNormativNapaka("Vnesite pozitivno količino normalne porcije (v g oziroma ml).");
+      return;
+    }
     const invalidNormativItem = normativItems.some(
       n => (n.vhodniArtikelId !== -1 && n.vhodniArtikelId <= 0)
         || !Number.isFinite(parseDecimal(n.kolicina))
@@ -1538,7 +1566,7 @@ export default function Menu() {
     // -1 is a self-reference placeholder (replaced with real ID in afterSave)
     const validNormativItems = normativItems
       .filter(n => (n.vhodniArtikelId === -1 || n.vhodniArtikelId > 0) && parseDecimal(n.kolicina) > 0)
-      .map(n => ({ vhodniArtikelId: n.vhodniArtikelId, kolicina: parseDecimal(n.kolicina) }));
+      .map(n => ({ vhodniArtikelId: n.vhodniArtikelId, kolicina: baseNormQuantity(parseDecimal(n.kolicina), normPortionFactor) }));
     const alergeniZaShranjevanje: AlergenSnapshot = uporabiDedovaneAlergene && inheritedAlergeni
       ? {
           alergeni: inheritedAlergeni.alergeni.map(item => item.koda),
@@ -1596,6 +1624,8 @@ export default function Menu() {
       kdsIzkljucen: artKdsIzkljucen,
       mealType: mealTypeForArticleSave(artMealType, artPolizdelek, artPripravaVrsta, artJePica),
       recipeBatchPieces: artMealType === "prepared" && !preparedFoodMassUnit ? artRecipeBatchPieces : null,
+      preparedNormPortionQuantity: preparedFoodMassUnit && artNormalPortionSmallUnit !== ""
+        ? parseDecimal(artNormalPortionSmallUnit) / 1000 : null,
       casPripraveMin: isProdajni ? casPripraveMin : 0,
       happyHourCena: isProdajni && artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
       happyHourCenaMala: isProdajni && artJePica && artHappyHourCenaMala !== "" ? parseDecimal(artHappyHourCenaMala) : null,
@@ -2886,7 +2916,7 @@ export default function Menu() {
                         </Select>
                         {preparedFoodMassUnit ? (
                           <p className="text-xs text-violet-900">
-                            Jed na kg/l je polizdelek: ni prodajni ali nabavni artikel. Normativ je na 1 {preparedFoodUnit}; količine se ne pretvarjajo. Če je artikel že uporabljen v normativu ali ima zalogo oziroma dnevno/zgodovinsko evidenco, enote ni mogoče spremeniti — za drugo osnovo ustvarite nov polizdelek.
+                            Jed na kg/l ostane neprodajni in nenabavni polizdelek. Pri normativu lahko določite normalno porcijo; kuhar še naprej vnaša količino priprave v {preparedFoodUnit}. Osnovne enote pri artiklu z zgodovino ni mogoče spremeniti.
                           </p>
                         ) : (
                           <p className="text-xs text-muted-foreground">
@@ -3011,12 +3041,29 @@ export default function Menu() {
                   </div>
                   {artMealType === "prepared" && (
                     <p data-testid="text-normative-unit-basis" className="text-xs text-muted-foreground">
-                      Normativ je za 1 {preparedFoodUnit}. Količine ob spremembi osnovne enote ostanejo nespremenjene in jih je treba preveriti ročno.
+                      {hasNormPortion
+                        ? `Normativ vnesite za 1 normalno porcijo (${artNormalPortionSmallUnit} ${preparedFoodUnit === "kg" ? "g" : "ml"}). Program ga preračuna na ${preparedFoodUnit} za pripravo v kuhinji.`
+                        : preparedFoodMassUnit
+                          ? `Normativ je za 1 ${preparedFoodUnit}. Za vnos na normalno porcijo določite njeno količino spodaj.`
+                          : "Normativ je za 1 porcijo."}
                     </p>
                   )}
                   {preparedFoodMassUnit && (
+                    <div className="space-y-2 rounded-md border bg-muted/40 p-3">
+                      <Label htmlFor="prepared-normal-portion">Količina normalne porcije ({preparedFoodUnit === "kg" ? "g" : "ml"})</Label>
+                      <DecimalInput id="prepared-normal-portion" data-testid="input-prepared-normal-portion"
+                        value={artNormalPortionSmallUnit} placeholder="npr. 400"
+                        onChange={event => changeNormalPortion(event.target.value)} />
+                      <p className="text-xs text-muted-foreground">
+                        Ob vnosu ali spremembi porcije se že vnesene sestavine sorazmerno preračunajo.
+                        Brez določene porcije ostane obstoječi normativ na 1 {preparedFoodUnit}.
+                        Cena in neposredna prodaja polizdelka nista omogočeni.
+                      </p>
+                    </div>
+                  )}
+                  {preparedFoodMassUnit && (
                     <p data-testid="text-smart-normative-unit-warning" className="text-xs text-amber-800">
-                      Pametni predlog je trenutno na voljo samo za porcijske osnove. Normativ za polizdelek vnesite ročno na 1 {preparedFoodUnit}.
+                      Pametni predlog je trenutno na voljo samo za porcijske artikle. Normativ polizdelka vnesite ročno {hasNormPortion ? "za normalno porcijo" : `na 1 ${preparedFoodUnit}`}.
                     </p>
                   )}
                   {artMealType === "prepared" && normalizePreparedFoodUnit(artEnotaMere) === "porcija" && (
@@ -3818,7 +3865,7 @@ export default function Menu() {
             }
             setNormativItems(result.data.normativi.map(n => ({
               vhodniArtikelId: n.vhodniArtikelId,
-              kolicina: String(n.kolicina),
+              kolicina: portionNormQuantity(n.kolicina, normPortionFactor),
               ime: n.vhodniArtikelIme ?? undefined,
             })));
             setNormativExpectedRevision(result.data.normativRevision);

@@ -2215,6 +2215,13 @@ export interface Artikel {
      * @nullable
      */
   recipeBatchPieces?: number | null;
+  /**
+     * Količina normalne porcije v osnovni enoti kg/l; normativi so shranjeni na 1 osnovno enoto.
+     * @minimum 0.000001
+     * @maximum 10000
+     * @nullable
+     */
+  preparedNormPortionQuantity?: number | null;
   id: number;
   alergeni?: AlergenKoda[];
   alergeniSledi?: AlergenKoda[];
@@ -2448,6 +2455,13 @@ export interface ArtikelInput {
      * @nullable
      */
   recipeBatchPieces?: number | null;
+  /**
+     * Količina normalne porcije v osnovni enoti kg/l; null ohrani vnos na 1 osnovno enoto.
+     * @minimum 0.000001
+     * @maximum 10000
+     * @nullable
+     */
+  preparedNormPortionQuantity?: number | null;
   /**
      * Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)
      * @nullable

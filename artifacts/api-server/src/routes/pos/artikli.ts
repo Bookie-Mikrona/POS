@@ -164,6 +164,7 @@ const SELECT_FIELDS = {
   casPripraveMin: artikliTable.casPripraveMin,
   mealType: artikliTable.mealType,
   recipeBatchPieces: artikliTable.recipeBatchPieces,
+  preparedNormPortionQuantity: artikliTable.preparedNormPortionQuantity,
   vrstaArtikla: artikliTable.vrstaArtikla,
   happyHourCena: artikliTable.happyHourCena,
   happyHourCenaMala: artikliTable.happyHourCenaMala,
@@ -233,6 +234,7 @@ function mapRow(r: Record<string, unknown>) {
     casPripraveMin: Number(r.casPripraveMin ?? 0),
     mealType: (r.mealType as "ala_carte" | "prepared" | "composite" | null) ?? "ala_carte",
     recipeBatchPieces: (r.recipeBatchPieces as number | null) ?? null,
+    preparedNormPortionQuantity: r.preparedNormPortionQuantity == null ? null : Number(r.preparedNormPortionQuantity),
     vrstaArtikla: resolveArticleType(r.vrstaArtikla as string | null, {
       nabavniArtikel: r.nabavniArtikel as boolean,
       prodajniArtikel: r.prodajniArtikel as boolean,
@@ -564,6 +566,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     purchaseArticle: nabavniArtikel,
     salesArticle: prodajniArtikel,
     returnablePackaging: parsed.data.povratnaEmbalaza,
+    normPortionQuantity: parsed.data.preparedNormPortionQuantity,
   });
   if (preparedUnitError) { res.status(400).json({ error: preparedUnitError }); return; }
   const polizdelek = !nabavniArtikel && !prodajniArtikel && !parsed.data.povratnaEmbalaza;
@@ -631,6 +634,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         ime,
         opis: parsed.data.opis ?? null,
         recipeBatchPieces: parsed.data.recipeBatchPieces ?? null,
+        preparedNormPortionQuantity: parsed.data.preparedNormPortionQuantity == null ? null : String(parsed.data.preparedNormPortionQuantity),
         cena: String(polizdelek ? 0 : parsed.data.cena ?? 0),
         cenaMala: polizdelek || parsed.data.cenaMala == null ? null : String(parsed.data.cenaMala),
         cenaDruzinska: polizdelek || parsed.data.cenaDruzinska == null ? null : String(parsed.data.cenaDruzinska),
@@ -1799,9 +1803,16 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     purchaseArticle: naslednjiNabavni,
     salesArticle: naslednjiProdajni,
     returnablePackaging: parsed.data.povratnaEmbalaza ?? obstojeci.povratnaEmbalaza,
+    normPortionQuantity: parsed.data.preparedNormPortionQuantity,
   });
   if (preparedRoleError) { res.status(400).json({ error: preparedRoleError }); return; }
   if (parsed.data.recipeBatchPieces !== undefined) updateData.recipeBatchPieces = parsed.data.recipeBatchPieces;
+  if (parsed.data.preparedNormPortionQuantity !== undefined) {
+    updateData.preparedNormPortionQuantity = parsed.data.preparedNormPortionQuantity == null ? null : String(parsed.data.preparedNormPortionQuantity);
+  }
+  if (requestedUpdatedMealType !== "prepared" || !isPreparedFoodBulkUnit(naslednjaEnota)) {
+    updateData.preparedNormPortionQuantity = null;
+  }
   if (polizdelek) {
     updateData.vrstaArtikla = null;
   } else if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) {

@@ -52,7 +52,13 @@ export function preparedFoodUnitRoleError(input: {
   purchaseArticle?: boolean;
   salesArticle?: boolean;
   returnablePackaging?: boolean;
+  normPortionQuantity?: number | null;
 }): string | null {
+  if (input.normPortionQuantity != null &&
+    (!Number.isFinite(input.normPortionQuantity) || input.normPortionQuantity <= 0
+      || input.mealType !== "prepared" || !isPreparedFoodBulkUnit(input.unit))) {
+    return "Normalna porcija je dovoljena samo za pripravljeno jed v kg ali l in mora imeti pozitivno količino.";
+  }
   if (input.mealType === "prepared" && !isSupportedPreparedFoodUnit(input.unit)) {
     return "Pripravljena jed mora uporabljati enoto porcija, kg ali l.";
   }

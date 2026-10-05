@@ -1613,6 +1613,9 @@ export const ListArtikliQueryParams = zod.object({
 
 export const listArtikliResponseRecipeBatchPiecesMax = 10000;
 
+export const listArtikliResponsePreparedNormPortionQuantityMin = 0.000001;
+export const listArtikliResponsePreparedNormPortionQuantityMax = 10000;
+
 export const listArtikliResponseCenaMin = 0;
 
 export const listArtikliResponseCenaMalaMin = 0;
@@ -1631,6 +1634,7 @@ export const listArtikliResponseDepozitnaVrednostMin = 0;
 
 export const ListArtikliResponseItem = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(listArtikliResponseRecipeBatchPiecesMax).nullish(),
+  "preparedNormPortionQuantity": zod.number().min(listArtikliResponsePreparedNormPortionQuantityMin).max(listArtikliResponsePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; normativi so shranjeni na 1 osnovno enoto.'),
   "id": zod.number(),
   "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
@@ -1713,6 +1717,9 @@ export const ListArtikliResponse = zod.array(ListArtikliResponseItem)
  */
 export const createArtikelBodyOneRecipeBatchPiecesMax = 10000;
 
+export const createArtikelBodyOnePreparedNormPortionQuantityMin = 0.000001;
+export const createArtikelBodyOnePreparedNormPortionQuantityMax = 10000;
+
 export const createArtikelBodyOnePovratnaEmbalazaDefault = false;
 export const createArtikelBodyOneDrobniInventarDefault = false;
 export const createArtikelBodyOneDepozitnaVrednostMin = 0;
@@ -1745,6 +1752,7 @@ export const createArtikelBodyOneNetoDelezOdstMax = 100;
 
 export const CreateArtikelBody = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(createArtikelBodyOneRecipeBatchPiecesMax).nullish(),
+  "preparedNormPortionQuantity": zod.number().min(createArtikelBodyOnePreparedNormPortionQuantityMin).max(createArtikelBodyOnePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; null ohrani vnos na 1 osnovno enoto.'),
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)'),
   "kdsIzkljucen": zod.boolean().optional().describe('Izrecna izključitev artikla iz KDS in seznama nerazporejenih artiklov'),
   "povratnaEmbalaza": zod.boolean().default(createArtikelBodyOnePovratnaEmbalazaDefault),
@@ -1803,6 +1811,9 @@ export const CreateArtikelBody = zod.object({
 
 export const createArtikelResponseRecipeBatchPiecesMax = 10000;
 
+export const createArtikelResponsePreparedNormPortionQuantityMin = 0.000001;
+export const createArtikelResponsePreparedNormPortionQuantityMax = 10000;
+
 export const createArtikelResponseCenaMin = 0;
 
 export const createArtikelResponseCenaMalaMin = 0;
@@ -1821,6 +1832,7 @@ export const createArtikelResponseDepozitnaVrednostMin = 0;
 
 export const CreateArtikelResponse = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(createArtikelResponseRecipeBatchPiecesMax).nullish(),
+  "preparedNormPortionQuantity": zod.number().min(createArtikelResponsePreparedNormPortionQuantityMin).max(createArtikelResponsePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; normativi so shranjeni na 1 osnovno enoto.'),
   "id": zod.number(),
   "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
@@ -2007,6 +2019,9 @@ export const GenerateArtikelImageBody = zod.object({
 
 export const generateArtikelImageResponseRecipeBatchPiecesMax = 10000;
 
+export const generateArtikelImageResponsePreparedNormPortionQuantityMin = 0.000001;
+export const generateArtikelImageResponsePreparedNormPortionQuantityMax = 10000;
+
 export const generateArtikelImageResponseCenaMin = 0;
 
 export const generateArtikelImageResponseCenaMalaMin = 0;
@@ -2025,6 +2040,7 @@ export const generateArtikelImageResponseDepozitnaVrednostMin = 0;
 
 export const GenerateArtikelImageResponse = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(generateArtikelImageResponseRecipeBatchPiecesMax).nullish(),
+  "preparedNormPortionQuantity": zod.number().min(generateArtikelImageResponsePreparedNormPortionQuantityMin).max(generateArtikelImageResponsePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; normativi so shranjeni na 1 osnovno enoto.'),
   "id": zod.number(),
   "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
@@ -2114,6 +2130,9 @@ export const UploadArtikelImageBody = zod.object({
 
 export const uploadArtikelImageResponseRecipeBatchPiecesMax = 10000;
 
+export const uploadArtikelImageResponsePreparedNormPortionQuantityMin = 0.000001;
+export const uploadArtikelImageResponsePreparedNormPortionQuantityMax = 10000;
+
 export const uploadArtikelImageResponseCenaMin = 0;
 
 export const uploadArtikelImageResponseCenaMalaMin = 0;
@@ -2132,6 +2151,7 @@ export const uploadArtikelImageResponseDepozitnaVrednostMin = 0;
 
 export const UploadArtikelImageResponse = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(uploadArtikelImageResponseRecipeBatchPiecesMax).nullish(),
+  "preparedNormPortionQuantity": zod.number().min(uploadArtikelImageResponsePreparedNormPortionQuantityMin).max(uploadArtikelImageResponsePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; normativi so shranjeni na 1 osnovno enoto.'),
   "id": zod.number(),
   "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
@@ -2214,6 +2234,9 @@ export const GetArtikelParams = zod.object({
 
 export const getArtikelResponseRecipeBatchPiecesMax = 10000;
 
+export const getArtikelResponsePreparedNormPortionQuantityMin = 0.000001;
+export const getArtikelResponsePreparedNormPortionQuantityMax = 10000;
+
 export const getArtikelResponseCenaMin = 0;
 
 export const getArtikelResponseCenaMalaMin = 0;
@@ -2232,6 +2255,7 @@ export const getArtikelResponseDepozitnaVrednostMin = 0;
 
 export const GetArtikelResponse = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(getArtikelResponseRecipeBatchPiecesMax).nullish(),
+  "preparedNormPortionQuantity": zod.number().min(getArtikelResponsePreparedNormPortionQuantityMin).max(getArtikelResponsePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; normativi so shranjeni na 1 osnovno enoto.'),
   "id": zod.number(),
   "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
@@ -2314,6 +2338,9 @@ export const UpdateArtikelParams = zod.object({
 
 export const updateArtikelBodyOneRecipeBatchPiecesMax = 10000;
 
+export const updateArtikelBodyOnePreparedNormPortionQuantityMin = 0.000001;
+export const updateArtikelBodyOnePreparedNormPortionQuantityMax = 10000;
+
 export const updateArtikelBodyOnePovratnaEmbalazaDefault = false;
 export const updateArtikelBodyOneDrobniInventarDefault = false;
 export const updateArtikelBodyOneDepozitnaVrednostMin = 0;
@@ -2347,6 +2374,7 @@ export const updateArtikelBodyOneNetoDelezOdstMax = 100;
 
 export const UpdateArtikelBody = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(updateArtikelBodyOneRecipeBatchPiecesMax).nullish(),
+  "preparedNormPortionQuantity": zod.number().min(updateArtikelBodyOnePreparedNormPortionQuantityMin).max(updateArtikelBodyOnePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; null ohrani vnos na 1 osnovno enoto.'),
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)'),
   "kdsIzkljucen": zod.boolean().optional().describe('Izrecna izključitev artikla iz KDS in seznama nerazporejenih artiklov'),
   "povratnaEmbalaza": zod.boolean().default(updateArtikelBodyOnePovratnaEmbalazaDefault),
@@ -2408,6 +2436,9 @@ export const UpdateArtikelBody = zod.object({
 
 export const updateArtikelResponseRecipeBatchPiecesMax = 10000;
 
+export const updateArtikelResponsePreparedNormPortionQuantityMin = 0.000001;
+export const updateArtikelResponsePreparedNormPortionQuantityMax = 10000;
+
 export const updateArtikelResponseCenaMin = 0;
 
 export const updateArtikelResponseCenaMalaMin = 0;
@@ -2426,6 +2457,7 @@ export const updateArtikelResponseDepozitnaVrednostMin = 0;
 
 export const UpdateArtikelResponse = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(updateArtikelResponseRecipeBatchPiecesMax).nullish(),
+  "preparedNormPortionQuantity": zod.number().min(updateArtikelResponsePreparedNormPortionQuantityMin).max(updateArtikelResponsePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; normativi so shranjeni na 1 osnovno enoto.'),
   "id": zod.number(),
   "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),

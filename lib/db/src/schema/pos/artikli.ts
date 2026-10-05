@@ -88,6 +88,8 @@ export const artikliTable = pgTable("artikli", {
   normativRevision: integer("normativ_revision").notNull().default(1),
   /** Yield of one recipe batch; ingredient norms remain per reference portion. */
   recipeBatchPieces: integer("recipe_batch_pieces"),
+  /** Optional normal-portion reference in the prepared item's base kg/l unit. Norms stay per base unit. */
+  preparedNormPortionQuantity: numeric("prepared_norm_portion_quantity", { precision: 12, scale: 6 }),
   jePica: boolean("je_pica").notNull().default(false),
   /** Postaja priprave prodajnega artikla; null pomeni starejši/neopredeljen zapis. */
   pripravaVrsta: text("priprava_vrsta", { enum: ["pica", "hrana", "pijaca"] }),
@@ -155,6 +157,8 @@ export const artikliTable = pgTable("artikli", {
     .on(t.enotaId, t.drobniInventarPredlogaKljuc)
     .where(sql`${t.drobniInventarPredlogaKljuc} IS NOT NULL`),
   unique("artikli_id_enota_unique").on(t.id, t.enotaId),
+  check("artikli_prepared_norm_portion_positive",
+    sql`${t.preparedNormPortionQuantity} IS NULL OR ${t.preparedNormPortionQuantity} > 0`),
   check(
     "artikli_skupinski_nabavni_artikel_check",
     sql`NOT ${t.jeSkupinskiNabavniArtikel} OR (

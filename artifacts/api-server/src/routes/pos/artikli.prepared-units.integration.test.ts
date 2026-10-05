@@ -19,6 +19,7 @@ import router from "./artikli";
 
 const app = express();
 app.use(express.json());
+app.use((req, _res, next) => { Object.assign(req, { enotaId: context.enotaId }); next(); });
 app.use(router);
 
 let companyId: string;
@@ -91,6 +92,27 @@ describe("prepared kg/l article rules", () => {
       ime: "Polizdelek golaž kg", mealType: "ala_carte",
     });
     expect(typeChange.status).toBe(409);
+  });
+
+  it("shrani normalno porcijo 400 g brez omogočanja prodaje ali spreminjanja kg zaloge", async () => {
+    const response = await supertest(app).put(`/artikli/${bulkArticleId}`).send({
+      ime: "Polizdelek golaž kg", preparedNormPortionQuantity: 0.4,
+    });
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.preparedNormPortionQuantity).toBe(0.4);
+    expect(response.body.enotaMere).toBe("KGM");
+    expect(response.body.prodajniArtikel).toBe(false);
+    expect(response.body.nabavniArtikel).toBe(false);
+    expect(Number(response.body.cena)).toBe(0);
+    const [stock] = await db.select().from(preparedFoodStocksTable)
+      .where(eq(preparedFoodStocksTable.artikelId, bulkArticleId));
+    expect(Number(stock?.frozenQuantity)).toBe(10);
+    const list = await supertest(app).get("/artikli");
+    expect(list.body.find((article: { id: number }) => article.id === bulkArticleId).preparedNormPortionQuantity).toBe(0.4);
+    const sale = await supertest(app).put(`/artikli/${bulkArticleId}`).send({ ime: "Polizdelek golaž kg", prodajniArtikel: true });
+    expect(sale.status).toBe(400);
+    const zero = await supertest(app).put(`/artikli/${bulkArticleId}`).send({ ime: "Polizdelek golaž kg", preparedNormPortionQuantity: 0 });
+    expect(zero.status).toBe(400);
   });
 
   it("blocks unit reinterpretation after dough, direct-sale, or modifier-snapshot references", async () => {

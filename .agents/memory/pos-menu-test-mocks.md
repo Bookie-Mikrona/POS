@@ -13,6 +13,12 @@ Za brskalniški test celotnega POS obrazca uporabi testno identiteto z dejansko
 operativno POS vlogo in popolnim kontekstom enote. Če uporabiš API mocke,
 prestrezaj samo namenske podatkovne poti, ne vseh POS zahtev hkrati.
 
+Prazni podatki mockanih poizvedb morajo imeti stabilno referenco med renderji, tako kot podatki dejanskega query cachea.
+
+**Why:** Pri prvem testu urejanja je nova prazna tabela ob vsakem klicu mock hooka znova sprožila učinek, ki inicializira stanje obrazca. Test je obstal v render zanki; to ni bila napaka receptnega preračuna.
+
+**How to apply:** Prazne tabele in objekte mock query podatkov deklariraj enkrat; ne vračaj novih literalov iz hooka, kadar podatke opazuje inicializacijski učinek.
+
 **Why:** Programatična Clerk prijava nove testne identitete ni ustvarila
 operativne POS vloge. Nadomestni široki mock je prikazal lupino programa,
 vendar brez popolnih zmožnosti enote ni odprl obrazca in je pokvaril še SSE

@@ -12906,6 +12906,11 @@ components:
         - vrstaArtikla
       properties:
         recipeBatchPieces: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+        preparedNormPortionQuantity:
+          type: [number, "null"]
+          minimum: 0.000001
+          maximum: 10000
+          description: Količina normalne porcije v osnovni enoti kg/l; normativi so shranjeni na 1 osnovno enoto.
         id:
           type: integer
         alergeni:
@@ -13117,6 +13122,11 @@ components:
         - ime
       properties:
         recipeBatchPieces: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+        preparedNormPortionQuantity:
+          type: [number, "null"]
+          minimum: 0.000001
+          maximum: 10000
+          description: Količina normalne porcije v osnovni enoti kg/l; null ohrani vnos na 1 osnovno enoto.
         pripravaVrsta:
           type: [string, "null"]
           enum: [pica, hrana, pijaca, null]

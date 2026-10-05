@@ -12,8 +12,16 @@ const mockArticles = vi.hoisted(() => [
   { id: 12, ime: "Osnova omake", cena: 0, nabavniArtikel: false, prodajniArtikel: false, mealType: "ala_carte", taxCategory: "food" },
   { id: 13, ime: "Dunajski zrezek", cena: 15, nabavniArtikel: false, prodajniArtikel: true, mealType: "ala_carte" },
   { id: 14, ime: "Kombinirana jed", cena: 20, nabavniArtikel: false, prodajniArtikel: true, mealType: "composite", kategorijaId: 1, aktiven: true },
+  { id: 15, ime: "Golaž kg", cena: 0, nabavniArtikel: false, prodajniArtikel: false,
+    mealType: "prepared", enotaMere: "KGM", preparedNormPortionQuantity: 0.4, kategorijaId: 1, aktiven: true },
 ]);
 const emptyNormativ = vi.hoisted(() => ({ normativRevision: 1, normativi: [] }));
+// Editing effects depend on query-data identity, as they do with the real query cache.
+const emptyModGroups = vi.hoisted(() => []);
+const bulkNormativ = vi.hoisted(() => ({
+  normativRevision: 1,
+  normativi: [{ id: 1, artikelId: 15, vhodniArtikelId: 10, vhodniArtikelIme: "Raw potato", kolicina: 0.3 }],
+}));
 
 // Mocks
 vi.mock("@workspace/api-client-react", async () => {
@@ -24,15 +32,17 @@ vi.mock("@workspace/api-client-react", async () => {
     useListArtikli: () => ({ data: mockArticles, isLoading: false }),
     useCreateArtikel: () => ({ mutate: vi.fn(), isPending: false }),
     useUpdateArtikel: () => ({ mutate: vi.fn(), isPending: false }),
-    useGetArtikelNormativi: () => ({
-      data: emptyNormativ,
+    useGetArtikelNormativi: (id: number) => ({
+      data: id === 15 ? bulkNormativ : emptyNormativ,
       refetch: vi.fn(),
       isFetching: false,
       isLoading: false,
     }),
     useUpdateArtikelNormativi: () => ({ mutate: vi.fn(), isPending: false }),
-    useListModSkupine: () => ({ data: [], isLoading: false }),
-    useGetArtikelModSkupine: () => ({ data: [], isLoading: false }),
+    usePreviewArtikelAlergeniNormativ: () => ({ mutate: vi.fn(), isPending: false }),
+    useGetArtikelNormativeChangeHistory: () => ({ data: undefined, isLoading: false, isError: false }),
+    useListModSkupine: () => ({ data: emptyModGroups, isLoading: false }),
+    useGetArtikelModSkupine: () => ({ data: emptyModGroups, isLoading: false }),
   };
 });
 
@@ -123,6 +133,24 @@ describe("Menu - mealType conditions", () => {
     expect(screen.getByRole("button", { name: "Nov artikel" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Nov artikel" }));
     expect(screen.getByRole("heading", { name: "Nov artikel" })).toBeTruthy();
+  });
+
+  it("kg polizdelek pokaže normativ na 400 g normalno porcijo in ohrani osnovni recept pri spremembi na 500 g", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider><NastavitveProvider><Menu /></NastavitveProvider></AuthProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Uredi artikel Golaž kg" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Normativ" }), { button: 0, ctrlKey: false });
+    const normalPortion = await screen.findByTestId("input-prepared-normal-portion");
+    expect((normalPortion as HTMLInputElement).value).toBe("400");
+    expect(screen.getByTestId("text-normative-unit-basis").textContent).toContain("400 g");
+    expect(Array.from(document.querySelectorAll("input")).some(input => input.value.replace(",", ".") === "0.12")).toBe(true);
+    fireEvent.change(normalPortion, { target: { value: "500" } });
+    expect(screen.getByTestId("text-normative-unit-basis").textContent).toContain("500 g");
+    expect(Array.from(document.querySelectorAll("input")).some(input => input.value.replace(",", ".") === "0.15")).toBe(true);
+    expect(screen.getByText(/Cena in neposredna prodaja polizdelka nista omogočeni/)).toBeTruthy();
   });
 
   it("omogoči izbiro zadnje kategorije v dolgem seznamu za nov prodajni artikel", async () => {
