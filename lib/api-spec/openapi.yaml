@@ -21850,7 +21850,9 @@ components:
         country:
           type: string
         vatPayer:
-          type: boolean
+          type:
+            - boolean
+            - "null"
         iban:
           type:
             - string
@@ -21859,7 +21861,9 @@ components:
           type: string
           enum:
             - ajpes_sim
-          description: Vir podatkov (ajpes_sim = simulacija)
+            - vies
+            - inetis
+          description: Vir podatkov; slovenski partnerji uporabljajo živi register Inetis.
       required:
         - found
         - taxId

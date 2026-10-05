@@ -48,6 +48,12 @@ function normalizeRegistrationId(value: string | null | undefined): string {
 }
 
 function normalizeAlias(value: string | null | undefined): string {
+  const legalName = (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+  const proprietor = legalName.match(/^(.*?)\bS[\s.]*P\.?\s*$/u);
+  if (proprietor) {
+    const personTokens = proprietor[1].match(/[\p{L}\p{N}]+/gu) ?? [];
+    if (personTokens.length >= 2) return `SP:${personTokens.sort().join("|")}`;
+  }
   return (value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -194,6 +200,8 @@ export function findScopedCounterparty(
     matches = counterparties.filter(counterparty => normalizeAlias(counterparty.name) === name);
   }
 
+  // Never pick an arbitrary person when two sole proprietors share a name.
+  if (!taxId && !registrationId && normalizeAlias(party.name).startsWith("SP:") && matches.length !== 1) return undefined;
   return [...matches].sort((a, b) => a.id.localeCompare(b.id))[0];
 }
 

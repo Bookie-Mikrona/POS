@@ -335,6 +335,28 @@ describe("DocumentReviewForm — partner identity and document roles", () => {
     expect(screen.getByRole("button", { name: /Ustvari partnerja iz AI podatkov/ })).toBeInTheDocument();
   });
 
+  it("recognizes a sole proprietor with reversed first and last names without creating a duplicate", () => {
+    state.counterparties = [{ id: "sole-proprietor", name: "Stanič Borut s.p.", type: "supplier" }];
+    renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p." }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("Stanič Borut s.p.");
+    expect(state.createCounterpartyMutate).not.toHaveBeenCalled();
+  });
+
+  it("does not choose a reversed sole-proprietor name when tax IDs conflict", () => {
+    state.counterparties = [{ id: "sole-proprietor", name: "Stanič Borut s.p.", type: "supplier", taxId: "87654321" }];
+    renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p.", counterpartyTaxId: "11223344" }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("Izberite partnerja");
+  });
+
+  it("requires a manual choice when two sole proprietors share the same normalized name", () => {
+    state.counterparties = [
+      { id: "person-1", name: "Stanič Borut s.p.", type: "supplier" },
+      { id: "person-2", name: "Borut Stanič SP", type: "supplier" },
+    ];
+    renderForm(createDocument({ counterpartyName: "Borut Stanič, s.p." }));
+    expect(getSelectForLabel("Partner")).toHaveTextContent("Izberite partnerja");
+  });
+
   it("preselects the unique existing supplier and date-covering period when lists arrive late", () => {
     state.periods = [];
     const doc = createDocument({

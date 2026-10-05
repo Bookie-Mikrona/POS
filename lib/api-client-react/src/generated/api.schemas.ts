@@ -9737,13 +9737,15 @@ export interface UpdateCounterpartyBody {
 }
 
 /**
- * Vir podatkov (ajpes_sim = simulacija)
+ * Vir podatkov; slovenski partnerji uporabljajo živi register Inetis.
  */
 export type AjpesLookupResponseSource = typeof AjpesLookupResponseSource[keyof typeof AjpesLookupResponseSource];
 
 
 export const AjpesLookupResponseSource = {
   ajpes_sim: 'ajpes_sim',
+  vies: 'vies',
+  inetis: 'inetis',
 } as const;
 
 /**
@@ -9762,10 +9764,11 @@ export interface AjpesLookupResponse {
   /** @nullable */
   city?: string | null;
   country: string;
-  vatPayer: boolean;
+  /** @nullable */
+  vatPayer: boolean | null;
   /** @nullable */
   iban?: string | null;
-  /** Vir podatkov (ajpes_sim = simulacija) */
+  /** Vir podatkov; slovenski partnerji uporabljajo živi register Inetis. */
   source: AjpesLookupResponseSource;
 }
 

@@ -12353,9 +12353,9 @@ export const AjpesLookupResponse = zod.object({
   "postCode": zod.string().nullish(),
   "city": zod.string().nullish(),
   "country": zod.string(),
-  "vatPayer": zod.boolean(),
+  "vatPayer": zod.boolean().nullable(),
   "iban": zod.string().nullish(),
-  "source": zod.enum(['ajpes_sim']).describe('Vir podatkov (ajpes_sim = simulacija)')
+  "source": zod.enum(['ajpes_sim', 'vies', 'inetis']).describe('Vir podatkov; slovenski partnerji uporabljajo živi register Inetis.')
 }).describe('Simuliran odgovor AJPES poizvedbe po davčni številki')
 
 

@@ -141,6 +141,12 @@ function normalizeCompanyName(value: string | null | undefined) {
 }
 
 function normalizeCounterpartyLegalName(value: string | null | undefined) {
+  const legalName = value?.normalize("NFKC").trim().toLowerCase() ?? "";
+  const proprietor = legalName.match(/^(.*?)\bs[\s.]*p\.?\s*$/u);
+  if (proprietor) {
+    const personTokens = proprietor[1].match(/[\p{L}\p{N}]+/gu) ?? [];
+    if (personTokens.length >= 2) return `sp:${personTokens.sort().join("|")}`;
+  }
   const tokens = value?.normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
   const legalSuffixes = new Set([
     "inc", "incorporated", "llc", "ltd", "limited", "corp", "corporation",

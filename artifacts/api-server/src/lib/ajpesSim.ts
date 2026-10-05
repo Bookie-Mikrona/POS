@@ -16,9 +16,9 @@ export interface AjpesResult {
   postCode: string | null;
   city: string | null;
   country: string;
-  vatPayer: boolean;
+  vatPayer: boolean | null;
   iban: string | null;
-  source: "ajpes_sim" | "vies";
+  source: "ajpes_sim" | "vies" | "inetis";
 }
 
 // ── VIES EU DDV poizvedba ─────────────────────────────────────────────────────

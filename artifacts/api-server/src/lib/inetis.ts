@@ -104,19 +104,26 @@ export function zaznajVrsto(
   return null;
 }
 
-export async function poisciNaInetis(davcna: string): Promise<InetisRezultat | null> {
+export async function poisciNaInetis(davcna: string, options?: { throwOnFailure?: boolean }): Promise<InetisRezultat | null> {
   try {
     const cleaned = davcna.replace(/^SI/i, "");
     const r = await fetch(
       `https://ddv.inetis.com/Ajax.aspx?a=isci&niz=${encodeURIComponent(cleaned)}`,
       { signal: AbortSignal.timeout(8000) },
     );
-    if (!r.ok) return null;
+    if (!r.ok) {
+      if (options?.throwOnFailure) throw new Error(`Inetis HTTP ${r.status}`);
+      return null;
+    }
     const data = (await r.json()) as {
       status: string;
       list: InetisSuroviZadetek[] | null;
     };
-    if (data.status !== "ok" || !data.list?.length) return null;
+    if (data.status !== "ok") {
+      if (options?.throwOnFailure) throw new Error("Inetis je vrnil neveljaven odgovor.");
+      return null;
+    }
+    if (!data.list?.length) return null;
     const p = izberiNatancenInetisZadetek(data.list, cleaned);
     if (!p) return null;
 
@@ -145,7 +152,8 @@ export async function poisciNaInetis(davcna: string): Promise<InetisRezultat | n
       maticnaStevilka: p.MaticnaStevilka ?? null,
       trr: trrji.length > 0 ? trrji : null,
     };
-  } catch {
+  } catch (error) {
+    if (options?.throwOnFailure) throw error;
     return null;
   }
 }

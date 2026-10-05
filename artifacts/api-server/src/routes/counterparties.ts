@@ -12,7 +12,8 @@ import {
   UpdateCounterpartyBody,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
-import { ajpesLookup, viesLookup, VIES_COUNTRIES } from "../lib/ajpesSim";
+import { viesLookup, VIES_COUNTRIES } from "../lib/ajpesSim";
+import { lookupCounterpartyInetis } from "../lib/counterpartyRegistry";
 import { resolveSifrantAccess } from "../lib/resolveSifrantAccess";
 
 const router: IRouter = Router();
@@ -43,8 +44,17 @@ router.post(
 
     let result;
     if (!prefix || prefix === "SI") {
-      // Slovenska davčna številka → AJPES
-      result = await ajpesLookup(taxId);
+      // Keep the legacy route name for compatibility; use the live Inetis registry.
+      if (!/^\d{8}$/.test(cleaned.replace(/^SI/, "").replace(/[.-]/g, ""))) {
+        res.status(400).json({ error: "Slovenska davčna številka mora vsebovati 8 števk." });
+        return;
+      }
+      try {
+        result = await lookupCounterpartyInetis(taxId);
+      } catch {
+        res.status(502).json({ error: "Register Inetis trenutno ni dosegljiv ali je vrnil neveljaven odgovor. Podatki partnerja niso bili spremenjeni." });
+        return;
+      }
     } else if (VIES_COUNTRIES.has(prefix)) {
       // EU tuji DDV zavezanec → VIES
       const vatNumber = cleaned.slice(2);

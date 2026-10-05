@@ -249,9 +249,9 @@ interface AjpesResult {
   postCode: string | null;
   city: string | null;
   country: string;
-  vatPayer: boolean;
+  vatPayer: boolean | null;
   iban: string | null;
-  source: "ajpes_sim" | "vies";
+  source: "ajpes_sim" | "vies" | "inetis";
 }
 
 /** EU države z VIES sistemom (isti seznam kot na backendu) */
@@ -284,7 +284,7 @@ function tipPoizvedbe(taxId: string): "ajpes" | "vies" | "none" {
 }
 
 // ─── PartnerSheet ─────────────────────────────────────────────────────────────
-function PartnerSheet({
+export function PartnerSheet({
   open,
   onOpenChange,
   partner,
@@ -364,6 +364,7 @@ function PartnerSheet({
         throw new Error((err as any).error || "Napaka pri poizvedbi");
       }
       const result: AjpesResult = await resp.json();
+      if (!result.found) throw new Error("Partner s to davčno številko ni bil najden v registru. Obstoječi podatki niso spremenjeni.");
       setAjpesResult(result);
     } catch (e: any) {
       setAjpesError(e.message || "Neznana napaka");
@@ -379,7 +380,7 @@ function PartnerSheet({
       name: ajpesResult.name || prev.name,
       taxId: ajpesResult.taxId || prev.taxId,
       registrationNumber: ajpesResult.registrationNumber || prev.registrationNumber,
-      vatPayer: ajpesResult.vatPayer,
+      vatPayer: ajpesResult.vatPayer ?? prev.vatPayer,
       address: ajpesResult.address || prev.address,
       postCode: ajpesResult.postCode || prev.postCode,
       city: ajpesResult.city || prev.city,
@@ -449,7 +450,7 @@ function PartnerSheet({
           {/* Davčna številka + AJPES / VIES */}
           {(() => {
             const lookup = tipPoizvedbe(formData.taxId);
-            const btnLabel = lookup === "ajpes" ? "AJPES" : lookup === "vies" ? "VIES" : null;
+            const btnLabel = lookup === "ajpes" ? "Osveži iz Inetisa" : lookup === "vies" ? "VIES" : null;
             return (
               <div className="space-y-2">
                 <Label>Davčna številka</Label>
@@ -479,7 +480,7 @@ function PartnerSheet({
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {lookup === "ajpes" && "Slovenska davčna številka — iskanje prek AJPES."}
+                  {lookup === "ajpes" && "Slovenska davčna številka — živi register Inetis. Predlog preglejte, uporabite in shranite."}
                   {lookup === "vies" && "Tuja EU davčna številka — preverjanje prek sistema VIES."}
                   {lookup === "none" && formData.taxId.trim() && "Davčna številka izven EU — samodejno iskanje ni na voljo."}
                 </p>
@@ -496,8 +497,8 @@ function PartnerSheet({
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
                     <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
                       <CheckCircle2 className="h-4 w-4" />
-                      {ajpesResult.source === "ajpes_sim"
-                        ? <>Najdeno v AJPES registru <span className="text-xs font-normal text-emerald-600">(simulacija)</span></>
+                      {ajpesResult.source === "inetis"
+                        ? "Podatki iz registra Inetis"
                         : "Preverjeno v sistemu VIES (EU)"
                       }
                     </div>
@@ -513,7 +514,7 @@ function PartnerSheet({
                       )}
                       <div className="text-xs text-emerald-700">
                         Država: <strong>{ajpesResult.country}</strong>
-                        {" · "}Zavezanec za DDV: <strong>{ajpesResult.vatPayer ? "Da" : "Ne"}</strong>
+                        {" · "}Zavezanec za DDV: <strong>{ajpesResult.vatPayer === null ? "Ni podatka" : ajpesResult.vatPayer ? "Da" : "Ne"}</strong>
                       </div>
                     </div>
                     <Button size="sm" className="w-full mt-1 bg-emerald-600 hover:bg-emerald-700" onClick={applyAjpes}>

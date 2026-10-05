@@ -140,6 +140,7 @@
 - [AJPES JOLP preverjanje](ajpes-jolp-preverjanje.md) — javni JOLP lahko zahteva prijavo; številk iz zbirnih portalov ne obravnavaj kot dokazilo o razporeditvi dobička.
 - [Učni viri kontiranja](ocr-approved-learning.md) — ročno potrjena predloga je učni vir tudi pred knjiženjem; nepregledan osnutek računa ni potrjena zgodovina.
 - [Slovenska matična številka](slovenian-party-registration.md) — 7 mest in 10-mestni sedež s končnico 000 sta ista identiteta; druge končnice niso samodejno enakovredne.
+- [Register ERP partnerjev](counterparty-registry-policy.md) — uporabnik zahteva živi Inetis; simulacija in nedosegljivost registra ne smeta prepisati partnerja.
 - [Pregled preračuna tuje valute](document-fx-review.md) — ločeno potrjenih EUR osnov in DDV ne preračunavaj znova iz cene; ohrani decimalno zaokroževanje in izvorno sled.
 - [Namen AJPES izvoza](ajpes-annual-report-contract.md) — XLSX/PDF sledita predlogi JOLP; XML je namenjen dejanskemu uvozu v AJPES, ne splošni izmenjavi.
 - [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.
