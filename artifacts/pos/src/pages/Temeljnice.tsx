@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, ChevronRight, Search, RefreshCw } from "lucide-react";
-import { getEnotaId } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
 import { poslovniDatumZaCas } from "@/lib/posCas";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
@@ -77,17 +77,10 @@ export default function Temeljnice() {
     if (!syncDatum) return;
     setSyncing(true);
     try {
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const enotaId = getEnotaId();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (enotaId) headers["X-Enota-Id"] = String(enotaId);
-      const res = await fetch(`${base}/api/temeljnice/sync/${syncDatum}`, {
+      const data = await customFetch<{ created?: string[]; skipped?: Array<{ ref: string; reason: string }> }>(`/api/temeljnice/sync/${syncDatum}`, {
         method: "POST",
-        headers,
         credentials: "include",
       });
-      const data = await res.json() as { created?: string[]; skipped?: Array<{ ref: string; reason: string }> };
-      if (!res.ok) throw new Error((data as any).error ?? "Napaka");
       const ustvarjenih = data.created?.length ?? 0;
       const preskocenih = data.skipped?.length ?? 0;
 
@@ -129,19 +122,10 @@ export default function Temeljnice() {
     setTemeljnice(null);
     setExpanded(new Set());
     try {
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const enotaId = getEnotaId();
-      const headers: Record<string, string> = {};
-      if (enotaId) headers["X-Enota-Id"] = String(enotaId);
-      const res = await fetch(
-        `${base}/api/temeljnice?od=${od}&do=${do_}`,
-        { headers, credentials: "include" },
+      const data = await customFetch<{ temeljnice: Temeljnica[] }>(
+        `/api/temeljnice?od=${od}&do=${do_}`,
+        { credentials: "include" },
       );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).error ?? "Napaka pri nalaganju");
-      }
-      const data = await res.json() as { temeljnice: Temeljnica[] };
       setTemeljnice(data.temeljnice);
     } catch (e: any) {
       toast({ title: "Napaka", description: e.message, variant: "destructive" });
