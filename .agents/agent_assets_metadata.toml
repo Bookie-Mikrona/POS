@@ -1411,3 +1411,17 @@ mtime_ms = 1791071090072
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7fa0c3c5-61ba-40bf-8e41-057fb13f05a1/e7dfc929-bca7-497f-89ce-a369051b1743"
 storage_version_token = "1791071436265877"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "TJj4GTa7TvT6spR1xLoYg"
+uri = "file://reports/krizisce-zbiranje-deklaracij.csv"
+type = "table"
+title = "Križišče – seznam za zbiranje deklaracij"
+description = "Seznam vseh 67 artiklov za Excel: prednost zbiranja, potrebna dokazila ter prazna polja za znamko, različico in oznako fotografije. Alergenski profili niso spremenjeni."
+logical_id = "0a9698c6-64b5-45d1-8478-d73f6f4d5f82"
+content_hash = "sha256:29bb2a0fc3c06052e165644a81a52119b47abda184ec58c7bfd1c9b707f13e66"
+size = 24356
+mtime_ms = 1791159813290
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/0a9698c6-64b5-45d1-8478-d73f6f4d5f82/88dca5ff-524d-49ba-8f5d-258fb714b832"
+storage_version_token = "1791159820396848"
+content_type = "text/csv"
