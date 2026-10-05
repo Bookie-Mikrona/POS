@@ -9865,6 +9865,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/documents/{id}/confirm-bank:
+    post:
+      operationId: confirmBankDocument
+      tags: [documents]
+      summary: Create an unposted bank journal from a reviewed scanned statement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScannedBankDraftInput"
+      responses:
+        "200":
+          description: Bank draft, or the same previously created draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScannedBankDraftResult"
+        "400":
+          description: Incomplete or invalid bank statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate statement or unsafe replacement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /companies/{companyId}/documents/{id}/confirm:
     post:
       operationId: confirmDocument
@@ -23655,9 +23702,70 @@ components:
         - rawText
         - confidence
         - lines
+    ScannedBankTransaction:
+      type: object
+      required: [transactionId, bookingDate, amount, description]
+      properties:
+        transactionId: { type: string }
+        bookingDate: { type: string }
+        amount: { type: number }
+        description: { type: string }
+        reference: { type: string }
+        counterpartyName: { type: string }
+        counterpartyIban: { type: string }
+        suggestedCounterpartyId: { type: string }
+    ScannedBankStatement:
+      type: object
+      required: [currency, transactions, errors]
+      properties:
+        sourceIban: { type: string }
+        ownerTaxId: { type: string }
+        statementNumber: { type: string }
+        statementDate: { type: string }
+        openingBalance: { type: number }
+        closingBalance: { type: number }
+        currency: { type: string }
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScannedBankTransaction"
+        errors:
+          type: array
+          items: { type: string }
+    ScannedBankDraftLineInput:
+      type: object
+      required: [transactionId, counterAccountId]
+      properties:
+        transactionId: { type: string }
+        counterAccountId: { type: string }
+        counterpartyId: { type: [string, "null"] }
+    ScannedBankDraftInput:
+      type: object
+      required: [periodId, bankAccountId, transactions]
+      properties:
+        periodId: { type: string }
+        bankAccountId: { type: string }
+        replaceDraftInvoice:
+          type: boolean
+          default: false
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScannedBankDraftLineInput"
+    ScannedBankDraftResult:
+      type: object
+      required: [journalEntryId, statementId]
+      properties:
+        journalEntryId: { type: string }
+        statementId: { type: string }
+        replacedInvoiceId: { type: string }
     DocumentRecord:
       type: object
       properties:
+        bankStatement:
+          $ref: "#/components/schemas/ScannedBankStatement"
+        bankStatementDraft:
+          $ref: "#/components/schemas/ScannedBankDraftResult"
         id:
           type: string
         companyId:

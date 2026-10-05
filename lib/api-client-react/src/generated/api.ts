@@ -474,6 +474,8 @@ import type {
   RezervacijaMizeInput,
   RezervacijaMizeZgodovina,
   RoleAssignment,
+  ScannedBankDraftInput,
+  ScannedBankDraftResult,
   SeedAccountsResponse,
   SeedSmallEquipmentExpenseAccountResult,
   SeedVatCodesResponse,
@@ -29034,6 +29036,80 @@ export function useGetDocumentExchangeRate<TData = Awaited<ReturnType<typeof get
 
 
 
+
+export const getConfirmBankDocumentUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/documents/${id}/confirm-bank`
+}
+
+/**
+ * @summary Create an unposted bank journal from a reviewed scanned statement
+ */
+export const confirmBankDocument = async (companyId: string,
+    id: string,
+    scannedBankDraftInput: ScannedBankDraftInput, options?: RequestInit): Promise<ScannedBankDraftResult> => {
+
+  return customFetch<ScannedBankDraftResult>(getConfirmBankDocumentUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(scannedBankDraftInput)
+  }
+);}
+
+
+
+
+
+export const getConfirmBankDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmBankDocument>>, TError,{companyId: string;id: string;data: BodyType<ScannedBankDraftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmBankDocument>>, TError,{companyId: string;id: string;data: BodyType<ScannedBankDraftInput>}, TContext> => {
+
+const mutationKey = ['confirmBankDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmBankDocument>>, {companyId: string;id: string;data: BodyType<ScannedBankDraftInput>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  confirmBankDocument(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmBankDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof confirmBankDocument>>>
+    export type ConfirmBankDocumentMutationBody = BodyType<ScannedBankDraftInput>
+    export type ConfirmBankDocumentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create an unposted bank journal from a reviewed scanned statement
+ */
+export const useConfirmBankDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmBankDocument>>, TError,{companyId: string;id: string;data: BodyType<ScannedBankDraftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmBankDocument>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<ScannedBankDraftInput>},
+        TContext
+      > => {
+      return useMutation(getConfirmBankDocumentMutationOptions(options));
+    }
 
 export const getConfirmDocumentUrl = (companyId: string,
     id: string,) => {

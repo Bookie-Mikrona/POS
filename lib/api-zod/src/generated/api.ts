@@ -15253,6 +15253,31 @@ export const listDocumentsResponseDocumentsItemConfirmedDataOneLinesItemSuggesti
 
 export const ListDocumentsResponse = zod.object({
   "documents": zod.array(zod.object({
+  "bankStatement": zod.object({
+  "sourceIban": zod.string().optional(),
+  "ownerTaxId": zod.string().optional(),
+  "statementNumber": zod.string().optional(),
+  "statementDate": zod.string().optional(),
+  "openingBalance": zod.number().optional(),
+  "closingBalance": zod.number().optional(),
+  "currency": zod.string(),
+  "transactions": zod.array(zod.object({
+  "transactionId": zod.string(),
+  "bookingDate": zod.string(),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "reference": zod.string().optional(),
+  "counterpartyName": zod.string().optional(),
+  "counterpartyIban": zod.string().optional(),
+  "suggestedCounterpartyId": zod.string().optional()
+})),
+  "errors": zod.array(zod.string())
+}).optional(),
+  "bankStatementDraft": zod.object({
+  "journalEntryId": zod.string(),
+  "statementId": zod.string(),
+  "replacedInvoiceId": zod.string().optional()
+}).optional(),
   "id": zod.string(),
   "companyId": zod.string(),
   "fileName": zod.string(),
@@ -15472,6 +15497,31 @@ export const registerDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin
 
 
 export const RegisterDocumentResponse = zod.object({
+  "bankStatement": zod.object({
+  "sourceIban": zod.string().optional(),
+  "ownerTaxId": zod.string().optional(),
+  "statementNumber": zod.string().optional(),
+  "statementDate": zod.string().optional(),
+  "openingBalance": zod.number().optional(),
+  "closingBalance": zod.number().optional(),
+  "currency": zod.string(),
+  "transactions": zod.array(zod.object({
+  "transactionId": zod.string(),
+  "bookingDate": zod.string(),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "reference": zod.string().optional(),
+  "counterpartyName": zod.string().optional(),
+  "counterpartyIban": zod.string().optional(),
+  "suggestedCounterpartyId": zod.string().optional()
+})),
+  "errors": zod.array(zod.string())
+}).optional(),
+  "bankStatementDraft": zod.object({
+  "journalEntryId": zod.string(),
+  "statementId": zod.string(),
+  "replacedInvoiceId": zod.string().optional()
+}).optional(),
   "id": zod.string(),
   "companyId": zod.string(),
   "fileName": zod.string(),
@@ -15681,6 +15731,31 @@ export const getDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
 
 export const GetDocumentResponse = zod.object({
+  "bankStatement": zod.object({
+  "sourceIban": zod.string().optional(),
+  "ownerTaxId": zod.string().optional(),
+  "statementNumber": zod.string().optional(),
+  "statementDate": zod.string().optional(),
+  "openingBalance": zod.number().optional(),
+  "closingBalance": zod.number().optional(),
+  "currency": zod.string(),
+  "transactions": zod.array(zod.object({
+  "transactionId": zod.string(),
+  "bookingDate": zod.string(),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "reference": zod.string().optional(),
+  "counterpartyName": zod.string().optional(),
+  "counterpartyIban": zod.string().optional(),
+  "suggestedCounterpartyId": zod.string().optional()
+})),
+  "errors": zod.array(zod.string())
+}).optional(),
+  "bankStatementDraft": zod.object({
+  "journalEntryId": zod.string(),
+  "statementId": zod.string(),
+  "replacedInvoiceId": zod.string().optional()
+}).optional(),
   "id": zod.string(),
   "companyId": zod.string(),
   "fileName": zod.string(),
@@ -15930,6 +16005,34 @@ export const GetDocumentExchangeRateResponse = zod.object({
 
 
 /**
+ * @summary Create an unposted bank journal from a reviewed scanned statement
+ */
+export const ConfirmBankDocumentParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const confirmBankDocumentBodyReplaceDraftInvoiceDefault = false;
+
+export const ConfirmBankDocumentBody = zod.object({
+  "periodId": zod.string(),
+  "bankAccountId": zod.string(),
+  "replaceDraftInvoice": zod.boolean().default(confirmBankDocumentBodyReplaceDraftInvoiceDefault),
+  "transactions": zod.array(zod.object({
+  "transactionId": zod.string(),
+  "counterAccountId": zod.string(),
+  "counterpartyId": zod.string().nullish()
+}))
+})
+
+export const ConfirmBankDocumentResponse = zod.object({
+  "journalEntryId": zod.string(),
+  "statementId": zod.string(),
+  "replacedInvoiceId": zod.string().optional()
+})
+
+
+/**
  * @summary Confirm OCR proposal and optionally create a draft invoice
  */
 export const ConfirmDocumentParams = zod.object({
@@ -16019,6 +16122,31 @@ export const confirmDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin 
 
 
 export const ConfirmDocumentResponse = zod.object({
+  "bankStatement": zod.object({
+  "sourceIban": zod.string().optional(),
+  "ownerTaxId": zod.string().optional(),
+  "statementNumber": zod.string().optional(),
+  "statementDate": zod.string().optional(),
+  "openingBalance": zod.number().optional(),
+  "closingBalance": zod.number().optional(),
+  "currency": zod.string(),
+  "transactions": zod.array(zod.object({
+  "transactionId": zod.string(),
+  "bookingDate": zod.string(),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "reference": zod.string().optional(),
+  "counterpartyName": zod.string().optional(),
+  "counterpartyIban": zod.string().optional(),
+  "suggestedCounterpartyId": zod.string().optional()
+})),
+  "errors": zod.array(zod.string())
+}).optional(),
+  "bankStatementDraft": zod.object({
+  "journalEntryId": zod.string(),
+  "statementId": zod.string(),
+  "replacedInvoiceId": zod.string().optional()
+}).optional(),
   "id": zod.string(),
   "companyId": zod.string(),
   "fileName": zod.string(),
@@ -16228,6 +16356,31 @@ export const rejectDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin =
 
 
 export const RejectDocumentResponse = zod.object({
+  "bankStatement": zod.object({
+  "sourceIban": zod.string().optional(),
+  "ownerTaxId": zod.string().optional(),
+  "statementNumber": zod.string().optional(),
+  "statementDate": zod.string().optional(),
+  "openingBalance": zod.number().optional(),
+  "closingBalance": zod.number().optional(),
+  "currency": zod.string(),
+  "transactions": zod.array(zod.object({
+  "transactionId": zod.string(),
+  "bookingDate": zod.string(),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "reference": zod.string().optional(),
+  "counterpartyName": zod.string().optional(),
+  "counterpartyIban": zod.string().optional(),
+  "suggestedCounterpartyId": zod.string().optional()
+})),
+  "errors": zod.array(zod.string())
+}).optional(),
+  "bankStatementDraft": zod.object({
+  "journalEntryId": zod.string(),
+  "statementId": zod.string(),
+  "replacedInvoiceId": zod.string().optional()
+}).optional(),
   "id": zod.string(),
   "companyId": zod.string(),
   "fileName": zod.string(),

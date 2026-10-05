@@ -30,31 +30,31 @@ const DOWNLOADS_DIR = _dirname.endsWith("routes")
 
 // Dovoljena imena (whitelist — brez path traversal tveganja)
 const ALLOWED_FILES: Record<string, { mime: string; disposition: string }> = {
-  "scannerbridge.exe": {
+  "ScannerBridge.exe": {
     mime: "application/octet-stream",
     disposition: 'attachment; filename="ScannerBridge.exe"',
   },
-  "zcsprinterbridge.apk": {
+  "ZcsPrinterBridge.apk": {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="ZcsPrinterBridge.apk"',
   },
-  "noryoxnb80bridge.apk": {
+  "NoryoxNB80Bridge.apk": {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="NoryoxNB80Bridge.apk"',
   },
-  "bttiskalnimost.apk": {
+  "BtTiskalniMost.apk": {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="BtTiskalniMost.apk"',
   },
-  "bookievivabridge-armeabi-v7a.apk": {
+  "BookieVivaBridge-armeabi-v7a.apk": {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="BookieVivaBridge-armeabi-v7a.apk"',
   },
-  "bookievivabridge-arm64.apk": {
+  "BookieVivaBridge-arm64.apk": {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="BookieVivaBridge-arm64.apk"',
   },
-  "bookievivabridge.apk": {
+  "BookieVivaBridge.apk": {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="BookieVivaBridge.apk"',
   },
@@ -63,13 +63,16 @@ const ALLOWED_FILES: Record<string, { mime: string; disposition: string }> = {
 router.get("/downloads/:filename", (req, res) => {
   const { filename } = req.params;
 
-  const allowed = ALLOWED_FILES[filename.toLowerCase()];
-  if (!allowed) {
+  const file = Object.entries(ALLOWED_FILES).find(
+    ([canonicalFilename]) => canonicalFilename.toLowerCase() === filename.toLowerCase(),
+  );
+  if (!file) {
     res.status(404).json({ error: "Datoteka ni na voljo." });
     return;
   }
 
-  const filePath = path.join(DOWNLOADS_DIR, filename);
+  const [canonicalFilename, allowed] = file;
+  const filePath = path.join(DOWNLOADS_DIR, canonicalFilename);
 
   if (!fs.existsSync(filePath)) {
     res.status(503).json({

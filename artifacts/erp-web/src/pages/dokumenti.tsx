@@ -49,6 +49,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { DocumentUpload } from "@/components/documents/document-upload";
+import { BankStatementReview } from "@/components/documents/bank-statement-review";
 
 function formatRelativeTime(dateString: string) {
   const date = new Date(dateString);
@@ -703,7 +704,9 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
               </>
             )}
             <div className={doc.status === "done" ? undefined : "hidden"}>
-              {doc.status === "done" ? <DocumentReviewForm doc={doc} /> : null}
+              {doc.bankStatement
+                ? <BankStatementReview key={doc.id} doc={doc} />
+                : doc.status === "done" ? <DocumentReviewForm doc={doc} /> : null}
             </div>
           </div>
         ) : null}

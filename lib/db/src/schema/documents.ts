@@ -69,6 +69,12 @@ export interface ProposedLine {
  * Strukturirani izkupiček OCR za celoten dokument.
  */
 export interface OcrResult {
+  /** Separate bank draft; never an invoice or an automatic settlement. */
+  bankStatementDraft?: {
+    journalEntryId: string;
+    statementId: string;
+    replacedInvoiceId?: string;
+  };
   rawText: string;
   confidence: number;       // Skupna zaupnost 0-1
   /** Prepoznane metapodatke dokumenta */

@@ -37,6 +37,8 @@ import {
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { isScannedBankStatement, parseScannedBankStatement } from "../lib/scannedBankStatement";
+import { BankDraftError, createScannedBankDraft } from "../lib/scannedBankDraft";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import type { OcrResult, ProposedLine } from "@workspace/db";
 import { validateDirectPostingAccounts } from "../lib/directPostingAccountValidation";
@@ -644,6 +646,13 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     };
   }
 
+  // Bank statements have no invoice/VAT lines. Keep unsupported statements in
+  // the bank review too, with explicit parsing errors rather than an invoice.
+  const bankStatement = parseScannedBankStatement(parsed.rawText ?? "");
+  if (bankStatement) {
+    return { rawText: parsed.rawText ?? "", confidence: parsed.confidence ?? 0,
+      currency: bankStatement.currency, invoiceDate: bankStatement.statementDate, lines: [] };
+  }
   const partyResolution = resolveDocumentParties(
     parsed.issuer,
     parsed.recipient,
@@ -995,7 +1004,56 @@ router.get(
       .limit(1);
     if (!doc) { res.status(404).json({ error: "Dokument ni najden" }); return; }
 
+    const bankStatement = parseScannedBankStatement(doc.ocrResult?.rawText ?? "");
+    if (bankStatement) {
+      const partners = await db.select().from(counterpartiesTable).where(and(
+        eq(counterpartiesTable.companyId, companyId), eq(counterpartiesTable.isActive, true),
+      ));
+      res.json({
+        ...doc, bankStatement: {
+          ...bankStatement,
+          transactions: bankStatement.transactions.map(transaction => {
+            const matches = partners.filter(partner => transaction.counterpartyIban
+              && partner.iban?.replace(/\s/g, "").toUpperCase() === transaction.counterpartyIban);
+            return { ...transaction, suggestedCounterpartyId: matches.length === 1 ? matches[0].id : undefined };
+          }),
+        },
+        bankStatementDraft: doc.confirmedData?.bankStatementDraft,
+      });
+      return;
+    }
     res.json(doc);
+  },
+);
+
+router.post(
+  "/companies/:companyId/documents/:id/confirm-bank",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    if (access.role === "viewer") {
+      res.status(403).json({ error: "Za prenos izpiska potrebujete vlogo računovodja ali lastnik." });
+      return;
+    }
+    try {
+      const result = await createScannedBankDraft(companyId, extractParam(req.params.id),
+        authReq.clerkUserId, await resolveActorLabel(authReq.clerkUserId), req.body);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof BankDraftError) {
+        res.status(error.status).json({ error: error.message });
+        return;
+      }
+      if ((error as { code?: string }).code === "23505") {
+        res.status(409).json({ error: "Izpisek je že v evidenci; ponovni prenos je preprečen." });
+        return;
+      }
+      req.log.error({ err: error, companyId }, "Prenos skeniranega bančnega izpiska ni uspel");
+      res.status(500).json({ error: "Prenos ni uspel. Nobena sprememba ni bila shranjena." });
+    }
   },
 );
 
@@ -1133,6 +1191,10 @@ router.post(
       return;
     }
 
+    if (isScannedBankStatement(doc.ocrResult?.rawText ?? "")) {
+      res.status(400).json({ error: "Bančni izpisek ni račun. Uporabite prenos v osnutek bančne temeljnice.", code: "BANK_STATEMENT_NOT_INVOICE" });
+      return;
+    }
     const {
       documentType,
       counterpartyId,

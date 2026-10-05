@@ -1,7 +1,13 @@
 ---
 name: Evidenca bančnih izpiskov
-description: Revizijska identiteta uvoženega izpiska in povezava bančnih transakcij s plačili.
+description: Revizijska identiteta izpiska, skenirani bančni osnutki in ločitev od računov ter poravnav.
 ---
+
+Skenirani bančni izpisek ni prejeti ali izdani račun. Po uporabnikovem pregledu se prenese v neknjižen bančni osnutek; navadni prilivi in odlivi so zunaj DDV. Prenos ne knjiži in ne zapira računov samodejno.
+
+**Why:** Uporabnik je potrdil ločitev bančnega prenosa, potem ko se je priliv napačno pretvoril v prejeti račun. Splošna referenca, kot je SI99, ni dokaz, katere terjatve so poravnane.
+
+**How to apply:** Bančne izpiske prepoznaj pred predlogi kontiranja računov. Nepopoln bančni dokument ustavi za pregled, ne preusmeri ga v račun. Napačen neknjižen račun nadomesti samo z izrecnim dovoljenjem in ohranjeno revizijsko sledjo; že knjiženega ali plačanega ne razveljavljaj samodejno. Izbira kontov in partnerjev ter morebitno poznejše zapiranje ostanejo računovodjeva ločena odločitev.
 
 Bančni izpisek je samostojen dokument z izbranim kontom 110x, izvornim IBAN-om, številko, datumom oziroma obdobjem, začetnim in končnim stanjem ter kontrolnim odtisom datoteke. Vse razčlenjene transakcije se shranijo kot njegove vrstice, tudi če niso uparjene z računom.
 

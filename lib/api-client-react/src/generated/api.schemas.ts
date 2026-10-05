@@ -11180,6 +11180,49 @@ export interface OcrResult {
   error?: string | null;
 }
 
+export interface ScannedBankTransaction {
+  transactionId: string;
+  bookingDate: string;
+  amount: number;
+  description: string;
+  reference?: string;
+  counterpartyName?: string;
+  counterpartyIban?: string;
+  suggestedCounterpartyId?: string;
+}
+
+export interface ScannedBankStatement {
+  sourceIban?: string;
+  ownerTaxId?: string;
+  statementNumber?: string;
+  statementDate?: string;
+  openingBalance?: number;
+  closingBalance?: number;
+  currency: string;
+  transactions: ScannedBankTransaction[];
+  errors: string[];
+}
+
+export interface ScannedBankDraftLineInput {
+  transactionId: string;
+  counterAccountId: string;
+  /** @nullable */
+  counterpartyId?: string | null;
+}
+
+export interface ScannedBankDraftInput {
+  periodId: string;
+  bankAccountId: string;
+  replaceDraftInvoice?: boolean;
+  transactions: ScannedBankDraftLineInput[];
+}
+
+export interface ScannedBankDraftResult {
+  journalEntryId: string;
+  statementId: string;
+  replacedInvoiceId?: string;
+}
+
 export type DocumentRecordStatus = typeof DocumentRecordStatus[keyof typeof DocumentRecordStatus];
 
 
@@ -11205,6 +11248,8 @@ export const DocumentRecordDocumentType = {
 } as const;
 
 export interface DocumentRecord {
+  bankStatement?: ScannedBankStatement;
+  bankStatementDraft?: ScannedBankDraftResult;
   id: string;
   companyId: string;
   fileName: string;
