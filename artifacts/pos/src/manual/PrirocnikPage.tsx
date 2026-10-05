@@ -9,7 +9,7 @@ export default function PrirocnikPage() {
   const [search, setSearch] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
-  const pdfUrl = `${import.meta.env.BASE_URL}POS-Gostinstvo-prirocnik.pdf?v=8.9`;
+  const pdfUrl = `${import.meta.env.BASE_URL}POS-Gostinstvo-prirocnik.pdf?v=8.10`;
 
   useEffect(() => {
     try {

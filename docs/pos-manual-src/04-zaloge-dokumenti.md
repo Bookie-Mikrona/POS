@@ -2437,17 +2437,58 @@ Postopek ne pomeni samodejnega prepisovanja vseh obstoječih receptur.
 Pri vrsti jedi **Pripravljena hrana (zaloga)** izberite **Osnovna enota
 pripravljene jedi**: **Porcija**, **Kilogram (kg)** ali **Liter (l)**.
 Jed na kg/l je polizdelek, ne neposredni prodajni ali nabavni artikel.
-Normativ vedno opisuje pripravo **1 izbrane osnovne enote**.
+Polizdelku ne določajte prodajne cene. Prodajni artikli lahko iz istega
+polizdelka porabljajo različne količine, na primer 0,35 kg za manjšo in
+0,45 kg za večjo porcijo.
 
-Primer: normativ za **1 l omake** opisuje sestavine enega litra; poraba
-**0,2 l omake** v sestavljeni jedi uporablja to osnovo. Ne vnesite količine
-za cel lonec v normativ enega litra brez ustrezne preračunane osnove.
+Na zavihku **Normativ** lahko določite **Količina normalne porcije (g)**
+pri osnovi kg oziroma **Količina normalne porcije (ml)** pri osnovi l.
+Nato sestavine vnesete za **eno normalno porcijo**, ne za cel lonec.
+Program v ozadju preračuna recept na osnovni kilogram oziroma liter.
+Kuhar še naprej vnaša količino pripravljene jedi v kg oziroma l.
+
+<!-- pos-heading: id=pos-prepared-normal-portion-entry package=standard -->
+### 44.1 Normativ za normalno porcijo: primer 400 g golaža
+
+1. Odprite polizdelek v meniju artiklov in izberite zavihek **Normativ**.
+2. Izberite **Pripravljena hrana (zaloga)** in osnovno enoto **Kilogram (kg)**. Artikel mora ostati nenabavni in neprodajni.
+3. V polje **Količina normalne porcije (g)** vpišite **400**.
+4. Dodajte sestavine za eno 400-gramsko porcijo. Količino vsake sestavine vpišite v enoti, ki je prikazana ob njej.
+5. Če porcija vsebuje 120 g mesa, pri mesu z enoto kg vpišite **0,12**, ne 120. Pri sestavini z enoto l uporabite litre; polje normalne porcije ne spreminja enot sestavin.
+6. Preverite vse vrstice in shranite artikel. Ob ponovnem odprtju mora biti normalna porcija še vedno 400 g, sestavine pa prikazane za to porcijo.
+7. Kuhar pri pripravi 10 kg golaža v evidenco priprave vpiše **10 kg**. Program potrebuje 25 normalnih porcij recepta oziroma 3 kg mesa v tem primeru. Porcija ni nova zalogovna enota.
+
+| Podatek | Vrednost v primeru |
+|---|---|
+| Normalna porcija golaža | 400 g oziroma 0,4 kg |
+| Meso na eno normalno porcijo | 0,12 kg |
+| Preračunana poraba mesa na 1 kg golaža | 0,12 / 0,4 = 0,3 kg |
+| Poraba mesa za pripravo 10 kg golaža | 10 × 0,3 = 3 kg |
+
+Za juho z osnovo **Liter (l)** uporabite isto pravilo s prostornino:
+normalna porcija **400 ml** pomeni **0,4 l**. Deset litrov juhe ustreza
+25 takim normalnim porcijam. Masa in prostornina nista zamenljivi:
+400 ml ne obravnavajte samodejno kot 400 g.
+
+Če normalno porcijo spremenite s **400 g** na **500 g**, program
+sorazmerno preračuna že vnesene sestavine: 0,12 kg mesa postane
+**0,15 kg na porcijo**. S tem ostane osnovni recept 0,3 kg mesa na
+1 kg golaža nespremenjen. Za spremembo sestave jedi uredite tudi
+količine sestavin; sprememba velikosti reference sama ni sprememba recepta.
+
+Pri obstoječem receptu brez določene normalne porcije ostane prikaz
+in vnos na **1 kg** oziroma **1 l**. Program ne predpostavi 400 g in
+ne reinterpretira starih količin. Če v tak recept vpišete normalno porcijo,
+se prikazane sestavine sorazmerno zmanjšajo na novo referenco.
+Če referenco izbrišete, se prikaz vrne na osnovni kg/l.
+Nastavitev reference sama ne spreminja dejanske zaloge ali zgodovine priprave.
 
 Program ob spremembi oznake enote ne pretvori količin. Če ima artikel že
 zalogo, dnevno ali zgodovinsko evidenco ali je uporabljen v drugem normativu,
 sprememba enote ni dovoljena. Za drugo osnovo ustvarite nov polizdelek.
 Pametni predlog normativa za pripravljene polizdelke na kg/l ni na voljo:
-normativ vnesite ročno na **1 kg** oziroma **1 l**.
+normativ vnesite ročno za določeno **normalno porcijo**, oziroma na
+**1 kg** ali **1 l**, če reference niste določili.
 
 <!-- pos-heading: id=pos-current-pizza-modifier-kds-routing package=standard -->
 ## 45. Pica, podizbire modifikatorjev in KDS usmerjanje

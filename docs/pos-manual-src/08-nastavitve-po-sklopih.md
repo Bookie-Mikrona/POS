@@ -2673,7 +2673,9 @@ Vsaka temeljnica vsebuje status.
 
 Vsaka temeljnica vsebuje čas nastanka in čas knjiženja.
 
-Vsaka temeljnica vsebuje ime računovodskega obdobja.
+POS temeljnica lahko obstaja brez računovodskega obdobja. Obdobje in
+GK knjižbo preverjajte pri izrecnem prenosu v glavno knjigo; sam arhiv
+POS ne pomeni, da je dokument že prenesen ali knjižen.
 
 Vsaka vrstica vsebuje konto, naziv, stran, znesek in opis.
 
@@ -2703,7 +2705,8 @@ Pred ročnim ponovnim zagonom preverite obstoječe reference.
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f963a4a116c8 package=lite -->
 ### 29.3 Statusi žurnala
 
-V seznamu je prikazan status temeljnice, kakor je shranjen v ERP.
+V POS seznamu ločite stanje arhivirane temeljnice in njen prenos v GK.
+Pripravljena oziroma arhivirana POS temeljnica ni sama po sebi GK knjižba.
 
 `createdAt` pove, kdaj je nastal zapis.
 
@@ -2712,6 +2715,29 @@ V seznamu je prikazan status temeljnice, kakor je shranjen v ERP.
 Manjkajoč `postedAt` obravnavajte kot signal za preverjanje statusa.
 
 Ne sklepajte iz samega datuma vnosa, da je žurnal knjižen.
+
+<!-- pos-heading: id=pos-journals-independent-archive-export package=lite -->
+### 29.4 Arhiv POS temeljnic, potrjen prenos v GK ter Excel/CSV
+
+POS hrani svoje temeljnice v samostojnem arhivu. Za njihov nastanek,
+pregled in izvoz ni treba odpirati računovodskih obdobij v ERP.
+To je uporabno tudi, kadar poslovne knjige vodi zunanji računovodja.
+Priprava POS temeljnice ni samodejna odobritev prenosa v glavno knjigo.
+
+1. Odprite **Temeljnice** in preverite izbrano podjetje ter poslovno enoto.
+2. Določite datum **od–do** in preglejte dokumente. V prikazu uporabite ime pripadajoče enote; interna oznaka, kot je E309, ni ime poslovne enote.
+3. Odprite posamezno temeljnico in preverite datum, postavke, konte, debet in kredit ter stanje prenosa.
+4. Če želite dokumente predati računovodji, kliknite **Izvozi Excel** ali **Izvozi CSV**. Izvoz uporabi izbrano datumsko obdobje; izbor za prenos v GK ni pogoj za izvoz.
+5. Preverite preneseno datoteko. Excel vključuje povzetek in podrobne postavke; izvoz vsebuje podatke o enoti, kontih, zneskih in statusih. Izvoz datoteke ne prenese ali knjiži dokumentov v GK.
+6. Samo če dokumente želite prenesti v interno GK, izberite pregledane POS temeljnice in kliknite **Prenesi izbrane POS temeljnice v GK**.
+7. V oknu **Potrdi prenos v glavno knjigo** preverite izbor. **Prekliči** ne izvede prenosa; **Potrdi prenos v GK** je izrecna odobritev.
+8. Po potrditvi preverite rezultat in stanje vsake temeljnice. Prenos v GK potrebuje ustrezno odprto računovodsko obdobje; arhiviranje in izvoz POS temeljnic ga ne potrebujeta.
+
+Izvirna POS temeljnica ostane v arhivu tudi po prenosu. Ponovitev prenosa
+istega dokumenta ne sme ustvariti podvojene GK temeljnice. Če prenos
+spodleti ali ni ustreznega obdobja, preverite rezultat in predajte napako
+računovodstvu; ne odpirajte obdobij samo zato, da bi omogočili pregled
+POS arhiva, in ne izdelujte ročno nove temeljnice za že preneseni vir.
 
 Status v ERP ni isto kot status Z poročila.
 

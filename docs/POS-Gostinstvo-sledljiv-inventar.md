@@ -1,7 +1,7 @@
 # POS Gostinstvo — sledljiv inventar priročnika
 
-**Datum pregleda:** 04.10.2026
-**Število preverjenih uporabniških postopkov:** 83
+**Datum pregleda:** 05.10.2026
+**Število preverjenih uporabniških postopkov:** 85
 
 Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak pokritost uporabniškega postopka v priročniku.
 
@@ -9,7 +9,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Status | Število |
 |---|---:|
-| PRAVILNO | 83 |
+| PRAVILNO | 85 |
 | DELNO | 0 |
 | MANJKA | 0 |
 | NAPAČNO | 0 |
@@ -18,7 +18,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Stanje | Število |
 |---|---:|
-| IMPLEMENTIRANO | 81 |
+| IMPLEMENTIRANO | 83 |
 | NI IMPLEMENTIRANO | 1 |
 | NEPOTRJENO | 1 |
 
@@ -27,7 +27,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 | Pomembnost | Število |
 |---|---:|
 | KRITIČNO | 29 |
-| VISOKO | 44 |
+| VISOKO | 46 |
 | SREDNJE | 9 |
 | NIZKO | 1 |
 
@@ -125,3 +125,5 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 | TAX-GEN-GL-001 | davčne evidence | Uskladitev KIR/KPR z GL | PRAVILNO | VISOKO |
 | TAX-GEN-XML-001 | davčne evidence | KIRKPR XML izvoz | PRAVILNO | VISOKO |
 | TAX-GEN-EDAVKI-001 | davčne evidence | Neposredna oddaja KIR/KPR v eDavke | PRAVILNO | KRITIČNO |
+| NOR-NORMAL-PORTION | normativi | Normalna porcija v g/ml za normativ pripravljenega kg/l polizdelka | PRAVILNO | VISOKO |
+| GK-POS-ARCHIVE-EXPORT | poročila | Samostojni arhiv POS temeljnic, potrjen prenos v GK in izvoz obdobja | PRAVILNO | VISOKO |

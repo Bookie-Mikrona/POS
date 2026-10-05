@@ -1425,3 +1425,17 @@ mtime_ms = 1791159813290
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/0a9698c6-64b5-45d1-8478-d73f6f4d5f82/88dca5ff-524d-49ba-8f5d-258fb714b832"
 storage_version_token = "1791159820396848"
 content_type = "text/csv"
+
+[[outputs]]
+id = "1Ct4ZonRl-Nn3H6PCegPm"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v8.10.pdf"
+type = "pdf"
+title = "POS Gostinstvo — priročnik v8.10"
+description = "Posodobljena izdaja 05.10.2026: normalna porcija pri kg/l polizdelkih, preračun kuhinjske porabe ter arhiv, potrjen prenos in izvoz POS temeljnic."
+logical_id = "ff60ae30-4107-4235-b53f-6055c2e54eb6"
+content_hash = "sha256:d045467237dba6622ff0d868715cc67e48215b9c479d2d2861642d9d7670dcae"
+size = 2643391
+mtime_ms = 1791198464683
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/ff60ae30-4107-4235-b53f-6055c2e54eb6/e1b99fe5-91ad-4321-b333-407b472319a4"
+storage_version_token = "1791198640243743"
+content_type = "application/pdf"

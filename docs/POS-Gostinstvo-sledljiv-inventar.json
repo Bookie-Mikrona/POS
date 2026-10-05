@@ -2569,5 +2569,39 @@
       "artifacts/api-server/src/routes/vatSubmissions.ts:140-220"
     ],
     "gap_or_correction": "Aplikacija preveri vire, pripravi in omogoči prenos XML; ni dokazov za API/UI, ki bi datoteko neposredno oddal eDavkom ali potrdil njen prejem. Funkcija ostaja NI IMPLEMENTIRANO, priročnik pa pravilno zahteva ločeno zunanjo oddajo in dokazilo."
+  },
+  {
+    "id": "NOR-NORMAL-PORTION",
+    "domain": "normativi",
+    "feature": "Normalna porcija v g/ml za normativ pripravljenega kg/l polizdelka",
+    "user_roles": ["administrator", "vodja", "kuhar"],
+    "prerequisites": ["pripravljena jed na kg ali l", "nenabavni in neprodajni polizdelek", "pozitivna količina normalne porcije", "sestavine v njihovih dejanskih merskih enotah"],
+    "normal_flow": "Skrbnik določi normalno porcijo, npr. 400 g, in vpiše sestavine za eno tako porcijo. Program shrani preračun na osnovni kg/l; kuhar vnaša pripravo v kg/l. Sprememba reference na 500 g sorazmerno spremeni prikaz, ne osnovne recepture.",
+    "exceptions_recovery": "Brez reference ostane obstoječi normativ na 1 kg/l. Masa in prostornina se ne pretvarjata med seboj. Pametni predlog za kg/l ni na voljo. Vpis 120 namesto 0,12 pri sestavini v kg je napačen; pred shranjevanjem preverite enote. Zgodovinske osnovne enote ne spreminjajte.",
+    "business_effect": "Vnos na eno normalno porcijo brez nove prodajne cene ali zalogovne enote; zaloga in priprava ostaneta v kg/l, različne prodajne porcije porabljajo isti polizdelek.",
+    "ui_evidence": ["artifacts/pos/src/pages/Menu.tsx", "artifacts/pos/src/lib/prepared-norm-portion.ts", "artifacts/pos/src/pages/Menu.mealType.test.tsx", "artifacts/pos/src/lib/prepared-norm-portion.test.ts"],
+    "api_evidence": ["artifacts/api-server/src/routes/pos/artikli.ts", "artifacts/api-server/src/lib/prepared-food-units.ts", "artifacts/api-server/src/routes/pos/artikli.prepared-units.integration.test.ts"],
+    "manual_evidence": ["docs/pos-manual-src/04-zaloge-dokumenti.md: Normativ za normalno porcijo: primer 400 g golaža", "docs/pos-manual-src/12-spremembe-in-dopolnitve.md: Kratka zgodovina dokumentacije"],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "implementation_status": "IMPLEMENTIRANO",
+    "gap_or_correction": "Navodila in primere potrjujejo 10 komponentnih/izračunskih in 7 API testov. Celoten prijavljeni brskalniški potek še ni potrjen, ker ni bila na voljo operativna testna POS identiteta; to je verifikacijska omejitev, ne trditev o dokumentacijski celovitosti vseh postopkov."
+  },
+  {
+    "id": "GK-POS-ARCHIVE-EXPORT",
+    "domain": "poročila",
+    "feature": "Samostojni arhiv POS temeljnic, potrjen prenos v GK in izvoz obdobja",
+    "user_roles": ["administrator", "vodja", "računovodstvo"],
+    "prerequisites": ["dostop do POS temeljnic aktivnega podjetja", "izbrano datumsko obdobje", "odprto GK obdobje samo pri potrjenem prenosu v GK"],
+    "normal_flow": "Uporabnik pregleda arhivirane POS temeljnice po datumih in imenu enote, jih izvozi v Excel/CSV ali izbere in posebej potrdi prenos v GK. Izvoz ne knjiži; arhiv ne potrebuje računovodskih obdobij.",
+    "exceptions_recovery": "Preklic potrditvenega dialoga ne prenese dokumentov. Ponoven prenos istega dokumenta ne ustvari dvojnika; original ostane v POS arhivu. Pri manjkajočem GK obdobju ali napaki preverite rezultat, ne ustvarjajte ročnih podvojenih temeljnic.",
+    "business_effect": "Ločitev operativnega POS arhiva od računovodskega knjiženja, varna predaja dokumentov zunanjemu računovodstvu in izrecna odobritev notranjega prenosa.",
+    "ui_evidence": ["artifacts/pos/src/pages/Temeljnice.tsx", "artifacts/pos/src/pages/Temeljnice.test.tsx"],
+    "api_evidence": ["artifacts/api-server/src/routes/pos"],
+    "manual_evidence": ["docs/pos-manual-src/08-nastavitve-po-sklopih.md: Arhiv POS temeljnic, potrjen prenos v GK ter Excel/CSV", "docs/pos-manual-src/12-spremembe-in-dopolnitve.md: Kratka zgodovina dokumentacije"],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "implementation_status": "IMPLEMENTIRANO",
+    "gap_or_correction": "Izdaja loči POS arhiv od GK statusa in dokumentira imena enot, datumski obseg izvozov, izrecno potrditev prenosa, ohranitev originala ter preprečevanje dvojnikov."
   }
 ]
