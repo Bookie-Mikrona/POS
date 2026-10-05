@@ -17,16 +17,18 @@ export function PreparationBatchEditor({ name, defaultPieces, value, readOnly, o
   const total = draft.reduce((sum, b) => sum + b.batchCount * b.piecesPerBatch, 0);
   const setField = (index: number, key: keyof PreparationBatch, number: number) =>
     setDraft(prev => prev.map((b, i) => i === index ? { ...b, [key]: number } : b));
+  if (readOnly && !value?.length) return null;
+  const title = readOnly ? "Ogled priprav in razreza" : "Priprave in razrez";
   return <>
-    <Button type="button" size="sm" variant="outline" className="h-auto min-h-8 max-w-full whitespace-normal px-2 py-1 text-xs lg:w-full" aria-label={`Priprave in razrez: ${name}`}
+    <Button type="button" size="sm" variant="outline" className="h-auto min-h-8 max-w-full whitespace-normal px-2 py-1 text-xs lg:w-full" aria-label={`${title}: ${name}`}
       onClick={() => { setDraft(value?.map(b => ({ ...b })) ?? (readOnly ? [] : [{ batchCount: 1, piecesPerBatch: defaultPieces }])); setOpen(true); }}>
-      Priprave in razrez{value?.length ? ` (${value.length})` : ""}
+      {title}{value?.length ? ` (${value.length})` : ""}
     </Button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Priprave in razrez — {name}</DialogTitle>
-          <DialogDescription>Normativ: {defaultPieces} kosov iz priprave. Drugačen razrez spremeni število pripravljenih kosov, ne porabe surovin za isti pekač. Spremembe se shranijo z dnevno evidenco.</DialogDescription>
+          <DialogTitle>{title} — {name}</DialogTitle>
+          <DialogDescription>Normativ: {defaultPieces} kosov iz priprave. Drugačen razrez spremeni število pripravljenih kosov, ne porabe surovin za isti pekač. {readOnly ? "Shranjene priprave so na voljo samo za ogled." : "Spremembe se shranijo z dnevno evidenco."}</DialogDescription>
         </DialogHeader>
         {draft.map((b, i) => <div key={i} className="rounded border p-3 space-y-2">
           <p className="font-medium">Priprava {i + 1}</p>
