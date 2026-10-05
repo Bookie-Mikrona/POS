@@ -5,6 +5,7 @@ import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react";
 import { getJournalEntryDeletionErrorMessage } from "@/lib/journalEntryDeletionError";
+import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
 
 import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users, Info, Receipt, Download, ChevronDown } from "lucide-react";
 
@@ -121,7 +122,10 @@ export default function Temeljnice() {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
 
-  const [periodFilter, setPeriodFilter] = useState<string>("all");
+  const [periodSelection, setPeriodSelection] = useState<{ companyId: string; value: string } | null>(null);
+  const setPeriodFilter = (value: string) => {
+    if (activeCompany) setPeriodSelection({ companyId: activeCompany.id, value });
+  };
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [costCenterFilter, setCostCenterFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
@@ -130,6 +134,9 @@ export default function Temeljnice() {
 
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
+  const periodFilter = periodSelection && periodSelection.companyId === activeCompany?.id
+    ? periodSelection.value
+    : defaultAccountingPeriod(periods);
 
   const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
   const costCenters = costCentersData?.costCenters ?? [];
@@ -149,7 +156,7 @@ export default function Temeljnice() {
       projectId: projectFilter !== "all" ? projectFilter : undefined,
       departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
     },
-    { query: { enabled: !!activeCompany?.id } as any }
+    { query: { enabled: !!activeCompany?.id && !!periodsData } as any }
   );
 
   // API orders oldest first; reverse a copy only for this list's display.

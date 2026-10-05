@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
 import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -99,10 +100,16 @@ export default function Racuni() {
 
   const [activeTab, setActiveTab] = useState<string>("issued");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [periodFilter, setPeriodFilter] = useState<string>("all");
+  const [periodSelection, setPeriodSelection] = useState<{ companyId: string; value: string } | null>(null);
+  const setPeriodFilter = (value: string) => {
+    if (activeCompany) setPeriodSelection({ companyId: activeCompany.id, value });
+  };
 
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
+  const periodFilter = periodSelection && periodSelection.companyId === activeCompany?.id
+    ? periodSelection.value
+    : defaultAccountingPeriod(periods);
 
   const { data, isLoading, error } = useListInvoices(
     activeCompany?.id ?? "",
@@ -111,7 +118,7 @@ export default function Racuni() {
       status: statusFilter !== "all" ? (statusFilter as any) : undefined,
       periodId: periodFilter !== "all" ? periodFilter : undefined,
     },
-    { query: { enabled: !!activeCompany?.id } as any }
+    { query: { enabled: !!activeCompany?.id && !!periodsData } as any }
   );
 
   // API orders oldest first; reverse a copy only for this list's display.
