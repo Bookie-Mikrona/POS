@@ -16,6 +16,7 @@
 import PDFDocument from "pdfkit";
 import path from "path";
 import QRCode from "qrcode";
+import { drawReportDiagnostics, drawReportDiagnosticsNotice, hasReportDiagnostics, finalizeReportPageNumbers, type ReportDiagnostics } from "./report-pdf-diagnostics";
 
 // ── Pot do fontov ─────────────────────────────────────────────────────────────
 // report-pdf.ts živi v src/lib/ (dev) oz. dist/lib/ (build).
@@ -81,6 +82,7 @@ function drawHeader(
   subtitle: string,
   page: number,
   totalPages: number,
+  deferFooter = false,
 ): void {
   if (page === 1) {
     doc.font("DejaVuSans-Bold").fontSize(13).fillColor(COLOR_PRIMARY)
@@ -99,10 +101,12 @@ function drawHeader(
   }
   // Footer — lineBreak: false prepreči cursor overflow čez spodnji rob strani,
   // ki bi ob naslednjem doc.text() sprožil PDFKit auto-addPage (prazna vmesna stran).
-  const genDate = new Date().toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
-  doc.font("DejaVuSans").fontSize(7).fillColor("#9ca3af")
-    .text(`Generirano: ${genDate}`, MARGIN, doc.page.height - MARGIN - 5, { continued: false, lineBreak: false })
-    .text(`Stran ${page} / ${totalPages}`, MARGIN, doc.page.height - MARGIN - 5, { align: "right", lineBreak: false });
+  if (!deferFooter) {
+    const genDate = new Date().toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
+    doc.font("DejaVuSans").fontSize(7).fillColor("#9ca3af")
+      .text(`Generirano: ${genDate}`, MARGIN, doc.page.height - MARGIN - 5, { continued: false, lineBreak: false })
+      .text(`Stran ${page} / ${totalPages}`, MARGIN, doc.page.height - MARGIN - 5, { align: "right", lineBreak: false });
+  }
   // Vrni PDFKit kazalec na začetek vsebine — prepreči auto-addPage pri prvem
   // eksplicitnem doc.text() klicu po tej glavi (brez tega nastane prazna stran 2).
   doc.y = page === 1 ? MARGIN + 55 : MARGIN + 20;
@@ -134,7 +138,7 @@ interface BalanceSheetSide {
   total: string;
 }
 
-interface BalanceSheetData {
+interface BalanceSheetData extends ReportDiagnostics {
   aktiva: BalanceSheetSide;
   pasiva: BalanceSheetSide;
 }
@@ -144,7 +148,7 @@ interface IncomeStatementSide {
   total: string;
 }
 
-interface IncomeStatementData {
+interface IncomeStatementData extends ReportDiagnostics {
   revenue: IncomeStatementSide;
   expenses: IncomeStatementSide;
   netResult: string;
@@ -173,6 +177,7 @@ interface PdfState {
   companyName: string;
   reportTitle: string;
   subtitle: string;
+  deferPageNumbers?: boolean;
 }
 
 function checkNewPage(state: PdfState, needed = 18): void {
@@ -180,7 +185,7 @@ function checkNewPage(state: PdfState, needed = 18): void {
   if (state.y + needed > bottomLimit) {
     state.doc.addPage();
     state.page++;
-    drawHeader(state.doc, state.companyName, state.reportTitle, state.subtitle, state.page, state.totalPages);
+    drawHeader(state.doc, state.companyName, state.reportTitle, state.subtitle, state.page, state.totalPages, state.deferPageNumbers);
     state.y = contentY(state.page);
   }
 }
@@ -315,8 +320,9 @@ export async function generateBalanceSheetPdf(opts: {
 
   const bufferPromise = collectDocBuffer(doc);
 
-  const state: PdfState = { doc, y: contentY(1), page: 1, totalPages, companyName, reportTitle, subtitle };
-  drawHeader(doc, companyName, reportTitle, subtitle, 1, totalPages);
+  const state: PdfState = { doc, y: contentY(1), page: 1, totalPages, companyName, reportTitle, subtitle, deferPageNumbers: true };
+  drawHeader(doc, companyName, reportTitle, subtitle, 1, totalPages, true);
+  if (hasReportDiagnostics(current) || hasReportDiagnostics(compare)) drawReportDiagnosticsNotice(state, MARGIN);
 
   renderBalanceSheetSide(state, "AKTIVA", current.aktiva, compare?.aktiva ?? null, asOf, compareAsOf ?? undefined);
 
@@ -342,6 +348,9 @@ export async function generateBalanceSheetPdf(opts: {
     state.y += 14;
   }
 
+  drawReportDiagnostics(state, current, `Osnovno poročilo: ${asOf}`, MARGIN, checkNewPage);
+  if (compare) drawReportDiagnostics(state, compare, `Primerjalno poročilo: ${compareAsOf ?? ""}`, MARGIN, checkNewPage);
+  finalizeReportPageNumbers(doc, MARGIN);
   doc.end();
   return bufferPromise;
 }
@@ -635,8 +644,9 @@ export async function generateIncomeStatementPdf(opts: {
 
   const bufferPromise = collectDocBuffer(doc);
 
-  const state: PdfState = { doc, y: contentY(1), page: 1, totalPages, companyName, reportTitle, subtitle };
-  drawHeader(doc, companyName, reportTitle, subtitle, 1, totalPages);
+  const state: PdfState = { doc, y: contentY(1), page: 1, totalPages, companyName, reportTitle, subtitle, deferPageNumbers: true };
+  drawHeader(doc, companyName, reportTitle, subtitle, 1, totalPages, true);
+  if (hasReportDiagnostics(current) || hasReportDiagnostics(compare)) drawReportDiagnosticsNotice(state, MARGIN);
 
   const datePrimary = `${dateFrom} - ${dateTo}`;
   const dateCmp = compareDateFrom ? `${compareDateFrom} - ${compareDateTo}` : undefined;
@@ -668,6 +678,9 @@ export async function generateIncomeStatementPdf(opts: {
     state.y += 14;
   }
 
+  drawReportDiagnostics(state, current, `Osnovno obdobje: ${dateFrom} – ${dateTo}`, MARGIN, checkNewPage);
+  if (compare) drawReportDiagnostics(state, compare, `Primerjalno obdobje: ${compareDateFrom ?? ""} – ${compareDateTo ?? ""}`, MARGIN, checkNewPage);
+  finalizeReportPageNumbers(doc, MARGIN);
   doc.end();
   return bufferPromise;
 }
