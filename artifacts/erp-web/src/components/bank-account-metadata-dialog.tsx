@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Settings2 } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
+import { CompanyBankSuggestion } from "@/components/company-bank-suggestion";
 import {
   useListBankStatementAccounts,
   useSetBankAccountMetadata,
@@ -105,6 +106,13 @@ export function BankAccountMetadataDialog({ companyId, accountId, disabled, onSa
               <Input value={bic} onChange={e => setBic(e.target.value)} disabled={isLoading} />
             </div>
             <p className="text-xs text-muted-foreground">Profil XML: pain.001.001.03</p>
+            {!isLoading && <CompanyBankSuggestion
+              companyId={companyId}
+              accountCode={data?.bankAccounts.find(a => a.id === accountId)?.code}
+              hasSavedMetadata={!!current}
+              draftEmpty={!iban && !bic}
+              onSelect={(suggestedIban, suggestedBic) => { setIban(suggestedIban); setBic(suggestedBic); }}
+            />}
             {err && <Alert variant="destructive"><AlertDescription>{err}</AlertDescription></Alert>}
             {saved && <Alert><AlertDescription>Shranjeno.</AlertDescription></Alert>}
           </div>

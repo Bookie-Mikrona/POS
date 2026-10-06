@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, Package, Settings2 } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
+import { CompanyBankSuggestion } from "@/components/company-bank-suggestion";
 import {
   useListPaymentBatches,
   useGetPaymentBatch,
@@ -150,7 +151,7 @@ function BankMetadataSettings({ companyId, canEdit }: { companyId: string; canEd
   return (
     <div className="border rounded-lg bg-card p-4 space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold">Izvorni TRR (IBAN) po kontih 110x</h3>
+        <h3 className="text-sm font-semibold">Izvorni TRR (IBAN) po analitičnih bančnih kontih</h3>
         {canEdit && <Button variant="outline" size="sm" onClick={() => { setOpen(true); pick(accounts[0]?.id ?? ""); }}><Settings2 className="mr-1.5 h-3 w-3" />Uredi</Button>}
       </div>
       <div className="grid gap-1 text-sm">
@@ -181,6 +182,13 @@ function BankMetadataSettings({ companyId, canEdit }: { companyId: string; canEd
             </div>
             <div className="space-y-2"><Label>IBAN</Label><Input value={iban} onChange={e => setIban(e.target.value)} placeholder="SI56..." /></div>
             <div className="space-y-2"><Label>BIC (neobvezno)</Label><Input value={bic} onChange={e => setBic(e.target.value)} /></div>
+            <CompanyBankSuggestion
+              companyId={companyId}
+              accountCode={accounts.find(a => a.id === accountId)?.code}
+              hasSavedMetadata={!!data?.bankDetails.find(d => d.bankAccountId === accountId)}
+              draftEmpty={!iban && !bic}
+              onSelect={(suggestedIban, suggestedBic) => { setIban(suggestedIban); setBic(suggestedBic); }}
+            />
             {err && <p className="text-sm text-destructive">{err}</p>}
           </div>
           <DialogFooter>

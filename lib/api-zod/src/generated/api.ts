@@ -11506,7 +11506,11 @@ export const ListCompaniesResponse = zod.object({
   "postnaStevika": zod.string().nullish(),
   "kraj": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
-  "employerControlledTipsEnabled": zod.boolean().default(listCompaniesResponseCompaniesItemOneEmployerControlledTipsEnabledDefault)
+  "employerControlledTipsEnabled": zod.boolean().default(listCompaniesResponseCompaniesItemOneEmployerControlledTipsEnabledDefault),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish()
 }).and(zod.object({
   "role": zod.enum(['owner', 'accountant', 'viewer'])
 })))
@@ -11551,7 +11555,11 @@ export const CreateCompanyResponse = zod.object({
   "postnaStevika": zod.string().nullish(),
   "kraj": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
-  "employerControlledTipsEnabled": zod.boolean().default(createCompanyResponseOneEmployerControlledTipsEnabledDefault)
+  "employerControlledTipsEnabled": zod.boolean().default(createCompanyResponseOneEmployerControlledTipsEnabledDefault),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish()
 }).and(zod.object({
   "role": zod.enum(['owner', 'accountant', 'viewer'])
 }))
@@ -11575,7 +11583,11 @@ export const GetCompanyResponse = zod.object({
   "postnaStevika": zod.string().nullish(),
   "kraj": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
-  "employerControlledTipsEnabled": zod.boolean().default(getCompanyResponseOneEmployerControlledTipsEnabledDefault)
+  "employerControlledTipsEnabled": zod.boolean().default(getCompanyResponseOneEmployerControlledTipsEnabledDefault),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish()
 }).and(zod.object({
   "role": zod.enum(['owner', 'accountant', 'viewer'])
 }))

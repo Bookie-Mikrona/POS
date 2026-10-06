@@ -30,9 +30,10 @@ import {
 import router from "./payments";
 import journalsRouter from "./journalEntries";
 import partnerLedgerRouter from "./partnerLedger";
+import bankStatementsRouter from "./bankStatements";
 
 const app = express();
-app.use(express.json(), router, journalsRouter, partnerLedgerRouter);
+app.use(express.json(), router, journalsRouter, partnerLedgerRouter, bankStatementsRouter);
 app.use((err: any, _req: any, res: any, _next: any) => res.status(err.statusCode ?? 500).json({ error: err.message }));
 let companyId: string, periodId: string, partnerId: string, bankId: string, statementId: string;
 let wageId: string, vatId: string, feeId: string, supplierId: string, disabledId: string, groupId: string, dimensionId: string, invoiceId: string;
@@ -112,6 +113,20 @@ async function payload(accountId: string, amount = 25) {
 }
 
 describe("bank statement per-transaction accounting", () => {
+  it("lists only active postable analytical bank accounts and rejects metadata on groups", async () => {
+    const excluded = await db.insert(accountsTable).values([
+      { companyId, code: "110", name: "TRR sintetični", type: "asset" as const, allowsPosting: false },
+      { companyId, code: "111", name: "Depoziti sintetični", type: "asset" as const, allowsPosting: true },
+      { companyId, code: "1109000", name: "Neaktiven TRR", type: "asset" as const, isActive: false },
+      { companyId, code: "1108000", name: "Neknjižljiv TRR", type: "asset" as const, allowsPosting: false },
+    ]).returning();
+    const list = await request(app).get(`/companies/${companyId}/bank-statements/accounts`).expect(200);
+    expect(list.body.bankAccounts.map((a: any) => a.id)).toEqual([bankId]);
+    for (const account of excluded) {
+      await request(app).put(`/companies/${companyId}/bank-statements/accounts/${account.id}/metadata`)
+        .send({ iban: "SI56191000000123438", bic: "HDELSI22" }).expect(404);
+    }
+  });
   it("posts wages, VAT and fees to different accounts without inventing invoices", async () => {
     for (const accountId of [wageId, vatId, feeId]) {
       const created = await request(app).post(`/companies/${companyId}/payments`).send(await payload(accountId)).expect(201);

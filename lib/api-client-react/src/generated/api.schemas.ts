@@ -8788,6 +8788,8 @@ export interface Company {
   kraj?: string | null;
   createdAt: string;
   employerControlledTipsEnabled: boolean;
+  /** @nullable */
+  trr?: TrrPostavka[] | null;
 }
 
 export type CompanyWithRoleRole = typeof CompanyWithRoleRole[keyof typeof CompanyWithRoleRole];

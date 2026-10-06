@@ -1244,10 +1244,10 @@ router.get(
         name: accountsTable.name,
       })
       .from(accountsTable)
-      .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true)));
+      .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true), eq(accountsTable.allowsPosting, true)));
 
     // Bank accounts: class 11x
-    const bankAccounts = allAccounts.filter(a => a.code.startsWith("11"));
+    const bankAccounts = allAccounts.filter(a => a.code.startsWith("11") && a.code.length > 3);
     // AR accounts: class 12x (terjatve do kupcev)
     const arAccounts = allAccounts.filter(a => a.code.startsWith("12") || a.code.startsWith("14"));
     // AP accounts: class 22x (obveznosti do dobaviteljev)
@@ -1292,9 +1292,10 @@ router.put(
     if (sepaProfile !== "pain.001.001.03") { res.status(400).json({ error: "Nepodprt SEPA profil; podprta je pain.001.001.03" }); return; }
     const [account] = await db.select({ id: accountsTable.id, code: accountsTable.code })
       .from(accountsTable)
-      .where(and(eq(accountsTable.id, bankAccountId), eq(accountsTable.companyId, companyId)))
+      .where(and(eq(accountsTable.id, bankAccountId), eq(accountsTable.companyId, companyId),
+        eq(accountsTable.isActive, true), eq(accountsTable.allowsPosting, true)))
       .limit(1);
-    if (!account || !account.code.startsWith("11")) { res.status(404).json({ error: "Bančni konto ni najden v podjetju" }); return; }
+    if (!account || !account.code.startsWith("11") || account.code.length <= 3) { res.status(404).json({ error: "Aktiven analitični bančni konto ni najden v podjetju" }); return; }
     try {
       const saved = await db.transaction(async tx => {
         const [metadata] = await tx.insert(bankAccountMetadataTable).values({

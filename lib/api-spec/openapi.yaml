@@ -20606,6 +20606,12 @@ components:
         employerControlledTipsEnabled:
           type: boolean
           default: false
+        trr:
+          type:
+            - array
+            - "null"
+          items:
+            $ref: "#/components/schemas/TrrPostavka"
       required:
         - id
         - podjetjeDavcna
