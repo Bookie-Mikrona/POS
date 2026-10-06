@@ -20,6 +20,7 @@ import { readAll, readAllWithFallback, toResponse } from "./nastavitve";
 import { upsertPogostKupec } from "./kupec";
 // bcrypt: use (await import('bcryptjs')).default for hashing
 import { posljiEmailRacun, posljiEslogEmail } from "../../lib/pos-email";
+import { loadUnitEmailSender } from "../../lib/company-email-sender";
 import { captureStockMovementIntents, createFinalizationPlan, executeFinalizationPlan, finalizationPlanHash, type FinalizationPlan } from "../../services/pos/finalization-plan";
 import { companiesTable, counterpartiesTable, bizboxNastavitveTable } from "@workspace/db";
 import { desifrirajBizboxGeslo } from "../../lib/kripto-bizbox";
@@ -3343,6 +3344,7 @@ router.post("/racuni/:id/poslji-email", async (req, res): Promise<void> => {
       eor: racun.eor ?? null,
       ustvarjeno: racun.ustvarjeno},
     nastavitve.nazivRestavracije ?? nastavitve.davcnaStevilka ?? "",
+    await loadUnitEmailSender(tenotaId),
   );
 
   res.json({ uspeh: rezultat.uspeh, napaka: rezultat.napaka ?? null });
@@ -4436,6 +4438,7 @@ router.post("/racuni/:id/eracun/poslji-email", async (req, res): Promise<void> =
     racun.eRacunXml,
     pdfBuffer,
     nastavitve.nazivRestavracije ?? nastavitve.davcnaStevilka ?? racun.enotaIme,
+    await loadUnitEmailSender(racun.enotaId),
   );
 
   // 5. Zabeleži rezultat

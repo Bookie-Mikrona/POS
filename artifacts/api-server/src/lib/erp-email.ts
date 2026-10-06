@@ -8,6 +8,7 @@
  */
 
 import nodemailer from "nodemailer";
+import { buildEmailSender, type CompanyEmailSender } from "./email-sender";
 
 export function getErpSmtp(): {
   host: string;
@@ -20,7 +21,7 @@ export function getErpSmtp(): {
   const user     = process.env["SMTP_USER"]     ?? "";
   const password = process.env["SMTP_PASSWORD"] ?? "";
   const from     = process.env["SMTP_FROM"]     ?? "";
-  const port     = Number(process.env["SMTP_PORT"] ?? "587");
+  const port     = Number(process.env["SMTP_PORT"] || "465");
 
   if (!host || !user || !password || !from) return null;
   return { host, port, user, password, from };
@@ -33,7 +34,7 @@ export async function posljiPorociloPdf(opts: {
   subtitle: string;
   filename: string;
   pdfBuffer: Buffer;
-}): Promise<{ uspeh: boolean; napaka?: string }> {
+}, sender?: CompanyEmailSender): Promise<{ uspeh: boolean; napaka?: string }> {
   const smtp = getErpSmtp();
   if (!smtp) {
     return {
@@ -77,7 +78,7 @@ export async function posljiPorociloPdf(opts: {
 
   try {
     await transporter.sendMail({
-      from: smtp.from,
+      ...buildEmailSender(smtp.from, opts.prejemnik, opts.companyName, sender),
       to: opts.prejemnik,
       subject,
       text,

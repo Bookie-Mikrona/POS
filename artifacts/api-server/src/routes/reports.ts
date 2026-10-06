@@ -1111,7 +1111,7 @@ router.post(
 
     // Pridobi ime podjetja
     const [companyRow] = await db
-      .select({ naziv: companiesTable.naziv })
+      .select({ naziv: companiesTable.naziv, email: companiesTable.email })
       .from(companiesTable)
       .where(eq(companiesTable.id, companyId))
       .limit(1);
@@ -1243,7 +1243,7 @@ router.post(
         subtitle,
         filename,
         pdfBuffer,
-      });
+      }, { companyName: companyRow?.naziv, companyEmail: companyRow?.email });
       if (result.uspeh) {
         res.json({ uspeh: true, sporocilo: `PDF poslan na ${email}` });
       } else {

@@ -518,13 +518,13 @@ export default function Settings() {
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-  const { data: mize } = useListMize({ query: { enabled: lahkoUpravljaMize } });
+  const { data: mize } = useListMize({ query: { queryKey: getListMizeQueryKey(), enabled: lahkoUpravljaMize } });
   const createMiza = useCreateMiza();
   const deleteMiza = useDeleteMiza();
   const updateMiza = useUpdateMiza();
   const bulkPozicija = useBulkPozicijaMize();
   const [tlorisSelectedProstorId, setTlorisSelectedProstorId] = useState<number | null>(null);
-  const { data: prostori } = useListProstori({ query: { enabled: lahkoUpravljaMize } });
+  const { data: prostori } = useListProstori({ query: { queryKey: getListProstoriQueryKey(), enabled: lahkoUpravljaMize } });
   const createProstor = useCreateProstor();
   const updateProstorMut = useUpdateProstor();
   const deleteProstorMut = useDeleteProstor();
@@ -991,7 +991,7 @@ export default function Settings() {
   const [racunZbirnaKlavzula, setRacunZbirnaKlavzula] = useState(false);
   const [racunPravnaKlavzula, setRacunPravnaKlavzula] = useState("");
   const [smtpHost, setSmtpHost] = useState("");
-  const [smtpPort, setSmtpPort] = useState("587");
+  const [smtpPort, setSmtpPort] = useState("465");
   const [smtpUser, setSmtpUser] = useState("");
   const [smtpNovGeslo, setSmtpNovGeslo] = useState("");
   const [smtpGesloNastavljeno, setSmtpGesloNastavljeno] = useState(false);
@@ -1199,7 +1199,7 @@ export default function Settings() {
       setRacunZbirnaKlavzula((nastavitve as Nastavitve & { racunZbirnaKlavzula?: boolean }).racunZbirnaKlavzula ?? false);
       setRacunPravnaKlavzula((nastavitve as Nastavitve & { racunPravnaKlavzula?: string }).racunPravnaKlavzula ?? "");
       setSmtpHost((nastavitve as Nastavitve & { smtpHost?: string }).smtpHost ?? "");
-      setSmtpPort(String((nastavitve as Nastavitve & { smtpPort?: number }).smtpPort ?? 587));
+      setSmtpPort(String((nastavitve as Nastavitve & { smtpPort?: number }).smtpPort ?? 465));
       setSmtpUser((nastavitve as Nastavitve & { smtpUser?: string }).smtpUser ?? "");
       setSmtpGesloNastavljeno((nastavitve as Nastavitve & { smtpGesloNastavljeno?: boolean }).smtpGesloNastavljeno ?? false);
       setSmtpNovGeslo("");
@@ -1930,7 +1930,7 @@ export default function Settings() {
       racunZbirnaKlavzula,
       racunPravnaKlavzula,
       smtpHost,
-      smtpPort: parseInt(smtpPort) || 587,
+      smtpPort: parseInt(smtpPort) || 465,
       smtpUser,
       ...(smtpNovGeslo ? { smtpPassword: smtpNovGeslo } : {}),
       smtpFrom,
@@ -5736,11 +5736,11 @@ export default function Settings() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2 space-y-2">
                 <Label>SMTP strežnik</Label>
-                <Input placeholder="smtp.gmail.com" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} disabled={!smtpAktiven} />
+                <Input placeholder="mail.mikrona.si" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} disabled={!smtpAktiven} />
               </div>
               <div className="space-y-2">
                 <Label>Vrata</Label>
-                <Input type="number" placeholder="587" value={smtpPort} onChange={e => setSmtpPort(e.target.value)} disabled={!smtpAktiven} />
+                <Input type="number" placeholder="465" value={smtpPort} onChange={e => setSmtpPort(e.target.value)} disabled={!smtpAktiven} />
               </div>
             </div>
 

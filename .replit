@@ -62,6 +62,8 @@ packages = ["android-tools", "cargo", "freetype", "glibcLocales", "gradle", "gum
 
 [userenv.shared]
 ERP_PONUDNIK_DAVCNA = "84040653"
+SMTP_HOST = "mail.mikrona.si"
+SMTP_PORT = "465"
 
 [userenv.development]
 SUPER_ADMIN_IDS = "user_3GhFXPAlFf51CI7swb8CKrU7Ykb"

@@ -306,7 +306,8 @@ async function deliverClaimedVouchers(claimed: ClaimedVoucherDelivery) {
   try {
     if (!host || !user || !password || !from) throw new Error("SMTP dostava ni nastavljena.");
     const pdf = await voucherPdf(venueName, checkout.recipient_name, issued);
-    const transporter = nodemailer.createTransport({ host, port:Number(process.env.SMTP_PORT ?? 587), secure:Number(process.env.SMTP_PORT)===465, auth:{user,pass:password} });
+    const port = Number(process.env.SMTP_PORT || 465);
+    const transporter = nodemailer.createTransport({ host, port, secure:port===465, auth:{user,pass:password}, tls:{rejectUnauthorized:true} });
     await transporter.sendMail({ from, to:checkout.recipient_email, subject:`Darilni bon – ${venueName}`, text:`Pozdravljeni ${checkout.recipient_name}, v priponki je vaš darilni bon.`, attachments:[{filename:"darilni-bon.pdf",content:pdf,contentType:"application/pdf"}] });
     const client = await (db as any).$client.connect();
     try {

@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { buildEmailSender, type CompanyEmailSender } from "./email-sender";
 
 export interface SmtpKonfiguracija {
   smtpHost: string;
@@ -16,6 +17,7 @@ export async function posljiEmailZacasnoGeslo(
   ime: string | null,
   geslo: string,
   nazivRestavracije: string,
+  sender?: CompanyEmailSender,
 ): Promise<{ uspeh: boolean; napaka?: string }> {
   if (!smtp.smtpAktiven) {
     return { uspeh: false, napaka: "Pošiljanje e-pošte ni aktivirano" };
@@ -26,8 +28,8 @@ export async function posljiEmailZacasnoGeslo(
 
   const transporter = nodemailer.createTransport({
     host: smtp.smtpHost,
-    port: smtp.smtpPort || 587,
-    secure: smtp.smtpPort === 465,
+    port: smtp.smtpPort || 465,
+    secure: (smtp.smtpPort || 465) === 465,
     auth: {
       user: smtp.smtpUser,
       pass: smtp.smtpPassword,
@@ -64,7 +66,7 @@ export async function posljiEmailZacasnoGeslo(
 
   try {
     await transporter.sendMail({
-      from: smtp.smtpFrom,
+      ...buildEmailSender(smtp.smtpFrom, prejemnik, nazivRestavracije, sender, true),
       to: prejemnik,
       subject,
       text,
@@ -90,6 +92,7 @@ export async function posljiEmailRacun(
     ustvarjeno: string | Date;
   },
   nazivRestavracije: string,
+  sender?: CompanyEmailSender,
 ): Promise<{ uspeh: boolean; napaka?: string }> {
   if (!smtp.smtpAktiven) {
     return { uspeh: false, napaka: "Pošiljanje e-pošte ni aktivirano" };
@@ -100,8 +103,8 @@ export async function posljiEmailRacun(
 
   const transporter = nodemailer.createTransport({
     host: smtp.smtpHost,
-    port: smtp.smtpPort || 587,
-    secure: smtp.smtpPort === 465,
+    port: smtp.smtpPort || 465,
+    secure: (smtp.smtpPort || 465) === 465,
     auth: {
       user: smtp.smtpUser,
       pass: smtp.smtpPassword,
@@ -171,7 +174,7 @@ export async function posljiEmailRacun(
 
   try {
     await transporter.sendMail({
-      from: smtp.smtpFrom,
+      ...buildEmailSender(smtp.smtpFrom, prejemnik, nazivRestavracije, sender),
       to: prejemnik,
       subject,
       text,
@@ -202,6 +205,7 @@ export async function posljiEslogEmail(
   xml: string,
   pdf: Buffer,
   nazivPodjetja: string,
+  sender?: CompanyEmailSender,
 ): Promise<{ uspeh: boolean; napaka?: string }> {
   if (!smtp.smtpAktiven) {
     return { uspeh: false, napaka: "Pošiljanje e-pošte ni aktivirano (SMTP ni aktiven)" };
@@ -212,8 +216,8 @@ export async function posljiEslogEmail(
 
   const transporter = nodemailer.createTransport({
     host: smtp.smtpHost,
-    port: smtp.smtpPort || 587,
-    secure: smtp.smtpPort === 465,
+    port: smtp.smtpPort || 465,
+    secure: (smtp.smtpPort || 465) === 465,
     auth: { user: smtp.smtpUser, pass: smtp.smtpPassword },
     tls: { rejectUnauthorized: true },
   });
@@ -268,7 +272,7 @@ export async function posljiEslogEmail(
 
   try {
     await transporter.sendMail({
-      from: smtp.smtpFrom,
+      ...buildEmailSender(smtp.smtpFrom, prejemnikEmail, nazivPodjetja, sender),
       to: prejemnikEmail,
       subject,
       text,
@@ -289,6 +293,7 @@ export async function posljiTestnoEmail(
   smtp: SmtpKonfiguracija,
   prejemnik: string,
   nazivRestavracije: string,
+  sender?: CompanyEmailSender,
 ): Promise<{ uspeh: boolean; napaka?: string }> {
   if (!smtp.smtpHost || !smtp.smtpUser || !smtp.smtpPassword || !smtp.smtpFrom) {
     return { uspeh: false, napaka: "SMTP nastavitve niso popolne (strežnik, uporabnik, geslo in pošiljatelj so obvezni)" };
@@ -296,8 +301,8 @@ export async function posljiTestnoEmail(
 
   const transporter = nodemailer.createTransport({
     host: smtp.smtpHost,
-    port: smtp.smtpPort || 587,
-    secure: smtp.smtpPort === 465,
+    port: smtp.smtpPort || 465,
+    secure: (smtp.smtpPort || 465) === 465,
     auth: {
       user: smtp.smtpUser,
       pass: smtp.smtpPassword,
@@ -324,7 +329,7 @@ export async function posljiTestnoEmail(
 
   try {
     await transporter.sendMail({
-      from: smtp.smtpFrom,
+      ...buildEmailSender(smtp.smtpFrom, prejemnik, nazivRestavracije, sender, true),
       to: prejemnik,
       subject,
       text,

@@ -5,6 +5,7 @@ import { requireEnota } from "../../middlewares/pos";
 import { fursSOAPEcho, pridobiCompanyCert } from "../../lib/pos-furs";
 import { randomUUID } from "node:crypto";
 import { posljiTestnoEmail } from "../../lib/pos-email";
+import { loadUnitEmailSender } from "../../lib/company-email-sender";
 import {
   isHappyHourActiveForArticle,
   normalizeHappyHourRules,
@@ -39,7 +40,7 @@ const DEFAULTS: Record<string, string> = {
   simulirajFursNapako: "false",
   grupiranjeNacin:     "novo",
   smtpHost:            "",
-  smtpPort:            "587",
+  smtpPort:            "465",
   smtpUser:            "",
   smtpPassword:        "",
   smtpFrom:            "",
@@ -366,7 +367,7 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
     simulirajFursNapako: String((parsed.data as { simulirajFursNapako?: boolean }).simulirajFursNapako ?? false),
     grupiranjeNacin: (parsed.data as { grupiranjeNacin?: string }).grupiranjeNacin ?? "novo",
     smtpHost:           (parsed.data as { smtpHost?: string }).smtpHost ?? "",
-    smtpPort:           String((parsed.data as { smtpPort?: number }).smtpPort ?? 587),
+    smtpPort:           String((parsed.data as { smtpPort?: number }).smtpPort ?? 465),
     smtpUser:           (parsed.data as { smtpUser?: string }).smtpUser ?? "",
     ...(((parsed.data as { smtpPassword?: string }).smtpPassword ?? "") !== ""
       ? { smtpPassword: (parsed.data as { smtpPassword?: string }).smtpPassword! }
@@ -787,7 +788,9 @@ router.post("/nastavitve/email-test", requireAdmin, async (req, res): Promise<vo
     smtpPassword: map["smtpPassword"] ?? "",
     smtpFrom: nastavitve.smtpFrom,
     smtpAktiven: true};
-  const rezultat = await posljiTestnoEmail(smtp, prejemnik, nastavitve.nazivRestavracije);
+  const rezultat = await posljiTestnoEmail(
+    smtp, prejemnik, nastavitve.nazivRestavracije, await loadUnitEmailSender(tenotaId),
+  );
   res.json(rezultat);
 });
 
