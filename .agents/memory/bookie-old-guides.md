@@ -5,15 +5,21 @@ description: Kazalo pravil preslikave, dokazil in primerjave starih izpisov.
 
 Pri delu z zgodovinskimi podatki Bookie Old loči preslikavo kontov, izvirne računovske listine in primerjavo že oddanih izpisov.
 
+**Why:** Ista številka konta lahko pomeni nekaj drugega, promet ni popolna izvirna listina, sodobna bilanca stanja pa ni nadomestek starega bruto izpisa.
+
+**How to apply:** Uporabi ustrezno povezano podtemo na koncu tega dokumenta.
+
 Gradiva starega programa so tudi referenca za razvoj funkcionalnosti, ne samo za prenos zgodovinskih podatkov.
 
 **Why:** Uporabnik je izrecno ločil razvoj od migracije ter vprašal po implementaciji poslanih dokumentov, zaslonskih slik, vnosov in plačil. Uspešen prenos podatkov ne dokazuje pokritosti postopkov.
 
 **How to apply:** Pri oceni pokritosti loči obstoj funkcije, njeno dejansko preverjeno delovanje in skladnost s predloženo referenco. Brez primerjave posameznih zahtev ne trdi, da je vse implementirano.
 
-**Why:** Ista številka konta lahko pomeni nekaj drugega, promet ni popolna izvirna listina, sodobna bilanca stanja pa ni nadomestek starega bruto izpisa.
+Razvojni osnutek ali komentar »placeholder« ni avtoritativni dokaz trenutnega stanja funkcionalnosti.
 
-**How to apply:** Uporabi ustrezno podtemo:
+**Why:** Pri primerjavi referenc so nekateri starejši načrti še opisovali prihodnjo izvedbo, čeprav so pripadajoči vmesniki in strežniški tokovi že obstajali. Obratno sam prikazan gumb ni dokaz povezanega postopka.
+
+**How to apply:** Status zahteve določi iz aktualnega klica vmesnika, strežniške izvedbe in navedenega preizkusa. Loči lokalni test datoteke od dejanskega sprejema pri banki, AJPES ali eDavkih.
 
 Predloženi podatki in izpisi starega programa, ki jih je uporabnik potrdil 2026-10-02, so preverjeno pravilna referenca za primerjavo z novim programom.
 

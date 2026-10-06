@@ -1439,3 +1439,45 @@ mtime_ms = 1791198464683
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/ff60ae30-4107-4235-b53f-6055c2e54eb6/e1b99fe5-91ad-4321-b333-407b472319a4"
 storage_version_token = "1791198640243743"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "BGNd_CmBjrzbadOgBVwK9"
+uri = "file://reports/bookie-old-funkcionalna-pokritost-2026-10-06.html"
+type = "html"
+title = "Bookie — pregled izvedbe starega programa"
+description = "67 zahtev z izvori, dokazi, statusi in omejitvami; iskanje in filter statusa ter popis 279 prilog."
+logical_id = "70911c3d-1866-4f62-8340-39cdb7a61a9f"
+content_hash = "sha256:0b682e9e120440aff4bed9f328218a2c3af24fe3caf97d455850a14d92dcf61e"
+size = 141836
+mtime_ms = 1791290668813
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/70911c3d-1866-4f62-8340-39cdb7a61a9f/e4c94094-402b-4909-b541-37ae674f2393"
+storage_version_token = "1791290762423377"
+content_type = "text/html"
+
+[[outputs]]
+id = "e1mlSN8WsUSgLH4iWOdVn"
+uri = "file://reports/bookie-old-funkcionalna-pokritost-2026-10-06.csv"
+type = "table"
+title = "Matrika funkcionalne pokritosti"
+description = "67 zahtev za pregled v Excelu: izvedeno, delno, manjka ali še ni preverjeno."
+logical_id = "059f531a-4b7c-47a2-84c2-aba76517222a"
+content_hash = "sha256:fa11e1d751eaa73da464eef16bab10958abdf1902b88f902cca9300f02ef19a3"
+size = 43009
+mtime_ms = 1791290668810
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/059f531a-4b7c-47a2-84c2-aba76517222a/1102be10-cd74-45a8-8c4f-bb07626fab98"
+storage_version_token = "1791290763147890"
+content_type = "text/csv"
+
+[[outputs]]
+id = "od_YQcBz_YE36ujKtcw2_"
+uri = "file://reports/bookie-old-priloge-popis-2026-10-06.csv"
+type = "table"
+title = "Popis vseh 279 prilog"
+description = "Datoteke, velikosti, odtisi SHA-256 in dejanski obseg pregleda posamezne priloge."
+logical_id = "5b77212e-d028-4156-a3a2-0c6d23d98af6"
+content_hash = "sha256:f9652de7d3c0abba1c25e6b1b273d6cbc67822235b3b121f48cec6454f6e3608"
+size = 65268
+mtime_ms = 1791290668806
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/5b77212e-d028-4156-a3a2-0c6d23d98af6/ddcb7561-e1b5-4a5e-a6fe-0d25040934dd"
+storage_version_token = "1791290763932070"
+content_type = "text/csv"
