@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import { useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, Package, Settings2 } from "lucide-react";
@@ -97,7 +98,7 @@ export function PaymentBatchesPanel() {
             <TableBody>
               {batches.map(b => (
                 <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailId(b.id)}>
-                  <TableCell>{new Date(b.executionDate).toLocaleDateString("sl-SI")}</TableCell>
+                  <TableCell>{formatDatum(b.executionDate)}</TableCell>
                   <TableCell className="text-sm">{accLabel(b.bankAccountId)}</TableCell>
                   <TableCell className="text-right">{b.transactionCount}</TableCell>
                   <TableCell className="text-right font-semibold">{fmt(b.controlSum)}</TableCell>
@@ -280,7 +281,7 @@ function CreateBatchDialog({ companyId, onClose, onCreated }: { companyId: strin
                   {drafts.map(p => (
                     <TableRow key={p.id}>
                       <TableCell><Checkbox checked={selected.has(p.id)} onCheckedChange={c => toggle(p.id, !!c)} /></TableCell>
-                      <TableCell>{new Date(p.paymentDate).toLocaleDateString("sl-SI")}</TableCell>
+                      <TableCell>{formatDatum(p.paymentDate)}</TableCell>
                       <TableCell>{p.counterpartyName}</TableCell>
                       <TableCell className="text-muted-foreground">{p.reference || "-"}</TableCell>
                       <TableCell className="text-right">{fmt(p.amount)}</TableCell>
@@ -350,7 +351,7 @@ function BatchDetailDialog({ companyId, batchId, onClose }: { companyId: string;
               <span>Status: <Badge variant="outline">{BATCH_STATUS[data.status] ?? data.status}</Badge></span>
               <span>Nalogov: <b>{data.transactionCount}</b></span>
               <span>Kontrolna vsota: <b>{fmt(data.controlSum)}</b></span>
-              <span>Izvedba: <b>{new Date(data.executionDate ?? "").toLocaleDateString("sl-SI")}</b></span>
+              <span>Izvedba: <b>{formatDatum(data.executionDate ?? "")}</b></span>
             </div>
             {data.status === "exported" || data.exportedAt ? (
               <Alert><AlertDescription>XML je bil izvožen. To ni dokaz izvedbe: plačilo se evidentira šele ob uvozu bančnega izpiska.</AlertDescription></Alert>

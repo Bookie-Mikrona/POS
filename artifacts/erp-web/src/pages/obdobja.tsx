@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState } from "react";
 import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
@@ -129,14 +130,7 @@ export default function Obdobja() {
     });
   };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return new Intl.DateTimeFormat('sl-SI').format(d);
-    } catch {
-      return dateStr;
-    }
-  };
+  const formatDate = formatDatum;
 
   if (error) {
     return (

@@ -1,3 +1,4 @@
+import { formatDatum, formatCasovniZig } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Download, Loader2, RefreshCw, Upload } from "lucide-react";
@@ -26,7 +27,7 @@ type Outcome = "submitted" | "accepted" | "rejected";
 export const ATTEST_TEXT = "Potrjujem, da dokazilo velja za izbrani izvoz in da je rezultat dejansko naveden na dokazilu.";
 const PURPOSE: Record<string, string> = { review: "Pregled (ni za oddajo)", statistics: "Statistika", publication: "Objava", combined: "Statistika in objava" };
 const OUTCOME: Record<string, string> = { submitted: "Oddano (ročno)", accepted: "Sprejeto (po dokazilu)", rejected: "Zavrnjeno (po dokazilu)" };
-const fmtDT = (s: string) => { const d = new Date(s); return isNaN(+d) ? s : d.toLocaleString("sl-SI", { timeZone: "Europe/Ljubljana" }); };
+const fmtDT = formatCasovniZig;
 const fmtSize = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MiB` : `${Math.max(1, Math.round(n / 1024))} KiB`);
 
 export const historyPrefix = (companyId: string, year: number) => `/api/companies/${companyId}/reports/ajpes/${year}/history`;
@@ -131,7 +132,7 @@ export function AjpesAnnualHistoryTab({ companyId, year, viewer, dirty }: { comp
                       <td className="whitespace-nowrap">{fmtDT(s.recordedAt)}<div className="text-xs text-muted-foreground">{s.recordedBy}</div></td>
                       <td>{ex ? ex.filename : <span className="text-muted-foreground">Izvoz na drugi strani</span>}</td>
                       <td>{OUTCOME[s.outcome]}{s.note && <div className="text-xs text-muted-foreground max-w-xs truncate" title={s.note}>{s.note}</div>}</td>
-                      <td>{s.submittedOn}</td>
+                      <td>{formatDatum(s.submittedOn)}</td>
                       <td>{s.reference}</td>
                       <td>
                         <div className="flex flex-wrap gap-1">
@@ -259,7 +260,7 @@ function EvidenceForm({ companyId, year, currentFingerprint, exports, submission
             <label className="text-xs space-y-1 md:col-span-2">Nadomesti prejšnji vpis
               <select data-testid="select-supersedes" className="w-full h-9 rounded-md border bg-background px-2 text-sm" value={supersedesId} onChange={(e) => edit(setSupersedesId)(e.target.value)}>
                 <option value="">Ne nadomešča</option>
-                {prev.map((p) => <option key={p.id} value={p.id}>{p.submittedOn} · {OUTCOME[p.outcome]} · {p.reference}</option>)}
+                {prev.map((p) => <option key={p.id} value={p.id}>{formatDatum(p.submittedOn)} · {OUTCOME[p.outcome]} · {p.reference}</option>)}
               </select>
               <span className="text-muted-foreground">Prejšnji vpis ostane v arhivu; popravek je nov zapis.</span>
             </label>

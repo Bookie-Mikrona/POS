@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { Search, BookMarked, AlertCircle, Loader2 } from "lucide-react";
@@ -210,7 +211,7 @@ export default function GlavnaKnjiga() {
 
                     return (
                       <TableRow key={`${line.entryId}-${i}`} className={line.isReversal ? "bg-amber-50/50 dark:bg-amber-950/20" : undefined}>
-                        <TableCell className="font-medium whitespace-nowrap">{new Date(line.entryDate).toLocaleDateString("sl-SI")}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{formatDatum(line.entryDate)}</TableCell>
                         <TableCell>
                           <div>{line.description}</div>
                           <LedgerReversalLabel isReversal={line.isReversal} reversalOf={line.reversalOf} />

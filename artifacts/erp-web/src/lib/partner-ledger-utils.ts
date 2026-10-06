@@ -1,6 +1,7 @@
+import { formatDatum } from "@/lib/utils";
 export const fmt = (v: string | number | null | undefined) =>
   v === null || v === undefined || v === "" ? "-" : Number(v).toLocaleString("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-export const fmtDate = (v?: string | null) => (v ? new Date(v).toLocaleDateString("sl-SI") : "-");
+export const fmtDate = (v?: string | null) => (v ? formatDatum(v) : "-");
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

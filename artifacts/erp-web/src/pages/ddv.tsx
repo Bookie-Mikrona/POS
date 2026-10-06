@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState, useMemo } from "react";
 import { KirKprEvidenceTab } from "./ddv-evidence";
 import { useQueryClient } from "@tanstack/react-query";
@@ -127,7 +128,7 @@ function VatCodesTab() {
                     ) : <span className="text-muted-foreground text-xs">Ni povezave</span>}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {code.validFrom ? new Date(code.validFrom).toLocaleDateString("sl-SI") : "Vedno"} - {code.validTo ? new Date(code.validTo).toLocaleDateString("sl-SI") : "Naprej"}
+                    {code.validFrom ? formatDatum(code.validFrom) : "Vedno"} - {code.validTo ? formatDatum(code.validTo) : "Naprej"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={code.isActive ? "default" : "secondary"} className={code.isActive ? "bg-green-600 hover:bg-green-700" : ""}>
@@ -469,7 +470,7 @@ function VatRegisterTab() {
                       <span className="font-medium">{entry.invoiceNumber}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{new Date(entry.invoiceDate).toLocaleDateString("sl-SI")}</TableCell>
+                  <TableCell>{formatDatum(entry.invoiceDate)}</TableCell>
                   <TableCell>{entry.counterpartyName}</TableCell>
                   <TableCell><span className="text-xs text-muted-foreground">{entry.counterpartyTaxId || "-"}</span></TableCell>
                   <TableCell><span className="text-xs font-mono">{entry.vatCode || "-"}</span></TableCell>

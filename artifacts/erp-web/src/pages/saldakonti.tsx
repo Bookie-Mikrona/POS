@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -236,8 +237,8 @@ export default function Saldakonti() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString("sl-SI") : "—"}</TableCell>
-                      <TableCell>{item.dueDate ? new Date(item.dueDate).toLocaleDateString("sl-SI") : isLedgerOpenItem(item) ? "Brez zapadlosti" : "—"}</TableCell>
+                      <TableCell>{item.invoiceDate ? formatDatum(item.invoiceDate) : "—"}</TableCell>
+                      <TableCell>{item.dueDate ? formatDatum(item.dueDate) : isLedgerOpenItem(item) ? "Brez zapadlosti" : "—"}</TableCell>
                       <TableCell className="text-right">{parseFloat(item.totalGross).toFixed(2)}</TableCell>
                       <TableCell className="text-right text-muted-foreground">{parseFloat(item.allocatedAmount).toFixed(2)}</TableCell>
                       <TableCell className="text-right font-medium">{parseFloat(item.remainingAmount).toFixed(2)}</TableCell>
@@ -279,7 +280,7 @@ export default function Saldakonti() {
             : sspLoading ? <Skeleton className="h-[240px] w-full" />
             : (sspData?.items ?? []).length === 0 ? <div className="border border-dashed rounded-lg p-10 text-center bg-card"><h2 className="text-xl font-semibold mb-2">Ni odprtih SŠP terjatev</h2><p className="text-muted-foreground">Za izbrane filtre ni odprtih knjiženih SŠP postavk.</p></div>
             : <div className="border rounded-lg bg-card overflow-hidden"><Table><TableHeader><TableRow><TableHead>Enota</TableHead><TableHead>Račun</TableHead><TableHead>Datum</TableHead><TableHead className="text-right">Skupaj</TableHead><TableHead className="text-right">Poravnano</TableHead><TableHead className="text-right">Preostalo</TableHead><TableHead /></TableRow></TableHeader><TableBody>
-               {sspData!.items.map((item, idx) => <TableRow key={getOpenItemKey(item) || `ssp-${idx}`}><TableCell>{item.unitName}</TableCell><TableCell>{item.invoiceNumber}</TableCell><TableCell>{new Date(item.invoiceDate).toLocaleDateString("sl-SI")}</TableCell><TableCell className="text-right">{Number(item.totalGross).toFixed(2)}</TableCell><TableCell className="text-right">{Number(item.allocatedAmount).toFixed(2)}</TableCell><TableCell className="text-right font-medium">{Number(item.remainingAmount).toFixed(2)}</TableCell><TableCell className="text-right">{activeCompany?.role !== "viewer" && item.invoiceId && <Button size="sm" onClick={() => setLocation(`/placila?sspInvoiceId=${encodeURIComponent(item.invoiceId!)}&counterpartyId=${encodeURIComponent(item.counterpartyId)}&arApAccountId=${encodeURIComponent(item.arApAccountId)}&amount=${encodeURIComponent(item.remainingAmount)}`)}>Prejeto plačilo</Button>}</TableCell></TableRow>)}
+               {sspData!.items.map((item, idx) => <TableRow key={getOpenItemKey(item) || `ssp-${idx}`}><TableCell>{item.unitName}</TableCell><TableCell>{item.invoiceNumber}</TableCell><TableCell>{formatDatum(item.invoiceDate)}</TableCell><TableCell className="text-right">{Number(item.totalGross).toFixed(2)}</TableCell><TableCell className="text-right">{Number(item.allocatedAmount).toFixed(2)}</TableCell><TableCell className="text-right font-medium">{Number(item.remainingAmount).toFixed(2)}</TableCell><TableCell className="text-right">{activeCompany?.role !== "viewer" && item.invoiceId && <Button size="sm" onClick={() => setLocation(`/placila?sspInvoiceId=${encodeURIComponent(item.invoiceId!)}&counterpartyId=${encodeURIComponent(item.counterpartyId)}&arApAccountId=${encodeURIComponent(item.arApAccountId)}&amount=${encodeURIComponent(item.remainingAmount)}`)}>Prejeto plačilo</Button>}</TableCell></TableRow>)}
               <TableRow className="bg-muted/50 font-bold"><TableCell colSpan={5} className="text-right">Skupaj preostalo:</TableCell><TableCell className="text-right">{Number(sspData!.totalRemaining).toFixed(2)}</TableCell><TableCell /></TableRow>
             </TableBody></Table></div>}
         </TabsContent>

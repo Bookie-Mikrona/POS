@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState, useMemo } from "react";
 import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
 import { useAuth } from "@clerk/react";
@@ -292,7 +293,7 @@ export default function Placila() {
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => setDetailPayment(pay)}
                 >
-                  <TableCell>{new Date(pay.paymentDate).toLocaleDateString("sl-SI")}</TableCell>
+                  <TableCell>{formatDatum(pay.paymentDate)}</TableCell>
                   <TableCell className="font-medium">{pay.counterpartyName}</TableCell>
                   <TableCell className="text-right font-semibold">{parseFloat(pay.amount).toFixed(2)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{parseFloat(pay.allocatedAmount).toFixed(2)}</TableCell>
@@ -494,7 +495,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
     if (removed.length === 0) return;
     const identities = new Set(removed.map(a => `${a.invoiceId ?? ""}:${a.journalLineId ?? ""}`));
     setAllocations(cur => cur.filter(a => !identities.has(`${a.invoiceId ?? ""}:${a.journalLineId ?? ""}`)));
-    setCutoffNotice(`Zaradi meje zapadlosti ${new Date(cutoffDate).toLocaleDateString("sl-SI")} je bilo odstranjenih ${removed.length} izbranih postavk z znanim kasnejšim rokom.`);
+    setCutoffNotice(`Zaradi meje zapadlosti ${formatDatum(cutoffDate)} je bilo odstranjenih ${removed.length} izbranih postavk z znanim kasnejšim rokom.`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutoffDate, openItemsData]);
 
@@ -785,7 +786,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
               {formData.direction === "outbound" && formData.bankAccountId && (
                 <p className={`text-xs ${(exceedsBankBalance || missingBankStatementBalance) ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                   {hasBankStatementBalance && availableBankBalance != null
-                    ? `Stanje po izpisku na dan ${selectedBankBalance.evidenceDate}: ${availableBankBalance.toLocaleString("sl-SI", { style: "currency", currency: selectedBankBalance.currency ?? "EUR" })}`
+                    ? `Stanje po izpisku na dan ${formatDatum(selectedBankBalance.evidenceDate)}: ${availableBankBalance.toLocaleString("sl-SI", { style: "currency", currency: selectedBankBalance.currency ?? "EUR" })}`
                     : "Stanje ni znano — evidentirajte izpisek s končnim stanjem."}
                 </p>
               )}
@@ -850,7 +851,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
                         </div>
                         <div className="text-sm font-medium text-foreground/80 mt-1">{item.counterpartyName}</div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          Zapadlost: {item.dueDate ? new Date(`${item.dueDate}T00:00:00`).toLocaleDateString("sl-SI") : native ? "Brez zapadlosti" : "ni določena"}
+                          Zapadlost: {item.dueDate ? formatDatum(item.dueDate) : native ? "Brez zapadlosti" : "ni določena"}
                           {" · "}Odprto: {parseFloat(item.remainingAmount).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}
                         </div>
                       </div>
@@ -875,7 +876,7 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
                   <span>{supplierOpenItems.reduce((t, i) => t + parseFloat(i.remainingAmount), 0).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}</span>
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>{cutoffDate ? `Zapadle do ${new Date(cutoffDate).toLocaleDateString("sl-SI")}` : "Brez meje zapadlosti"}</span>
+                  <span>{cutoffDate ? `Zapadle do ${formatDatum(cutoffDate)}` : "Brez meje zapadlosti"}</span>
                   <span>{supplierOpenItems.filter(i => canBulkSelectForCutoff(i as any, cutoffDate)).reduce((t, i) => t + parseFloat(i.remainingAmount), 0).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}</span>
                 </div>
                 {hasUnknownNativeMaturity && <div className="flex justify-between text-sm text-amber-700"><span>Brez znane zapadlosti</span><span>{supplierOpenItems.filter(i => isLedgerOpenItem(i as any) && !i.dueDate).reduce((t, i) => t + parseFloat(i.remainingAmount), 0).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}</span></div>}
@@ -1075,7 +1076,7 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
             </div>
             <div>
               <div className="text-muted-foreground mb-1">Datum plačila</div>
-              <div className="font-medium">{new Date(payment.paymentDate).toLocaleDateString("sl-SI")}</div>
+              <div className="font-medium">{formatDatum(payment.paymentDate)}</div>
             </div>
             <div>
               <div className="text-muted-foreground mb-1">Znesek</div>
@@ -1124,7 +1125,7 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
                       <TableRow key={`invoice-${alloc.id}`}>
                         <TableCell className="font-medium">{alloc.invoiceNumber}</TableCell>
                         <TableCell><Badge variant="outline">Račun</Badge></TableCell>
-                        <TableCell>{alloc.invoiceDate ? new Date(alloc.invoiceDate).toLocaleDateString("sl-SI") : "—"}</TableCell>
+                        <TableCell>{alloc.invoiceDate ? formatDatum(alloc.invoiceDate) : "—"}</TableCell>
                         <TableCell className="text-right font-medium">{parseFloat(alloc.allocatedAmount).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
@@ -1135,7 +1136,7 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
                           {alloc.entryId && <Link className="ml-2 text-primary underline text-xs" href={`/temeljnice?id=${encodeURIComponent(alloc.entryId)}`}>Odpri temeljnico</Link>}
                         </TableCell>
                         <TableCell><Badge variant="outline">Postavka GK</Badge></TableCell>
-                        <TableCell>{alloc.documentDate ? new Date(alloc.documentDate).toLocaleDateString("sl-SI") : "—"}</TableCell>
+                        <TableCell>{alloc.documentDate ? formatDatum(alloc.documentDate) : "—"}</TableCell>
                         <TableCell className="text-right font-medium">{parseFloat(alloc.allocatedAmount).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}

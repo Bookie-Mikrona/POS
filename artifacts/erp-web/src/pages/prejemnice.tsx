@@ -5,6 +5,7 @@
  *      ob prejemu računa ujemanje (DR 221 / CR 220).
  */
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { formatDatum } from "@/lib/utils";
 import { useCompany } from "@/contexts/CompanyContext";
 import {
   useListCounterparties,
@@ -257,9 +258,7 @@ function fmtEur(v: string | number | null | undefined) {
 }
 
 function fmtDate(d: string | null | undefined) {
-  if (!d) return "–";
-  const dt = new Date(d + "T00:00:00Z");
-  return dt.toLocaleDateString("sl-SI", { timeZone: "UTC" });
+  return d ? formatDatum(d) : "–";
 }
 
 // ─── Forma za novo prejemnico ─────────────────────────────────────────────────

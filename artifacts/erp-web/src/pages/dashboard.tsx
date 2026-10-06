@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -66,12 +67,7 @@ interface BankBalanceCardProps {
 }
 
 function formatLedgerDate(value: string) {
-  return new Intl.DateTimeFormat("sl-SI", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T00:00:00Z`));
+  return formatDatum(value);
 }
 
 export function BankBalanceSparkline({ points }: { points: Array<{ date: string; balance: number }> }) {

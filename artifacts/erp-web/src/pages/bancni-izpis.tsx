@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -761,7 +762,7 @@ export default function BancniIzpis() {
       const errs: string[] = [];
       if (autoPost && rec.status === "draft" && rec.requiresExplicitPosting) {
         try { await postPayment(activeCompany.id, rec.paymentId); posted = 1; }
-        catch (e: any) { errs.push(`${c.txReference ?? c.txDate}: ${e.message ?? "Napaka pri knjiženju"}`); }
+        catch (e: any) { errs.push(`${c.txReference ?? formatDatum(c.txDate)}: ${e.message ?? "Napaka pri knjiženju"}`); }
       }
       setPendingConfirms(cur => cur.filter(x => x.lineId !== c.lineId));
       setConfirmResult(cur => cur && { ...cur, created: cur.created + 1, posted: cur.posted + posted, postErrors: [...cur.postErrors, ...errs] });
@@ -865,7 +866,7 @@ export default function BancniIzpis() {
                     className="border-t cursor-pointer hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                     role="button"
                     tabIndex={0}
-                    aria-label={`Odpri bančni izpisek ${statement.statementNumber || statement.statementDate}`}
+                    aria-label={`Odpri bančni izpisek ${statement.statementNumber || formatDatum(statement.statementDate)}`}
                     data-testid={`button-open-statement-${statement.id}`}
                     onClick={() => { if (activeCompany) setSelectedStatement({ companyId: activeCompany.id, id: statement.id }); }}
                     onKeyDown={event => {
@@ -880,7 +881,7 @@ export default function BancniIzpis() {
                       <span className="block text-xs font-normal text-primary">Odpri podrobnosti</span>
                     </td>
                     <td className="p-3">
-                      <div>{statement.statementDate}</div>
+                      <div>{formatDatum(statement.statementDate)}</div>
                       {statement.periodFrom && statement.periodTo && (
                         <div className="text-xs text-muted-foreground">{statement.periodFrom}–{statement.periodTo}</div>
                       )}
@@ -1278,7 +1279,7 @@ export default function BancniIzpis() {
           {pendingConfirms.map(c => (
             <div key={c.lineId} className="rounded-md border bg-background p-3 space-y-2 text-sm">
               <div className="font-medium">{c.label}</div>
-              <div className="text-xs text-muted-foreground">Bančna vrstica: {c.txDate}{c.txReference ? ` · sklic ${c.txReference}` : ""}</div>
+              <div className="text-xs text-muted-foreground">Bančna vrstica: {formatDatum(c.txDate)}{c.txReference ? ` · sklic ${c.txReference}` : ""}</div>
               <ul className="list-disc pl-5 text-amber-800">{c.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
               {c.error && <p className="text-destructive">{c.error}</p>}
               <div className="flex gap-2">
@@ -1508,7 +1509,7 @@ export function TransactionReviewRow({
           <TriangleAlert className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500" />
           <div className="flex-1 min-w-0">
             <span className="font-semibold">Možni podvojen uvoz.</span>{" "}
-            Plačilo z istim datumom ({duplicateOf.paymentDate}), zneskom ({parseFloat(duplicateOf.amount).toFixed(2)})
+            Plačilo z istim datumom ({formatDatum(duplicateOf.paymentDate)}), zneskom ({parseFloat(duplicateOf.amount).toFixed(2)})
             {duplicateOf.reference ? ` in sklicem ${duplicateOf.reference}` : ""} je že v sistemu.
             {decision.kind === "skip" && (
               <> Transakcija je privzeto preskočena.{" "}
@@ -1539,7 +1540,7 @@ export function TransactionReviewRow({
                 <SelectContent>
                   {existingPayments.filter(p => p.direction === (isInbound ? "inbound" : "outbound")).map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {new Date(p.paymentDate).toLocaleDateString("sl-SI")} - {p.counterpartyName} - {parseFloat(p.amount).toFixed(2)} - {p.status === "draft" ? "osnutek" : "knjiženo"}
+                      {formatDatum(p.paymentDate)} - {p.counterpartyName} - {parseFloat(p.amount).toFixed(2)} - {p.status === "draft" ? "osnutek" : "knjiženo"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1568,7 +1569,7 @@ export function TransactionReviewRow({
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold">{s.invoiceNumber}</span>
                         <span className="text-muted-foreground">{s.counterpartyName}</span>
-                        <span className="text-muted-foreground">{s.invoiceDate}</span>
+                        <span className="text-muted-foreground">{formatDatum(s.invoiceDate)}</span>
                       </div>
                       <div className="text-muted-foreground mt-0.5">{s.matchReasons.join(" · ")}</div>
                     </div>

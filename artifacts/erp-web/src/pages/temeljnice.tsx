@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState, useMemo, useEffect } from "react";
 import { useSearch } from "wouter";
 import { trackEvent } from "@/lib/analytics";
@@ -487,7 +488,7 @@ export default function Temeljnice() {
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => setDetailEntry(entry)}
                 >
-                  <TableCell className="font-medium">{new Date(entry.entryDate).toLocaleDateString("sl-SI")}</TableCell>
+                  <TableCell className="font-medium">{formatDatum(entry.entryDate)}</TableCell>
                   <TableCell>
                     <div className="space-y-1">
                       <div>
@@ -1326,7 +1327,7 @@ function DetailEntrySheet({ entry, open, onOpenChange, onStorno, onDelete, delet
           <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
             <div>
               <div className="text-muted-foreground mb-1">Datum</div>
-              <div className="font-medium">{new Date(entry.entryDate).toLocaleDateString("sl-SI")}</div>
+              <div className="font-medium">{formatDatum(entry.entryDate)}</div>
             </div>
             <div>
               <div className="text-muted-foreground mb-1">Obdobje</div>

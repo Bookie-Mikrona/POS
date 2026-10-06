@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState } from "react";
 import {
   Layers,
@@ -63,7 +64,7 @@ function exportCsv(
 
   // Metadata header
   lines.push(escape(`Analitično računovodstvo — ${dimensionLabel}`));
-  lines.push(escape(`Obdobje: ${dateFrom} – ${dateTo}${accountLabel ? ` | Konto: ${accountLabel}` : ""}`));
+  lines.push(escape(`Obdobje: ${formatDatum(dateFrom)} – ${formatDatum(dateTo)}${accountLabel ? ` | Konto: ${accountLabel}` : ""}`));
   lines.push(""); // blank separator
 
   // Column headers
@@ -450,7 +451,7 @@ export default function PorocilaAnalitika() {
               ANALITIČNO RAČUNOVODSTVO — {dimOption.label.toUpperCase()}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Obdobje: {applied.dateFrom} – {applied.dateTo}
+              Obdobje: {formatDatum(applied.dateFrom)} – {formatDatum(applied.dateTo)}
               {applied.accountId && ` | Konto: ${applied.accountId}`}
             </p>
           </div>
@@ -475,7 +476,7 @@ export default function PorocilaAnalitika() {
             </Badge>
             {applied.dateFrom && applied.dateTo && (
               <span className="text-xs text-muted-foreground ml-auto print:hidden">
-                {applied.dateFrom} – {applied.dateTo}
+                {formatDatum(applied.dateFrom)} – {formatDatum(applied.dateTo)}
               </span>
             )}
           </div>

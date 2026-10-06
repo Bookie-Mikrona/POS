@@ -35,8 +35,11 @@ describe("glavna knjiga storno", () => {
     fireEvent.click(screen.getByRole("button", { name: "Išči" }));
 
     const original = within(screen.getByText("Izvorna knjižba").closest("tr")!);
+    expect(original.getByText("01.01.2026")).toBeVisible();
+    expect(screen.getAllByPlaceholderText("dd.mm.yyyy")[0]).toHaveValue("01.01.2026");
     expect(original.queryByText("STORNO")).not.toBeInTheDocument();
     const reversal = within(screen.getByText("Razveljavitev").closest("tr")!);
+    expect(reversal.getByText("01.02.2026")).toBeVisible();
     expect(reversal.getByText("STORNO")).toBeVisible();
     expect(reversal.getByRole("link", { name: "Original" })).toHaveAttribute("href", "/temeljnice?id=original");
     expect(reversal.getByText("100.00")).toBeVisible();

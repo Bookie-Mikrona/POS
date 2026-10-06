@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState, useMemo } from "react";
 import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
 import { useF2Save } from "@/hooks/useF2Save";
@@ -280,9 +281,9 @@ export default function Racuni() {
                   onClick={() => setDetailInvoice(inv)}
                 >
                   <TableCell className="font-medium">{inv.invoiceNumber}</TableCell>
-                  <TableCell>{new Date(inv.invoiceDate).toLocaleDateString("sl-SI")}</TableCell>
+                  <TableCell>{formatDatum(inv.invoiceDate)}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("sl-SI") : "-"}
+                    {inv.dueDate ? formatDatum(inv.dueDate) : "-"}
                   </TableCell>
                   <TableCell>{inv.counterpartyName}</TableCell>
                    <TableCell className="text-right">{(inv as any).sourceType === "bookie-old" && (inv as any).historicalNet == null ? "—" : parseFloat(inv.totalNet).toFixed(2)}</TableCell>
@@ -1033,11 +1034,11 @@ export function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { op
             </div>
             <div>
               <div className="text-muted-foreground mb-1">Datum izdaje</div>
-              <div className="font-medium">{new Date(invoice.invoiceDate).toLocaleDateString("sl-SI")}</div>
+              <div className="font-medium">{formatDatum(invoice.invoiceDate)}</div>
             </div>
             <div>
               <div className="text-muted-foreground mb-1">Rok plačila</div>
-              <div className="font-medium">{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString("sl-SI") : "-"}</div>
+              <div className="font-medium">{invoice.dueDate ? formatDatum(invoice.dueDate) : "-"}</div>
             </div>
           </div>
 

@@ -1,3 +1,4 @@
+import { formatDatum, formatCasovniZig } from "@/lib/utils";
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -72,14 +73,11 @@ function formatApprovalAudit(actor: string | null | undefined, dateString: strin
   const label = action === "confirmed" ? "Potrdil" : "Zavrnil";
   const actorLabel = actor || "neznan uporabnik";
   const date = new Date(dateString);
-  const dateLabel = date.toLocaleDateString("sl-SI", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const dateLabel = formatCasovniZig(dateString).split(" ")[0];
   const timeLabel = date.toLocaleTimeString("sl-SI", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/Ljubljana",
   });
   return `${label}: ${actorLabel} · ${dateLabel} ob ${timeLabel}`;
 }
@@ -1071,7 +1069,7 @@ export function ConfirmedExchangeRateSummary({
             Razlika zaokroževanja: {formatEur(exchangeRate.roundingDifference)}. Preračun je zaokrožen po vrsticah, zato se vsota lahko razlikuje od preračuna skupnega zneska.
           </p>
         )}
-        <p className="text-[11px] text-muted-foreground">Pretvorba je bila potrjena {new Date(exchangeRate.convertedAt).toLocaleString("sl-SI")}.</p>
+        <p className="text-[11px] text-muted-foreground">Pretvorba je bila potrjena {formatCasovniZig(exchangeRate.convertedAt)}.</p>
       </CardContent>
     </Card>
   );
@@ -1730,8 +1728,8 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               <div className="p-3 bg-muted/30 rounded-lg border">
                 <Label className="text-xs text-muted-foreground">Datumi</Label>
                 <div className="font-medium mt-1 text-sm">
-                  Izdaja: {ocr?.invoiceDate ? new Date(ocr.invoiceDate).toLocaleDateString("sl-SI") : "-"}<br/>
-                  Rok: {ocr?.dueDate ? new Date(ocr.dueDate).toLocaleDateString("sl-SI") : "-"}
+                  Izdaja: {ocr?.invoiceDate ? formatDatum(ocr.invoiceDate) : "-"}<br/>
+                  Rok: {ocr?.dueDate ? formatDatum(ocr.dueDate) : "-"}
                 </div>
               </div>
 

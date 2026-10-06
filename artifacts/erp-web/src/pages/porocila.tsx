@@ -1,3 +1,4 @@
+import { formatDatum } from "@/lib/utils";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -1154,8 +1155,8 @@ function IncomeStatementTab() {
             <h1 className="text-xl font-bold">{activeCompany?.naziv}</h1>
             <h2 className="text-lg font-semibold mt-1">IZKAZ POSLOVNEGA IZIDA</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Obdobje: {applied?.dateFrom} – {applied?.dateTo}
-              {showCompare && ` | Primerjava: ${applied?.compareDateFrom} – ${applied?.compareDateTo}`}
+              Obdobje: {formatDatum(applied?.dateFrom)} – {formatDatum(applied?.dateTo)}
+              {showCompare && ` | Primerjava: ${formatDatum(applied?.compareDateFrom)} – ${formatDatum(applied?.compareDateTo)}`}
             </p>
           </div>
 
@@ -1164,7 +1165,7 @@ function IncomeStatementTab() {
             <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <span className="flex-1"></span>
               <span className="min-w-[110px] text-right">
-                {applied?.dateFrom} – {applied?.dateTo}
+                {formatDatum(applied?.dateFrom)} – {formatDatum(applied?.dateTo)}
               </span>
               <span className="min-w-[110px] text-right">
                 {applied?.compareDateFrom} – {applied?.compareDateTo}
@@ -1861,18 +1862,18 @@ const REPORT_TYPE_LABELS: Record<string, string> = {
 function formatExportParams(params: Record<string, string | undefined>, reportType: string): string {
   if (reportType === "balance-sheet") {
     return params.compareAsOf
-      ? `Stanje: ${params.asOf} | Primerjava: ${params.compareAsOf}`
-      : `Stanje na dan: ${params.asOf}`;
+      ? `Stanje: ${formatDatum(params.asOf)} | Primerjava: ${formatDatum(params.compareAsOf)}`
+      : `Stanje na dan: ${formatDatum(params.asOf)}`;
   }
   if (reportType === "income-statement") {
-    const base = `${params.dateFrom} – ${params.dateTo}`;
+    const base = `${formatDatum(params.dateFrom)} – ${formatDatum(params.dateTo)}`;
     return params.compareDateFrom
-      ? `${base} | Primerjava: ${params.compareDateFrom} – ${params.compareDateTo}`
+      ? `${base} | Primerjava: ${formatDatum(params.compareDateFrom)} – ${formatDatum(params.compareDateTo)}`
       : base;
   }
   if (reportType === "trial-balance") {
     return [
-      `${params.dateFrom} – ${params.dateTo}`,
+      `${formatDatum(params.dateFrom)} – ${formatDatum(params.dateTo)}`,
       params.statementView === "bilanca" ? "Bilanca kontov" :
         params.statementView === "zakljucni" ? "Zaključni račun" : null,
       params.accountClass ? `Razred ${params.accountClass}` : null,
