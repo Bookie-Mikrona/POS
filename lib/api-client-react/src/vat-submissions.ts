@@ -51,6 +51,14 @@ export function vatSubmissionsQueryKey(companyId: string) {
   return ["companies", companyId, "vat-submissions"] as const;
 }
 
+/** Authenticated binary download: ordinary links do not carry a Clerk bearer token. */
+export function downloadVatSubmission(companyId: string, submissionId: string): Promise<Blob> {
+  return customFetch<Blob>(
+    `/api/companies/${encodeURIComponent(companyId)}/vat-submissions/${encodeURIComponent(submissionId)}/download`,
+    { responseType: "blob", headers: { Accept: "application/zip" } },
+  );
+}
+
 // ─── Hooks ─────────────────────────────────────────────────────────────────
 
 export function useListVatSubmissions(

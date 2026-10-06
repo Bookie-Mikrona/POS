@@ -19,6 +19,7 @@ import {
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { generateKirKprXml } from "../lib/vatXmlGenerator";
 import { vatSubmissionPeriodBounds } from "../lib/vatSubmissionPreflight";
+import { buildKirKprZip } from "../lib/vatZip";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { objectStorageClient } from "../lib/objectStorage";
 
@@ -500,6 +501,24 @@ router.get(
     }
 
     const filename = `KIR_KPR_${submission.periodYear}_${submission.period}_${submission.kind}.xml`;
+    const format = req.query.format ?? "zip";
+    if (format !== "zip" && format !== "xml") {
+      res.status(400).json({ error: "Format mora biti zip ali xml." });
+      return;
+    }
+    const sendArchived = async (xml: string) => {
+      res.setHeader("Cache-Control", "no-store");
+      if (format === "xml") {
+        res.setHeader("Content-Type", "application/xml; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.send(xml);
+      } else {
+        const zip = await buildKirKprZip(xml, filename);
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename.replace(/\.xml$/, ".zip")}"`);
+        res.send(zip);
+      }
+    };
 
     // Najprej poskusi object storage, potem fallback na inline
     if (submission.xmlStoragePath) {
@@ -511,9 +530,8 @@ router.get(
         const file = bucket.file(objectName);
         const [exists] = await file.exists();
         if (exists) {
-          res.setHeader("Content-Type", "application/xml; charset=utf-8");
-          res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-          file.createReadStream().pipe(res);
+          const [bytes] = await file.download();
+          await sendArchived(bytes.toString("utf8"));
           return;
         }
       } catch {
@@ -523,9 +541,7 @@ router.get(
 
     // Fallback: inline XML
     if (submission.xmlInline) {
-      res.setHeader("Content-Type", "application/xml; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      res.send(submission.xmlInline);
+      await sendArchived(submission.xmlInline);
       return;
     }
 

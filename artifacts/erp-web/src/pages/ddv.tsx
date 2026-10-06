@@ -10,11 +10,11 @@ import {
   useListAccounts,
   useListPeriods,
   useGetVatRegister,
-  useGetVatReturn,
   getListVatCodesQueryKey,
   useListCompanyFursVatCodes,
   type VatCodeRecord
 } from "@workspace/api-client-react";
+import { VatFormPanel } from "@/components/vat-form-panel";
 import { useCompany } from "@/contexts/CompanyContext";
 
 import { Button } from "@/components/ui/button";
@@ -496,148 +496,6 @@ function VatRegisterTab() {
   );
 }
 
-// --- VAT RETURN TAB (DDV-O) ---
-function VatReturnTab() {
-  const { activeCompany } = useCompany();
-  const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
-  const periods = periodsData?.periods ?? [];
-  
-  const [periodId, setPeriodId] = useState<string>("");
-
-  React.useEffect(() => {
-    if (periods.length > 0 && !periodId) {
-      setPeriodId(periods[periods.length - 1].id);
-    }
-  }, [periods, periodId]);
-
-  const { data, isLoading, error } = useGetVatReturn(
-    activeCompany?.id ?? "",
-    { periodId: periodId || "none" },
-    { query: { enabled: !!(activeCompany?.id && periodId) } as any }
-  );
-
-  const rows = data?.rows ?? [];
-  const totals = data?.totals;
-
-  const netVatTotal = parseFloat(totals?.netVat || "0");
-  const isReceivable = netVatTotal < 0;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold tracking-tight">Obračun DDV (DDV-O)</h2>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Prenesi XML
-        </Button>
-      </div>
-
-      <div className="flex gap-4 items-end bg-card p-4 rounded-lg border shadow-sm">
-        <div className="space-y-1.5 w-[250px]">
-          <Label className="text-xs font-medium text-muted-foreground">Obdobje (Mesec / Kvartal) <span className="text-destructive">*</span></Label>
-          <Select value={periodId} onValueChange={setPeriodId}>
-            <SelectTrigger><SelectValue placeholder="Izberite obdobje" /></SelectTrigger>
-            <SelectContent>
-              {periods.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {!periodId ? (
-        <div className="text-center py-12 border rounded-lg bg-card text-muted-foreground">
-          Izberite obdobje za prikaz obračuna.
-        </div>
-      ) : isLoading ? (
-        <Skeleton className="h-[400px] w-full" />
-      ) : error ? (
-        <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Napaka</AlertTitle><AlertDescription>Napaka pri nalaganju.</AlertDescription></Alert>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Izstopni DDV skupaj (Obveznost)</CardDescription>
-                <CardTitle className="text-2xl text-red-600">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(totals?.outputVat || "0"))} €</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Vstopni DDV skupaj (Odbitek)</CardDescription>
-                <CardTitle className="text-2xl text-blue-600">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(totals?.inputVat || "0"))} €</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card className={isReceivable ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"}>
-              <CardHeader className="pb-2">
-                <CardDescription>{isReceivable ? "Neto terjatev do države" : "Neto obveznost za plačilo"}</CardDescription>
-                <CardTitle className={`text-3xl ${isReceivable ? "text-green-700" : "text-red-700"}`}>
-                  {new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(netVatTotal))} €
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          </div>
-
-          <div className="border rounded-lg bg-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>DDV Koda</TableHead>
-                  <TableHead className="text-right">Stopnja</TableHead>
-                  <TableHead className="text-right">Izstopna osnova</TableHead>
-                  <TableHead className="text-right text-red-600">Izstopni DDV</TableHead>
-                  <TableHead className="text-right">Vstopna osnova</TableHead>
-                  <TableHead className="text-right text-blue-600">Vstopni DDV</TableHead>
-                  <TableHead className="text-right">Neto DDV</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map(row => {
-                  const net = parseFloat(row.netVat);
-                  return (
-                    <TableRow key={row.vatCodeId || row.vatCode || Math.random().toString()}>
-                      <TableCell>
-                        <div className="font-medium">{row.vatCode || "Neznano"}</div>
-                        <div className="text-xs text-muted-foreground">{row.vatCodeName}</div>
-                      </TableCell>
-                      <TableCell className="text-right">{parseFloat(row.vatRate)}%</TableCell>
-                      <TableCell className="text-right">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(row.outputBase))} €</TableCell>
-                      <TableCell className="text-right text-red-600">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(row.outputVat))} €</TableCell>
-                      <TableCell className="text-right">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(row.inputBase))} €</TableCell>
-                      <TableCell className="text-right text-blue-600">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(row.inputVat))} €</TableCell>
-                      <TableCell className={`text-right font-medium ${net < 0 ? 'text-green-600' : net > 0 ? 'text-red-600' : ''}`}>
-                        {new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(net)} €
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-                {rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Ni podatkov za prikaz</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-              {totals && (
-                <tfoot className="border-t bg-muted/30 font-bold">
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-right">SKUPAJ:</TableCell>
-                    <TableCell className="text-right">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(totals.outputBase))} €</TableCell>
-                    <TableCell className="text-right text-red-600">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(totals.outputVat))} €</TableCell>
-                    <TableCell className="text-right">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(totals.inputBase))} €</TableCell>
-                    <TableCell className="text-right text-blue-600">{new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(totals.inputVat))} €</TableCell>
-                    <TableCell className={`text-right text-lg ${isReceivable ? "text-green-600" : "text-red-600"}`}>
-                      {new Intl.NumberFormat('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(netVatTotal)} €
-                    </TableCell>
-                  </TableRow>
-                </tfoot>
-              )}
-            </Table>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // --- MAIN PAGE ---
 export default function Ddv() {
   const [activeTab, setActiveTab] = useState("vat_register");
@@ -654,6 +512,8 @@ export default function Ddv() {
           <TabsTrigger value="kir_kpr">KIR/KPR Evidenca</TabsTrigger>
           <TabsTrigger value="vat_register">Knjiga IR/PR</TabsTrigger>
           <TabsTrigger value="vat_return">DDV-O Obračun</TabsTrigger>
+          <TabsTrigger value="rp_o">RP-O</TabsTrigger>
+          <TabsTrigger value="pd_o">PD-O</TabsTrigger>
           <TabsTrigger value="vat_codes">DDV Šifranti</TabsTrigger>
         </TabsList>
 
@@ -666,7 +526,15 @@ export default function Ddv() {
         </TabsContent>
 
         <TabsContent value="vat_return" className="mt-0">
-          <VatReturnTab />
+          <VatFormPanel key="DDV-O" form="DDV-O" />
+        </TabsContent>
+
+        <TabsContent value="rp_o" className="mt-0">
+          <VatFormPanel key="RP-O" form="RP-O" />
+        </TabsContent>
+
+        <TabsContent value="pd_o" className="mt-0">
+          <VatFormPanel key="PD-O" form="PD-O" />
         </TabsContent>
 
         <TabsContent value="vat_codes" className="mt-0">

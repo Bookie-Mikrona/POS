@@ -5,6 +5,131 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export type VatFormPreviewForm = typeof VatFormPreviewForm[keyof typeof VatFormPreviewForm];
+
+
+export const VatFormPreviewForm = {
+  'DDV-O': 'DDV-O',
+  'RP-O': 'RP-O',
+  'PD-O': 'PD-O',
+} as const;
+
+export type VatFormPreviewPeriodMode = typeof VatFormPreviewPeriodMode[keyof typeof VatFormPreviewPeriodMode];
+
+
+export const VatFormPreviewPeriodMode = {
+  mesecno: 'mesecno',
+  trimesecno: 'trimesecno',
+} as const;
+
+export interface VatFormField {
+  code: string;
+  label: string;
+  value: string;
+}
+
+export type VatFormPartnerValues = {[key: string]: string};
+
+export interface VatFormPartner {
+  countryCode: string;
+  vatId: string;
+  name: string;
+  values: VatFormPartnerValues;
+}
+
+export type VatFormIssueSeverity = typeof VatFormIssueSeverity[keyof typeof VatFormIssueSeverity];
+
+
+export const VatFormIssueSeverity = {
+  ERROR: 'ERROR',
+  WARNING: 'WARNING',
+} as const;
+
+export interface VatFormIssue {
+  severity: VatFormIssueSeverity;
+  message: string;
+  /** @nullable */
+  documentNo: string | null;
+}
+
+export interface VatFormPreview {
+  form: VatFormPreviewForm;
+  companyId: string;
+  year: number;
+  period: string;
+  periodMode: VatFormPreviewPeriodMode;
+  periodFrom: string;
+  periodTo: string;
+  snapshotHash: string;
+  fields: VatFormField[];
+  partners: VatFormPartner[];
+  issues: VatFormIssue[];
+  canExport: boolean;
+  rowCount: number;
+  notice: string;
+}
+
+export type VatFormCorrectionValues = {[key: string]: string};
+
+export interface VatFormCorrection {
+  /**
+     * @minimum 2020
+     * @maximum 2099
+     */
+  year: number;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  month: number;
+  countryCode: string;
+  vatId: string;
+  values: VatFormCorrectionValues;
+}
+
+export type VatFormExportInputForm = typeof VatFormExportInputForm[keyof typeof VatFormExportInputForm];
+
+
+export const VatFormExportInputForm = {
+  'DDV-O': 'DDV-O',
+  'RP-O': 'RP-O',
+  'PD-O': 'PD-O',
+} as const;
+
+export type VatFormExportInputPeriodMode = typeof VatFormExportInputPeriodMode[keyof typeof VatFormExportInputPeriodMode];
+
+
+export const VatFormExportInputPeriodMode = {
+  mesecno: 'mesecno',
+  trimesecno: 'trimesecno',
+} as const;
+
+export interface VatFormExportInput {
+  form: VatFormExportInputForm;
+  /**
+     * @minimum 2020
+     * @maximum 2099
+     */
+  year: number;
+  /** @pattern ^07(0[1-9]|1[0-2])$ */
+  period: string;
+  periodMode: VatFormExportInputPeriodMode;
+  previewHash: string;
+  confirmed: boolean;
+  refund?: boolean;
+  deductionProportion?: boolean;
+  contactName?: string;
+  contactPhone?: string;
+  /** @maxItems 200 */
+  corrections?: VatFormCorrection[];
+}
+
+export interface VatFormExportResult {
+  xml: string;
+  filename: string;
+  sha256: string;
+}
+
 export type PosMonthlyInvoiceBizboxState = typeof PosMonthlyInvoiceBizboxState[keyof typeof PosMonthlyInvoiceBizboxState];
 
 
@@ -12989,6 +13114,37 @@ export type ConflictResponse = ErrorResponse;
  * Not found
  */
 export type NotFoundResponse = ErrorResponse;
+
+export type GetVatFormPreviewParams = {
+form: GetVatFormPreviewForm;
+/**
+ * @minimum 2020
+ * @maximum 2099
+ */
+year: number;
+/**
+ * @pattern ^07(0[1-9]|1[0-2])$
+ */
+period: string;
+periodMode: GetVatFormPreviewPeriodMode;
+};
+
+export type GetVatFormPreviewForm = typeof GetVatFormPreviewForm[keyof typeof GetVatFormPreviewForm];
+
+
+export const GetVatFormPreviewForm = {
+  'DDV-O': 'DDV-O',
+  'RP-O': 'RP-O',
+  'PD-O': 'PD-O',
+} as const;
+
+export type GetVatFormPreviewPeriodMode = typeof GetVatFormPreviewPeriodMode[keyof typeof GetVatFormPreviewPeriodMode];
+
+
+export const GetVatFormPreviewPeriodMode = {
+  mesecno: 'mesecno',
+  trimesecno: 'trimesecno',
+} as const;
 
 export type ExportPosJournalEntriesParams = {
 od: string;

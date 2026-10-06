@@ -9,7 +9,7 @@
  *  - Opozorila/napake po D.4 pravilih
  *  - Gumb "Izvozi XML" (placeholder)
  */
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -19,6 +19,7 @@ import {
   useCreateVatSubmission,
   useDdvZakljucekOsnutek,
   vatSubmissionsQueryKey,
+  downloadVatSubmission,
   type KirRow,
   type KprRow,
   type VatWarning,
@@ -533,14 +534,25 @@ function SubmissionsPanel({
   currentPeriod: string;
 }) {
   const { data, isLoading } = useListVatSubmissions(companyId);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const activeCompanyRef = useRef(companyId);
+  activeCompanyRef.current = companyId;
 
   const handleDownload = useCallback(
-    (s: VatSubmission) => {
-      const url = `/api/companies/${companyId}/vat-submissions/${s.id}/download`;
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `KIR_KPR_${s.periodYear}_${s.period}_${s.kind}.xml`;
-      a.click();
+    async (s: VatSubmission) => {
+      setDownloadError(null);
+      try {
+        const blob = await downloadVatSubmission(companyId, s.id);
+        if (activeCompanyRef.current !== companyId) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `KIR_KPR_${s.periodYear}_${s.period}_${s.kind}.zip`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (err) {
+        setDownloadError(err instanceof Error ? err.message : "Prenos ZIP ni uspel.");
+      }
     },
     [companyId],
   );
@@ -561,8 +573,9 @@ function SubmissionsPanel({
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
       <div className="bg-muted/50 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-        Repozitorij XML oddaj
+        Arhiv izvozov KIR/KPR — prenos ZIP ni davčna oddaja
       </div>
+      {downloadError && <Alert variant="destructive"><AlertDescription>{downloadError}</AlertDescription></Alert>}
       <Table className="text-xs">
         <TableHeader>
           <TableRow>
@@ -609,7 +622,7 @@ function SubmissionsPanel({
                     onClick={() => handleDownload(s)}
                   >
                     <Download className="h-3 w-3 mr-1" />
-                    XML
+                    ZIP
                   </Button>
                 </TableCell>
               </TableRow>
@@ -634,6 +647,8 @@ export function KirKprEvidenceTab() {
     return `07${String(m).padStart(2, "0")}`;
   });
   const [exportError, setExportError] = useState<string | null>(null);
+  const exportScope = useRef("");
+  exportScope.current = `${activeCompany?.id}:${year}:${period}:${periodMode}`;
   const [exportDetails, setExportDetails] = useState<Array<{
     documentNo: string | null;
     recordId: string | null;
@@ -726,6 +741,7 @@ export function KirKprEvidenceTab() {
     if (!activeCompany?.id) return;
     setExportError(null);
     setExportDetails([]);
+    const requestedScope = exportScope.current;
     try {
       // Prenesi vracilo: true samo če je računovodja eksplicitno izbral vračilo
       const result = await createSubmission.mutateAsync({
@@ -736,15 +752,22 @@ export function KirKprEvidenceTab() {
       });
       // Sproži download takoj
       const a = document.createElement("a");
-      a.href = result.downloadUrl;
-      a.download = `KIR_KPR_${year}_${period}_${result.kind}.xml`;
+      const blob = await downloadVatSubmission(activeCompany.id, result.id);
+      if (requestedScope !== exportScope.current) {
+        setExportError("Podjetje ali obdobje je spremenjeno. Izvoz ostaja v arhivu prvotnega podjetja.");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = `KIR_KPR_${year}_${period}_${result.kind}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       // Osveži seznam oddaj
       queryClient.invalidateQueries({ queryKey: vatSubmissionsQueryKey(activeCompany.id) });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Napaka pri izvozu XML";
+      const msg = err instanceof Error ? err.message : "Napaka pri izvozu ZIP";
       setExportError(msg);
       const details = (err as { data?: { errors?: unknown } })?.data?.errors;
       if (Array.isArray(details)) {
@@ -832,16 +855,16 @@ export function KirKprEvidenceTab() {
           disabled={!canExport || createSubmission.isPending}
           className="shrink-0"
           title={
-            hasErrors ? "Odpravite napake preden izvozite XML"
+            hasErrors ? "Odpravite napake preden izvozite ZIP"
             : isEmpty ? "V tem obdobju ni vpisov za izvoz"
-            : isPresezek && !vraciloChoice ? "Izberite vračilo ali prenos presežka (spodaj) preden izvozite XML"
-            : "Generiraj in prenesi KIR/KPR XML za FURS"
+            : isPresezek && !vraciloChoice ? "Izberite vračilo ali prenos presežka (spodaj) preden izvozite ZIP"
+            : "Generiraj in prenesi KIR/KPR ZIP za ročni uvoz v eDavke"
           }
         >
           {createSubmission.isPending
             ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             : <Download className="h-4 w-4 mr-2" />}
-          Izvozi XML
+          Izvozi ZIP
         </Button>
       </div>
 

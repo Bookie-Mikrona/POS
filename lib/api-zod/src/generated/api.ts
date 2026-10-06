@@ -8,6 +8,98 @@
 import * as zod from 'zod';
 
 
+export const GetVatFormPreviewParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const getVatFormPreviewQueryYearMin = 2020;
+export const getVatFormPreviewQueryYearMax = 2099;
+
+export const getVatFormPreviewQueryPeriodRegExp = new RegExp('^07(0[1-9]|1[0-2])$');
+
+
+export const GetVatFormPreviewQueryParams = zod.object({
+  "form": zod.enum(['DDV-O', 'RP-O', 'PD-O']),
+  "year": zod.coerce.number().min(getVatFormPreviewQueryYearMin).max(getVatFormPreviewQueryYearMax),
+  "period": zod.coerce.string().regex(getVatFormPreviewQueryPeriodRegExp),
+  "periodMode": zod.enum(['mesecno', 'trimesecno'])
+})
+
+export const GetVatFormPreviewResponse = zod.object({
+  "form": zod.enum(['DDV-O', 'RP-O', 'PD-O']),
+  "companyId": zod.string(),
+  "year": zod.number(),
+  "period": zod.string(),
+  "periodMode": zod.enum(['mesecno', 'trimesecno']),
+  "periodFrom": zod.string(),
+  "periodTo": zod.string(),
+  "snapshotHash": zod.string(),
+  "fields": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "partners": zod.array(zod.object({
+  "countryCode": zod.string(),
+  "vatId": zod.string(),
+  "name": zod.string(),
+  "values": zod.record(zod.string(), zod.string())
+})),
+  "issues": zod.array(zod.object({
+  "severity": zod.enum(['ERROR', 'WARNING']),
+  "message": zod.string(),
+  "documentNo": zod.string().nullable()
+})),
+  "canExport": zod.boolean(),
+  "rowCount": zod.number(),
+  "notice": zod.string()
+})
+
+
+export const ExportVatFormParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const exportVatFormBodyYearMin = 2020;
+export const exportVatFormBodyYearMax = 2099;
+
+export const exportVatFormBodyPeriodRegExp = new RegExp('^07(0[1-9]|1[0-2])$');
+export const exportVatFormBodyCorrectionsItemYearMin = 2020;
+export const exportVatFormBodyCorrectionsItemYearMax = 2099;
+
+export const exportVatFormBodyCorrectionsItemMonthMax = 12;
+
+export const exportVatFormBodyCorrectionsMax = 200;
+
+
+
+export const ExportVatFormBody = zod.object({
+  "form": zod.enum(['DDV-O', 'RP-O', 'PD-O']),
+  "year": zod.number().min(exportVatFormBodyYearMin).max(exportVatFormBodyYearMax),
+  "period": zod.string().regex(exportVatFormBodyPeriodRegExp),
+  "periodMode": zod.enum(['mesecno', 'trimesecno']),
+  "previewHash": zod.string(),
+  "confirmed": zod.boolean(),
+  "refund": zod.boolean().optional(),
+  "deductionProportion": zod.boolean().optional(),
+  "contactName": zod.string().optional(),
+  "contactPhone": zod.string().optional(),
+  "corrections": zod.array(zod.object({
+  "year": zod.number().min(exportVatFormBodyCorrectionsItemYearMin).max(exportVatFormBodyCorrectionsItemYearMax),
+  "month": zod.number().min(1).max(exportVatFormBodyCorrectionsItemMonthMax),
+  "countryCode": zod.string(),
+  "vatId": zod.string(),
+  "values": zod.record(zod.string(), zod.string())
+})).max(exportVatFormBodyCorrectionsMax).optional()
+})
+
+export const ExportVatFormResponse = zod.object({
+  "xml": zod.string(),
+  "filename": zod.string(),
+  "sha256": zod.string()
+})
+
+
 /**
  * @summary Izvozi temeljnice aktivnega podjetja za izbrano obdobje
  */

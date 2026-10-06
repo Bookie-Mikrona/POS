@@ -85,6 +85,44 @@ tags:
   - name: daily-lunch
     description: Unit and business-date scoped daily lunch offers
 paths:
+  /companies/{companyId}/vat-form-preview:
+    get:
+      operationId: getVatFormPreview
+      tags: [VAT]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: form, in: query, required: true, schema: { type: string, enum: [DDV-O, RP-O, PD-O] } }
+        - { name: year, in: query, required: true, schema: { type: integer, minimum: 2020, maximum: 2099 } }
+        - { name: period, in: query, required: true, schema: { type: string, pattern: "^07(0[1-9]|1[0-2])$" } }
+        - { name: periodMode, in: query, required: true, schema: { type: string, enum: [mesecno, trimesecno] } }
+      responses:
+        "200":
+          description: Predogled iz istega davčnega vira kot izvoz, brez knjiženja.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VatFormPreview" }
+        "400": { description: Neveljavno obdobje }
+        "403": { description: Dostop ni dovoljen }
+  /companies/{companyId}/vat-form-export:
+    post:
+      operationId: exportVatForm
+      tags: [VAT]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VatFormExportInput" }
+      responses:
+        "200":
+          description: XML za ročni uvoz, ne davčna oddaja.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VatFormExportResult" }
+        "400": { description: Izvoz je blokiran }
+        "403": { description: Potrebna je vloga računovodje }
+        "409": { description: Davčni vir se je od pregleda spremenil }
   /temeljnice/izvoz:
     get:
       operationId: exportPosJournalEntries
@@ -11486,6 +11524,86 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    VatFormPreview:
+      type: object
+      required: [form, companyId, year, period, periodMode, periodFrom, periodTo, snapshotHash, fields, partners, issues, canExport, rowCount, notice]
+      properties:
+        form: { type: string, enum: [DDV-O, RP-O, PD-O] }
+        companyId: { type: string }
+        year: { type: integer }
+        period: { type: string }
+        periodMode: { type: string, enum: [mesecno, trimesecno] }
+        periodFrom: { type: string }
+        periodTo: { type: string }
+        snapshotHash: { type: string }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/VatFormField" }
+        partners:
+          type: array
+          items: { $ref: "#/components/schemas/VatFormPartner" }
+        issues:
+          type: array
+          items: { $ref: "#/components/schemas/VatFormIssue" }
+        canExport: { type: boolean }
+        rowCount: { type: integer }
+        notice: { type: string }
+    VatFormField:
+      type: object
+      required: [code, label, value]
+      properties:
+        code: { type: string }
+        label: { type: string }
+        value: { type: string }
+    VatFormPartner:
+      type: object
+      required: [countryCode, vatId, name, values]
+      properties:
+        countryCode: { type: string }
+        vatId: { type: string }
+        name: { type: string }
+        values: { type: object, additionalProperties: { type: string } }
+    VatFormIssue:
+      type: object
+      required: [severity, message, documentNo]
+      properties:
+        severity: { type: string, enum: [ERROR, WARNING] }
+        message: { type: string }
+        documentNo: { type: ["string", "null"] }
+    VatFormCorrection:
+      type: object
+      required: [year, month, countryCode, vatId, values]
+      properties:
+        year: { type: integer, minimum: 2020, maximum: 2099 }
+        month: { type: integer, minimum: 1, maximum: 12 }
+        countryCode: { type: string }
+        vatId: { type: string }
+        values: { type: object, additionalProperties: { type: string } }
+    VatFormExportInput:
+      type: object
+      required: [form, year, period, periodMode, previewHash, confirmed]
+      properties:
+        form: { type: string, enum: [DDV-O, RP-O, PD-O] }
+        year: { type: integer, minimum: 2020, maximum: 2099 }
+        period: { type: string, pattern: "^07(0[1-9]|1[0-2])$" }
+        periodMode: { type: string, enum: [mesecno, trimesecno] }
+        previewHash: { type: string }
+        confirmed: { type: boolean }
+        refund: { type: boolean }
+        deductionProportion: { type: boolean }
+        contactName: { type: string }
+        contactPhone: { type: string }
+        corrections:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/VatFormCorrection" }
+    VatFormExportResult:
+      type: object
+      required: [xml, filename, sha256]
+      properties:
+        xml: { type: string }
+        filename: { type: string }
+        sha256: { type: string }
     PosMonthlyInvoiceBizbox:
       type: object
       required: [state, documentId, environment, externalId, message, updatedAt, attemptCount]

@@ -181,6 +181,7 @@ import type {
   GetPublicMenuParams,
   GetQrOrderCompletionParams,
   GetTrialBalanceParams,
+  GetVatFormPreviewParams,
   GetVatRegisterParams,
   GetVatReturnParams,
   GlasovniSinonim,
@@ -535,6 +536,9 @@ import type {
   UvozArtiklovRezultat,
   UvozUporabnikovRezultat,
   VatCodeRecord,
+  VatFormExportInput,
+  VatFormExportResult,
+  VatFormPreview,
   VatRegisterResponse,
   VatReturnResponse,
   VivaPayBody,
@@ -582,6 +586,155 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetVatFormPreviewUrl = (companyId: string,
+    params: GetVatFormPreviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/vat-form-preview?${stringifiedParams}` : `/api/companies/${companyId}/vat-form-preview`
+}
+
+export const getVatFormPreview = async (companyId: string,
+    params: GetVatFormPreviewParams, options?: RequestInit): Promise<VatFormPreview> => {
+
+  return customFetch<VatFormPreview>(getGetVatFormPreviewUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVatFormPreviewQueryKey = (companyId: string,
+    params?: GetVatFormPreviewParams,) => {
+    return [
+    `/api/companies/${companyId}/vat-form-preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetVatFormPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getVatFormPreview>>, TError = ErrorType<void>>(companyId: string,
+    params: GetVatFormPreviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVatFormPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVatFormPreviewQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVatFormPreview>>> = ({ signal }) => getVatFormPreview(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVatFormPreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVatFormPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getVatFormPreview>>>
+export type GetVatFormPreviewQueryError = ErrorType<void>
+
+
+
+export function useGetVatFormPreview<TData = Awaited<ReturnType<typeof getVatFormPreview>>, TError = ErrorType<void>>(
+ companyId: string,
+    params: GetVatFormPreviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVatFormPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVatFormPreviewQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportVatFormUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/vat-form-export`
+}
+
+export const exportVatForm = async (companyId: string,
+    vatFormExportInput: VatFormExportInput, options?: RequestInit): Promise<VatFormExportResult> => {
+
+  return customFetch<VatFormExportResult>(getExportVatFormUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vatFormExportInput)
+  }
+);}
+
+
+
+
+
+export const getExportVatFormMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exportVatForm>>, TError,{companyId: string;data: BodyType<VatFormExportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof exportVatForm>>, TError,{companyId: string;data: BodyType<VatFormExportInput>}, TContext> => {
+
+const mutationKey = ['exportVatForm'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof exportVatForm>>, {companyId: string;data: BodyType<VatFormExportInput>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  exportVatForm(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExportVatFormMutationResult = NonNullable<Awaited<ReturnType<typeof exportVatForm>>>
+    export type ExportVatFormMutationBody = BodyType<VatFormExportInput>
+    export type ExportVatFormMutationError = ErrorType<void>
+
+    export const useExportVatForm = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exportVatForm>>, TError,{companyId: string;data: BodyType<VatFormExportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof exportVatForm>>,
+        TError,
+        {companyId: string;data: BodyType<VatFormExportInput>},
+        TContext
+      > => {
+      return useMutation(getExportVatFormMutationOptions(options));
+    }
 
 export const getExportPosJournalEntriesUrl = (params: ExportPosJournalEntriesParams,) => {
   const normalizedParams = new URLSearchParams();
