@@ -5,6 +5,12 @@ description: Kazalo pravil preslikave, dokazil in primerjave starih izpisov.
 
 Pri delu z zgodovinskimi podatki Bookie Old loči preslikavo kontov, izvirne računovske listine in primerjavo že oddanih izpisov.
 
+Gradiva starega programa so tudi referenca za razvoj funkcionalnosti, ne samo za prenos zgodovinskih podatkov.
+
+**Why:** Uporabnik je izrecno ločil razvoj od migracije ter vprašal po implementaciji poslanih dokumentov, zaslonskih slik, vnosov in plačil. Uspešen prenos podatkov ne dokazuje pokritosti postopkov.
+
+**How to apply:** Pri oceni pokritosti loči obstoj funkcije, njeno dejansko preverjeno delovanje in skladnost s predloženo referenco. Brez primerjave posameznih zahtev ne trdi, da je vse implementirano.
+
 **Why:** Ista številka konta lahko pomeni nekaj drugega, promet ni popolna izvirna listina, sodobna bilanca stanja pa ni nadomestek starega bruto izpisa.
 
 **How to apply:** Uporabi ustrezno podtemo:
