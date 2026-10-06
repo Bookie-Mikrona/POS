@@ -22,6 +22,7 @@ import {
   type PosRequest,
 } from "../../middlewares/pos";
 import { posOrderOperationIdempotency } from "../../middlewares/pos-operation-idempotency";
+import { slowRequestLog } from "../../middlewares/slow-request-log";
 import { addClient, removeClient } from "../../lib/pos-sse";
 
 import enoteRouter from "./enote";
@@ -84,6 +85,7 @@ import dailyLunchRouter from "./daily-lunch";
 import articleCatalogExportRouter from "./article-catalog-export";
 
 const router: IRouter = Router();
+router.use(slowRequestLog);
 
 export type ProtectedPosRouterMount = {
   prefix: string;
