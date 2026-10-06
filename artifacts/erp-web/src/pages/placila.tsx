@@ -79,6 +79,8 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | 
   void: "secondary"
 };
 
+const isHistoricalPayment = (payment: PaymentRecord) => payment.createdBy === "bookie-old-payment-import";
+
 export default function Placila() {
   const { activeCompany } = useCompany();
   const { getToken } = useAuth();
@@ -296,8 +298,8 @@ export default function Placila() {
                   <TableCell>{formatDatum(pay.paymentDate)}</TableCell>
                   <TableCell className="font-medium">{pay.counterpartyName}</TableCell>
                   <TableCell className="text-right font-semibold">{parseFloat(pay.amount).toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{parseFloat(pay.allocatedAmount).toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-medium">{parseFloat(pay.unallocatedAmount).toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{isHistoricalPayment(pay) ? "—" : parseFloat(pay.allocatedAmount).toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-medium">{isHistoricalPayment(pay) ? "—" : parseFloat(pay.unallocatedAmount).toFixed(2)}</TableCell>
                   <TableCell className="text-muted-foreground">{pay.reference || "-"}</TableCell>
                   <TableCell>
                     <Badge 
@@ -306,21 +308,22 @@ export default function Placila() {
                     >
                       {STATUS_LABELS[pay.status]}
                     </Badge>
+                    {isHistoricalPayment(pay) && <Badge variant="outline" className="ml-1">Stara knjiga</Badge>}
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    {pay.direction === "outbound" && pay.status === "draft" && activeCompany?.role !== "viewer" && (
+                    {pay.direction === "outbound" && pay.status === "draft" && !isHistoricalPayment(pay) && activeCompany?.role !== "viewer" && (
                       <Button variant="outline" size="sm" className="mr-2" onClick={(e) => handleSepaExport(e, pay)}>
                         <Download className="mr-1.5 h-3 w-3" />
                         SEPA XML
                       </Button>
                     )}
-                    {pay.status === "draft" && activeCompany?.role !== "viewer" && (
+                    {pay.status === "draft" && !isHistoricalPayment(pay) && activeCompany?.role !== "viewer" && (
                       <Button variant="outline" size="sm" onClick={(e) => handlePost(e, pay.id)} disabled={postMut.isPending}>
                         <CheckCircle2 className="mr-1.5 h-3 w-3 text-green-600" />
                         Poknjiži
                       </Button>
                     )}
-                    {pay.status === "posted" && activeCompany?.role !== "viewer" && (
+                    {pay.status === "posted" && !isHistoricalPayment(pay) && activeCompany?.role !== "viewer" && (
                       <Button variant="outline" size="sm" onClick={(e) => {
                         e.stopPropagation();
                         setVoidPaymentId(pay.id);
@@ -1038,6 +1041,8 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
   );
 
   const allocations = fullPayment?.allocations ?? [];
+  const historical = isHistoricalPayment(payment);
+  const statementId = historical ? payment.notes?.match(/;statement:([0-9a-f-]{36})\]/)?.[1] : null;
   const ledgerAllocations = (fullPayment as any)?.ledgerAllocations ?? [];
   const postMut = usePostPayment();
 
@@ -1069,6 +1074,11 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
         </SheetHeader>
 
         <div className="grid gap-6">
+          {historical && <Alert><AlertDescription>
+            Zgodovinsko plačilo iz stare knjige, povezano z izvirno temeljnico ({payment.status === "draft" ? "osnutek" : "knjižena"}).
+            Prenos ni ustvaril novih knjižb ali zapiranj. Zgodovinske poravnave ostanejo na kartici partnerja.
+            {statementId && <Link href={`/bancni-izpis?statementId=${statementId}`} className="block underline mt-2">Odpri izvorni bančni izpisek</Link>}
+          </AlertDescription></Alert>}
           <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm bg-muted/20 p-4 rounded-lg border">
             <div>
               <div className="text-muted-foreground mb-1">Partner</div>
@@ -1107,7 +1117,7 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
               <Skeleton className="h-24 w-full" />
             ) : allocations.length === 0 && ledgerAllocations.length === 0 ? (
               <div className="text-sm text-muted-foreground p-4 border border-dashed rounded-md text-center">
-                Ni poravnav za to plačilo.
+                {historical ? "Poravnave ostanejo v izvirni zgodovinski evidenci; niso bile ponovno ustvarjene." : "Ni poravnav za to plačilo."}
               </div>
             ) : (
               <div className="border rounded-md overflow-hidden">
@@ -1148,11 +1158,11 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
             <div className="flex flex-col gap-1.5 text-sm p-4 border rounded-md bg-muted/10 mt-2">
               <div className="flex justify-between text-muted-foreground">
                 <span>Skupaj poravnano:</span>
-                <span>{parseFloat(payment.allocatedAmount).toFixed(2)}</span>
+                <span>{historical ? "—" : parseFloat(payment.allocatedAmount).toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold border-t pt-1.5 mt-1.5">
                 <span>Neporavnano:</span>
-                <span>{parseFloat(payment.unallocatedAmount).toFixed(2)}</span>
+                <span>{historical ? "—" : parseFloat(payment.unallocatedAmount).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -1169,13 +1179,13 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
 
         <SheetFooter className="mt-8 pt-4 border-t sticky bottom-0 bg-background pb-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Zapri</Button>
-          {payment.status === "draft" && activeCompany?.role !== "viewer" && (
+          {payment.status === "draft" && !historical && activeCompany?.role !== "viewer" && (
             <Button onClick={handlePost} disabled={postMut.isPending}>
               {postMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Poknjiži
             </Button>
           )}
-          {payment.status === "posted" && activeCompany?.role !== "viewer" && (
+          {payment.status === "posted" && !historical && activeCompany?.role !== "viewer" && (
             <Button variant="destructive" onClick={onVoid}>
               Razveljavi
             </Button>

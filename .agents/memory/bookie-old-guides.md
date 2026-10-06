@@ -17,4 +17,5 @@ Predloženi podatki in izpisi starega programa, ki jih je uporabnik potrdil 2026
 
 - [Preslikava GK](bookie-old-gk-mapping.md) — pomen K2, kolizije kontov, otvoritve, partnerji in časovni presek zapiranj.
 - [Zgodovinski računi](bookie-old-zgodovinski-racuni.md) — dovoljeni obseg zgodovinskega knjiženja in omejitve davčnih dokazil.
+- [Zgodovinska plačila](bookie-old-payments.md) — samo evidenčni prikaz; brez novih knjižb, ponovnih zapiranj ali bančnih nalogov.
 - [Oddana bilanca](bookie-old-oddana-bilanca.md) — avtoriteta oddanih bruto izpisov in primerjava otvoritve, prometa ter skupaj.

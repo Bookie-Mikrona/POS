@@ -214,7 +214,7 @@ function CreateBatchDialog({ companyId, onClose, onCreated }: { companyId: strin
 
   const { data: accData } = useListBankStatementAccounts(companyId, {});
   const { data: payData, isLoading } = useListPayments(companyId, { direction: "outbound", status: "draft" } as any);
-  const drafts = useMemo(() => payData?.payments ?? [], [payData]);
+  const drafts = useMemo(() => (payData?.payments ?? []).filter(p => p.createdBy !== "bookie-old-payment-import"), [payData]);
   const hasIban = !!accData?.bankDetails.find(d => d.bankAccountId === bankAccountId);
   const sum = drafts.filter(p => selected.has(p.id)).reduce((s, p) => s + parseFloat(p.amount), 0);
   const total = drafts.reduce((s, p) => s + parseFloat(p.amount), 0);

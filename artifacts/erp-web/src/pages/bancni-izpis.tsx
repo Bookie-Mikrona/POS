@@ -380,6 +380,12 @@ export default function BancniIzpis() {
   const [parsedStatement, setParsedStatement] = useState<ParsedStatement | null>(null);
   const [registeredStatements, setRegisteredStatements] = useState<RegisteredStatement[]>([]);
   const [selectedStatement, setSelectedStatement] = useState<{ companyId: string; id: string } | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("statementId");
+    if (activeCompany && id && /^[0-9a-f-]{36}$/.test(id)) {
+      setSelectedStatement({ companyId: activeCompany.id, id });
+    }
+  }, [activeCompany?.id]);
   const loadRegisteredStatements = useCallback(async () => {
     if (!activeCompany) return;
     const response = await fetch(`/api/companies/${activeCompany.id}/bank-statements`);

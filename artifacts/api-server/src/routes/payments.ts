@@ -116,6 +116,14 @@ function hasMatchingPosSalesReference(
   return reference === `POS:PRODAJA:${identity.dateToken}:E${identity.unitId}`;
 }
 
+// Historical records describe a source journal; its current status is authoritative.
+const paymentDisplayStatus = sql<"draft" | "posted" | "void">`CASE
+  WHEN ${paymentsTable.createdBy} = 'bookie-old-payment-import' THEN COALESCE(
+    (SELECT CASE WHEN j.status = 'reversed' THEN 'void' ELSE j.status::text END
+     FROM journal_entries j WHERE j.id = ${paymentsTable.linkedEntryId}
+     AND j.company_id = ${paymentsTable.companyId}), ${paymentsTable.status}::text)
+  ELSE ${paymentsTable.status}::text END`;
+
 async function resolveAccess(
   clerkUserId: string,
   companyId: string,
@@ -179,7 +187,7 @@ async function fetchPaymentWithAllocations(paymentId: string) {
       bankAccountCode: accountsTable.code,
       bankAccountName: accountsTable.name,
       arApAccountId: paymentsTable.arApAccountId,
-      status: paymentsTable.status,
+      status: paymentDisplayStatus,
       linkedEntryId: paymentsTable.linkedEntryId,
       notes: paymentsTable.notes,
       createdBy: paymentsTable.createdBy,
@@ -323,7 +331,7 @@ router.get(
 
     const conditions: ReturnType<typeof eq>[] = [eq(paymentsTable.companyId, companyId)];
     if (direction) conditions.push(eq(paymentsTable.direction, direction as any));
-    if (status) conditions.push(eq(paymentsTable.status, status as any));
+    if (status) conditions.push(eq(paymentDisplayStatus, status));
     if (counterpartyId) conditions.push(eq(paymentsTable.counterpartyId, counterpartyId));
     if (periodId) conditions.push(eq(paymentsTable.periodId, periodId));
     if (dateFrom) conditions.push(gte(paymentsTable.paymentDate, dateFrom));
@@ -345,7 +353,7 @@ router.get(
         bankAccountCode: accountsTable.code,
         bankAccountName: accountsTable.name,
         arApAccountId: paymentsTable.arApAccountId,
-        status: paymentsTable.status,
+        status: paymentDisplayStatus,
         linkedEntryId: paymentsTable.linkedEntryId,
         notes: paymentsTable.notes,
         createdBy: paymentsTable.createdBy,
@@ -827,6 +835,7 @@ router.get(
         reference: paymentsTable.reference,
         notes: paymentsTable.notes,
         companyName: companiesTable.naziv,
+        createdBy: paymentsTable.createdBy,
         creditorName: counterpartiesTable.name,
         creditorIban: counterpartiesTable.iban,
         creditorTrr: counterpartiesTable.trr,
@@ -838,6 +847,9 @@ router.get(
       .where(and(eq(paymentsTable.id, id), eq(paymentsTable.companyId, companyId)))
       .limit(1);
     if (!row) { res.status(404).json({ error: "Plačilo ni najdeno" }); return; }
+    if (row.createdBy === "bookie-old-payment-import") {
+      res.status(409).json({ error: "Zgodovinskega plačila ni dovoljeno ponovno poslati banki." }); return;
+    }
     if (row.direction !== "outbound") { res.status(400).json({ error: "SEPA nalog je mogoče izvoziti samo za izplačilo" }); return; }
     if (row.status !== "draft") { res.status(400).json({ error: "SEPA nalog je mogoče izvoziti samo iz osnutka plačila" }); return; }
 
@@ -945,12 +957,16 @@ router.post(
         arApAccountId: paymentsTable.arApAccountId,
         reference: paymentsTable.reference,
         counterpartyId: paymentsTable.counterpartyId,
+        createdBy: paymentsTable.createdBy,
       })
       .from(paymentsTable)
       .where(and(eq(paymentsTable.id, id), eq(paymentsTable.companyId, companyId)))
       .limit(1);
 
     if (!payment) { res.status(404).json({ error: "Plačilo ni najdeno" }); return; }
+    if (payment.createdBy === "bookie-old-payment-import") {
+      res.status(409).json({ error: "Zgodovinsko plačilo je prikaz izvirne GK. Knjiženje se ureja na izvirni temeljnici, ne s ponovnim knjiženjem plačila." }); return;
+    }
     if (payment.status !== "draft") {
       if (payment.status === "posted") {
         const replayed = await fetchPaymentWithAllocations(id);
@@ -1296,12 +1312,17 @@ router.post(
         direction: paymentsTable.direction,
         amount: paymentsTable.amount,
         reference: paymentsTable.reference,
+        createdBy: paymentsTable.createdBy,
       })
       .from(paymentsTable)
       .where(and(eq(paymentsTable.id, id), eq(paymentsTable.companyId, companyId)))
       .limit(1);
 
     if (!payment) { res.status(404).json({ error: "Plačilo ni najdeno" }); return; }
+    if (payment.createdBy === "bookie-old-payment-import") {
+      res.status(409).json({ error: "Zgodovinsko plačilo je prikaz obstoječe knjižbe iz stare knjige. Tukaj ga ni dovoljeno razveljaviti." });
+      return;
+    }
     if (payment.status !== "posted") {
       res.status(400).json({ error: "Samo knjižena plačila je mogoče razveljaviti" });
       return;
@@ -1687,6 +1708,12 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
       res.status(400).json({ error: "paymentIds mora vsebovati 1–500 različnih osnutkov" }); return;
     }
     canonicalRequest = JSON.stringify({ mode: "saved", bankAccountId, paymentIds: [...paymentIds!].sort() });
+    const historical = await db.select({ id: paymentsTable.id }).from(paymentsTable)
+      .where(and(eq(paymentsTable.companyId, companyId), inArray(paymentsTable.id, paymentIds!),
+        eq(paymentsTable.createdBy, "bookie-old-payment-import")));
+    if (historical.length) {
+      res.status(409).json({ error: "Zgodovinskih plačil ni dovoljeno dodati v nov paket za banko." }); return;
+    }
   } else {
     if (proposedPayments!.length < 1 || proposedPayments!.length > 500
       || !periodId || !isRealIsoDate(paymentDate)
