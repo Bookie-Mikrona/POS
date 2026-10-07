@@ -26,6 +26,7 @@ import {
   reverseCashMovementLines,
   type CashMovementType,
 } from "../../lib/cashMovementAccounting";
+import { slovenskiDatumZaSporocilo } from "../../lib/slovenian-date-message";
 
 const router: IRouter = Router();
 const LIMIT_GOTOVINSKEGA_PLACILA = new Decimal(420);
@@ -426,7 +427,7 @@ router.post("/blagajniski-premiki", async (req: Request, res: Response): Promise
     if (zLocked) {
       res.status(409).json({
         code: "Z_ZAKLEP",
-        error: `Blagajna za dan ${datum} je zaklenjena z Z-poročilom. Odklenite jo za vnos premikov.`,
+        error: `Blagajna za dan ${slovenskiDatumZaSporocilo(datum)} je zaklenjena z Z-poročilom. Odklenite jo za vnos premikov.`,
       });
       return;
     }

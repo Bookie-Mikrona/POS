@@ -38,6 +38,7 @@ import { compensateTipAllocationsForReceipt } from "../../lib/tip-storno-ledger"
 import type { PosRequest } from "../../middlewares/pos";
 import { writePosActorAudit } from "../../lib/posActorAudit";
 import { mayUseEmployerControlledTips } from "../tips";
+import { slovenskiDatumZaSporocilo } from "../../lib/slovenian-date-message";
 
 const router: IRouter = Router();
 
@@ -1881,7 +1882,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
       if (zLocked) {
         res.status(409).json({
           code: "Z_ZAKLEP",
-          error: `Blagajna za dan ${pDatum} je zaklenjena z Z-poročilom. Odprite naslednji dan ali jo odklenite.`,
+          error: `Blagajna za dan ${slovenskiDatumZaSporocilo(pDatum)} je zaklenjena z Z-poročilom. Odprite naslednji dan ali jo odklenite.`,
         });
         return;
       }

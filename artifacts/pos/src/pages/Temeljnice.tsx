@@ -149,7 +149,7 @@ export default function Temeljnice() {
       } else {
         toast({
           title: "Ni podatkov",
-          description: `Za ${syncDatum} v POS ni računov ali prejemnic.`,
+          description: `Za ${syncDatum.split("-").reverse().join(".")} v POS ni računov ali prejemnic.`,
         });
       }
       // Osveži seznam če je datum v filtriranem razponu

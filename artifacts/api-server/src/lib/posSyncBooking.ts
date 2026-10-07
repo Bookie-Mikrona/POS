@@ -70,6 +70,8 @@ import { createVatLedgerEntries, type EntryMeta, type VatLine } from "./vatLedge
 import { businessDateForInstant, getBusinessDayBounds } from "./pos-business-day";
 import { resolvePosBookingPeriod } from "./posBookingPeriod";
 
+import { slovenskiDatumZaSporocilo } from "./slovenian-date-message";
+
 // ── Tipi ─────────────────────────────────────────────────────────────────────
 
 interface SyncLine {
@@ -682,7 +684,7 @@ async function syncPosBookingForDayUnlocked(
   if (!period) {
     return {
       created: [],
-      skipped: [{ ref: "vse", reason: `Ni odprtega računovodskega obdobja za ${datum}` }],
+      skipped: [{ ref: "vse", reason: `Ni odprtega računovodskega obdobja za ${slovenskiDatumZaSporocilo(datum)}` }],
     };
   }
 
@@ -2055,7 +2057,7 @@ async function syncPosBookingForMonthUnlocked(
   const categoryRevenueAccounts = await loadCategoryRevenueAccounts(companyId);
   const period = await resolvePosBookingPeriod(companyId, start, end);
   if (!period) {
-    return { created, skipped: [{ ref: "vse", reason: `Ni odprtega računovodskega obdobja za cel mesec ${month}` }] };
+    return { created, skipped: [{ ref: "vse", reason: `Ni odprtega računovodskega obdobja za cel mesec ${slovenskiDatumZaSporocilo(month)}` }] };
   }
 
   const enote = await db.select({
@@ -2655,7 +2657,7 @@ async function bookZacetnaZaloga(
   const period = await resolvePosBookingPeriod(companyId, datum);
 
   if (!period) {
-    return { created: null, skipped: { reason: `Ni odprtega računovodskega obdobja za ${datum}` } };
+    return { created: null, skipped: { reason: `Ni odprtega računovodskega obdobja za ${slovenskiDatumZaSporocilo(datum)}` } };
   }
 
   // Seštej vrednost po vrsti artikla

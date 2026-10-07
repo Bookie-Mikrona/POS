@@ -41,6 +41,7 @@ import {
 } from "../../lib/pos-z-helpers";
 import { materializirajKdsNaloge } from "./kds";
 import { assertKdsOrderNotDispatched, KdsOrderAlreadyDispatchedError, lockKdsOrder } from "../../lib/kds-dispatch";
+import { slovenskiDatumZaSporocilo } from "../../lib/slovenian-date-message";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -1598,7 +1599,7 @@ router.post("/narocila", async (req, res): Promise<void> => {
     }
     if (error instanceof Error && error.message === "TRENUTNI_POSLOVNI_DAN_JE_ZAKLJUCEN") {
       res.status(409).json({
-        error: `Poslovni dan ${currentBusinessDate} je že zaključen z Z-poročilom. Za ta dan novega naročila ni več mogoče odpreti.`,
+        error: `Poslovni dan ${slovenskiDatumZaSporocilo(currentBusinessDate)} je že zaključen z Z-poročilom. Za ta dan novega naročila ni več mogoče odpreti.`,
         code: error.message,
         businessDate: currentBusinessDate,
       });
@@ -1611,7 +1612,7 @@ router.post("/narocila", async (req, res): Promise<void> => {
       };
       const names = details.missingRegisters?.map((register) => register.name).join(", ");
       res.status(409).json({
-        error: `Pred novim naročilom zaključite prejšnji poslovni dan (${details.previousBusinessDate ?? "neznan datum"}) z Z-poročilom${names ? ` za blagajno: ${names}` : ""}.`,
+        error: `Pred novim naročilom zaključite prejšnji poslovni dan (${details.previousBusinessDate ? slovenskiDatumZaSporocilo(details.previousBusinessDate) : "neznan datum"}) z Z-poročilom${names ? ` za blagajno: ${names}` : ""}.`,
         code: error.message,
         previousBusinessDate: details.previousBusinessDate ?? null,
         missingRegisters: details.missingRegisters ?? [],
@@ -2023,7 +2024,7 @@ router.put("/narocila/:id", async (req, res): Promise<void> => {
         missingRegisters?: Array<{ id: number; name: string }>;
       };
       res.status(409).json({
-        error: `Pred ponovnim odprtjem naročila zaključite prejšnji poslovni dan (${details.previousBusinessDate ?? "neznan datum"}) z Z-poročilom.`,
+        error: `Pred ponovnim odprtjem naročila zaključite prejšnji poslovni dan (${details.previousBusinessDate ? slovenskiDatumZaSporocilo(details.previousBusinessDate) : "neznan datum"}) z Z-poročilom.`,
         code: error.message,
         previousBusinessDate: details.previousBusinessDate ?? null,
         missingRegisters: details.missingRegisters ?? [],
@@ -2033,7 +2034,7 @@ router.put("/narocila/:id", async (req, res): Promise<void> => {
     if (error instanceof Error && error.message === "IZVORNI_POSLOVNI_DAN_JE_ZAKLJUCEN") {
       const details = error as Error & { originalBusinessDate?: string };
       res.status(409).json({
-        error: `Naročila iz že zaključenega poslovnega dne (${details.originalBusinessDate ?? "neznan datum"}) ni mogoče ponovno odpreti.`,
+        error: `Naročila iz že zaključenega poslovnega dne (${details.originalBusinessDate ? slovenskiDatumZaSporocilo(details.originalBusinessDate) : "neznan datum"}) ni mogoče ponovno odpreti.`,
         code: error.message,
         originalBusinessDate: details.originalBusinessDate ?? null,
       });

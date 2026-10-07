@@ -18,6 +18,7 @@ import {
   POS_PIN_MAX_FAILURES,
   verifyPosPin,
 } from "../../lib/posPin";
+import { slovenskiDatumZaSporocilo } from "../../lib/slovenian-date-message";
 
 const router: IRouter = Router();
 const MISSING_COST_CENTER_WARNING = "Poslovna enota nima nastavljenega stroškovnega mesta.";
@@ -1168,7 +1169,7 @@ router.post("/izmene", async (req, res): Promise<void> => {
   });
   if (output.status === "current-day-closed") {
     res.status(409).json({
-      error: `Poslovni dan ${output.businessDate} je že zaključen z Z-poročilom. Nove izmene ni mogoče odpreti.`,
+      error: `Poslovni dan ${slovenskiDatumZaSporocilo(output.businessDate)} je že zaključen z Z-poročilom. Nove izmene ni mogoče odpreti.`,
       code: "TRENUTNI_POSLOVNI_DAN_JE_ZAKLJUCEN",
       businessDate: output.businessDate,
     });
@@ -1177,7 +1178,7 @@ router.post("/izmene", async (req, res): Promise<void> => {
   if (output.status === "previous-day-open") {
     const names = output.missingRegisters.map((register) => register.name).join(", ");
     res.status(409).json({
-      error: `Pred odprtjem izmene zaključite prejšnji poslovni dan (${output.previousBusinessDate ?? "neznan datum"}) z Z-poročilom${names ? ` za blagajno: ${names}` : ""}.`,
+      error: `Pred odprtjem izmene zaključite prejšnji poslovni dan (${output.previousBusinessDate ? slovenskiDatumZaSporocilo(output.previousBusinessDate) : "neznan datum"}) z Z-poročilom${names ? ` za blagajno: ${names}` : ""}.`,
       code: "PREJSNJI_POSLOVNI_DAN_NI_ZAKLJUCEN",
       previousBusinessDate: output.previousBusinessDate,
       missingRegisters: output.missingRegisters,
