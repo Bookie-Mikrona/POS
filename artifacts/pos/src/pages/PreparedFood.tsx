@@ -42,7 +42,7 @@ function parseQuantity(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-const mobileCell = "flex min-w-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-2 text-sm last:border-0 lg:table-cell lg:border-0 lg:p-2";
+const mobileCell = "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 [&>*:last-child]:ml-auto lg:[&>*:last-child]:ml-0 border-b border-border/40 px-3 py-2 text-sm last:border-0 lg:table-cell lg:border-0 lg:p-2";
 const mobileLabel = "shrink-0 text-xs font-medium text-muted-foreground lg:hidden";
 
 type EditState = {
@@ -301,7 +301,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
     <Card>
       <CardHeader className="pb-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <Button variant="outline" size="sm" onClick={onBack}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Nazaj
             </Button>
