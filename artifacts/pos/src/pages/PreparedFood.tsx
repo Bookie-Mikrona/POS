@@ -312,7 +312,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                   onClick={onBack}
                   className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
                 >
-                  {format(parseISO(date), "EEEE, d. MMMM yyyy", { locale: sl })}
+                  {format(parseISO(date), "dd.MM.yyyy", { locale: sl })}
                 </button>
               </CardTitle>
               <CardDescription>
@@ -485,7 +485,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Zaključi evidenco za {format(parseISO(date), "d. MMMM yyyy", { locale: sl })}</DialogTitle>
+            <DialogTitle>Zaključi evidenco za {format(parseISO(date), "dd.MM.yyyy", { locale: sl })}</DialogTitle>
             <DialogDescription>
               Preglejte izračunano kalo pred zaključkom. Zaključek evidence je nepovraten.
             </DialogDescription>
@@ -613,7 +613,7 @@ function DailyDateList({ year, onYearChange, onSelectDate }: { year: number, onY
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => onSelectDate(item.date)}
                   >
-                    <TableCell className="font-medium">{format(parseISO(item.date), "d. MMMM yyyy", { locale: sl })}</TableCell>
+                    <TableCell className="font-medium">{format(parseISO(item.date), "dd.MM.yyyy", { locale: sl })}</TableCell>
                        <TableCell className="align-top pt-2">
                       {item.allClosed ? <Badge variant="secondary">Zaključeno</Badge> : <Badge>Odprto</Badge>}
                     </TableCell>
