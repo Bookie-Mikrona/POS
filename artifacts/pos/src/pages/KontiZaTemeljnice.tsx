@@ -499,6 +499,7 @@ export default function KontiZaTemeljnicePage() {
             <p className="text-sm text-muted-foreground">Nastavite samodejno knjiženje POS prometa za podjetje.</p>
           </div>
         </div>
+        <div className="flex flex-col items-stretch gap-1 sm:items-end">
         <Button
           onClick={() => saveMutation.mutate(changedSettings)}
           disabled={initialLoading || !!accountProblem || !!settingsProblem || !hasChanges || saveMutation.isPending}
@@ -508,6 +509,12 @@ export default function KontiZaTemeljnicePage() {
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Shrani nastavitve
         </Button>
+        {!initialLoading && !accountProblem && !settingsProblem && !hasChanges && (
+          <p className="text-xs text-muted-foreground sm:text-right" data-testid="booking-no-changes">
+            Prikazane vrednosti so že shranjene.
+          </p>
+        )}
+        </div>
       </header>
 
       {initialLoading && (
