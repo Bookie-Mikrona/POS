@@ -504,6 +504,19 @@ function GlasovniUkaziZavihek() {
 
 import { TlorisEditor } from "@/components/TlorisEditor";
 
+/** Prebere sporočilo in morebitno označeno polje iz odgovora strežnika. */
+function preberiNapakoStrezika(error: unknown): { sporocilo: string; polje?: string } {
+  const data = (error as { data?: { error?: unknown; message?: unknown; polje?: unknown } } | null)?.data;
+  const fromServer = typeof data?.error === "string" ? data.error : typeof data?.message === "string" ? data.message : null;
+  const status = (error as { status?: number } | null)?.status;
+  const sporocilo = fromServer
+    ?? (status === 403 ? "Za shranjevanje teh nastavitev nimate pravic (potrebna je vloga administratorja)."
+      : status === 401 ? "Seja je potekla. Prijavite se znova."
+      : status ? `Strežnik je zavrnil shranjevanje (HTTP ${status}).`
+      : "Strežnika ni mogoče doseči. Preverite povezavo.");
+  return { sporocilo, polje: typeof data?.polje === "string" ? data.polje : undefined };
+}
+
 export default function Settings() {
   const { user: prijavljen, updateUser } = useAuth();
   const dovoljenePaketneFunkcije = prijavljen?.posPlanCapabilities ?? [];
@@ -962,6 +975,7 @@ export default function Settings() {
   const [fursProxyUrl, setFursProxyUrl] = useState("");
   const [simulirajFursNapako, setSimulirajFursNapako] = useState(false);
   const [dovoliNegativneZaloge, setDovoliNegativneZaloge] = useState(true);
+  const [napacnoPolje, setNapacnoPolje] = useState<string | null>(null);
   const [picaPremerMala, setPicaPremerMala] = useState(0);
   const [picaPremerNormalna, setPicaPremerNormalna] = useState(0);
   const [picaPremerDruzinska, setPicaPremerDruzinska] = useState(0);
@@ -1944,8 +1958,10 @@ export default function Settings() {
       if (izredniNovPin !== izredniPinPotrdi) { setIzredniPinNapaka("PIN-a se ne ujemata."); return; }
     }
     setIzredniPinNapaka(null);
+    setNapacnoPolje(null);
     updateNastavitve.mutate({ data: body }, {
       onSuccess: (data) => {
+        setNapacnoPolje(null);
         queryClient.setQueryData(getGetNastavitveQueryKey(), data);
         void queryClient.invalidateQueries({ queryKey: getGetNastavitveQueryKey() });
         setConnectionResult(null);
@@ -1954,7 +1970,11 @@ export default function Settings() {
         if (izredniNovPin) setIzrednaIzdajaPINNastavljen(true);
         toast({ title: "Nastavitve shranjene" });
       },
-      onError: () => toast({ title: "Napaka", description: "Nastavitev ni bilo mogoče shraniti.", variant: "destructive" }),
+      onError: (error) => {
+        const { sporocilo, polje } = preberiNapakoStrezika(error);
+        setNapacnoPolje(polje ?? null);
+        toast({ title: "Nastavitev ni bilo mogoče shraniti", description: sporocilo, variant: "destructive" });
+      },
     });
   };
 
@@ -2017,7 +2037,11 @@ export default function Settings() {
         setVivaNovClientSecret("");
         toast({ title: "Nastavitve terminalov shranjene za to napravo" });
       },
-      onError: () => toast({ title: "Napaka", description: "Nastavitev ni bilo mogoče shraniti.", variant: "destructive" }),
+      onError: (error) => {
+        const { sporocilo, polje } = preberiNapakoStrezika(error);
+        setNapacnoPolje(polje ?? null);
+        toast({ title: "Nastavitev ni bilo mogoče shraniti", description: sporocilo, variant: "destructive" });
+      },
     });
   };
 
@@ -5476,10 +5500,10 @@ export default function Settings() {
               <p className="text-sm text-muted-foreground">Vnesite premere v cm. Če so vsi 0, se pice v enoti ne prodajajo.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[["Mala", picaPremerMala, setPicaPremerMala], ["Normalna", picaPremerNormalna, setPicaPremerNormalna], ["Družinska", picaPremerDruzinska, setPicaPremerDruzinska]].map(([naziv, vrednost, setVrednost]) => (
+              {[["Mala", picaPremerMala, setPicaPremerMala, "picaPremerMala"], ["Normalna", picaPremerNormalna, setPicaPremerNormalna, "picaPremerNormalna"], ["Družinska", picaPremerDruzinska, setPicaPremerDruzinska, "picaPremerDruzinska"]].map(([naziv, vrednost, setVrednost, kljuc]) => (
                 <div key={naziv as string} className="space-y-1">
                   <Label>{naziv as string} (cm)</Label>
-                  <Input type="number" min="0" max="100" step="0.5" value={vrednost as number} onChange={(event) => (setVrednost as (v: number) => void)(Math.max(0, Number(event.target.value) || 0))} />
+                  <Input aria-invalid={napacnoPolje === kljuc} className={napacnoPolje === kljuc ? "border-destructive ring-1 ring-destructive" : undefined} type="number" min="0" max="100" step="0.5" value={vrednost as number} onChange={(event) => (setVrednost as (v: number) => void)(Math.max(0, Number(event.target.value) || 0))} />
                   {(vrednost as number) > 0 ? (
                     <p className="text-xs text-muted-foreground">
                       Koeficient normativa: <span className="font-semibold text-foreground">×{pizzaKoeficient(vrednost as number)?.toFixed(4).replace(".", ",")}</span>

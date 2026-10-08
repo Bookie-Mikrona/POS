@@ -402,7 +402,7 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
   for (const [kljuc, premer] of pizzaPremeri) {
     if (premer === undefined) continue;
     if (!Number.isFinite(premer) || premer < 0 || premer > 100) {
-      res.status(400).json({ error: "Premer pice mora biti število med 0 in 100 cm." });
+      res.status(400).json({ error: "Premer pice mora biti število med 0 in 100 cm.", polje: kljuc });
       return;
     }
     updates[kljuc] = String(premer);
