@@ -506,8 +506,8 @@ import { TlorisEditor } from "@/components/TlorisEditor";
 
 /** Prebere sporočilo in morebitno označeno polje iz odgovora strežnika. */
 function preberiNapakoStrezika(error: unknown): { sporocilo: string; polje?: string } {
-  const data = (error as { data?: { error?: unknown; message?: unknown; polje?: unknown } } | null)?.data;
-  const fromServer = typeof data?.error === "string" ? data.error : typeof data?.message === "string" ? data.message : null;
+  const data = (error as { data?: { error?: unknown; napaka?: unknown; message?: unknown; polje?: unknown } } | null)?.data;
+  const fromServer = [data?.error, data?.napaka, data?.message].find((v): v is string => typeof v === "string" && v.length > 0) ?? null;
   const status = (error as { status?: number } | null)?.status;
   const sporocilo = fromServer
     ?? (status === 403 ? "Za shranjevanje teh nastavitev nimate pravic (potrebna je vloga administratorja)."
