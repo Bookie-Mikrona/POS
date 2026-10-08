@@ -13,6 +13,8 @@ import { useGetMe } from "@workspace/api-client-react";
 import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import CompanySelectPage from "@/pages/company-select";
+import AppChoicePage from "@/pages/app-choice";
+import { isAppChoiceDone, resetAppChoice } from "@/lib/appChoice";
 import KontniPlan from "@/pages/kontni-plan";
 import Obdobja from "@/pages/obdobja";
 import Temeljnice from "@/pages/temeljnice";
@@ -231,7 +233,7 @@ function HomeRedirect() {
     // Počakaj na /api/me da super admin ne pristane napačno
     if (isLoading) return spinner;
 
-    if (isSuperAdmin) return <Redirect to="/admin" />;
+    if (isSuperAdmin) return <Redirect to={isAppChoiceDone() ? "/admin" : "/izbira-aplikacije"} />;
 
     // Vedno na company-select — ta stran sama odloči ali avtomatično
     // preusmeri (čisti ERP) ali prikaže izbiro (dual-role ERP+POS).
@@ -296,6 +298,10 @@ function SuperAdminGuard({ children }: { children: React.ReactNode }) {
     }
 
     // Super admin na / ali /dashboard → vedno preusmeri na /admin
+    if (location === "/" && !isAppChoiceDone()) {
+      setLocation("/izbira-aplikacije");
+      return;
+    }
     if (location === "/" || location === "/dashboard") {
       setLocation("/admin");
       return;
@@ -350,6 +356,7 @@ function ClerkQueryClientCacheInvalidator() {
         prevUserIdRef.current !== userId
       ) {
         queryClient.clear();
+        resetAppChoice();
       }
       prevUserIdRef.current = userId;
     });
@@ -384,6 +391,7 @@ function ClerkProviderWithRoutes() {
             <Route path="/sign-up/*?" component={SignUpPage} />
             
             <ProtectedRoute path="/admin/setup" component={AdminSetupPage} setupPage={true} />
+            <ProtectedRoute path="/izbira-aplikacije" component={AppChoicePage} setupPage={true} />
             <ProtectedRoute path="/company-select" component={CompanySelectPage} />
             <ProtectedRoute path="/dashboard" component={Dashboard} />
           
