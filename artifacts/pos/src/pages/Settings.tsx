@@ -523,6 +523,8 @@ export default function Settings() {
   const jeAdmin = prijavljen?.vloga === "admin" || prijavljen?.vloga === "superadmin";
   const jeSuperAdmin = prijavljen?.vloga === "superadmin";
   const jeAdminEnote = prijavljen?.vloga === "admin_enote";
+  const imaFunkcijo = (capability: UnitCapability) =>
+    prijavljen?.vloga === "superadmin" || (prijavljen?.capabilities ?? []).includes(capability);
   const jeUporabnik = !jeAdmin && !jeAdminEnote && !jeSuperAdmin;
   const lahkoNastaviNatakarPin = jeAdmin || jeAdminEnote;
   const imaAktivnoEnoto = Boolean(prijavljen?.enotaId);
@@ -2563,7 +2565,7 @@ export default function Settings() {
         <TabsList className="mb-4 flex-wrap h-auto gap-0.5">
           {!jeSuperAdmin && !jeUporabnik && <TabsTrigger value="mize">Mize</TabsTrigger>}
           {!jeSuperAdmin && !jeUporabnik && <TabsTrigger value="natakari">Natakarji</TabsTrigger>}
-          {!jeSuperAdmin && !jeUporabnik && <TabsTrigger value="dostava">Dostava</TabsTrigger>}
+          {!jeSuperAdmin && !jeUporabnik && imaFunkcijo("delivery") && <TabsTrigger value="dostava">Dostava</TabsTrigger>}
           {!jeSuperAdmin && !jeUporabnik && <TabsTrigger value="kds">KDS</TabsTrigger>}
           {prikaziZavihekEnote(prijavljen?.vloga) && <TabsTrigger value="enote">Enote</TabsTrigger>}
           {prijavljen?.vloga === "admin" && <TabsTrigger value="knjizenje">Knjiženje</TabsTrigger>}
@@ -2869,10 +2871,12 @@ export default function Settings() {
           </TabsContent>
         )}
 
+        {imaFunkcijo("delivery") && (
         <TabsContent value="dostava" className="space-y-6">
           <DostavaSettings enotaId={prijavljen?.enotaId} />
           <NaseljaSettings />
         </TabsContent>
+        )}
 
         {/* ── Poslovne enote (admin + admin_enote) ────────────── */}
         {prikaziZavihekEnote(prijavljen?.vloga) && (
@@ -3297,7 +3301,7 @@ export default function Settings() {
             )}
           </div>
 
-          {jeAdmin && !jeSuperAdmin && (
+          {jeAdmin && !jeSuperAdmin && imaFunkcijo("qr_menu") && (
             <Card id="ns-qr-ai">
               <CardHeader>
                 <CardTitle>QR meni</CardTitle>
