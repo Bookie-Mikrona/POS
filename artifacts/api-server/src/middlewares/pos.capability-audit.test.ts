@@ -136,13 +136,20 @@ describe("inventar zaščite POS API poti", () => {
       [...navigationBlock![1].matchAll(/"([^"]+)"\s*:\s*"([^"]+)"/g)]
         .map(([, path, capability]) => [path, capability]),
     );
-    expect(navigation[navPath]).toBe("menu");
+    // Navigacija je ožja od strežnika: meni prikažemo le enotam s kuhinjo ali
+    // pripravljeno hrano, API pa ostane zaščiten z zmožnostjo »menu«.
+    expect(navigation[navPath]).toBeUndefined();
+    const anyBlock = clientSource.match(
+      /export const NAV_ANY_CAPABILITY_BY_PATH\b[^=]*=\s*\{([\s\S]*?)\n\};/,
+    );
+    expect(anyBlock).not.toBeNull();
+    expect(anyBlock![1]).toMatch(new RegExp(`"${navPath}"\\s*:\\s*\\["kitchen", "prepared_food"\\]`));
     const paths = protectedPosRouterMounts
       .flatMap(mount => collectRouterPaths(mount.childRouter, mount.prefix))
       .filter(path => path === apiPrefix || path.startsWith(`${apiPrefix}/`));
     expect(paths.length).toBeGreaterThan(0);
     for (const path of paths) {
-      expect(resolveUnitCapabilities(path), path).toEqual([navigation[navPath]]);
+      expect(resolveUnitCapabilities(path), path).toEqual(["menu"]);
     }
   });
 
