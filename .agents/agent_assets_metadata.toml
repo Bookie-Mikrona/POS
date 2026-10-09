@@ -1481,3 +1481,17 @@ mtime_ms = 1791290668806
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/5b77212e-d028-4156-a3a2-0c6d23d98af6/ddcb7561-e1b5-4a5e-a6fe-0d25040934dd"
 storage_version_token = "1791290763932070"
 content_type = "text/csv"
+
+[[outputs]]
+id = "S0k6FG1cjh84tgzIxXhXD"
+uri = "file://exports/Bookie_POS_naloge_preverjeno_2026-10-09.xlsx"
+type = "table"
+title = "Bookie POS — dopolnjeno preverjanje nalog"
+description = "Dopolnjeni rezultati nalog 1–7, 200 uspešnih testov in jasno označene preostale omejitve brskalniškega preverjanja."
+logical_id = "80cc5b9f-ea77-4295-a462-563838ab5fd9"
+content_hash = "sha256:a1e406afd599abdcb5d2c89e92b437daef93698ac8df2d7d94ecb4bbf95005c7"
+size = 12675
+mtime_ms = 1791532715646
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/80cc5b9f-ea77-4295-a462-563838ab5fd9/55fb598c-b310-428a-b842-c757be5b5711"
+storage_version_token = "1791532729061495"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
