@@ -182,6 +182,7 @@ export default function Checkout() {
   const gatewayOffline = useGatewayOfflineContext();
   const { user } = useAuth();
   const imaTrr = user?.imaTrr ?? false;
+  const lahkoProdajaDarilneBone = user?.vloga === "superadmin" || (user?.capabilities ?? []).includes("deposits_tokens");
   const search = useSearch();
   const preselectedId = new URLSearchParams(search).get("narocilo");
   const gatewayRouteId = preselectedId ? parseLocalOrderRoute(preselectedId) ?? null : null;
@@ -4449,11 +4450,11 @@ ${linije.map(vrHtml).join("\n")}
           <div className="px-3 pt-2 pb-1 sm:p-4 md:p-6 space-y-1">
           <div className="space-y-1">
             <h1 className="text-xl font-bold tracking-tight">Blagajna</h1>
-            <div className="grid w-full grid-cols-3 gap-2">
-              <Button variant="outline" size="sm" className="h-8 w-full min-w-0 gap-1 px-1.5 text-[10px] sm:text-xs" onClick={odpriIzdajoDarilnegaBona} disabled={paymentOrFinalizationInProgress} data-testid="button-odpri-izdajo-darilnega-bona" title="Prodaj darilni bon">
+            <div className={`grid w-full gap-2 ${lahkoProdajaDarilneBone ? "grid-cols-3" : "grid-cols-2"}`}>
+              {lahkoProdajaDarilneBone && <Button variant="outline" size="sm" className="h-8 w-full min-w-0 gap-1 px-1.5 text-[10px] sm:text-xs" onClick={odpriIzdajoDarilnegaBona} disabled={paymentOrFinalizationInProgress} data-testid="button-odpri-izdajo-darilnega-bona" title="Prodaj darilni bon">
                 <Gift className="h-3.5 w-3.5 shrink-0 text-violet-600" />
                 <span className="truncate">Darilni bon</span>
-              </Button>
+              </Button>}
               <Button
                 type="button"
                 variant="outline"
