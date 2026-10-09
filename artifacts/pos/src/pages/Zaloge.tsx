@@ -3974,12 +3974,14 @@ export default function Zaloge() {
   const [zzOpomba, setZzOpomba] = useState("");
   const [zzLeto, setZzLeto] = useState(currentYear);
   const [zzRows, setZzRows] = useState<ZacetnaZalogaRow[]>([]);
+  const [zzScope, setZzScope] = useState<"material" | "drobni">("material");
   const createZacetnaZaloga = useCreateZacetnaZaloga();
 
   const openZzDialog = () => {
     setZzDatum(`${currentYear}-01-01`);
     setZzOpomba("");
     setZzLeto(currentYear);
+    setZzScope("material");
     setZzRows(nabavniArtikli.map(a => {
       const z = zaloge?.find(z => z.artikelId === a.id);
       return { artikelId: a.id, kolicina: String(z?.kolicina ?? 0), cenaKos: jeDrobniInventar(a) ? "0" : String(z?.zadnjaCena ?? 0) };
@@ -4027,8 +4029,9 @@ export default function Zaloge() {
 
   const addZzRow = () => {
     const usedIds = new Set(zzRows.map(r => r.artikelId));
-    const next = nabavniArtikli.find(a => !usedIds.has(a.id));
-    setZzRows(r => [...r, { artikelId: next?.id ?? nabavniArtikli[0]?.id ?? 0, kolicina: "0", cenaKos: "0" }]);
+    const zzScopeArtikli = nabavniArtikli.filter(a => jeDrobniInventar(a) === (zzScope === "drobni"));
+    const next = zzScopeArtikli.find(a => !usedIds.has(a.id));
+    setZzRows(r => [...r, { artikelId: next?.id ?? zzScopeArtikli[0]?.id ?? 0, kolicina: "0", cenaKos: "0" }]);
   };
   const removeZzRow = (i: number) => setZzRows(r => r.filter((_, j) => j !== i));
   const updateZzRow = <K extends keyof ZacetnaZalogaRow>(i: number, key: K, val: ZacetnaZalogaRow[K]) =>
@@ -5445,10 +5448,18 @@ export default function Zaloge() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 sm:space-y-4">
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-              <strong>Drobni inventar se vodi samo količinsko.</strong> Začetna zaloga ima ceno 0 € in ne ustvari GL knjižbe.
-              Dejanski nakup se na prejemnici še vedno vnese po dobaviteljevi ceni in knjiži med stroške.
-            </div>
+            <Tabs value={zzScope} onValueChange={value => setZzScope(value as "material" | "drobni")}>
+              <TabsList>
+                <TabsTrigger value="material" data-testid="tab-zz-material">Material</TabsTrigger>
+                <TabsTrigger value="drobni" data-testid="tab-zz-drobni">Drobni inventar</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {zzScope === "drobni" && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                <strong>Drobni inventar se vodi samo količinsko.</strong> Začetna zaloga ima ceno 0 € in ne ustvari GL knjižbe.
+                Dejanski nakup se na prejemnici še vedno vnese po dobaviteljevi ceni in knjiži med stroške.
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
               <div className="space-y-1 sm:space-y-2">
                 <Label>Leto</Label>
@@ -5481,6 +5492,7 @@ export default function Zaloge() {
                 <div className="space-y-2 sm:space-y-0">
                   {zzRows.map((row, i) => {
                     const artikelKolicinski = jeDrobniInventar(nabavniArtikli.find(a => a.id === row.artikelId));
+                    if (row.artikelId > 0 && artikelKolicinski !== (zzScope === "drobni")) return null;
                     const vrednost = artikelKolicinski ? 0 : (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
                     return (
                       <div key={i} className="flex flex-col sm:grid sm:grid-cols-[1fr_7rem_7rem_6rem_2.5rem] gap-2 sm:gap-2 items-start sm:items-center bg-card border sm:border-transparent sm:border-b sm:last:border-b-transparent rounded-md sm:rounded-none p-2 sm:p-2 sm:px-3 shadow-sm sm:shadow-none">
@@ -5496,7 +5508,7 @@ export default function Zaloge() {
                                    ? { ...item, artikelId, ...(jeDrobniInventar(nabavniArtikli.find(a => a.id === artikelId)) ? { cenaKos: "0" } : {}) }
                                    : item));
                                }}>
-                              {nabavniArtikli.map(a => (
+                              {nabavniArtikli.filter(a => jeDrobniInventar(a) === (zzScope === "drobni")).map(a => (
                                 <option key={a.id} value={a.id}>
                                   {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
                                 </option>
