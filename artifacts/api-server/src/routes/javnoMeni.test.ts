@@ -398,6 +398,70 @@ afterAll(async () => {
 });
 
 describe("javni QR meni", () => {
+  describe("dostop glede na POS paket in zmožnost QR menija", () => {
+    it.each([
+      { name: "Lite", plan: "lite", qrMenu: true, allowed: false },
+      { name: "Standard", plan: "standard", qrMenu: true, allowed: false },
+      { name: "Extended brez qr_menu", plan: "extended", qrMenu: false, allowed: false },
+      { name: "brez zapisa paketa (privzeto Lite)", plan: null, qrMenu: true, allowed: false },
+      { name: "Extended s qr_menu", plan: "extended", qrMenu: true, allowed: true },
+    ] as const)("$name: preveri meni in klic natakarja z veljavno aktivacijsko sejo", async ({ plan, qrMenu, allowed }) => {
+      const [units, plans] = await Promise.all([
+        db.select({ capabilities: enoteTable.capabilities }).from(enoteTable).where(eq(enoteTable.id, enotaId)),
+        db.select().from(companyPosPlansTable).where(eq(companyPosPlansTable.companyId, companyId)),
+      ]);
+      const originalUnit = units[0]!;
+      const originalPlan = plans[0]!;
+      expect(originalUnit).toBeDefined();
+      expect(originalPlan).toBeDefined();
+
+      try {
+        if (plan === null) {
+          await db.delete(companyPosPlansTable).where(eq(companyPosPlansTable.companyId, companyId));
+        } else {
+          await db.update(companyPosPlansTable).set({ plan }).where(eq(companyPosPlansTable.companyId, companyId));
+        }
+        const capabilities: typeof originalUnit.capabilities =
+          originalUnit.capabilities.filter(capability => capability !== "qr_menu");
+        if (qrMenu) capabilities.push("qr_menu");
+        await db.update(enoteTable).set({ capabilities }).where(eq(enoteTable.id, enotaId));
+
+        // Sejo podamo izrecno, da zavrnitev ni posledica manjkajočega tokena ali aktivacije.
+        const qrNapravaId = randomUUID();
+        const session = createQrActivationSessionForTest({ token: qrToken, enotaId, mizaId, qrNapravaId });
+        const cookie = `bookie_qr_activation=${encodeURIComponent(session)}`;
+        const app = publicApp(false);
+        const menu = await supertest(app).get(`/javno/meni/${qrToken}`)
+          .query({ qrNapravaId }).set("Cookie", cookie);
+        const waiter = await supertest(app).post(`/javno/meni/${qrToken}/natakar`)
+          .set("Cookie", cookie).send({ qrNapravaId });
+        const current = await supertest(app).get(`/javno/meni/${qrToken}/natakar/trenutni`)
+          .query({ qrNapravaId }).set("Cookie", cookie);
+
+        if (allowed) {
+          expect(menu.status).toBe(200);
+          expect(menu.body.miza).toMatchObject({ stevilka: 7, naziv: `Miza 7 ${RUN_ID}` });
+          expect(waiter.status).toBe(201);
+          expect(waiter.body).toMatchObject({ id: expect.any(Number), stanje: "caka" });
+          expect(current.status).toBe(200);
+          expect(current.body).toMatchObject({ id: waiter.body.id, stanje: "caka" });
+        } else {
+          for (const response of [menu, waiter, current]) {
+            expect(response.status).toBe(404);
+            expect(response.body).toEqual({ error: "Javni meni ni najden" });
+          }
+        }
+      } finally {
+        // Spremenimo le lastne testne podatke in jih obnovimo tudi ob neuspešnem testu.
+        await db.update(enoteTable).set({ capabilities: originalUnit.capabilities }).where(eq(enoteTable.id, enotaId));
+        await db.insert(companyPosPlansTable).values(originalPlan).onConflictDoUpdate({
+          target: companyPosPlansTable.companyId,
+          set: { plan: originalPlan.plan, enabledBy: originalPlan.enabledBy, enabledAt: originalPlan.enabledAt },
+        });
+      }
+    });
+  });
+
   it("skrije zmožnost in zavrne AI klic, ko je asistent za enoto izklopljen", async () => {
     await db.update(nastavitveTable)
       .set({ vrednost: "false" })
