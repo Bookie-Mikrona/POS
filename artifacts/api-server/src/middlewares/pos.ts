@@ -44,14 +44,14 @@ export interface PosRequest extends Request {
 }
 
 type CapabilityPathRule = {
-  capability: UnitCapability;
+  capability: UnitCapability | readonly UnitCapability[];
   matches: (path: string) => boolean;
 };
 
 const hasPrefix = (path: string, prefix: string): boolean =>
   path === prefix || path.startsWith(`${prefix}/`);
 
-const prefixes = (capability: UnitCapability, ...values: string[]): CapabilityPathRule => ({
+const prefixes = (capability: UnitCapability | readonly UnitCapability[], ...values: string[]): CapabilityPathRule => ({
   capability,
   matches: path => values.some(prefix => hasPrefix(path, prefix)),
 });
@@ -100,7 +100,7 @@ const CAPABILITY_PATHS: CapabilityPathRule[] = [
   prefixes("inventory", "/zaloge", "/inventure", "/prejemnice", "/izdajnice", "/zacetne-zaloge", "/uvoz", "/embalaza"),
   prefixes("prepared_food", "/prepared-food"),
   prefixes("plate_waste", "/plate-waste"),
-  prefixes("kitchen", "/kds"),
+  prefixes(["kitchen", "bar"], "/kds"),
   prefixes("journals", "/temeljnice"),
   prefixes("cash_movements", "/blagajniski-premiki"),
   prefixes("phone_orders", "/narocniki", "/cti"),
@@ -109,18 +109,26 @@ const CAPABILITY_PATHS: CapabilityPathRule[] = [
   prefixes("checkout", "/events"),
 ];
 
+/** Združljivost za enojne klicalce: vrne prvo zmožnost; avtorizacija uporablja celotno OR pravilo. */
 export function resolveUnitCapability(path: string): UnitCapability | null {
-  return CAPABILITY_PATHS.find(rule => rule.matches(path))?.capability ?? null;
+  return resolveUnitCapabilities(path)?.[0] ?? null;
+}
+
+/** OR pravilo: ista zmožnost mora biti omogočena v enoti in paketu. */
+export function resolveUnitCapabilities(path: string): readonly UnitCapability[] | null {
+  const capability = CAPABILITY_PATHS.find(rule => rule.matches(path))?.capability;
+  return capability === undefined ? null : typeof capability === "string" ? [capability] : capability;
 }
 
 async function enforceUnitCapability(
   req: Request,
   res: Response,
   next: NextFunction,
-  capability: UnitCapability,
+  capability: UnitCapability | readonly UnitCapability[],
 ): Promise<void> {
   const context = req as PosRequest;
   if (context.vloga === "superadmin") { next(); return; }
+  const allowed = typeof capability === "string" ? [capability] : capability;
   const [unit] = await db
     .select({
       capabilities: enoteTable.capabilities,
@@ -130,19 +138,23 @@ async function enforceUnitCapability(
     .leftJoin(companyPosPlansTable, eq(companyPosPlansTable.companyId, enoteTable.companyId))
     .where(and(eq(enoteTable.id, context.enotaId), eq(enoteTable.companyId, context.companyId)))
     .limit(1);
-  if (!unit?.capabilities.includes(capability)) {
+  const enabled = allowed.filter(value => unit?.capabilities.includes(value));
+  if (!unit || enabled.length === 0) {
     res.status(403).json({
       napaka: "Ta funkcija za aktivno poslovno enoto ni omogočena.",
       koda: "FUNKCIJA_ENOTE_ONEMOGOCENA",
-      funkcija: capability,
+      funkcija: allowed[0],
+      ...(allowed.length > 1 ? { funkcije: allowed } : {}),
     });
     return;
   }
-  if (!getPosPlanCapabilities(unit.posPlan).includes(capability)) {
+  const planCapabilities = getPosPlanCapabilities(unit.posPlan);
+  if (!enabled.some(value => planCapabilities.includes(value))) {
     res.status(403).json({
       napaka: "Ta funkcija ni vključena v paketu POS podjetja.",
       koda: "POS_PAKET_FUNKCIJE_NE_VKLJUCUJE",
-      funkcija: capability,
+      funkcija: allowed[0],
+      ...(allowed.length > 1 ? { funkcije: allowed } : {}),
       paket: unit.posPlan ?? "lite",
     });
     return;
@@ -151,7 +163,7 @@ async function enforceUnitCapability(
 }
 
 /** Za routerje pred globalno politiko, kjer je zmožnost določena ob montaži. */
-export function requireSpecificUnitCapability(capability: UnitCapability) {
+export function requireSpecificUnitCapability(capability: UnitCapability | readonly UnitCapability[]) {
   return (req: Request, res: Response, next: NextFunction): Promise<void> =>
     enforceUnitCapability(req, res, next, capability);
 }
@@ -164,7 +176,7 @@ export async function requireUnitCapability(
 ): Promise<void> {
   const context = req as PosRequest;
   if (context.vloga === "superadmin") { next(); return; }
-  const capability = resolveUnitCapability(req.path);
+  const capability = resolveUnitCapabilities(req.path);
   if (!capability) {
     res.status(403).json({
       napaka: "POS pot nima določene dovoljene funkcije poslovne enote.",

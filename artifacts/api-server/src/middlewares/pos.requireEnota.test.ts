@@ -75,6 +75,8 @@ import {
   requirePosCompany,
   requireUnitCapability,
   resolveUnitCapability,
+  resolveUnitCapabilities,
+  requireSpecificUnitCapability,
 } from "./pos";
 import enoteRouter from "../routes/pos/enote";
 import posRouter from "../routes/pos";
@@ -266,6 +268,61 @@ describe("requireEnota — dostop po vlogi", () => {
 });
 
 describe("requireUnitCapability — neposredni API dostop", () => {
+  it.each(["/kds", "/kds/postaje", "/kds/zasloni", "/kds/nastavitve"])(
+    "Standard in enota samo s točilnico dovolita %s",
+    async path => {
+      state.enota!.capabilities = ["bar"];
+      state.enota!.posPlan = "standard";
+      expect(resolveUnitCapabilities(path)).toEqual(["kitchen", "bar"]);
+      expect(resolveUnitCapability(path)).toBe("kitchen");
+      expect((await request(capabilityApp()).get(path)).status).toBe(200);
+    },
+  );
+
+  it("KDS brez kuhinje in točilnice zavrne dostop", async () => {
+    state.enota!.capabilities = ["menu"];
+    state.enota!.posPlan = "standard";
+    const response = await request(capabilityApp()).get("/kds/postaje");
+    expect(response.status).toBe(403);
+    expect(response.body.koda).toBe("FUNKCIJA_ENOTE_ONEMOGOCENA");
+  });
+
+  it.each([["bar"], ["kitchen"], ["bar", "kitchen"]])(
+    "Lite zavrne KDS tudi z omogočenimi zmožnostmi %j",
+    async (...capabilities) => {
+      state.enota!.capabilities = capabilities;
+      state.enota!.posPlan = "lite";
+      const response = await request(capabilityApp()).get("/kds/postaje");
+      expect(response.status).toBe(403);
+      expect(response.body.koda).toBe("POS_PAKET_FUNKCIJE_NE_VKLJUCUJE");
+    },
+  );
+
+  it("pripravljeno še vedno zahteva samo kuhinjo", async () => {
+    const path = "/narocila/42/postavke/7/pripravljeno";
+    state.enota!.posPlan = "standard";
+    state.enota!.capabilities = ["bar"];
+    const response = await request(capabilityApp()).get(path);
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ koda: "FUNKCIJA_ENOTE_ONEMOGOCENA", funkcija: "kitchen" });
+    state.enota!.capabilities = ["kitchen"];
+    expect((await request(capabilityApp()).get(path)).status).toBe(200);
+  });
+
+  it("OR pravilo ne združi različnih zmožnosti enote in paketa", async () => {
+    state.enota!.posPlan = "standard";
+    state.enota!.capabilities = ["delivery"];
+    const app = express();
+    app.use((req, _res, next) => {
+      Object.assign(req, { enotaId: state.enota!.id, companyId: state.enota!.companyId });
+      next();
+    });
+    app.use(requireSpecificUnitCapability(["bar", "delivery"]));
+    app.get("/", (_req, res) => res.json({ ok: true }));
+    const response = await request(app).get("/");
+    expect(response.status).toBe(403);
+    expect(response.body.koda).toBe("POS_PAKET_FUNKCIJE_NE_VKLJUCUJE");
+  });
   it.each([
     ["/mize", "tables"],
     ["/blagajne", "checkout"],

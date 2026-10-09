@@ -38,7 +38,7 @@ vi.mock("@clerk/express", async (importOriginal) => {
 
 import express, { Router, type IRouter } from "express";
 import request from "supertest";
-import { requireUnitCapability, resolveUnitCapability } from "./pos";
+import { requireUnitCapability, resolveUnitCapability, resolveUnitCapabilities } from "./pos";
 import {
   default as posRouter,
   invalidPreCapabilityRouteMounts,
@@ -84,7 +84,7 @@ function collectRouterPaths(router: IRouter, prefix: string): string[] {
 function findUnmappedRoutes(mounts: ProtectedPosRouterMount[]): string[] {
   return mounts
     .flatMap(mount => collectRouterPaths(mount.childRouter, mount.prefix))
-    .filter(path => resolveUnitCapability(path) === null)
+    .filter(path => resolveUnitCapabilities(path) === null)
     .sort();
 }
 
@@ -117,6 +117,17 @@ function collectRouterEndpoints(router: IRouter, prefix: string): string[] {
 }
 
 describe("inventar zaščite POS API poti", () => {
+  it("vse montirane KDS poti dovolijo kuhinjo ali točilnico", () => {
+    const paths = protectedPosRouterMounts
+      .flatMap(mount => collectRouterPaths(mount.childRouter, mount.prefix))
+      .filter(path => path === "/kds" || path.startsWith("/kds/"));
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      expect(resolveUnitCapabilities(path)).toEqual(["kitchen", "bar"]);
+      expect(resolveUnitCapability(path)).toBe("kitchen");
+    }
+    expect(resolveUnitCapabilities("/narocila/42/postavke/7/pripravljeno")).toEqual(["kitchen"]);
+  });
   it("klice QR natakarja varuje z zmožnostjo QR menija", () => {
     expect(resolveUnitCapability("/qr-waiter-requests")).toBe("qr_menu");
     expect(resolveUnitCapability("/qr-waiter-requests/123")).toBe("qr_menu");
