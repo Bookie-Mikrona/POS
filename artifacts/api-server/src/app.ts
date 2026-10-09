@@ -181,8 +181,11 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
-// Javni QR meni je namerno registriran pred Clerk middleware in pred
-// requireEnota: dostop določa samo nepredvidljiv token mize.
+// Javni QR meni je registriran pred Clerk middleware in requireEnota, brez prijave.
+// Meni in klic natakarja zahtevata veljaven token mize aktivne enote, paket Extended,
+// zmožnost qr_menu na enoti ter veljavno aktivacijsko sejo za isto mizo in QR napravo.
+// Neveljaven token, neustrezen paket ali manjkajoči qr_menu vrnejo 404;
+// manjkajoča oziroma neveljavna aktivacijska seja vrne 401.
 app.use("/api", javniMeniRouter);
 app.use("/api", publicVisitsRouter);
 
