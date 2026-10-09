@@ -1,22 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express from "express";
 import request from "supertest";
-import { db, companiesTable, enoteTable, pool } from "@workspace/db";
-import { inArray } from "drizzle-orm";
+import { db, companiesTable, enoteTable, pool, HOSPITALITY_PROFILE_DEFAULTS } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
 import enoteRouter from "./enote";
 
 const suffix = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
 let companyId: string;
 let foreignCompanyId: string;
+let emptyCompanyId: string;
 let parentUnitId: number;
 let foreignUnitId: number;
 const createdUnitIds: number[] = [];
 
-function app() {
+function app(targetCompanyId = companyId) {
   const result = express();
   result.use(express.json());
   result.use((req, _res, next) => {
-    Object.assign(req, { companyId, vloga: "admin" });
+    Object.assign(req, { companyId: targetCompanyId, vloga: "admin" });
     next();
   });
   result.use(enoteRouter);
@@ -32,9 +33,11 @@ beforeAll(async () => {
   const companies = await db.insert(companiesTable).values([
     { podjetjeDavcna: `TMP${suffix.slice(-8)}`, naziv: `Začasne enote ${suffix}` },
     { podjetjeDavcna: `TMF${suffix.slice(-8)}`, naziv: `Tuje podjetje ${suffix}` },
+    { podjetjeDavcna: `TME${suffix.slice(-8)}`, naziv: `Prva enota ${suffix}` },
   ]).returning({ id: companiesTable.id });
   companyId = companies[0]!.id;
   foreignCompanyId = companies[1]!.id;
+  emptyCompanyId = companies[2]!.id;
   const units = await db.insert(enoteTable).values([
     { companyId, ime: `Matična ${suffix}` },
     { companyId: foreignCompanyId, ime: `Tuja ${suffix}` },
@@ -46,11 +49,90 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (createdUnitIds.length) await db.delete(enoteTable).where(inArray(enoteTable.id, createdUnitIds));
-  await db.delete(companiesTable).where(inArray(companiesTable.id, [companyId, foreignCompanyId]));
+  await db.delete(companiesTable).where(inArray(companiesTable.id, [companyId, foreignCompanyId, emptyCompanyId]));
   await pool.end();
 });
 
 describe("API validacija začasnih enot", () => {
+  it.each([
+    ["delivery", "phone_orders"],
+    ["reservations", "tables"],
+    ["multi_course", "kitchen"],
+  ])("POST in PUT zavrneta %s brez %s, brez zapisovanja", async (capability, requires) => {
+    const before = await db.select().from(enoteTable).where(eq(enoteTable.companyId, companyId));
+    const parentBefore = before.find(unit => unit.id === parentUnitId)!;
+    const body = { ime: "Ne sme se shraniti", capabilities: [capability], aktiven: false };
+    const post = await request(app()).post("/").send(body);
+    const put = await request(app()).put(`/${parentUnitId}`).send(body);
+    for (const response of [post, put]) {
+      expect(response.status).toBe(400);
+      expect(response.body.missingDependencies).toEqual([{ capability, requires }]);
+      expect(response.body.napaka).toContain("zahteva");
+    }
+    const after = await db.select().from(enoteTable).where(eq(enoteTable.companyId, companyId));
+    expect(after).toHaveLength(before.length);
+    expect(after.find(unit => unit.id === parentUnitId)).toEqual(parentBefore);
+  });
+
+  it("PUT brez seznama zmožnosti dovoljuje urejanje stare nedosledne enote", async () => {
+    const [legacy] = await db.insert(enoteTable).values({
+      companyId, ime: `Stara nedosledna ${suffix}`, capabilities: ["delivery"],
+    }).returning();
+    createdUnitIds.push(legacy!.id);
+    const response = await request(app()).put(`/${legacy!.id}`).send({ opis: "Popravljen opis" });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ opis: "Popravljen opis", capabilities: ["delivery"] });
+  });
+
+  it("prva veselica je stalna in prezre tudi neveljavne poslane dogodkovne podatke", async () => {
+    const response = await request(app(emptyCompanyId)).post("/").send({
+      ime: `Prva veselica ${suffix}`,
+      hospitalityProfile: "festival_society",
+      isTemporary: true,
+      parentUnitId: foreignUnitId,
+      activeFrom: "napačen datum",
+      activeTo: "2026-02-30",
+      temporaryLocation: "Dogodek",
+    });
+    expect(response.status).toBe(201);
+    createdUnitIds.push(response.body.id);
+    expect(response.body).toMatchObject({
+      hospitalityProfile: "festival_society",
+      isTemporary: false,
+      parentUnitId: null,
+      activeFrom: null,
+      activeTo: null,
+      temporaryLocation: null,
+    });
+  });
+
+  it("veselica pri podjetju z enoto še vedno zahteva matično enoto", async () => {
+    const response = await request(app()).post("/").send({
+      ime: "Veselica brez matične", hospitalityProfile: "festival_society", ...validPeriod,
+    });
+    expect(response.status).toBe(400);
+    expect(response.body.napaka).toContain("matično enoto");
+  });
+
+  it("veselica z matično enoto in veljavnim obdobjem uspe", async () => {
+    const response = await request(app()).post("/").send({
+      ime: `Veselica ${suffix}`, hospitalityProfile: "festival_society", parentUnitId, ...validPeriod,
+    });
+    expect(response.status).toBe(201);
+    createdUnitIds.push(response.body.id);
+    expect(response.body).toMatchObject({ isTemporary: true, parentUnitId });
+  });
+
+  it("food truck je privzeto stalen tudi kot dodatna enota", async () => {
+    expect(HOSPITALITY_PROFILE_DEFAULTS.food_truck.temporary).toBe(false);
+    const response = await request(app()).post("/").send({
+      ime: `Food truck ${suffix}`, hospitalityProfile: "food_truck",
+    });
+    expect(response.status).toBe(201);
+    createdUnitIds.push(response.body.id);
+    expect(response.body).toMatchObject({ isTemporary: false, parentUnitId: null, activeFrom: null, activeTo: null });
+  });
+
   it("zavrne manjkajoče, neobstoječe in obrnjeno obdobje", async () => {
     const api = request(app());
     const [missing, invalid, reversed] = await Promise.all([

@@ -5146,6 +5146,18 @@ export interface ObracunUr {
   poSM: ObracunUrPoSm[];
 }
 
+/**
+ * POS paket podjetja; brez zapisa velja Lite.
+ */
+export type EnotaPosPaket = typeof EnotaPosPaket[keyof typeof EnotaPosPaket];
+
+
+export const EnotaPosPaket = {
+  lite: 'lite',
+  standard: 'standard',
+  extended: 'extended',
+} as const;
+
 export type EnotaHospitalityProfile = typeof EnotaHospitalityProfile[keyof typeof EnotaHospitalityProfile];
 
 
@@ -5178,6 +5190,10 @@ export const EnotaServiceMode = {
 } as const;
 
 export interface Enota {
+  /** POS paket podjetja; brez zapisa velja Lite. */
+  posPaket: EnotaPosPaket;
+  /** Vklopljene zmožnosti enote, ki jih POS paket podjetja ne vključuje. Informativno; shranjene zmožnosti ostanejo nespremenjene. */
+  blockedByPlan: string[];
   id: number;
   ime: string;
   /** @nullable */

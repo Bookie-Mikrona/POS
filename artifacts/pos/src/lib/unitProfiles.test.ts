@@ -29,9 +29,27 @@ describe("profili gostinskih enot", () => {
 
   it("posebne predloge vključijo pričakovane funkcije", () => {
     expect(profileDefaults("fine_dining").capabilities).toContain("multi_course");
-    expect(profileDefaults("self_service").capabilities).toContain("self_service");
+    expect(profileDefaults("self_service").capabilities).not.toContain("self_service");
+    expect(profileDefaults("self_service").serviceMode).toBe("self_service");
+    expect(profileDefaults("hotel_food_service").capabilities).not.toContain("self_service");
+    expect(profileDefaults("hotel_food_service").capabilities).toEqual(expect.arrayContaining(["events", "qr_menu"]));
+    expect(profileDefaults("tourist_farm").capabilities).toEqual(expect.arrayContaining(["multi_course", "kitchen"]));
     expect(profileDefaults("festival_society").capabilities).toContain("deposits_tokens");
-    expect(profileDefaults("food_truck").temporary).toBe(true);
+    expect(profileDefaults("food_truck").temporary).toBe(false);
+    expect(profileDefaults("festival_society").temporary).toBe(true);
+    expect(profileDefaults("event_stall").temporary).toBe(true);
+    expect(profileDefaults("inn").capabilities).toContain("phone_orders");
+    expect(profileDefaults("food_truck").capabilities).not.toContain("delivery");
+  });
+
+  it("vseh 13 odjemalskih profilov ima izpolnjene odvisnosti", () => {
+    for (const [profile, { capabilities }] of Object.entries(HOSPITALITY_PROFILES)) {
+      for (const [capability, dependency] of [
+        ["delivery", "phone_orders"], ["reservations", "tables"], ["multi_course", "kitchen"],
+      ] as const) {
+        if (capabilities.includes(capability)) expect(capabilities, profile).toContain(dependency);
+      }
+    }
   });
 
   it("ključne neposredne poti imajo zahtevano zmožnost", () => {

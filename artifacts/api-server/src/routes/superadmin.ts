@@ -11,6 +11,7 @@ import {
   companyPosPlansTable,
   POS_PLANS,
   type PosPlan,
+  enoteTable, auditLogTable, getPosPlanCapabilities, DEFAULT_POS_PLAN,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
@@ -18,6 +19,7 @@ import { slovenianCollated } from "../lib/slovenian-collation";
 import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
 import { seedDefaultAccountSettings } from "../lib/seedDefaultAccountSettings";
 import { broadcastToCompany } from "../lib/pos-sse";
+import { findCapabilityBlockers, type CapabilityBlocker } from "../lib/unitCapabilityBlockers";
 
 const router: IRouter = Router();
 
@@ -194,22 +196,45 @@ router.put(
     const companyId = Array.isArray(req.params.companyId)
       ? req.params.companyId[0]
       : req.params.companyId;
-    const plan = (req.body as { plan?: unknown }).plan;
+    const { plan, force } = req.body as { plan?: unknown; force?: unknown };
     if (!companyId || !POS_PLANS.includes(plan as PosPlan)) {
       res.status(400).json({ napaka: "Izbrani POS paket ni veljaven." });
       return;
     }
-    const [company] = await db
-      .select({ id: companiesTable.id })
-      .from(companiesTable)
-      .where(eq(companiesTable.id, companyId))
-      .limit(1);
-    if (!company) {
-      res.status(404).json({ napaka: "Podjetje ne obstaja." });
+    if (force !== undefined && typeof force !== "boolean") {
+      res.status(400).json({ napaka: "Polje force mora biti logična vrednost." });
       return;
     }
     const enabledBy = (req as AuthenticatedRequest).clerkUserId;
-    const [saved] = await db
+    const result = await db.transaction(async tx => {
+    // Serializiraj spremembe paketa tudi pri podjetju brez zapisa paketa.
+    const [company] = await tx
+      .select({ id: companiesTable.id })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, companyId))
+      .limit(1).for("update");
+    if (!company) {
+      return { kind: "missing" as const };
+    }
+    const [oldRow] = await tx.select({ plan: companyPosPlansTable.plan })
+      .from(companyPosPlansTable).where(eq(companyPosPlansTable.companyId, companyId)).limit(1);
+    const oldPlan = oldRow?.plan ?? DEFAULT_POS_PLAN;
+    const newCapabilities = new Set(getPosPlanCapabilities(plan as PosPlan));
+    const removed = getPosPlanCapabilities(oldPlan).filter(capability => !newCapabilities.has(capability));
+    const blockedUnits: Array<{ id: number; ime: string; blockers: CapabilityBlocker[] }> = [];
+    if (removed.length > 0) {
+      const units = await tx.select().from(enoteTable).where(eq(enoteTable.companyId, companyId));
+      for (const unit of units) {
+        const lost = removed.filter(capability => unit.capabilities.includes(capability));
+        if (!lost.length) continue;
+        const blockers = await findCapabilityBlockers(unit.id, lost, tx);
+        if (blockers.length) blockedUnits.push({ id: unit.id, ime: unit.ime, blockers });
+      }
+    }
+    if (blockedUnits.length > 0 && force !== true) {
+      return { kind: "blocked" as const, blockedUnits };
+    }
+    const [saved] = await tx
       .insert(companyPosPlansTable)
       .values({ companyId, plan: plan as PosPlan, enabledBy })
       .onConflictDoUpdate({
@@ -221,11 +246,30 @@ router.put(
         plan: companyPosPlansTable.plan,
         enabledAt: companyPosPlansTable.enabledAt,
       });
+    await tx.insert(auditLogTable).values({
+      companyId, entityType: "company_pos_plan", entityId: companyId,
+      action: force === true ? "force_pos_plan_change" : "change_pos_plan",
+      changedBy: enabledBy,
+      payload: { oldPlan, newPlan: plan, force: force === true, blockedUnits },
+    });
+    return { kind: "saved" as const, saved: saved! };
+    });
+    if (result.kind === "missing") {
+      res.status(404).json({ napaka: "Podjetje ne obstaja." });
+      return;
+    }
+    if (result.kind === "blocked") {
+      res.status(409).json({
+        napaka: "Paketa ni mogoče znižati, ker imajo enote odprto delo. Najprej zaključite navedeno delo.",
+        blockedUnits: result.blockedUnits,
+      });
+      return;
+    }
     broadcastToCompany(companyId, "auth:pos-plan-changed", {
       companyId,
-      plan: saved!.plan,
+      plan: result.saved.plan,
     });
-    res.json(saved);
+    res.json(result.saved);
   },
 );
 

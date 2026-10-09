@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -76,7 +76,7 @@ async function apiFetch(path: string, opts?: RequestInit) {
     ...opts,
   });
   const data = await r.json();
-  if (!r.ok) throw new Error((data as { napaka?: string }).napaka ?? "Napaka strežnika");
+  if (!r.ok) throw Object.assign(new Error((data as { napaka?: string; error?: string }).napaka ?? (data as { error?: string }).error ?? "Napaka strežnika"), { status: r.status, data });
   return data;
 }
 
@@ -379,21 +379,30 @@ function UrediUporabnikaDialog({ davcna, user, onUpdated }: { davcna: string; us
 function PodjetjeRow({ podjetje, onRefresh }: { podjetje: Podjetje; onRefresh: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [planSaving, setPlanSaving] = useState(false);
+  const [blockedChange, setBlockedChange] = useState<{
+    plan: PosPlan;
+    blockedUnits: Array<{ id: number; ime: string; blockers: Array<{ kind: string; description: string }> }>;
+  } | null>(null);
   const { toast } = useToast();
 
-  const changePlan = async (plan: PosPlan) => {
+  const changePlan = async (plan: PosPlan, force = false) => {
     setPlanSaving(true);
     try {
       await apiFetch(`/api/superadmin/podjetja/${encodeURIComponent(podjetje.id)}/pos-paket`, {
         method: "PUT",
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, ...(force ? { force: true } : {}) }),
       });
+      setBlockedChange(null);
       toast({
         title: "POS paket posodobljen",
         description: `${podjetje.naziv} uporablja paket ${POS_PLAN_LABELS[plan]}.`,
       });
       onRefresh();
     } catch (err) {
+      const apiError = err as { status?: number; data?: { blockedUnits?: NonNullable<typeof blockedChange>["blockedUnits"] } };
+      if (!force && apiError.status === 409 && apiError.data?.blockedUnits?.length) {
+        setBlockedChange({ plan, blockedUnits: apiError.data.blockedUnits });
+      }
       toast({
         title: "Paketa ni bilo mogoče posodobiti",
         description: err instanceof Error ? err.message : "Napaka strežnika",
@@ -406,6 +415,33 @@ function PodjetjeRow({ podjetje, onRefresh }: { podjetje: Podjetje; onRefresh: (
 
   return (
     <div className="border rounded-xl overflow-hidden">
+      <Dialog open={blockedChange !== null} onOpenChange={open => { if (!open && !planSaving) setBlockedChange(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Znižanje paketa je blokirano</DialogTitle>
+            <DialogDescription>
+              Enote imajo odprto delo. Z izsiljenim znižanjem na {blockedChange ? POS_PLAN_LABELS[blockedChange.plan] : ""}
+              {" "}lahko izgubijo dostop do funkcij, potrebnih za njegovo dokončanje. Sprememba in blokade se zapišejo v revizijsko sled.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[45vh] overflow-y-auto space-y-3">
+            {blockedChange?.blockedUnits.map(unit => (
+              <div key={unit.id} className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
+                <p className="font-semibold">{unit.ime}</p>
+                <ul className="list-disc pl-5">{unit.blockers.map(blocker => (
+                  <li key={blocker.kind}>{blocker.description}</li>
+                ))}</ul>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" disabled={planSaving} onClick={() => setBlockedChange(null)}>Ohrani trenutni paket</Button>
+            <Button variant="destructive" disabled={planSaving} onClick={() => {
+              if (blockedChange) void changePlan(blockedChange.plan, true);
+            }}>{planSaving ? "Shranjujem …" : "Potrjujem izsiljeno znižanje"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <button
         className="w-full flex items-center gap-4 px-5 py-4 bg-card hover:bg-muted/50 transition-colors text-left"
         onClick={() => setExpanded(v => !v)}

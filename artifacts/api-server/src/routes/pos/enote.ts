@@ -5,23 +5,22 @@
  */
 
 import { Router, type IRouter } from "express";
-import { eq, count, and, inArray, isNull, or } from "drizzle-orm";
+import { eq, count, and, inArray } from "drizzle-orm";
 import {
   db, enoteTable, artikliTable, kategorijeTable, mizeTable, narocilaTable,
   racuniTable, nastavitveTable, natakariTable, poslovniProstoriTable,
   prostoriTable, izmeneTable, inventureTable, prejemniceTable, zacetneZalogeTable,
   costCentersTable,
-  blagajniskiPremikiTable, preparedFoodDailyLedgersTable, preparedFoodWasteRecordsTable,
-  racunIzdajaZahteveTable,
-  posEventsTable, posEventUnitsTable,
   HOSPITALITY_PROFILES, HOSPITALITY_PROFILE_DEFAULTS, UNIT_CAPABILITIES, SERVICE_MODES,
+  companyPosPlansTable, DEFAULT_POS_PLAN, getPosPlanCapabilities, type UnitCapability,
 } from "@workspace/db";
 import { validateTemporaryPeriod } from "../../lib/temporaryUnitValidation";
 import type { Request, Response } from "express";
 import { isValidIpNetwork, normalizeClientIp, normalizeIpNetworks } from "../../lib/ip-network";
-import { getRemovedCapabilities } from "../../lib/unitCapabilityPolicy";
+import { getRemovedCapabilities, getMissingCapabilityDependencies, capabilityDependencyMessage } from "../../lib/unitCapabilityPolicy";
 import { ensureKdsUnitConfiguration } from "../../lib/kds-unit-configuration";
 import { uvoziDrobniInventar } from "../../lib/drobni-inventar-catalog";
+import { findCapabilityBlockers } from "../../lib/unitCapabilityBlockers";
 
 const router: IRouter = Router();
 const QR_WIFI_SSID_MAX_LENGTH = 64;
@@ -30,64 +29,6 @@ const STUDENTSKI_BON_KLJUC = "studentskiBonAktiven";
 const profileSet = new Set<string>(HOSPITALITY_PROFILES);
 const capabilitySet = new Set<string>(UNIT_CAPABILITIES);
 const serviceModeSet = new Set<string>(SERVICE_MODES);
-
-type CapabilityBlocker = { kind: string; description: string };
-
-async function findCapabilityBlockers(enotaId: number, removed: string[]): Promise<CapabilityBlocker[]> {
-  const blockers: CapabilityBlocker[] = [];
-  const removes = (...values: string[]) => values.some(value => removed.includes(value));
-
-  if (removes("tables", "phone_orders", "qr_menu", "delivery", "kitchen", "checkout")) {
-    const [openOrder] = await db.select({ id: narocilaTable.id }).from(narocilaTable)
-      .where(and(eq(narocilaTable.enotaId, enotaId), eq(narocilaTable.status, "odprto"))).limit(1);
-    if (openOrder) blockers.push({ kind: "open_orders", description: "Enota ima odprta naročila." });
-  }
-  if (removes("shifts", "checkout")) {
-    const [activeShift] = await db.select({ id: izmeneTable.id }).from(izmeneTable)
-      .where(and(eq(izmeneTable.enotaId, enotaId), isNull(izmeneTable.konec))).limit(1);
-    if (activeShift) blockers.push({ kind: "active_shifts", description: "Enota ima aktivne izmene." });
-  }
-  if (removed.includes("checkout")) {
-    const [pendingReceipt] = await db.select({ id: racuniTable.id }).from(racuniTable)
-      .where(and(
-        eq(racuniTable.enotaId, enotaId),
-        inArray(racuniTable.fursState, ["pending", "sending", "unknown"]),
-      )).limit(1);
-    if (pendingReceipt) blockers.push({ kind: "pending_receipts", description: "Enota ima račune z nedokončanim FURS postopkom." });
-
-    const [pendingIssue] = await db.select({ id: racunIzdajaZahteveTable.id }).from(racunIzdajaZahteveTable)
-      .where(and(
-        eq(racunIzdajaZahteveTable.enotaId, enotaId),
-        inArray(racunIzdajaZahteveTable.status, ["processing", "unknown"]),
-      )).limit(1);
-    if (pendingIssue) blockers.push({ kind: "pending_issuance", description: "Enota ima nedokončano izdajo računa." });
-
-  }
-  if (removed.includes("cash_movements")) {
-    const [cashDraft] = await db.select({ id: blagajniskiPremikiTable.id }).from(blagajniskiPremikiTable)
-      .where(and(eq(blagajniskiPremikiTable.enotaId, enotaId), eq(blagajniskiPremikiTable.status, "OSNUTEK"))).limit(1);
-    if (cashDraft) blockers.push({ kind: "cash_drafts", description: "Enota ima odprte osnutke blagajniških premikov." });
-  }
-  if (removed.includes("prepared_food")) {
-    const [openLedger] = await db.select({ id: preparedFoodDailyLedgersTable.id }).from(preparedFoodDailyLedgersTable)
-      .where(and(eq(preparedFoodDailyLedgersTable.enotaId, enotaId), isNull(preparedFoodDailyLedgersTable.closedAt))).limit(1);
-    if (openLedger) blockers.push({ kind: "prepared_food_open_day", description: "Dnevna evidenca pripravljene hrane še ni zaključena." });
-    const [wasteDraft] = await db.select({ id: preparedFoodWasteRecordsTable.id }).from(preparedFoodWasteRecordsTable)
-      .where(and(eq(preparedFoodWasteRecordsTable.enotaId, enotaId), eq(preparedFoodWasteRecordsTable.status, "osnutek"))).limit(1);
-    if (wasteDraft) blockers.push({ kind: "prepared_food_waste_drafts", description: "Obstaja nepotrjen zapis odpisa pripravljene hrane." });
-  }
-  if (removed.includes("events")) {
-    const linked = db.select({ eventId: posEventUnitsTable.eventId }).from(posEventUnitsTable)
-      .where(eq(posEventUnitsTable.enotaId, enotaId));
-    const [openEvent] = await db.select({ id: posEventsTable.id }).from(posEventsTable)
-      .where(and(
-        inArray(posEventsTable.status, ["planned", "active"]),
-        or(eq(posEventsTable.enotaId, enotaId), inArray(posEventsTable.id, linked)),
-      )).limit(1);
-    if (openEvent) blockers.push({ kind: "open_events", description: "Enota je povezana z načrtovanim ali aktivnim dogodkom." });
-  }
-  return blockers;
-}
 
 function validateUnitProfile(profile: unknown, capabilities: unknown, serviceMode: unknown): string | null {
   if (profile !== undefined && (typeof profile !== "string" || !profileSet.has(profile))) {
@@ -138,6 +79,19 @@ async function shraniNastavitevStudentskegaBona(enotaId: number, aktiven: boolea
   });
 }
 
+/** Informativni presek; izvirnega seznama zmožnosti ne spreminja. */
+async function dodajPaketEnotam<T extends { capabilities: UnitCapability[] }>(rows: T[], companyId: string) {
+  const [planRow] = await db.select({ plan: companyPosPlansTable.plan })
+    .from(companyPosPlansTable).where(eq(companyPosPlansTable.companyId, companyId)).limit(1);
+  const posPaket = planRow?.plan ?? DEFAULT_POS_PLAN;
+  const allowed = new Set(getPosPlanCapabilities(posPaket));
+  return rows.map(row => ({
+    ...row,
+    posPaket,
+    blockedByPlan: row.capabilities.filter(capability => !allowed.has(capability)),
+  }));
+}
+
 function smeUrejatiEnote(req: Request): boolean {
   const vloga = (req as any).vloga as string | undefined;
   return vloga === "admin" || vloga === "admin_enote" || vloga === "superadmin";
@@ -167,7 +121,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
   const rows = await db.select().from(enoteTable)
     .where(eq(enoteTable.companyId, companyId))
     .orderBy(enoteTable.id);
-  const rowsZNastavitvijo = await dodajNastavitevStudentskegaBona(rows);
+  const rowsZNastavitvijo = await dodajPaketEnotam(await dodajNastavitevStudentskegaBona(rows), companyId);
   if (smeUrejatiEnote(req)) {
     res.json(rowsZNastavitvijo);
     return;
@@ -259,8 +213,22 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   if (profileError) { res.status(400).json({ napaka: profileError }); return; }
   const selectedProfile = (hospitalityProfile ?? "restaurant") as keyof typeof HOSPITALITY_PROFILE_DEFAULTS;
   const profileDefaults = HOSPITALITY_PROFILE_DEFAULTS[selectedProfile];
-  const finalIsTemporary = isTemporary ?? profileDefaults.temporary;
-  const period = validateTemporaryPeriod(activeFrom, activeTo, finalIsTemporary);
+  const finalCapabilities = capabilities ?? profileDefaults.capabilities;
+  const missingDependencies = getMissingCapabilityDependencies(finalCapabilities);
+  if (missingDependencies.length > 0) {
+    res.status(400).json({ napaka: capabilityDependencyMessage(missingDependencies), missingDependencies });
+    return;
+  }
+  // Prva enota je vedno stalna; tudi neaktivna obstoječa enota šteje.
+  const [existingUnit] = await db.select({ id: enoteTable.id })
+    .from(enoteTable).where(eq(enoteTable.companyId, companyId)).limit(1);
+  const isFirstUnit = !existingUnit;
+  const finalIsTemporary = isFirstUnit ? false : isTemporary ?? profileDefaults.temporary;
+  const period = validateTemporaryPeriod(
+    isFirstUnit ? null : activeFrom,
+    isFirstUnit ? null : activeTo,
+    finalIsTemporary,
+  );
   if (period.error) { res.status(400).json({ napaka: period.error }); return; }
   if (finalIsTemporary) {
     const parentError = await preveriMaticnoEnoto(parentUnitId ?? null, companyId);
@@ -309,7 +277,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     costCenterId: costCenterId ?? null,
     hospitalityProfile: selectedProfile,
     serviceMode: (serviceMode as any) ?? profileDefaults.serviceMode,
-    capabilities: (capabilities as any) ?? profileDefaults.capabilities,
+    capabilities: finalCapabilities as typeof enoteTable.$inferInsert.capabilities,
     isTemporary: finalIsTemporary,
     temporaryLocation: finalIsTemporary ? temporaryLocation?.trim() || null : null,
     parentUnitId: finalIsTemporary ? parentUnitId ?? null : null,
@@ -322,7 +290,8 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     }
     return [created];
   });
-  res.status(201).json({ ...row, studentskiBonAktiven: false });
+  const [response] = await dodajPaketEnotam([{ ...row, studentskiBonAktiven: false }], companyId);
+  res.status(201).json(response);
 });
 
 // PUT /enote/:id
@@ -366,6 +335,13 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
   const [currentUnit] = await db.select().from(enoteTable)
     .where(and(eq(enoteTable.id, id), eq(enoteTable.companyId, companyId))).limit(1);
   if (!currentUnit) { res.status(404).json({ napaka: "Enota ni najdena" }); return; }
+  if (capabilities !== undefined) {
+    const missingDependencies = getMissingCapabilityDependencies(capabilities);
+    if (missingDependencies.length > 0) {
+      res.status(400).json({ napaka: capabilityDependencyMessage(missingDependencies), missingDependencies });
+      return;
+    }
+  }
   const finalIsTemporary = isTemporary ?? currentUnit.isTemporary;
   const finalParentUnitId = parentUnitId !== undefined ? parentUnitId : currentUnit.parentUnitId;
   const period = validateTemporaryPeriod(
@@ -466,12 +442,13 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
   if (studentskiBonAktiven !== undefined) {
     await shraniNastavitevStudentskegaBona(id, studentskiBonAktiven);
   }
-  res.json({
+  const [response] = await dodajPaketEnotam([{
     ...row,
     studentskiBonAktiven: studentskiBonAktiven
       ?? (await dodajNastavitevStudentskegaBona([row]))[0]?.studentskiBonAktiven
       ?? false,
-  });
+  }], companyId);
+  res.json(response);
 });
 
 // DELETE /enote/:id (samo admin)

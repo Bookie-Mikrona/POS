@@ -90,18 +90,18 @@ const profile = (
 
 export const HOSPITALITY_PROFILES: Record<HospitalityProfile, ProfileDefinition> = {
   restaurant: profile("Restavracija", "Celovita strežba pri mizah s kuhinjo in točilnico.", ["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "delivery", "phone_orders", "qr_menu"], false, "table_service"),
-  inn: profile("Gostilna / gostišče", "Tradicionalna ponudba, dnevna kosila, skupine in slavja.", ["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "events", "delivery", "qr_menu"], false, "table_service"),
+  inn: profile("Gostilna / gostišče", "Tradicionalna ponudba, dnevna kosila, skupine in slavja.", ["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "events", "delivery", "phone_orders", "qr_menu"], false, "table_service"),
   fine_dining: profile("Fine dining", "Večhodni meniji, rezervacije in usklajena strežba hodov.", ["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "multi_course", "events"], false, "table_service"),
-  self_service: profile("Samopostrežna restavracija", "Ruski šank, dnevna ponudba in hitra blagajna.", ["kitchen", "prepared_food", "plate_waste", "self_service"], false, "self_service"),
+  self_service: profile("Samopostrežna restavracija", "Ruski šank, dnevna ponudba in hitra blagajna.", ["kitchen", "prepared_food", "plate_waste"], false, "self_service"),
   fast_food: profile("Hitra prehrana / kiosk", "Hitra prodaja, KDS, prevzem in dostava.", ["kitchen", "prepared_food", "delivery", "phone_orders", "qr_menu"], false, "counter"),
   bar: profile("Bar / bife / pub", "Točilnica, odprti računi in pijačna ponudba.", ["tables", "bar", "qr_menu"], false, "mixed"),
   cafe_pastry: profile("Kavarna / slaščičarna", "Napitki, vitrina, sladice in prednaročila.", ["tables", "bar", "prepared_food", "qr_menu", "phone_orders"], false, "table_service"),
-  tourist_farm: profile("Turistična kmetija / osmica", "Sezonska ponudba, skupine in domači izdelki.", ["tables", "kitchen", "bar", "prepared_food", "reservations", "events"], false, "table_service"),
+  tourist_farm: profile("Turistična kmetija / osmica", "Sezonska ponudba, skupine, domači izdelki in večhodni meniji.", ["tables", "kitchen", "bar", "prepared_food", "reservations", "events", "multi_course"], false, "table_service"),
   festival_society: profile("Društvo / veselica", "Začasna prireditev z več prodajnimi mesti, boni in kavcijami.", ["kitchen", "bar", "events", "stock_transfers", "deposits_tokens"], true, "mobile_event"),
   event_stall: profile("Prireditvena stojnica", "Začasna prodajna točka z lastnim cenikom in zalogo.", ["kitchen", "bar", "events", "stock_transfers", "deposits_tokens"], true, "mobile_event"),
   catering_celebrations: profile("Pogostitve in slavja", "Poroke, rojstni dnevi, catering in obračun dogodka.", ["tables", "kitchen", "bar", "reservations", "multi_course", "events", "stock_transfers"], false, "catering"),
-  food_truck: profile("Food truck / prikolica / kombi", "Premična hitra prodaja z omejeno zalogo in lokacijami.", ["kitchen", "prepared_food", "events", "stock_transfers", "delivery"], true, "mobile_event"),
-  hotel_food_service: profile("Hotelska gostinska ponudba", "Zajtrk, restavracija, bar in sobna postrežba.", ["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "self_service"], false, "mixed"),
+  food_truck: profile("Food truck / prikolica / kombi", "Premična hitra prodaja; privzeto stalna enota brez omejenega obdobja.", ["kitchen", "prepared_food", "events", "stock_transfers"], false, "mobile_event"),
+  hotel_food_service: profile("Hotelska gostinska ponudba", "Zajtrk, restavracija, bar in sobna postrežba; dogodki in QR-meni.", ["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "events", "qr_menu"], false, "mixed"),
 };
 
 export const ALL_UNIT_CAPABILITIES = [...UNIT_CAPABILITIES];

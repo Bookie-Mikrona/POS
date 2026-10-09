@@ -143,7 +143,8 @@ describe("POST /enote — costCenterId", () => {
       && article.vrstaArtikla === "material"
       && article.drobniInventar
       && Number(article.cena) === 0
-      && Number(article.davek) === 0
+      && Number(article.davek) === 22
+      && article.taxCategory === "other"
       && article.enotaMere === "kos",
     )).toBe(true);
     expect(rows.some((article) => article.ime.includes("POS terminal") || article.ime.includes("mize –"))).toBe(false);

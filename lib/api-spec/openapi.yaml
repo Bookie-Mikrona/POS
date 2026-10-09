@@ -16039,7 +16039,18 @@ components:
         - aktiven
         - zacetekDnevaUra
         - ustvarjeno
+        - posPaket
+        - blockedByPlan
       properties:
+        posPaket:
+          type: string
+          enum: [lite, standard, extended]
+          description: POS paket podjetja; brez zapisa velja Lite.
+        blockedByPlan:
+          type: array
+          description: Vklopljene zmožnosti enote, ki jih POS paket podjetja ne vključuje. Informativno; shranjene zmožnosti ostanejo nespremenjene.
+          items:
+            type: string
         id:
           type: integer
         ime:

@@ -9563,6 +9563,8 @@ export const listEnoteResponseQrWifiPasswordMax = 128;
 
 
 export const ListEnoteResponseItem = zod.object({
+  "posPaket": zod.enum(['lite', 'standard', 'extended']).describe('POS paket podjetja; brez zapisa velja Lite.'),
+  "blockedByPlan": zod.array(zod.string()).describe('Vklopljene zmožnosti enote, ki jih POS paket podjetja ne vključuje. Informativno; shranjene zmožnosti ostanejo nespremenjene.'),
   "id": zod.number(),
   "ime": zod.string(),
   "opis": zod.string().nullish(),
@@ -9638,6 +9640,8 @@ export const createEnotaResponseQrWifiPasswordMax = 128;
 
 
 export const CreateEnotaResponse = zod.object({
+  "posPaket": zod.enum(['lite', 'standard', 'extended']).describe('POS paket podjetja; brez zapisa velja Lite.'),
+  "blockedByPlan": zod.array(zod.string()).describe('Vklopljene zmožnosti enote, ki jih POS paket podjetja ne vključuje. Informativno; shranjene zmožnosti ostanejo nespremenjene.'),
   "id": zod.number(),
   "ime": zod.string(),
   "opis": zod.string().nullish(),
@@ -9723,6 +9727,8 @@ export const updateEnotaResponseQrWifiPasswordMax = 128;
 
 
 export const UpdateEnotaResponse = zod.object({
+  "posPaket": zod.enum(['lite', 'standard', 'extended']).describe('POS paket podjetja; brez zapisa velja Lite.'),
+  "blockedByPlan": zod.array(zod.string()).describe('Vklopljene zmožnosti enote, ki jih POS paket podjetja ne vključuje. Informativno; shranjene zmožnosti ostanejo nespremenjene.'),
   "id": zod.number(),
   "ime": zod.string(),
   "opis": zod.string().nullish(),

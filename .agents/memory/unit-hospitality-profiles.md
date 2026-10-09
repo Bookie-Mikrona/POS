@@ -5,6 +5,24 @@ description: Pravila za profile, zmožnosti in začasne gostinske enote v POS-u.
 
 Profil obrata je začetna predloga, ne trajna omejitev. Končni nabor funkcij se hrani ločeno na posamezni enoti in ga je mogoče ročno prilagoditi.
 
+Spremembe privzetih profilov veljajo za nove enote; obstoječih enot ne usklajuj samodejno, tudi če njihova stara predloga ni skladna s POS paketi.
+
+**Why:** Uporabnik izrecno zahteva popravke novih predlog brez sprememb obstoječih enot, strukture baze ali migracij.
+
+**How to apply:** Posodobi strežniške in odjemalske predloge ter njihove opise in teste, ne izvajaj podatkovnih posodobitev.
+
+Odvisnosti funkcij so poslovna pravila: dostava potrebuje telefonska naročila za naročnike, rezervacije potrebujejo mize, večhodni meniji pa kuhinjo. Stare nedosledne enote je dovoljeno urejati, če zahteva ne spreminja seznama funkcij.
+
+**Why:** Uporabnik zahteva dosledne nove kombinacije, ne pa samodejnega spreminjanja obstoječih enot ali blokiranja njihovih drugih popravkov.
+
+**How to apply:** Preveri končni seznam pri ustvarjanju in samo izrecno poslan seznam pri urejanju; pri napaki ne shrani ničesar in vrni uporabniku manjkajoče odvisnosti.
+
+Premičnost sama po sebi ne pomeni začasnosti: food truck lahko deluje vse leto. Prva poslovna enota podjetja mora biti stalna tudi pri dogodkovnem profilu.
+
+**Why:** Uporabnik je izrecno ločil celoletni food truck od časovno omejene prireditve; podjetje brez enot nima matične enote, na katero bi lahko vezalo prvo začasno enoto.
+
+**How to apply:** Pri novih enotah uporabljaj ti poslovni pravili, ne spreminjaj obstoječih zapisov. Veselica in prireditvena stojnica pri nadaljnjih enotah ohranita začasno predlogo.
+
 **Why:** Isto podjetje lahko hkrati upravlja restavracijo, bar, stojnico ali mobilno enoto, njihove potrebe pa se razlikujejo. Trdo kodiranje funkcij po profilu bi preprečilo legitimne izjeme.
 
 **How to apply:** Navigacijo, neposredne poti in samostojne API-module vedno preverjaj proti zmožnostim aktivne enote. Obstoječe enote morajo ob migracijah ohraniti vse dosedanje funkcije.

@@ -99,6 +99,7 @@ import {
   CAPABILITY_LABELS,
   HOSPITALITY_PROFILES,
   SERVICE_MODE_LABELS,
+  POS_PLAN_LABELS,
   profileDefaults,
   type HospitalityProfile,
   type ServiceMode,
@@ -728,7 +729,9 @@ export default function Settings() {
       setEIme(""); setEOpis(""); setEAktiven(true); setECostCenterId(""); setEProfile("restaurant"); setEVnesiPrivzetiDrobniInventar(false);
       queryClient.invalidateQueries({ queryKey: getListEnoteQueryKey() });
       toast({ title: "Enota dodana" });
-    } catch { toast({ title: "Napaka pri dodajanju enote", variant: "destructive" }); }
+    } catch (error) {
+      toast({ title: "Napaka pri dodajanju enote", description: preberiNapakoStrezika(error).sporocilo, variant: "destructive" });
+    }
   };
 
   const openEditEnota = (e: Enota) => {
@@ -874,14 +877,9 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: getListEnoteQueryKey() });
       toast({ title: "Enota posodobljena" });
     } catch (error: unknown) {
-      let description: string | undefined;
-      if (error && typeof error === "object" && "response" in error) {
-        const payload = await (error as { response: Response }).response.json().catch(() => null) as {
-          napaka?: string;
-          blockers?: Array<{ description?: string }>;
-        } | null;
-        description = payload?.blockers?.map(blocker => blocker.description).filter(Boolean).join(" ") || payload?.napaka;
-      }
+      const payload = (error as { data?: { blockers?: Array<{ description?: string }> } } | null)?.data;
+      const description = payload?.blockers?.map(blocker => blocker.description).filter(Boolean).join(" ")
+        || preberiNapakoStrezika(error).sporocilo;
       toast({ title: "Enote ni bilo mogoče posodobiti", description, variant: "destructive" });
     }
   };
@@ -2914,6 +2912,9 @@ export default function Settings() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Prva enota podjetja je vedno stalna. Food truck je privzeto stalen tudi kot dodatna enota.
+                  </p>
                 </div>
                 <div className="space-y-2 md:col-span-4">
                   <Label>Stroškovno mesto (STM) <span className="text-muted-foreground font-normal">(neobvezno)</span></Label>
@@ -2974,7 +2975,16 @@ export default function Settings() {
                     const sm = e.costCenterId ? stroskovnaMesta.find(cc => cc.id === e.costCenterId) : undefined;
                     return (
                     <TableRow key={e.id}>
-                      <TableCell className="font-medium">{e.ime}</TableCell>
+                      <TableCell className="font-medium">
+                        {e.ime}
+                        {e.blockedByPlan?.length > 0 && (
+                          <div role="status" className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs font-normal text-amber-900">
+                            <span className="font-semibold">Omejitev paketa {POS_PLAN_LABELS[e.posPaket]}:</span>{" "}
+                            paket ne vključuje funkcij: {e.blockedByPlan.map(capability => CAPABILITY_LABELS[capability as UnitCapability] ?? capability).join(", ")}.
+                            {" "}Za dostop je potreben višji paket, ki vključuje navedene funkcije.
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">{e.opis ?? "—"}</TableCell>
                       <TableCell>
                         {e.aktiven
@@ -6270,8 +6280,8 @@ export default function Settings() {
             <div className="space-y-3 rounded-lg border p-3">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <Label>Začasna ali premična enota</Label>
-                  <p className="text-xs text-muted-foreground">Za veselice, stojnice, catering in mobilne ponudnike.</p>
+                  <Label>Začasna enota</Label>
+                  <p className="text-xs text-muted-foreground">Časovno omejeno prodajno mesto. Premična enota, kot je food truck, je lahko stalna.</p>
                 </div>
                 <Switch checked={editEIsTemporary} onCheckedChange={setEditEIsTemporary} />
               </div>

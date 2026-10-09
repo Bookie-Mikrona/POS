@@ -34,6 +34,11 @@ Najbolj zreli deli so naročila in mize, KDS, pizza in večhodni meniji, termina
 - Ponovna preveritev seje pri prehodnem odgovoru 401.
 - Registracija naprave na aktivno poslovno enoto.
 - Profili za restavracijo, gostilno, bar, kavarno, hitro prehrano, food truck, catering in dogodke.
+- Prva poslovna enota podjetja je ob ustvarjanju vedno stalna, ne glede na profil ali poslane dogodkovne podatke. Food truck je privzeto stalen tudi kot dodatna enota; profila društvo/veselica in prireditvena stojnica ostajata privzeto začasna za nadaljnje enote. Začasna enota zahteva matično enoto iz istega podjetja ter veljavno obdobje od–do.
+- Dostava zahteva telefonska naročila, rezervacije mize, večhodni meniji pa kuhinjo. Neveljaven seznam funkcij se ob ustvarjanju ali izrecni spremembi zavrne brez shranjevanja. Profil gostilne vključuje telefonska naročila, food truck pa privzeto nima dostave.
+- Upravljanje enot prikaže opozorilo s seznamom vklopljenih funkcij, ki jih paket podjetja ne vključuje. To je informativni prikaz: zmožnosti enote ostanejo shranjene, paket pa še vedno omejuje dejanski dostop.
+- Znižanje POS paketa se zavrne, če izgubljene in na enoti vklopljene funkcije potrebujejo odprto delo. Superadmin lahko po izrecni potrditvi izsili spremembo; stari in novi paket, izvajalec ter blokade se shranijo v revizijsko sled. Povišanje paketa ni blokirano. Skupna preverba vključuje prihodnje aktivne rezervacije, osnutke dogodkovnih prenosov ter veljavne neizkoriščene individualne bone oziroma odprt skupni saldo darilnih bonov podjetja.
+- Evidenca odpadkov s krožnikov nima statusa osnutka ali potrditve, zato zanjo ni mogoče preverjati nepotrjenih osnutkov. Zaključene oziroma neposredno shranjene evidence niso obravnavane kot odprto delo.
 
 ## Delno oziroma tveganja
 

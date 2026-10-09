@@ -62,18 +62,18 @@ export const HOSPITALITY_PROFILE_DEFAULTS: Record<
   { capabilities: UnitCapability[]; serviceMode: ServiceMode; temporary: boolean }
 > = {
   restaurant: unitProfileDefaults(["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "delivery", "phone_orders", "qr_menu"], "table_service"),
-  inn: unitProfileDefaults(["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "events", "delivery", "qr_menu"], "table_service"),
+  inn: unitProfileDefaults(["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "events", "delivery", "phone_orders", "qr_menu"], "table_service"),
   fine_dining: unitProfileDefaults(["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "multi_course", "events"], "table_service"),
-  self_service: unitProfileDefaults(["kitchen", "prepared_food", "plate_waste", "self_service"], "self_service"),
+  self_service: unitProfileDefaults(["kitchen", "prepared_food", "plate_waste"], "self_service"),
   fast_food: unitProfileDefaults(["kitchen", "prepared_food", "delivery", "phone_orders", "qr_menu"], "counter"),
   bar: unitProfileDefaults(["tables", "bar", "qr_menu"], "mixed"),
   cafe_pastry: unitProfileDefaults(["tables", "bar", "prepared_food", "qr_menu", "phone_orders"], "table_service"),
-  tourist_farm: unitProfileDefaults(["tables", "kitchen", "bar", "prepared_food", "reservations", "events"], "table_service"),
+  tourist_farm: unitProfileDefaults(["tables", "kitchen", "bar", "prepared_food", "reservations", "events", "multi_course"], "table_service"),
   festival_society: unitProfileDefaults(["kitchen", "bar", "events", "stock_transfers", "deposits_tokens"], "mobile_event", true),
   event_stall: unitProfileDefaults(["kitchen", "bar", "events", "stock_transfers", "deposits_tokens"], "mobile_event", true),
   catering_celebrations: unitProfileDefaults(["tables", "kitchen", "bar", "reservations", "multi_course", "events", "stock_transfers"], "catering"),
-  food_truck: unitProfileDefaults(["kitchen", "prepared_food", "events", "stock_transfers", "delivery"], "mobile_event", true),
-  hotel_food_service: unitProfileDefaults(["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "self_service"], "mixed"),
+  food_truck: unitProfileDefaults(["kitchen", "prepared_food", "events", "stock_transfers"], "mobile_event"),
+  hotel_food_service: unitProfileDefaults(["tables", "kitchen", "bar", "prepared_food", "plate_waste", "reservations", "events", "qr_menu"], "mixed"),
 };
 
 /**
