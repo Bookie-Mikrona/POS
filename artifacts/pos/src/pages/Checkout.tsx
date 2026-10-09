@@ -25,6 +25,8 @@ import {
   getListMizeQueryKey,
   getListRacuniQueryKey,
   getGetNarociloQueryKey,
+  useListBlagajne,
+  getListBlagajneQueryKey,
 } from "@workspace/api-client-react";
 import { useNastavitve } from "@/contexts/NastavitveContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -224,6 +226,13 @@ export default function Checkout() {
   const { nastavitve } = useNastavitve();
   const { data: aktivneIzmene, isLoading: aktivneIzmeneLoading } = useListAktivneIzmene();
   const { activeBlagajnaId } = useBlagajna();
+  const { data: seznamBlagajn } = useListBlagajne({
+    query: { queryKey: [...getListBlagajneQueryKey(), user?.enotaId ?? null] },
+  });
+  const aktivnaBlagajna = seznamBlagajn?.find(b => b.id === activeBlagajnaId);
+  const imeAktivneBlagajne = aktivnaBlagajna
+    ? `${aktivnaBlagajna.ppId}-${aktivnaBlagajna.bId}${aktivnaBlagajna.ime ? ` ${aktivnaBlagajna.ime}` : ""}`
+    : activeBlagajnaId ? `Blagajna #${activeBlagajnaId}` : "Ni izbrana";
   const { naprava, napravaKljuc } = useNaprava();
   const createRacun = useCreateRacun();
   const startPaytenAndroidPayment = useStartPaytenAndroidPayment();
@@ -4066,7 +4075,7 @@ ${linije.map(vrHtml).join("\n")}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Blagajna</Label>
-                <Input value={activeBlagajnaId ? `Izbrana blagajna #${activeBlagajnaId}` : "Ni izbrana"} disabled />
+                <Input value={imeAktivneBlagajne} disabled />
               </div>
             </div>
             <Button className="w-full" onClick={handleIzpisPromet} disabled={izpisLoading || !activeBlagajnaId}>
