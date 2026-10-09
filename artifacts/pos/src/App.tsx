@@ -35,7 +35,7 @@ import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
 import { UporabnikSidebarInfo } from "@/components/UporabnikSidebarInfo";
 import { AdminEnotaStaticInfo } from "@/components/AdminEnotaStaticInfo";
 import { SifrantiSidebar } from "@/components/SifrantiSidebar";
-import { NAV_CAPABILITY_BY_PATH, canAccessPosRoute, type UnitCapability } from "@/lib/unitProfiles";
+import { NAV_ANY_CAPABILITY_BY_PATH, NAV_CAPABILITY_BY_PATH, canAccessPosRoute, type UnitCapability } from "@/lib/unitProfiles";
 import { CtiDohodniKlicPopup } from "@/components/CtiDohodniKlicPopup";
 import { AgentLauncher } from "@/components/AgentLauncher";
 import { BlagajnaProvider } from "@/contexts/BlagajnaContext";
@@ -601,6 +601,8 @@ function Layout({ children }: { children: React.ReactNode }) {
   const canShowNav = (href: string) => {
     if (isSuperAdmin) return true;
     if (href === "/nastavitve" && (isAdmin || isAdminEnote)) return true;
+    const anyOf = NAV_ANY_CAPABILITY_BY_PATH[href];
+    if (anyOf) return anyOf.some(c => activeCapabilities.has(c));
     const capability = NAV_CAPABILITY_BY_PATH[href];
     return capability ? activeCapabilities.has(capability) : true;
   };

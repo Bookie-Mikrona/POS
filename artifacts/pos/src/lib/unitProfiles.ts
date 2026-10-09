@@ -131,11 +131,16 @@ export const NAV_CAPABILITY_BY_PATH: Record<string, UnitCapability> = {
   "/nastavitve": "settings",
   "/narocniki": "phone_orders",
   "/dogodki": "events",
-  "/dnevni-meni": "menu",
-  "/malice": "menu",
-  "/kosila": "menu",
   "/qr-meni": "qr_menu",
   "/rezervacije": "reservations",
+};
+
+/** Strani, ki so dostopne, če enota ima vsaj eno od navedenih funkcij. */
+export const NAV_ANY_CAPABILITY_BY_PATH: Record<string, readonly UnitCapability[]> = {
+  "/dnevni-meni": ["kitchen", "prepared_food"],
+  "/malice": ["kitchen", "prepared_food"],
+  "/kosila": ["kitchen", "prepared_food"],
+  "/javna-stran": ["reservations", "deposits_tokens"],
 };
 
 /** Settings remain reachable for administrators, including initial unit setup. */
@@ -146,6 +151,9 @@ export function canAccessPosRoute(
 ): boolean {
   if (role === "superadmin") return true;
   if (location === "/nastavitve" && (role === "admin" || role === "admin_enote")) return true;
+  const anyRule = Object.entries(NAV_ANY_CAPABILITY_BY_PATH)
+    .find(([path]) => location === path || location.startsWith(`${path}/`));
+  if (anyRule) return anyRule[1].some(c => capabilities.includes(c));
   const rule = Object.entries(NAV_CAPABILITY_BY_PATH)
     .sort(([a], [b]) => b.length - a.length)
     .find(([path]) => path === "/" ? location === "/" : location === path || location.startsWith(`${path}/`));

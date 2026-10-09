@@ -8,19 +8,17 @@ import {
 } from "./unitProfiles";
 
 describe("profili gostinskih enot", () => {
-  it.each(["/dnevni-meni", "/malice", "/kosila"])("%s zahteva meni, ne kuhinje, tudi pri neposrednem dostopu", path => {
-    expect(NAV_CAPABILITY_BY_PATH[path]).toBe("menu");
-    expect(canAccessPosRoute(path, ["menu"], "uporabnik")).toBe(true);
-    expect(canAccessPosRoute(`${path}/42`, ["menu"], "uporabnik")).toBe(true);
-    expect(canAccessPosRoute(path, ["kitchen"], "uporabnik")).toBe(false);
+  it.each(["/dnevni-meni", "/malice", "/kosila"])("%s zahteva kuhinjo ali pripravljeno hrano", path => {
+    expect(canAccessPosRoute(path, ["kitchen"], "uporabnik")).toBe(true);
+    expect(canAccessPosRoute(`${path}/42`, ["prepared_food"], "uporabnik")).toBe(true);
+    expect(canAccessPosRoute(path, ["menu", "bar"], "uporabnik")).toBe(false);
     expect(canAccessPosRoute(path, [], "uporabnik")).toBe(false);
   });
 
-  it.each(["bar", "cafe_pastry"] as const)("%s brez kuhinje lahko odpre vse tri strani ponudbe", profileKey => {
-    const { capabilities } = profileDefaults(profileKey);
-    expect(capabilities).not.toContain("kitchen");
+  it("čisti bar nima strani dnevne ponudbe, kavarna jih ima", () => {
     for (const path of ["/dnevni-meni", "/malice", "/kosila"]) {
-      expect(canAccessPosRoute(path, capabilities, "admin_enote")).toBe(true);
+      expect(canAccessPosRoute(path, profileDefaults("bar").capabilities, "admin_enote")).toBe(false);
+      expect(canAccessPosRoute(path, profileDefaults("cafe_pastry").capabilities, "admin_enote")).toBe(true);
     }
   });
 
@@ -90,5 +88,12 @@ describe("profili gostinskih enot", () => {
   it("običajen uporabnik za nastavitve še vedno potrebuje zmožnost", () => {
     expect(canAccessPosRoute("/nastavitve", [], "uporabnik")).toBe(false);
     expect(canAccessPosRoute("/nastavitve", ["settings"], "uporabnik")).toBe(true);
+  });
+});
+describe("Javna stran", () => {
+  it("zahteva rezervacije ali kavcije, bone in žetone", () => {
+    expect(canAccessPosRoute("/javna-stran", ["reservations"], "uporabnik")).toBe(true);
+    expect(canAccessPosRoute("/javna-stran", ["deposits_tokens"], "uporabnik")).toBe(true);
+    expect(canAccessPosRoute("/javna-stran", ["menu", "tables"], "uporabnik")).toBe(false);
   });
 });
