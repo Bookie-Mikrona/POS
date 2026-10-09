@@ -6,7 +6,7 @@ const settingsSource = readFileSync(resolve(process.cwd(), "src/pages/Settings.t
 const quickSwitchSource = readFileSync(resolve(process.cwd(), "src/components/QuickSwitch.tsx"), "utf8");
 
 describe("integracijske skrivnosti v POS Settings", () => {
-  it("uporablja SecretInput pri vseh petih integracijskih skrivnostih in PIN-u hitre menjave", () => {
+  it("uporablja SecretInput pri integracijskih skrivnostih, gostujočem Wi-Fi-ju in PIN-u hitre menjave", () => {
     for (const id of [
       "furs-certificate-value",
       "bizbox-credential-value",
@@ -17,7 +17,8 @@ describe("integracijske skrivnosti v POS Settings", () => {
       expect(settingsSource).toContain(`id="${id}"`);
     }
     expect(quickSwitchSource).toContain('id="quick-switch-pin"');
-    expect((settingsSource.match(/<SecretInput\b/g) ?? []).length).toBe(6);
+    expect(settingsSource).toContain("Geslo Wi-Fi omrežja za goste");
+    expect((settingsSource.match(/<SecretInput\b/g) ?? []).length).toBe(7);
     expect((quickSwitchSource.match(/<SecretInput\b/g) ?? []).length).toBe(1);
   });
 

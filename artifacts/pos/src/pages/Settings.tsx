@@ -83,6 +83,7 @@ import { useGlasovniSinonimi } from "@/hooks/use-glasovni-sinonimi";
 import { TipPolicySettings } from "@/components/TipPolicySettings";
 import { useGlasovniUkaz, jePodprtGlasovniVnos } from "@/hooks/use-glasovni-ukaz";
 import { KdsSettings } from "@/components/KdsSettings";
+import { UnitCapabilitySwitches } from "@/components/UnitCapabilitySwitches";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { Nastavitve, Miza, Natakari, PoslovniProstor, Prostor } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -95,7 +96,6 @@ import { FiscalServicePairing } from "@/components/FiscalServicePairing";
 import { LocalGatewaySettings } from "@/components/LocalGatewaySettings";
 import { GatewaySyncReviewPanel } from "@/components/GatewaySyncReviewPanel";
 import {
-  ALL_UNIT_CAPABILITIES,
   CAPABILITY_LABELS,
   HOSPITALITY_PROFILES,
   SERVICE_MODE_LABELS,
@@ -6250,32 +6250,15 @@ export default function Settings() {
                   Ponastavi predlogo
                 </Button>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {ALL_UNIT_CAPABILITIES.map(capability => (
-                  <label
-                    key={capability}
-                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
-                      !dovoljenePaketneFunkcije.includes(capability) ? "bg-muted/50 text-muted-foreground" : ""
-                    }`}
-                  >
-                    <Switch
-                      checked={editECapabilities.includes(capability)}
-                      disabled={!dovoljenePaketneFunkcije.includes(capability)}
-                      onCheckedChange={checked => setEditECapabilities(current =>
-                        checked
-                          ? [...new Set([...current, capability])]
-                          : current.filter(value => value !== capability),
-                      )}
-                    />
-                    <span className="flex-1">{CAPABILITY_LABELS[capability]}</span>
-                    {!dovoljenePaketneFunkcije.includes(capability) && (
-                      <span className="text-[10px] uppercase tracking-wide">
-                        {capability === "self_service" ? "Ni implementirano" : "Višji paket"}
-                      </span>
-                    )}
-                  </label>
-                ))}
-              </div>
+              <UnitCapabilitySwitches
+                capabilities={editECapabilities}
+                allowedCapabilities={dovoljenePaketneFunkcije}
+                onToggle={(capability, checked) => setEditECapabilities(current =>
+                  checked
+                    ? [...new Set([...current, capability])]
+                    : current.filter(value => value !== capability),
+                )}
+              />
             </div>
             <div className="space-y-3 rounded-lg border p-3">
               <div className="flex items-center justify-between gap-4">

@@ -17,6 +17,12 @@ Odvisnosti funkcij so poslovna pravila: dostava potrebuje telefonska naročila z
 
 **How to apply:** Preveri končni seznam pri ustvarjanju in samo izrecno poslan seznam pri urejanju; pri napaki ne shrani ničesar in vrni uporabniku manjkajoče odvisnosti.
 
+Sprotna opozorila odvisnosti v nastavitvah so informativna: ne vklapljajo funkcij samodejno in ne skrivajo gumba za shranjevanje. Strežniška validacija ostaja avtoritativna.
+
+**Why:** Uporabnik želi razumljivo opozorilo že ob preklopu stikala, vendar mora izbira ostati njegova in neposredni API klici morajo ostati varovani.
+
+**How to apply:** Strežnik in odjemalec uporabljata isto čisto politiko. Skupni odjemalski uvoz ne sme sprožiti povezave z bazo ali uvoziti strežniškega runtimea; uporabi namenski čisti vstop.
+
 Premičnost sama po sebi ne pomeni začasnosti: food truck lahko deluje vse leto. Prva poslovna enota podjetja mora biti stalna tudi pri dogodkovnem profilu.
 
 **Why:** Uporabnik je izrecno ločil celoletni food truck od časovno omejene prireditve; podjetje brez enot nima matične enote, na katero bi lahko vezalo prvo začasno enoto.
