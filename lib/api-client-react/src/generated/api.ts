@@ -187,6 +187,7 @@ import type {
   GlasovniSinonim,
   GlasovniSinonimiInput,
   HealthStatus,
+  ImportDrobniInventarPredlogeBody,
   ImportUsers400,
   IncomeStatementResponse,
   InventuraFull,
@@ -4011,16 +4012,16 @@ export const getImportDrobniInventarPredlogeUrl = () => {
 }
 
 /**
- * @summary Idempotentno uvozi predloge drobnega inventarja v aktivno enoto
+ * @summary Idempotentno uvozi izbrane predloge drobnega inventarja v aktivno enoto
  */
-export const importDrobniInventarPredloge = async ( options?: RequestInit): Promise<DrobniInventarImportResult> => {
+export const importDrobniInventarPredloge = async (importDrobniInventarPredlogeBody: ImportDrobniInventarPredlogeBody, options?: RequestInit): Promise<DrobniInventarImportResult> => {
 
   return customFetch<DrobniInventarImportResult>(getImportDrobniInventarPredlogeUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(importDrobniInventarPredlogeBody)
   }
 );}
 
@@ -4029,8 +4030,8 @@ export const importDrobniInventarPredloge = async ( options?: RequestInit): Prom
 
 
 export const getImportDrobniInventarPredlogeMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,{data: BodyType<ImportDrobniInventarPredlogeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,{data: BodyType<ImportDrobniInventarPredlogeBody>}, TContext> => {
 
 const mutationKey = ['importDrobniInventarPredloge'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -4042,10 +4043,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, {data: BodyType<ImportDrobniInventarPredlogeBody>}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  importDrobniInventarPredloge(requestOptions)
+          return  importDrobniInventarPredloge(data,requestOptions)
         }
 
 
@@ -4056,18 +4057,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ImportDrobniInventarPredlogeMutationResult = NonNullable<Awaited<ReturnType<typeof importDrobniInventarPredloge>>>
-
+    export type ImportDrobniInventarPredlogeMutationBody = BodyType<ImportDrobniInventarPredlogeBody>
     export type ImportDrobniInventarPredlogeMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
 
     /**
- * @summary Idempotentno uvozi predloge drobnega inventarja v aktivno enoto
+ * @summary Idempotentno uvozi izbrane predloge drobnega inventarja v aktivno enoto
  */
 export const useImportDrobniInventarPredloge = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,{data: BodyType<ImportDrobniInventarPredlogeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof importDrobniInventarPredloge>>,
         TError,
-        void,
+        {data: BodyType<ImportDrobniInventarPredlogeBody>},
         TContext
       > => {
       return useMutation(getImportDrobniInventarPredlogeMutationOptions(options));

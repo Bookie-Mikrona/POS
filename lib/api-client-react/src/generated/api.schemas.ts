@@ -13232,6 +13232,11 @@ export type ListArtikliParams = {
 kategorijaId?: number | null;
 };
 
+export type ImportDrobniInventarPredlogeBody = {
+  /** @minItems 1 */
+  kljuci: string[];
+};
+
 export type UvozArtiklovCsvParams = {
 /**
  * true = predogled brez shranjevanja; false = dejanski uvoz

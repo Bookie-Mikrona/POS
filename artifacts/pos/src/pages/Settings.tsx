@@ -152,6 +152,8 @@ function DrobniInventarPredloge() {
   const { toast } = useToast();
   const [potrdiUvoz, setPotrdiUvoz] = useState(false);
   const [uvozam, setUvozam] = useState(false);
+  const [izbrani, setIzbrani] = useState<Set<string>>(() => new Set());
+  const [odprteSkupine, setOdprteSkupine] = useState<Set<string>>(() => new Set());
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const katalog = useQuery({
     queryKey: ["drobni-inventar-predloge"],
@@ -170,16 +172,39 @@ function DrobniInventarPredloge() {
   });
   const aktivnaEnotaId = getEnotaId();
 
+  const preklopiArtikel = (kljuc: string, vklopljen: boolean) => setIzbrani(trenutni => {
+    const naslednji = new Set(trenutni);
+    if (vklopljen) naslednji.add(kljuc); else naslednji.delete(kljuc);
+    return naslednji;
+  });
+  const preklopiSkupino = (skupina: DrobniInventarSkupina, vklopljena: boolean) => setIzbrani(trenutni => {
+    const naslednji = new Set(trenutni);
+    for (const artikel of skupina.artikli) {
+      if (vklopljena) naslednji.add(artikel.kljuc); else naslednji.delete(artikel.kljuc);
+    }
+    return naslednji;
+  });
+  const preklopiOdprto = (naziv: string) => setOdprteSkupine(trenutne => {
+    const naslednje = new Set(trenutne);
+    if (naslednje.has(naziv)) naslednje.delete(naziv); else naslednje.add(naziv);
+    return naslednje;
+  });
+
   const uvoziPredloge = async () => {
     setUvozam(true);
     try {
-      const response = await posFetch(`${base}/api/artikli/drobni-inventar-predloge`, { method: "POST" });
+      const response = await posFetch(`${base}/api/artikli/drobni-inventar-predloge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kljuci: [...izbrani] }),
+      });
       const body = await response.json().catch(() => null) as { insertedCount?: number; skippedCount?: number; error?: string } | null;
       if (!response.ok) throw new Error(body?.error || `Uvoz predlog ni uspel (HTTP ${response.status}).`);
       if (typeof body?.insertedCount !== "number" || typeof body.skippedCount !== "number") {
         throw new Error("Strežnik je vrnil neveljaven rezultat uvoza predlog.");
       }
       setPotrdiUvoz(false);
+      setIzbrani(new Set());
       queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
       toast({
         title: "Predloge drobnega inventarja so uvožene",
@@ -208,16 +233,16 @@ function DrobniInventarPredloge() {
       <CardContent className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Uvoz ustvari artikle drobnega inventarja, ne ustvari začetne zaloge in ne knjiži v glavno knjigo.
+            Označite skupine ali posamezne artikle, ki jih enota potrebuje. Uvoz ustvari samo označene artikle, brez začetne zaloge in knjižb.
           </p>
           <Button
             type="button"
             data-testid="button-import-drobni-inventar"
             onClick={() => setPotrdiUvoz(true)}
-            disabled={!aktivnaEnotaId || uvozam}
+            disabled={!aktivnaEnotaId || uvozam || izbrani.size === 0}
             className="w-full sm:w-auto"
           >
-            {uvozam ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uvažam…</> : "Uvozi v aktivno enoto"}
+            {uvozam ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uvažam…</> : `Uvozi označene (${izbrani.size})`}
           </Button>
         </div>
 
@@ -229,25 +254,60 @@ function DrobniInventarPredloge() {
         )}
         {katalog.data && (
           <div className="space-y-5">
-            {katalog.data.skupine.map((skupina, index) => (
-              <section key={`${skupina.naziv}-${index}`} aria-labelledby={`drobni-skupina-${index}`}>
-                <h3 id={`drobni-skupina-${index}`} className="mb-2 text-sm font-semibold">{skupina.naziv}</h3>
-                {skupina.artikli.length ? (
-                  <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {skupina.artikli.map((artikel, artikelIndex) => (
-                      <li
-                         key={artikel.kljuc ?? `${artikel.ime}-${artikelIndex}`}
-                        data-testid={`text-template-item-${index}-${artikelIndex}`}
-                        className="rounded-md border p-3 text-sm"
-                      >
-                         <span className="font-medium">{artikel.ime}</span>
-                        {artikel.opis && <p className="mt-1 text-xs text-muted-foreground">{artikel.opis}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p className="text-sm text-muted-foreground">V tej skupini ni predlog.</p>}
-              </section>
-            ))}
+            {katalog.data.skupine.map((skupina, index) => {
+              const kljuci = skupina.artikli.map(artikel => artikel.kljuc);
+              const steviloIzbranih = kljuci.filter(kljuc => izbrani.has(kljuc)).length;
+              const odprta = odprteSkupine.has(skupina.naziv);
+              const stanje: boolean | "indeterminate" = steviloIzbranih === 0
+                ? false
+                : steviloIzbranih === kljuci.length ? true : "indeterminate";
+              return (
+                <section key={`${skupina.naziv}-${index}`} className="rounded-md border" aria-labelledby={`drobni-skupina-${index}`}>
+                  <div className="flex items-center gap-3 p-3">
+                    <Checkbox
+                      checked={stanje}
+                      disabled={kljuci.length === 0}
+                      onCheckedChange={checked => preklopiSkupino(skupina, checked === true)}
+                      aria-label={`Označi celo skupino ${skupina.naziv}`}
+                      data-testid={`checkbox-drobni-skupina-${index}`}
+                    />
+                    <button
+                      type="button"
+                      className="flex flex-1 items-center gap-2 text-left"
+                      aria-expanded={odprta}
+                      onClick={() => preklopiOdprto(skupina.naziv)}
+                      data-testid={`button-drobni-skupina-${index}`}
+                    >
+                      {odprta ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <h3 id={`drobni-skupina-${index}`} className="text-sm font-semibold">{skupina.naziv}</h3>
+                      <span className="ml-auto text-xs text-muted-foreground">{steviloIzbranih} / {kljuci.length} izbranih</span>
+                    </button>
+                  </div>
+                  {odprta && (skupina.artikli.length ? (
+                    <ul className="grid grid-cols-1 gap-2 border-t p-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {skupina.artikli.map((artikel, artikelIndex) => (
+                        <li
+                          key={artikel.kljuc ?? `${artikel.ime}-${artikelIndex}`}
+                          data-testid={`text-template-item-${index}-${artikelIndex}`}
+                          className="flex items-start gap-2 rounded-md border p-3 text-sm"
+                        >
+                          <Checkbox
+                            id={`drobni-${artikel.kljuc}`}
+                            checked={izbrani.has(artikel.kljuc)}
+                            onCheckedChange={checked => preklopiArtikel(artikel.kljuc, checked === true)}
+                            className="mt-0.5"
+                          />
+                          <Label htmlFor={`drobni-${artikel.kljuc}`} className="cursor-pointer font-medium">
+                            {artikel.ime}
+                            {artikel.opis && <span className="mt-1 block text-xs font-normal text-muted-foreground">{artikel.opis}</span>}
+                          </Label>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="border-t p-3 text-sm text-muted-foreground">V tej skupini ni predlog.</p>)}
+                </section>
+              );
+            })}
             <section className="border-t pt-4" aria-labelledby="drobni-os-predloge">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <h3 id="drobni-os-predloge" className="text-sm font-semibold">Predlogi za osnovna sredstva (OS)</h3>
@@ -272,7 +332,7 @@ function DrobniInventarPredloge() {
           <AlertDialogHeader>
             <AlertDialogTitle>Uvoz predlog v trenutno aktivno enoto?</AlertDialogTitle>
             <AlertDialogDescription>
-              Predloge bomo dodali samo v aktivno enoto {aktivnaEnotaId ? `(ID ${aktivnaEnotaId})` : ""}.
+              Dodali bomo {izbrani.size} označenih artiklov samo v aktivno enoto {aktivnaEnotaId ? `(ID ${aktivnaEnotaId})` : ""}.
               Uvoz je idempotenten; obstoječi artikli bodo preskočeni. Začetna zaloga in knjižbe v glavno knjigo se ne ustvarijo.
             </AlertDialogDescription>
           </AlertDialogHeader>

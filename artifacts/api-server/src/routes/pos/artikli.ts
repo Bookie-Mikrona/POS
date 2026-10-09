@@ -49,6 +49,7 @@ import {
   DROBNI_INVENTAR_KATALOG,
   OS_PREDLOGI,
   importirajDrobniInventar,
+  vsiDrobniInventarPredlogi,
 } from "../../lib/drobni-inventar-catalog";
 import {
   assertPlausibleInitialServing,
@@ -89,7 +90,14 @@ router.post("/artikli/drobni-inventar-predloge", requireEnota, async (req, res):
     res.status(403).json({ error: "Uvoz predlog drobnega inventarja zahteva vlogo admin ali admin_enote." });
     return;
   }
-  const result = await importirajDrobniInventar(db, (req as any).enotaId);
+  const kljuci = (req.body as { kljuci?: unknown } | undefined)?.kljuci;
+  const znani = new Set(vsiDrobniInventarPredlogi().map((predloga) => predloga.kljuc));
+  if (!Array.isArray(kljuci) || kljuci.length === 0 || kljuci.length > znani.size
+    || kljuci.some((kljuc) => typeof kljuc !== "string" || !znani.has(kljuc))) {
+    res.status(400).json({ error: "Izberite vsaj en veljaven artikel drobnega inventarja." });
+    return;
+  }
+  const result = await importirajDrobniInventar(db, (req as any).enotaId, [...new Set(kljuci as string[])]);
   res.json(result);
 });
 

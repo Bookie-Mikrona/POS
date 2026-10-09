@@ -61,13 +61,31 @@ afterAll(async () => {
   await pool.end();
 });
 
+const vsiKljuci = () => vsiDrobniInventarPredlogi().map((predloga) => predloga.kljuc);
+
 describe("POST/GET /artikli/drobni-inventar-predloge", () => {
+  it("uvozi samo izbrane artikle in zavrne prazen ali neznan izbor", async () => {
+    requestContext.enotaId = otherEnotaId;
+    requestContext.vloga = "admin";
+    const izbrani = vsiKljuci().filter((kljuc) => kljuc.startsWith("01-")).slice(0, 3);
+    const response = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({ kljuci: izbrani });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ insertedCount: 3, skippedCount: 0 });
+    const rows = await db.select().from(artikliTable).where(eq(artikliTable.enotaId, otherEnotaId));
+    expect(rows.map((row) => row.drobniInventarPredlogaKljuc).sort()).toEqual([...izbrani].sort());
+    for (const kljuci of [[], ["ne-obstaja"], undefined]) {
+      const bad = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({ kljuci });
+      expect(bad.status).toBe(400);
+    }
+    await db.delete(artikliTable).where(eq(artikliTable.enotaId, otherEnotaId));
+  });
+
   it("uvozi idempotentno v izbrano enoto in ohrani izolacijo med podjetji/enotami", async () => {
     requestContext.enotaId = enotaId;
     requestContext.vloga = "admin";
     const [first, second] = await Promise.all([
-      supertest(app()).post("/artikli/drobni-inventar-predloge").send({}),
-      supertest(app()).post("/artikli/drobni-inventar-predloge").send({}),
+      supertest(app()).post("/artikli/drobni-inventar-predloge").send({ kljuci: vsiKljuci() }),
+      supertest(app()).post("/artikli/drobni-inventar-predloge").send({ kljuci: vsiKljuci() }),
     ]);
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
@@ -75,7 +93,7 @@ describe("POST/GET /artikli/drobni-inventar-predloge", () => {
       .toEqual([0, vsiDrobniInventarPredlogi().length]);
     expect([first.body.skippedCount, second.body.skippedCount].sort((a, b) => a - b))
       .toEqual([0, vsiDrobniInventarPredlogi().length]);
-    const repeated = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({});
+    const repeated = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({ kljuci: vsiKljuci() });
     expect(repeated.body).toEqual({ insertedCount: 0, skippedCount: vsiDrobniInventarPredlogi().length });
 
     const articleRows = await db.select().from(artikliTable).where(eq(artikliTable.enotaId, enotaId));
@@ -92,7 +110,7 @@ describe("POST/GET /artikli/drobni-inventar-predloge", () => {
     ]));
 
     requestContext.enotaId = otherEnotaId;
-    const other = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({});
+    const other = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({ kljuci: vsiKljuci() });
     expect(other.status).toBe(200);
     expect(other.body.insertedCount).toBe(vsiDrobniInventarPredlogi().length);
     expect(await db.select({ id: artikliTable.id }).from(artikliTable)
@@ -115,7 +133,7 @@ describe("POST/GET /artikli/drobni-inventar-predloge", () => {
   it("zahteva admin ali admin_enote pravice za uvoz", async () => {
     requestContext.enotaId = enotaId;
     requestContext.vloga = "natakar";
-    const response = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({});
+    const response = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({ kljuci: vsiKljuci() });
     expect(response.status).toBe(403);
   });
 

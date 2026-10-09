@@ -2023,8 +2023,15 @@ export const GetDrobniInventarPredlogeResponse = zod.object({
 
 
 /**
- * @summary Idempotentno uvozi predloge drobnega inventarja v aktivno enoto
+ * @summary Idempotentno uvozi izbrane predloge drobnega inventarja v aktivno enoto
  */
+
+
+
+export const ImportDrobniInventarPredlogeBody = zod.object({
+  "kljuci": zod.array(zod.string()).min(1)
+})
+
 export const importDrobniInventarPredlogeResponseInsertedCountMin = 0;
 
 export const importDrobniInventarPredlogeResponseSkippedCountMin = 0;

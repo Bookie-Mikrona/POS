@@ -212,7 +212,11 @@ export function vsiDrobniInventarPredlogi() {
 }
 
 /** Seed atomaren za ustvarjanje enote in varen za ponovne/simultane uvoze. */
-export async function uvoziDrobniInventar(tx: any, enotaId: number): Promise<{ insertedCount: number; skippedCount: number }> {
+export async function uvoziDrobniInventar(
+  tx: any,
+  enotaId: number,
+  izbraniKljuci?: readonly string[],
+): Promise<{ insertedCount: number; skippedCount: number }> {
   await tx.execute(sql`
     SELECT pg_advisory_xact_lock(1315924558::integer, ${enotaId}::integer)
   `);
@@ -223,7 +227,9 @@ export async function uvoziDrobniInventar(tx: any, enotaId: number): Promise<{ i
   }).from(artikliTable).where(eq(artikliTable.enotaId, enotaId));
   const keys = new Set(existing.map((article: { kljuc: string | null }) => article.kljuc).filter(Boolean));
   const names = new Set(existing.map((article: { ime: string }) => normalizirajImeDrobnegaInventarja(article.ime)));
-  const toInsert = vsiDrobniInventarPredlogi().filter((article) =>
+  const izbor = izbraniKljuci ? new Set(izbraniKljuci) : null;
+  const kandidati = vsiDrobniInventarPredlogi().filter((article) => !izbor || izbor.has(article.kljuc));
+  const toInsert = kandidati.filter((article) =>
     !keys.has(article.kljuc) && !names.has(normalizirajImeDrobnegaInventarja(article.ime)),
   );
 
@@ -253,10 +259,10 @@ export async function uvoziDrobniInventar(tx: any, enotaId: number): Promise<{ i
     : [];
   return {
     insertedCount: inserted.length,
-    skippedCount: vsiDrobniInventarPredlogi().length - inserted.length,
+    skippedCount: kandidati.length - inserted.length,
   };
 }
 
-export async function importirajDrobniInventar(db: any, enotaId: number) {
-  return db.transaction((tx: any) => uvoziDrobniInventar(tx, enotaId));
+export async function importirajDrobniInventar(db: any, enotaId: number, izbraniKljuci?: readonly string[]) {
+  return db.transaction((tx: any) => uvoziDrobniInventar(tx, enotaId, izbraniKljuci));
 }

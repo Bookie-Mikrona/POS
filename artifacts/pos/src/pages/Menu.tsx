@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { useF2Save } from "@/hooks/useF2Save";
@@ -21,7 +22,6 @@ import {
   getListKategorijeQueryKey,
   getListArtikliQueryKey,
   getEnotaId,
-  useImportDrobniInventarPredloge,
   getGetArtikelNormativiQueryKey,
   getGetArtikelNormativeChangeHistoryQueryKey,
   getGetArtikelModSkupineQueryKey,
@@ -113,27 +113,7 @@ export default function Menu() {
   });
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const importDrobniInventar = useImportDrobniInventarPredloge();
-  const [importDrobniInventarOpen, setImportDrobniInventarOpen] = useState(false);
-  const handleImportDrobniInventar = async () => {
-    try {
-      const result = await importDrobniInventar.mutateAsync();
-      await queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
-      setArtFilter("drobni");
-      setArtSearch("");
-      setImportDrobniInventarOpen(false);
-      toast({
-        title: "Drobni inventar je v šifrantu",
-        description: `Dodano: ${result.insertedCount}; že prisotno: ${result.skippedCount}.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Uvoz drobnega inventarja ni uspel",
-        description: error instanceof Error ? error.message : "Poskusite znova.",
-        variant: "destructive",
-      });
-    }
-  };
+  const [, navigate] = useLocation();
   const { nastavitve } = useNastavitve();
   const picaMalaAktivna = Number((nastavitve as { picaPremerMala?: number } | undefined)?.picaPremerMala ?? 0) > 0;
   const picaDruzinskaAktivna = Number((nastavitve as { picaPremerDruzinska?: number } | undefined)?.picaPremerDruzinska ?? 0) > 0;
@@ -1832,26 +1812,6 @@ export default function Menu() {
     <div className="p-1.5 sm:p-4 lg:p-5 gap-0.5 sm:gap-2 flex-1 h-full min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col bg-muted/10">
       <h1 className="sr-only">Upravljanje menija</h1>
 
-      <Dialog open={importDrobniInventarOpen} onOpenChange={setImportDrobniInventarOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Naloži drobni inventar v aktivno enoto?</DialogTitle>
-            <DialogDescription>
-              V šifrant trenutne enote bomo dodali manjkajoče predloge kozarcev, posode,
-              pribora, kuhinjskih pripomočkov in tekstila. Obstoječe artikle bomo preskočili.
-              Začetnih količin ali knjižb ne bomo ustvarili. Večja oprema je ločen predlog
-              za osnovna sredstva in se tukaj ne uvaža.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setImportDrobniInventarOpen(false)} disabled={importDrobniInventar.isPending}>Prekliči</Button>
-            <Button onClick={() => void handleImportDrobniInventar()} disabled={!getEnotaId() || importDrobniInventar.isPending}>
-              {importDrobniInventar.isPending ? "Nalaganje…" : "Naloži v šifrant"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Tabs defaultValue="artikli" className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start overflow-x-auto h-8 sm:h-9 p-0.5 bg-muted/20 border border-border/50 rounded-md shrink-0">
           <TabsTrigger value="artikli" className="flex-1 sm:flex-none h-7 sm:h-8 py-0.5 px-2 sm:px-3 text-[11px] sm:text-sm gap-1"><PackageOpen className="w-3.5 h-3.5" /> Artikli</TabsTrigger>
@@ -1996,7 +1956,7 @@ export default function Menu() {
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuLabel>Drobni inventar</DropdownMenuLabel>
-                          <DropdownMenuItem disabled={!getEnotaId() || importDrobniInventar.isPending} onSelect={() => setImportDrobniInventarOpen(true)}>Naloži predloge v aktivno enoto</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!getEnotaId()} onSelect={() => navigate("/nastavitve?tab=enote")}>Izberi predloge za aktivno enoto…</DropdownMenuItem>
                         </>
                       )}
                     </DropdownMenuContent>

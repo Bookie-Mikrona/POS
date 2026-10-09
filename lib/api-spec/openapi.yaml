@@ -794,7 +794,19 @@ paths:
     post:
       operationId: importDrobniInventarPredloge
       tags: [artikli]
-      summary: Idempotentno uvozi predloge drobnega inventarja v aktivno enoto
+      summary: Idempotentno uvozi izbrane predloge drobnega inventarja v aktivno enoto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kljuci]
+              properties:
+                kljuci:
+                  type: array
+                  minItems: 1
+                  items: { type: string }
       responses:
         "200":
           description: Število novo dodanih in preskočenih predlog
