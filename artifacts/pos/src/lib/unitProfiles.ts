@@ -131,9 +131,9 @@ export const NAV_CAPABILITY_BY_PATH: Record<string, UnitCapability> = {
   "/nastavitve": "settings",
   "/narocniki": "phone_orders",
   "/dogodki": "events",
-  "/dnevni-meni": "kitchen",
-  "/malice": "kitchen",
-  "/kosila": "kitchen",
+  "/dnevni-meni": "menu",
+  "/malice": "menu",
+  "/kosila": "menu",
   "/qr-meni": "qr_menu",
   "/rezervacije": "reservations",
 };

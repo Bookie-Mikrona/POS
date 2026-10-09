@@ -5,6 +5,12 @@ description: Pravila za profile, zmožnosti in začasne gostinske enote v POS-u.
 
 Profil obrata je začetna predloga, ne trajna omejitev. Končni nabor funkcij se hrani ločeno na posamezni enoti in ga je mogoče ročno prilagoditi.
 
+Upravljanje dnevne prodajne ponudbe ne pomeni kuhinjske priprave. Dnevni meni, Malice in Kosila sodijo pod `menu`, ne pod operativno zmožnost `kitchen`.
+
+**Why:** Bar ali kavarna lahko upravlja ponudbo brez lastne kuhinje; omejitev navigacije na KDS zmožnost bi bila strožja od strežniškega dostopa brez dokumentirane poslovne podlage.
+
+**How to apply:** Pri navigacijskih pravilih loči urejanje ponudbe od priprave/KDS. Upoštevaj tudi legitimna OR pravila skupnih API poti, zlasti kuhinjo ali točilnico za KDS.
+
 Spremembe privzetih profilov veljajo za nove enote; obstoječih enot ne usklajuj samodejno, tudi če njihova stara predloga ni skladna s POS paketi.
 
 **Why:** Uporabnik izrecno zahteva popravke novih predlog brez sprememb obstoječih enot, strukture baze ali migracij.

@@ -8,6 +8,22 @@ import {
 } from "./unitProfiles";
 
 describe("profili gostinskih enot", () => {
+  it.each(["/dnevni-meni", "/malice", "/kosila"])("%s zahteva meni, ne kuhinje, tudi pri neposrednem dostopu", path => {
+    expect(NAV_CAPABILITY_BY_PATH[path]).toBe("menu");
+    expect(canAccessPosRoute(path, ["menu"], "uporabnik")).toBe(true);
+    expect(canAccessPosRoute(`${path}/42`, ["menu"], "uporabnik")).toBe(true);
+    expect(canAccessPosRoute(path, ["kitchen"], "uporabnik")).toBe(false);
+    expect(canAccessPosRoute(path, [], "uporabnik")).toBe(false);
+  });
+
+  it.each(["bar", "cafe_pastry"] as const)("%s brez kuhinje lahko odpre vse tri strani ponudbe", profileKey => {
+    const { capabilities } = profileDefaults(profileKey);
+    expect(capabilities).not.toContain("kitchen");
+    for (const path of ["/dnevni-meni", "/malice", "/kosila"]) {
+      expect(canAccessPosRoute(path, capabilities, "admin_enote")).toBe(true);
+    }
+  });
+
   it("vsebuje vseh 13 dogovorjenih profilov", () => {
     expect(Object.keys(HOSPITALITY_PROFILES)).toHaveLength(13);
   });

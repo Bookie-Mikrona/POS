@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 const auditInternals = vi.hoisted(() => ({
   mountPath: Symbol.for("bookie.pos-capability-audit.mount-path"),
@@ -117,6 +118,34 @@ function collectRouterEndpoints(router: IRouter, prefix: string): string[] {
 }
 
 describe("inventar zaščite POS API poti", () => {
+  it.each([
+    ["/dnevni-meni", "/dnevni-meni"],
+    ["/malice", "/malice"],
+    ["/kosila", "/daily-lunch-offers"],
+  ])("navigacija %s ima isto zmožnost kot vse nameščene poti %s", (navPath, apiPrefix) => {
+    // Beremo dejanski odjemalski seznam, ne druge testne kopije zmožnosti.
+    // Brez runtime uvoza iz drugega artefakta ali nalaganja React odjemalca.
+    const clientSource = readFileSync(
+      new URL("../../../pos/src/lib/unitProfiles.ts", import.meta.url), "utf8",
+    );
+    const navigationBlock = clientSource.match(
+      /export const NAV_CAPABILITY_BY_PATH\b[^=]*=\s*\{([\s\S]*?)\n\};/,
+    );
+    expect(navigationBlock).not.toBeNull();
+    const navigation = Object.fromEntries(
+      [...navigationBlock![1].matchAll(/"([^"]+)"\s*:\s*"([^"]+)"/g)]
+        .map(([, path, capability]) => [path, capability]),
+    );
+    expect(navigation[navPath]).toBe("menu");
+    const paths = protectedPosRouterMounts
+      .flatMap(mount => collectRouterPaths(mount.childRouter, mount.prefix))
+      .filter(path => path === apiPrefix || path.startsWith(`${apiPrefix}/`));
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      expect(resolveUnitCapabilities(path), path).toEqual([navigation[navPath]]);
+    }
+  });
+
   it("vse montirane KDS poti dovolijo kuhinjo ali točilnico", () => {
     const paths = protectedPosRouterMounts
       .flatMap(mount => collectRouterPaths(mount.childRouter, mount.prefix))
