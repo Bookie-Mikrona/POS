@@ -814,7 +814,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
             return (
               <button
                 key={a.id}
-                className="flex flex-col items-start justify-between gap-1 p-2.5 sm:flex-row sm:items-center sm:gap-4 sm:p-4 border rounded-xl text-left transition-all hover:brightness-95 active:scale-[0.98] min-h-[4rem] sm:min-h-[5rem] shadow-sm"
+                className="flex flex-row items-center gap-2 p-2 sm:gap-4 sm:p-4 border rounded-xl text-left transition-all hover:brightness-95 active:scale-[0.98] min-h-[3rem] sm:min-h-[5rem] shadow-sm"
                 style={{
                   backgroundColor: aBg ?? "hsl(var(--card))",
                   color: aHasColor ? "#fff" : undefined,
@@ -824,7 +824,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
                 disabled={pendingArtikliIds.has(a.id)}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-base sm:text-xl font-bold leading-tight" style={{ color: aHasColor ? "rgba(255,255,255,0.95)" : undefined }}>
+                  <div className="text-sm sm:text-xl font-bold leading-tight" style={{ color: aHasColor ? "rgba(255,255,255,0.95)" : undefined }}>
                     {a.varLabel}
                   </div>
                   <div className="text-xs mt-0.5 truncate" style={{ color: aHasColor ? "rgba(255,255,255,0.6)" : "hsl(var(--muted-foreground))" }}>
@@ -839,7 +839,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
                     </div>
                   )}
                 </div>
-                <div className="text-base sm:text-xl font-extrabold shrink-0" style={{ color: aHasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>
+                <div className="text-sm sm:text-xl font-extrabold shrink-0 whitespace-nowrap" style={{ color: aHasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>
                   {a.cena.toFixed(2)} €
                 </div>
               </button>
