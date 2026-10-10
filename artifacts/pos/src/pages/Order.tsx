@@ -1648,6 +1648,8 @@ export default function Order() {
   }, [artikli, kategorije, orderedIds, preparedFoodAvailability, modifierAvailabilityById]);
 
   // ── Search & filter ──────────────────────────────────────────
+  const [searchNumericKeyboard, setSearchNumericKeyboard] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeKategorija, setActiveKategorija] = useState<string>("all");
   const [search, setSearch] = useState("");
   const { poslusam: glasovnoMeni, zacni: zacniGlasovnoMeni, ustavi: ustaviGlasovnoMeni } = useGlasovniUkaz();
@@ -2769,9 +2771,12 @@ export default function Order() {
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <KlavijaturaInput
-                  placeholder="Iskanje artikla..."
+                  placeholder={searchNumericKeyboard ? "Šifra PLU, npr. 3*101" : "Iskanje artikla..."}
                   value={search}
                   onChange={setSearch}
+                  ref={searchInputRef}
+                  inputMode={searchNumericKeyboard ? "tel" : "text"}
+                  enterKeyHint={searchNumericKeyboard ? "go" : "search"}
                   onKeyDown={(e) => {
                     if (e.key !== "Enter") return;
                     const qp = razcleniKolicinoInPlu(search);
@@ -2795,6 +2800,22 @@ export default function Order() {
                   </button>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchNumericKeyboard(v => !v);
+                  // Ponovna izbira polja, da mobilni brskalnik zamenja tipkovnico.
+                  const el = searchInputRef.current;
+                  if (el) { el.blur(); window.setTimeout(() => el.focus(), 50); }
+                }}
+                title={searchNumericKeyboard ? "Številčna tipkovnica (šifra PLU) — klikni za abecedno" : "Abecedna tipkovnica (iskanje) — klikni za številčno šifro PLU"}
+                aria-label={searchNumericKeyboard ? "Preklopi na abecedno tipkovnico" : "Preklopi na številčno tipkovnico za šifro PLU"}
+                className={`shrink-0 flex items-center justify-center h-9 w-12 rounded-md border text-xs font-semibold transition-colors ${
+                  searchNumericKeyboard ? "bg-primary text-primary-foreground border-primary" : "border-input text-muted-foreground hover:text-foreground hover:bg-accent"
+                }`}
+              >
+                {searchNumericKeyboard ? "123" : "abc"}
+              </button>
               {glasovnoAktivno && (
                 <div className="absolute left-0 right-10 -top-8 bg-red-50 border border-red-200 rounded-md px-2 py-1 text-xs text-red-700 truncate pointer-events-none">
                   {glasovnoTranskript ? glasovnoTranskript : <span className="opacity-60 italic">Poslušam…</span>}
