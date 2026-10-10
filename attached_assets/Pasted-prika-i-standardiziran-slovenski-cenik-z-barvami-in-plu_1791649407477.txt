@@ -1,0 +1,281 @@
+prikaži standardiziran slovenski cenik z barvami in plu
+
+Tukaj je primer standardiziranega slovenskega gostinskega cenika, oblikovanega po najpogostejših praksah in konvencijah v slovenskih obratih (s pripadajočimi barvnimi skupinami Touch UI, PLU kodami, normativi ter cenami).
+
+Standardizirani gostinski cenik (Sistem POS)
+🟤 TOPLI NAPITKI (Rjava skupina) — PLU 1–49
+PLU	Artikel	Normativ kave / sestavin	Mleko / Smetana	Cena (€)
+1	Caffè Espresso (Kratka kava)	7–9 g	/	1,80 €
+2	Caffè Macchiato (Kava z mlekom)	7–9 g	0,02 l mleka	2,00 €
+3	Cappuccino (Kapučino)	7–9 g	0,12 l mleka	2,20 €
+4	Caffè Lungo (Podaljšana kava)	7–9 g	/	1,80 €
+5	Caffè Macchiato Lungo (Podaljšana z mlekom)	7–9 g	0,03 l mleka	2,10 €
+6	Caffè Latte (Bela kava)	7–9 g	0,20 l mleka	2,40 €
+7	Caffè con Panna (Kava s smetano)	7–9 g	20 g smetane	2,30 €
+8	Decaf Espresso (Brezkofeinska kava)	1 porcija (7–8 g)	/	2,00 €
+9	Decaf Macchiato (Brezkofeinska z mlekom)	1 porcija (7–8 g)	0,02 l mleka	2,20 €
+10	Čaj z limono in medom	1 filter vrečka	/	2,20 €
+12	Vroča čokolada	1 porcija (25 g)	0,15 l mleka	3,20 €
+🔵 BREZALKOHOLNE PIJAČE (Modra skupina) — PLU 50–99
+PLU	Artikel	Normativ / Pakiranje	Cena (€)
+51	Radenska / Mineralna voda	0,25 l (steklenica)	2,20 €
+52	Izvirska voda plastenka	0,50 l	2,00 €
+55	Coca-Cola / Coca-Cola Zero	0,25 l (steklenica)	2,80 €
+60	Fanta / Sprite / Schweppes	0,25 l (steklenica)	2,80 €
+65	Cockta	0,275 l (steklenica)	2,80 €
+70	Naravni pomarančni sok	0,20 l (sveže stisnjen)	3,50 €
+72	Fructal sadni sok (različni okusi)	0,20 l (steklenica)	2,70 €
+80	Cedevita (različni okusi)	1 vrečka (19 g)	2,40 €
+🟡 PIVO (Rumeno-zlata skupina) — PLU 100–199
+PLU	Artikel	Normativ / Pakiranje	Cena (€)
+101	Točeno pivo velilko (Laško / Union)	0,50 l	3,20 €
+102	Točeno pivo malo (Laško / Union)	0,30 l	2,70 €
+110	Laško svetlo steklenica	0,50 l	3,00 €
+111	Union svetlo steklenica	0,50 l	3,00 €
+120	Brezalkoholno pivo (Uni / Heineken 0.0)	0,50 l / 0,33 l	3,00 €
+125	Radler	0,50 l (steklenica)	3,00 €
+🔴 VINA IN MEŠANE PIJAČE (Rdeča skupina) — PLU 200–299
+PLU	Artikel	Normativ / Pakiranje	Cena (€)
+201	Belo odprto vino (Janževec / Hišno)	0,10 l	1,50 €
+202	Rdeče odprto vino (Refošk / Cviček)	0,10 l	1,50 €
+208	Malvazija (kakovostno vino)	0,10 l	2,20 €
+210	Brizganec / Špricer	0,10 l vino + 0,10 l Radenska	2,20 €
+220	Aperol Spritz	0,06 l Prosecco + 0,04 l Aperol + soda	5,50 €
+225	Hugo	0,10 l Prosecco + sirup bezga + soda	5,00 €
+🟣 ŽGANE PIJAČE (Vijolično-jantarna skupina) — PLU 300–399
+PLU	Artikel	Normativ	Cena (€)
+301	Rum (Domači)	0,03 l	2,50 €
+302	Pelinkovec	0,03 l	2,60 €
+303	Grappa / Tropinovec	0,03 l	3,00 €
+305	Stock 84	0,03 l	2,80 €
+310	Jägermeister	0,03 l	3,20 €
+315	Gin (Sax / Premium po izbiri)	0,03 l	3,50 €
+🟢 HRANA, SLADICE IN DODATKI (Zelena / Rožnata skupina) — PLU 400+ & 900+
+PLU	Artikel	Normativ	Barvna skupina Touch UI	Cena (€)
+401	Krofi / Masleni rogljiček	1 kos	🌸 Sladice (Rožnata)	1,80 €
+410	Sladoled (1 krogla)	50 g	🌸 Sladice (Rožnata)	2,00 €
+901	Dodatek mleko za kavo	0,02 l	⚪ Dodatki (Siva)	0,40 €
+902	Dodatek smetana (sifon/sprej)	20 g	⚪ Dodatki (Siva)	0,60 €
+905	Med porcija	1 kos (20 g)	⚪ Dodatki (Siva)	0,50 €
+Hitra pravila delovanja tega cenika v praksi:
+Hitrost vnosa: Natakar za kavo z mlekom in mineralno vodo na dlančniku zgolj vtipka: 2 + ENTER, nato 51 + ENTER.
+
+Hitra vizualna orientacija: Če natakar uporablja zaslon na dotik, se mu na levi strani prikažejo barvni zavihki (Rjava = Kave, Modra = Brezalkoholne, Rumena = Piva, Rdeča = Vina), v katerih so zbrani pripadajoči artikli.
+
+ali je to celoten cenik z vsemi plu
+
+Prikazani cenik v prejšnjem odgovoru je bil reprezentativni primer najpogostejših in standardnih artiklov v slovenskih lokaliih.
+
+Vsak gostinski obrat ima glede na svojo ponudbo (kavarne, bari, picerije, restavracije) v programu vnesen celoten nabor artiklov, ki pogosto obsega od 100 pa tudi do več kot 500 posameznih PLU kod.
+
+Tukaj je podroben pregled, kako se v praksi razdelijo vse preostale PLU kode in skupine v celotnem gostinskem ceniku:
+
+Razširjena struktura celotnega gostinskega cenika po PLU razponih
+1. TOPLI NAPITKI IN DODATKI (PLU 1 – 49)
+Poleg osnovnih kav vključuje še vse specifične napitke in kombinacije:
+
+PLU 1–15: Osnovne kave (Espresso, Macchiato, Cappuccino, Bela kava, Podaljšana, Smetana)
+
+PLU 16–25: Brezkofeinske kave (Decaf variacije za vse zgornje kave)
+
+PLU 26–30: Kave z okusi in specialitete (Leden kava, Affogato, Dunajska kava, Kava z ledom, Kava z lešnikom/vanilijo)
+
+PLU 31–40: Čaji (Črni, Zeleni, Sadni, Zeliščni, Camomile, Poprova meta, Mleko za čaj)
+
+PLU 41–49: Ostali topli napitki (Vroča čokolada bela/temna, Kakav, Ječmenova kava / Orzo, Kuhano vino, Inka kava)
+
+2. BREZALKOHOLNE PIJAČE IN SOKOVI (PLU 50 – 99)
+PLU 50–59: Vode (Radenska 0.25l/0.5l/1.0l, Plastenka 0.5l, Voda z okusom, Naravna voda 0.75l, Jamnica)
+
+PLU 60–69: Gazirane pijače (Coca-Cola, Coca-Cola Zero, Fanta, Sprite, Cockta, Schweppes Tonic/Tangerine, Ora)
+
+PLU 70–79: Negazirani in sveži sokovi (Fructal gosti sokovi - jagoda, breskev, hruška, jabolko; Naravni pomarančni sok, Naravna limonada)
+
+PLU 80–89: Ledeni čaji in energijske pijače (Nestea, Sola ledeni čaj, Red Bull, Monster)
+
+PLU 90–99: Instant pijače in otroški program (Cedevita pomaranča/limona, Frutek, Otroški šampanjec)
+
+3. PIVA (PLU 100 – 199)
+PLU 100–115: Točeno pivo (Laško 0.2l / 0.3l / 0.5l, Union 0.2l / 0.3l / 0.5l, Temno točeno pivo)
+
+PLU 116–130: Stekleničena domača piva (Laško 0.5l, Union 0.5l, Laško Dark, Union Nepasterizirano)
+
+PLU 131–150: Tuja in premijska piva (Heineken, Stella Artois, Corona, Guinness, Leffe, Paulaner, Erdinger)
+
+PLU 151–170: Craft piva (Bevog, Reservoir Dogs, Pelicon, Mali Grad, Kampanjola ipd.)
+
+PLU 171–185: Radlerji in aromatizirana piva (Radler limona, Radler grenčica, Cider/Somersby)
+
+PLU 186–199: Brezalkoholna piva (Uni, Heineken 0.0, Laško Malt)
+
+4. VINA IN PENINE (PLU 200 – 299)
+PLU 200–215: Odprta / Hišna vina na dcl in liter (Janževec, Haložan, Cviček, Refošk, Malvazija, Cabernet)
+
+PLU 216–230: Mešane pijače z vinom (Brizganec/Špricer, Bambus, Musolini, Aperol Spritz, Hugo, Campari Soda)
+
+PLU 231–260: Buteljčna belo vina (Sivi Pinot, Sauvignon, Chardonnay, Renski Rizling, Rebula)
+
+PLU 261–280: Buteljčna rdeča in rosé vina (Merlot, Teran, Modri Pinot, Shirah, Rosé)
+
+PLU 281–299: Penine in šampanjci (Zlata radgonska penina, Srebna radgonska, Prosecco, Moët & Chandon)
+
+5. ŽGANE PIJAČE, LIKERJI IN KOKTAJLI (PLU 300 – 399)
+PLU 300–315: Domača žganja in tropinovci (Domači rum, Pelinkovec, Travarica, Slivovka, Viljamovka, Grappa)
+
+PLU 316–330: Grenčice in likerji (Jägermeister, Ramazzotti, Averna, Campari, Baileys, Carolans, Limoncello)
+
+PLU 331–350: Gin, Vodka, Tequila (Sax Gin, Hendricks, Bombay Sapphire, Smirnoff, Grey Goose, Sierra Tequila)
+
+PLU 351–370: Viski in Konjak / Brandy (Jack Daniels, Jameson, Ballantines, Johnnie Walker, Stock 84, Hennessy)
+
+PLU 371–399: Koktajli (Gin Tonic, Mojito, Cuba Libre, Pina Colada, Sex on the Beach, Long Island)
+
+6. HRANA, KUHINJA IN SLADICE (PLU 400 – 899)
+V obratih, ki strežejo hrano, kuhinja zaseda največji del cenika:
+
+PLU 400–449: Sladice in prigrizki (Krofi, Rogljički, Torte, Sladoled kroglice, Toast sendvič, Pita)
+
+PLU 450–499: Zajtrki in hladne predjedi (Narezek, Sirna plošča, Jajca na oko, Umag/Pršut)
+
+PLU 500–599: Pice (Margarita, Klasika, Kmečka, Morska, Veganska, Šefova pica, Mini pice)
+
+PLU 600–699: Burgers, Testenine in Solatni krožniki (Klassik Burger, Chicken Burger, Špageti Carbonara, Pene Arabiata, Cazar solata)
+
+PLU 700–799: Glavne mesne in ribje jedi (Puranji zrezek, Dunajski zrezek, Čevapčiči, Lignji na žaru, Postrv)
+
+PLU 800–899: Dnevne malice, kosila in otroški meniji (Malica 1, Malica 2, Nedeljsko kosilo)
+
+7. DODATKI, MODIFIKATORJI IN SISTEMSKE KODE (PLU 900 – 999)
+PLU 901–920: Dodatki k pijačam (Porcija mleka, Smetana porcija, Med porcija, Limona rezina, Led, Embalaža za s seboj)
+
+PLU 921–950: Dodatki k hrani (Ketchup, Majoneza, Ajvar, Tržaška omaka, Pelati dodatek, Sir dodatek, Kruh porcija)
+
+PLU 990–999: Sistemske kode (Kaucija za steklenico, Popust %, Zahteva za kuhinjo, Storno koda)
+
+Zaključek
+Programi POS omogočajo, da si vsak gostinec ta zvezek oziroma cenik prilagodi natanko po svoji ponudbi. Vendar pa vsi programi (kot so Microgramm, POS Elektronček, Pantheon ipd.) ob instalaciji že vsebujejo prav to zgoraj prikazano strukturo razponov, da je vnos novih artiklov hiter in logičen.
+
+kako pa je z žganjicami, če prodajamo vsako v vekosti 3cl in 5cl? ima vsaka velikost svoj plu?
+
+V gostinskih obratih in POS sistemih se za prodajo dveh različnih količin iste žgane pijače (npr. 0,03 l / 3 cl in 0,05 l / 5 cl) uporabljata dva glavna modela.
+
+Tukaj je podroben pregled, kako se to rešuje v praksi in kateri način izbrati:
+
+Model A: Vsaka velikost ima svojo samostojno PLU kodo (Najbolj pogosto v praksi)
+V večini slovenskih lokalov ima vsaka velikost svojo PLU kodo. Za lažje zapomnjenje se uporablja logično pravilo številčenja (npr. dodajanje številke 5 ali 0 na koncu za večjo dozo).
+
+Primer vnesenih PLU kod:
+PLU koda	Artikel / Naziv	Normativ	Cena (€)
+301	Rum	0,03 l	2,50 €
+3015 (ali 3010)	Rum 0,05l	0,05 l	4,00 €
+302	Pelinkovec	0,03 l	2,60 €
+3025 (ali 3020)	Pelinkovec 0,05l	0,05 l	4,10 €
+310	Jägermeister	0,03 l	3,20 €
+3105	Jägermeister 0,05l	0,05 l	5,00 €
+Prednosti Modela A:
+Izjemna hitrost vtipkavanja: Natakar za 0,03 l vtipka 301, za 0,05 l pa vtipka 3015 in takoj pritisne ENTER.
+
+Natančen zalogovnik (materialno knjigovodstvo): V ozadju se iz zaloge samodejno razdolži natanko 0,03 l ali 0,05 l posamezne pijače.
+
+Jasnost na računu za goste: Na računu jasno piše "Pelinkovec 0,05l", kar preprečuje nesporazume.
+
+Model B: Ena osnovna PLU koda + Modifikator / Različica (Touch UI)
+Sodobni gostinski programi (Microgramm, POS Elektronček, Pantheon, POS Sector) omogočajo, da ima artikel samo eno osnovno kodo, ob kliku pa se odpre podmeni za izbiro količine ali pa se koda kombinira z modifikatorjem.
+
+Kako to deluje na zaslonu na dotik (Touch UI):
+Natakar na zaslonu klikne gumb Jägermeister.
+
+Program odpre skočna gumba (pop-up): [ 0,03 l ] ali [ 0,05 l ].
+
+Natakar izbere željeno količino.
+
+Kako to deluje preko številčnice (PLU):
+Gostinec nastavi osnovni artikel kot 310 (z normativom 0,01 l ali 0,03 l) ter pomnoži količino:
+
+Vtipka 3 × 310 → proda se 0,03 l.
+
+Vtipka 5 × 310 → proda se 0,05 l.
+(Ta način se pogosto uporablja v obratih, ki merijo žganje po 1 cl).
+
+Kateri model izbrati za vaš obrat?
+Če osebje dela na dlančnikih / tipkovnici s PLU kodami:
+
+Izberite Model A (kombinirane kode, npr. 301 za 3cl in 3015 za 5cl). To je najhitrejši način za delo na pametnih telefonih ali tipkovnicah brez nepotrebnih dodatnih klikov na zaslonu.
+
+Če osebje dela pretežno na zaslonih na dotik (Touchscreen tablice/blagajne):
+
+Izberite Model B (variante/modifikatorji pod enim gumbom). Tako prihranite prostor na zaslonu, saj nimate dveh ločenih gumbov za vsako pijačo, ampak le en gumb, ki ob dotiku ponudi izbiro 3cl ali 5cl.
+
+kako je rešeno pri picah različnih velikosti
+
+Pri picah različnih velikosti (npr. Mala / Mala pica, Klasik / Velika pica, Družinska pica, Gigant / Party pica) se v gostinskih POS sistemih in praksi uporablja zelo podobna logika kot pri pijačah, vendar z dodatno specifiko: pice imajo veliko dodatkov in sprememb (npr. "brez gob", "dodatni sir", "pol-pol").
+
+Tukaj so 3 najpogostejši načini, kako je to rešeno v slovenskih gostinskih sistemih (POS Elektronček, Microgramm Advantik, Pantheon, TRONpos ipd.):
+
+1. Model A: Velikost kot podskupina / modifikator (Najbolj priljubljeno na Touch UI)
+Na zaslonu na dotik ima vsaka pica en sam osnovni gumb, ob kliku pa se odpre izbira velikosti.
+
+Potek izbire na blagajni/dlančniku:
+Natakar klikne pico: [ Pica Klasika / Capricciosa ]
+
+Sistem takoj ponudi skočni okno z velikostmi:
+
+[ Mala ] (npr. 7,50 €)
+
+[ Velika / Klasik ] (npr. 9,00 €)
+
+[ Družinska ] (npr. 16,00 €)
+
+Po izbiri velikosti se samodejno odpre podmeni za opombe/dodatke:
+
+[ + Dodatni sir ]
+
+[ - Brez gob ]
+
+[ Testo s semeni ]
+
+Prednost:
+Prihrani ogromno prostora na zaslonu. Nimate 30 gumbov za male pice, 30 za velike in 30 za družinske, ampak le 30 gumbov pic, velikost pa izberete z drugim dotikom.
+
+2. Model B: Ločene PLU kode po sistemu predpon/pripon (Za hitri številčni vnos)
+Če natakarji uporabljajo dlančnike s številčnico ali tipkovnico (PLU vnos), se za velikosti uporablja logika pripon ali predpon.
+
+Območje pic je običajno v razponu PLU 500–599:
+
+Osnovna koda (Velika pica)	Mala pica (+100 ali pripona 1)	Družinska pica (+200 ali pripona 2)	Naziv pice
+501 (9,00 €)	5011 ali 601 (7,50 €)	5012 ali 701 (16,00 €)	Pica Klasika
+502 (9,50 €)	5021 ali 602 (8,00 €)	5022 ali 702 (17,00 €)	Pica Kmečka
+503 (9,50 €)	5031 ali 603 (8,00 €)	5032 ali 703 (17,00 €)	Pica Morski sadeži
+Primer vnosa v praksi: Natakar za veliko Kmečko vtipka 502, za malo Kmečko 5021, za družinsko Kmečko pa 5022.
+
+3. Kako je rešena Pica "POL - POL" (Kombinirana pica)?
+Posebnost picerij je želja gostov po pici z dvema različnima nadevoma (npr. pol Klasika, pol Kmečka). V gostinskih programih je to rešeno na dva načina:
+
+Gumb "Pica Pol-Pol":
+
+Natakar izbere [ Pica Pol-Pol (Velika) ].
+
+Program zahteva izbiro prve polovice (npr. Klasika) in druge polovice (npr. Kmečka).
+
+Cenik: Sistem samodejno izračuna ceno (bodisi povprečje obeh pic, bodisi ceno dražje polovice – glede na nastavitev picerije).
+
+Obračun 1/2 porcije:
+
+Natakar izbere 0.5 x Pica Klasika + 0.5 x Pica Kmečka.
+
+Kuhinjski tiskalnik ali KDS zaslon v kuhinji samodejno izpiše:
+
+Plaintext
+1x PICA KLASIK (VELIKA)
+   - 1/2 KLASIKA
+   - 1/2 KMEČKA
+Razdolževanje materiala (Normativi v ozadju)
+Sodobni POS sistemi imajo za vsako velikost pice nastavljene natančne recepture za kuhinjo:
+
+Mala pica: 200 g testa, 70 g pelatov, 100 g sira, 50 g šunke ...
+
+Velika pica: 320 g testa, 100 g pelatov, 150 g sira, 80 g šunke ...
+
+Družinska pica: 600 g testa, 200 g pelatov, 300 g sira, 160 g šunke ...
+
+Ob zaključku računa se iz skladišča/kuhinje samodejno razdolžijo natančne količine sestavin glede na izbrano velikost.
