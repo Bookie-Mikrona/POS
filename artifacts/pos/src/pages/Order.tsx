@@ -749,8 +749,8 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
   const cols = varianteZLabeli.length <= 3
     ? "grid-cols-1"
     : varianteZLabeli.length <= 6
-      ? "grid-cols-1 sm:grid-cols-2"
-      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+      ? "grid-cols-2"
+      : "grid-cols-2 lg:grid-cols-3";
 
   return (
     <>
@@ -782,7 +782,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
           <div
             role="region"
             aria-label={grupa.baseIme}
-            className="absolute inset-x-0 top-0 flex h-[75dvh] max-h-[75dvh] flex-col overflow-hidden rounded-b-[10px] border bg-background"
+            className="absolute inset-x-0 top-0 flex h-[90dvh] max-h-[90dvh] flex-col overflow-hidden rounded-b-[10px] border bg-background"
             onClick={event => event.stopPropagation()}
           >
           <div className="shrink-0 border-b p-4 pb-2">
@@ -798,7 +798,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
           </div>
           </div>
         <div
-          className={`min-h-0 flex-1 touch-pan-y overscroll-contain overflow-y-scroll p-4 pb-8 grid content-start gap-3 ${cols}`}
+          className={`min-h-0 flex-1 touch-pan-y overscroll-contain overflow-y-scroll p-3 pb-8 sm:p-4 grid content-start gap-2 sm:gap-3 ${cols}`}
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {varianteZLabeli.map(a => {
@@ -814,7 +814,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
             return (
               <button
                 key={a.id}
-                className="flex items-center gap-4 p-4 border rounded-xl text-left transition-all hover:brightness-95 active:scale-[0.98] min-h-[5rem] shadow-sm"
+                className="flex flex-col items-start justify-between gap-1 p-2.5 sm:flex-row sm:items-center sm:gap-4 sm:p-4 border rounded-xl text-left transition-all hover:brightness-95 active:scale-[0.98] min-h-[4rem] sm:min-h-[5rem] shadow-sm"
                 style={{
                   backgroundColor: aBg ?? "hsl(var(--card))",
                   color: aHasColor ? "#fff" : undefined,
@@ -824,7 +824,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
                 disabled={pendingArtikliIds.has(a.id)}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-xl font-bold leading-tight" style={{ color: aHasColor ? "rgba(255,255,255,0.95)" : undefined }}>
+                  <div className="text-base sm:text-xl font-bold leading-tight" style={{ color: aHasColor ? "rgba(255,255,255,0.95)" : undefined }}>
                     {a.varLabel}
                   </div>
                   <div className="text-xs mt-0.5 truncate" style={{ color: aHasColor ? "rgba(255,255,255,0.6)" : "hsl(var(--muted-foreground))" }}>
@@ -839,7 +839,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
                     </div>
                   )}
                 </div>
-                <div className="text-xl font-extrabold shrink-0" style={{ color: aHasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>
+                <div className="text-base sm:text-xl font-extrabold shrink-0" style={{ color: aHasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>
                   {a.cena.toFixed(2)} €
                 </div>
               </button>
