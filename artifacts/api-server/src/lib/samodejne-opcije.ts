@@ -35,7 +35,8 @@ export function neobveznoSkupineZaArtikel(ime: string, kategorija: string | null
   const k = normaliziraj(kategorija ?? "");
   if (/topl/.test(k)) {
     if (/caj/.test(n)) return [CAJ];
-    if (/kav|espresso|macchiato|cappuccino|kapucin|latte|lungo|bela/.test(n)) return [MLEKO];
+    // Mleko le pri pijačah, ki ga v osnovi vsebujejo (espresso, lungo, turška, ledena ipd. ne).
+    if (/macchiato|cappuccino|kapucin|latte|bela|mlek|kakav/.test(n)) return [MLEKO];
     return [];
   }
   if (/brezalk|sok|voda/.test(k)) return [LED, LIMONA];
