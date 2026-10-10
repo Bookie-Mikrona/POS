@@ -3060,6 +3060,9 @@ function EditZacetnaZalogaDialog({
   const [datum, setDatum] = useState("");
   const [opomba, setOpomba] = useState("");
   const [rows, setRows] = useState<ZacetnaZalogaRow[]>([]);
+  const [scope, setScope] = useState<"material" | "drobni">("material");
+  const scopeArtikli = nabavniArtikli.filter(a => jeDrobniInventar(a) === (scope === "drobni"));
+  const nerabljeniArtikli = scopeArtikli.filter(a => !rows.some(r => r.artikelId === a.id));
   const artikelJeKolicinski = (artikelId: number) => jeDrobniInventar(nabavniArtikli.find(a => a.id === artikelId));
   const initializedId = useRef<number | null>(null);
   const zzEditKoliRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -3092,9 +3095,12 @@ function EditZacetnaZalogaDialog({
   const skupajVrednost = rows.reduce((s, r) => s + (parseDecimal(r.kolicina) || 0) * (parseDecimal(r.cenaKos) || 0), 0);
 
   const addRow = () => {
-    const usedIds = new Set(rows.map(r => r.artikelId));
-    const next = nabavniArtikli.find(a => !usedIds.has(a.id));
-    setRows(r => [...r, { artikelId: next?.id ?? nabavniArtikli[0]?.id ?? 0, kolicina: "0", cenaKos: "0" }]);
+    const next = nerabljeniArtikli[0];
+    if (!next) {
+      toast({ title: "Vsi artikli te skupine so že na seznamu" });
+      return;
+    }
+    setRows(r => [...r, { artikelId: next.id, kolicina: "0", cenaKos: "0" }]);
   };
   const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
   const updateRow = (i: number, key: keyof ZacetnaZalogaRow, val: string | number) =>
@@ -3138,10 +3144,18 @@ function EditZacetnaZalogaDialog({
           <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
         ) : (
           <div className="space-y-3 sm:space-y-4">
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-              Drobni inventar se vodi samo količinsko: cena je 0 € in sprememba začetne zaloge ne ustvari GL knjižbe.
-              Prejemnica dejanskega nakupa ohrani dobaviteljevo ceno in stroškovno knjiženje.
-            </div>
+            <Tabs value={scope} onValueChange={value => setScope(value as "material" | "drobni")}>
+              <TabsList>
+                <TabsTrigger value="material">Material</TabsTrigger>
+                <TabsTrigger value="drobni">Drobni inventar</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {scope === "drobni" && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                Drobni inventar se vodi samo količinsko: cena je 0 € in sprememba začetne zaloge ne ustvari GL knjižbe.
+                Prejemnica dejanskega nakupa ohrani dobaviteljevo ceno in stroškovno knjiženje.
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2 sm:gap-4">
               <div className="space-y-1 sm:space-y-2">
                 <Label>Datum</Label>
@@ -3165,6 +3179,7 @@ function EditZacetnaZalogaDialog({
                 <div className="space-y-2 sm:space-y-0">
                   {rows.map((row, i) => {
                     const artikelKolicinski = artikelJeKolicinski(row.artikelId);
+                    if (row.artikelId > 0 && artikelKolicinski !== (scope === "drobni")) return null;
                     const vrednost = artikelKolicinski ? 0 : (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
                     return (
                       <div key={i} className="flex flex-col sm:grid sm:grid-cols-[1fr_7rem_7rem_6rem_2.5rem] gap-2 sm:gap-2 items-start sm:items-center bg-card border sm:border-transparent sm:border-b sm:last:border-b-transparent rounded-md sm:rounded-none p-2 sm:p-2 sm:px-3 shadow-sm sm:shadow-none">
@@ -3182,7 +3197,7 @@ function EditZacetnaZalogaDialog({
                                   : item));
                               }}
                             >
-                              {nabavniArtikli.map(a => (
+                              {scopeArtikli.filter(a => a.id === row.artikelId || !rows.some(r => r.artikelId === a.id)).map(a => (
                             <option key={a.id} value={a.id}>
                                   {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
                                 </option>
@@ -3249,7 +3264,7 @@ function EditZacetnaZalogaDialog({
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <Button variant="outline" size="sm" onClick={addRow}>
+                <Button variant="outline" size="sm" onClick={addRow} disabled={nerabljeniArtikli.length === 0}>
                   <Plus className="w-4 h-4 mr-1" />Dodaj postavko
                 </Button>
                 <p className="text-sm text-muted-foreground">
