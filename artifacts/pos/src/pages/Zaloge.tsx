@@ -4496,7 +4496,7 @@ export default function Zaloge() {
       <Dialog open={izdDialogOpen} onOpenChange={v => { setIzdDialogOpen(v); if (!v) setIzdDropdownOpenIdx(null); }}>
         <DialogContent
           ref={izdArtDialogRef}
-          className="max-w-xl max-h-[90vh] flex flex-col overflow-visible"
+          className="max-w-3xl max-h-[90vh] flex flex-col overflow-visible"
           onEscapeKeyDown={e => { if (izdDropdownOpenIdx !== null) e.preventDefault(); }}
         >
           <DialogHeader>
@@ -4633,9 +4633,9 @@ export default function Zaloge() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Artikel</TableHead>
-                        <TableHead className="text-right w-28">Knjižno</TableHead>
+                        <TableHead className="text-right w-24">Knjižno</TableHead>
                         <TableHead className="text-right w-32">Dejansko</TableHead>
-                        <TableHead className="text-right w-28">Poraba</TableHead>
+                        <TableHead className="text-right w-24">Poraba</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -4645,7 +4645,7 @@ export default function Zaloge() {
                         const poraba = row.knjizno - dejansko;
                         return (
                           <TableRow key={row.artikelId} className={poraba > 0.0001 ? "bg-orange-50/60" : ""}>
-                            <TableCell className="text-sm font-medium whitespace-nowrap py-1.5">
+                            <TableCell className="text-sm font-medium py-1.5">
                               {art?.imeZaNabavo || art?.ime}
                               {art?.enotaMere && <span className="text-muted-foreground text-xs ml-1">({displayEslogUnit(art.enotaMere)})</span>}
                             </TableCell>
