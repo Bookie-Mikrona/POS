@@ -2120,16 +2120,30 @@ router.delete("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     return;
   }
 
-  await db.transaction(async (tx) => {
-    if (samoLastniNormativ) {
-      await tx.delete(normativiTable).where(and(
-        eq(normativiTable.artikelId, params.data.id),
-        eq(normativiTable.vhodniArtikelId, params.data.id),
-      ));
+  try {
+    await db.transaction(async (tx) => {
+      if (samoLastniNormativ) {
+        await tx.delete(normativiTable).where(and(
+          eq(normativiTable.artikelId, params.data.id),
+          eq(normativiTable.vhodniArtikelId, params.data.id),
+        ));
+      }
+      await tx.delete(artikliTable)
+        .where(and(eq(artikliTable.id, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
+    });
+  } catch (err) {
+    // Artikel je vezan na zgodovino (npr. začetne zaloge, inventure) — izbris ni dovoljen, zato ga deaktiviramo.
+    const cause = (err as { cause?: { code?: string } }).cause;
+    const code = (err as { code?: string }).code ?? cause?.code;
+    if (code === "23503" || code === "23001" || code === "P0001") {
+      await db.update(artikliTable)
+        .set({ aktiven: false })
+        .where(and(eq(artikliTable.id, params.data.id), eq(artikliTable.enotaId, tenotaId)));
+      res.json({ deaktiviran: true });
+      return;
     }
-    await tx.delete(artikliTable)
-      .where(and(eq(artikliTable.id, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
-  });
+    throw err;
+  }
   res.sendStatus(204);
 });
 
