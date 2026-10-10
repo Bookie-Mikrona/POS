@@ -1,0 +1,466 @@
+<migration_failure>
+   Failed to run database migration statement
+ALTER TABLE "annual_report_submissions" ADD CONSTRAINT "annual_submission_correction_scope" FOREIGN KEY ("supersedes_id","export_id") REFERENCES "public"."annual_report_submissions"("id","export_id") ON DELETE no action ON UPDATE no action;
+there is no unique constraint matching given keys for referenced table "annual_report_submissions"
+   </migration_failure>
+
+   <generated_migration_diff>
+   CREATE TABLE "pos_allergen_research_jobs" (
+"id" serial PRIMARY KEY NOT NULL,
+"artikel_id" integer NOT NULL,
+"enota_id" integer NOT NULL,
+"status" text DEFAULT 'pending' NOT NULL,
+"attempts" integer DEFAULT 0 NOT NULL,
+"available_at" timestamp with time zone DEFAULT now() NOT NULL,
+"lease_until" timestamp with time zone,
+"lease_token" uuid,
+"error" text,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "pos_allergen_research_jobs_artikel_id_key" UNIQUE("artikel_id")
+);
+
+
+CREATE TABLE "partner_settlement_events" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"partner_id" uuid NOT NULL,
+"account_id" uuid NOT NULL,
+"source_line_id" uuid NOT NULL,
+"target_line_id" uuid,
+"event_type" text NOT NULL,
+"amount" numeric(18, 2) NOT NULL,
+"effective_date" date NOT NULL,
+"close_event_id" uuid,
+"external_closing_id" text,
+"idempotency_key" text NOT NULL,
+"reason" text,
+"actor_id" text NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "partner_settlement_events_amount_check" CHECK (amount > (0)::numeric),
+CONSTRAINT "partner_settlement_events_event_type_check" CHECK (event_type = ANY (ARRAY['close'::text, 'reopen'::text])),
+CONSTRAINT "partner_settlement_events_reopen_parent_ck" CHECK (((event_type = 'close'::text) AND (target_line_id IS NOT NULL) AND (close_event_id IS NULL) AND (external_closing_id IS NULL)) OR ((event_type = 'reopen'::text) AND (((close_event_id IS NOT NULL) AND (external_closing_id IS NULL)) OR ((close_event_id IS NULL) AND (external_closing_id IS NOT NULL)))))
+);
+
+
+CREATE TABLE "annual_report_exports" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"year" integer NOT NULL,
+"format" text NOT NULL,
+"purpose" text NOT NULL,
+"revision" integer NOT NULL,
+"fingerprint" text NOT NULL,
+"rules_version" text NOT NULL,
+"publication_reviewed" boolean NOT NULL,
+"snapshot" jsonb NOT NULL,
+"object_path" text NOT NULL,
+"sha256" text NOT NULL,
+"byte_size" integer NOT NULL,
+"filename" text NOT NULL,
+"mime" text NOT NULL,
+"created_by" text NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "annual_report_exports_format" CHECK (format = ANY (ARRAY['pdf'::text, 'xlsx'::text, 'xml'::text, 'publication-pdf'::text])),
+CONSTRAINT "annual_report_exports_purpose" CHECK (purpose = ANY (ARRAY['review'::text, 'statistics'::text, 'publication'::text, 'combined'::text])),
+CONSTRAINT "annual_report_exports_size" CHECK (byte_size > 0),
+CONSTRAINT "annual_report_exports_year" CHECK ((year >= 2000) AND (year <= 2100))
+);
+
+
+CREATE TABLE "bank_account_metadata" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"bank_account_id" uuid NOT NULL,
+"iban" text NOT NULL,
+"bic" text,
+"sepa_profile" text DEFAULT 'pain.001.001.03' NOT NULL,
+"updated_by" text NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "bank_account_metadata_profile_check" CHECK (sepa_profile = 'pain.001.001.03'::text)
+);
+
+
+CREATE TABLE "annual_reports" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"year" integer NOT NULL,
+"settings" jsonb NOT NULL,
+"revision" integer DEFAULT 1 NOT NULL,
+"reviewed_fingerprint" text,
+"reviewed_by" text,
+"updated_by" text NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "annual_reports_revision_check" CHECK (revision > 0),
+CONSTRAINT "annual_reports_year_check" CHECK ((year >= 2000) AND (year <= 2100))
+);
+
+
+CREATE TABLE "payment_batches" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"bank_account_id" uuid NOT NULL,
+"execution_date" date NOT NULL,
+"idempotency_key" text NOT NULL,
+"status" text DEFAULT 'ready' NOT NULL,
+"transaction_count" numeric(10, 0) NOT NULL,
+"control_sum" numeric(18, 2) NOT NULL,
+"xml_snapshot" text,
+"exported_at" timestamp with time zone,
+"created_by" text NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"request_fingerprint" text,
+CONSTRAINT "payment_batches_status_check" CHECK (status = ANY (ARRAY['ready'::text, 'exported'::text, 'partially_executed'::text, 'executed'::text, 'rejected'::text, 'cancelled'::text]))
+);
+
+
+CREATE TABLE "payment_batch_items" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"batch_id" uuid NOT NULL,
+"payment_id" uuid NOT NULL,
+"instruction" jsonb NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"lifecycle_status" text DEFAULT 'ready' NOT NULL,
+"resolution_reason" text,
+"resolved_by" text,
+"resolved_at" timestamp with time zone,
+"released_at" timestamp with time zone,
+CONSTRAINT "payment_batch_items_lifecycle_check" CHECK (lifecycle_status = ANY (ARRAY['ready'::text, 'partially_executed'::text, 'executed'::text, 'rejected'::text, 'cancelled'::text]))
+);
+
+
+CREATE TABLE "pos_monthly_invoices" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"enota_id" integer NOT NULL,
+"counterparty_id" uuid NOT NULL,
+"month" text NOT NULL,
+"invoice_number" text NOT NULL,
+"invoice_date" date NOT NULL,
+"due_date" date NOT NULL,
+"year" integer NOT NULL,
+"sequence" integer NOT NULL,
+"gross_amount" numeric(18, 2) NOT NULL,
+"snapshot" jsonb NOT NULL,
+"idempotency_key" text NOT NULL,
+"request_hash" text NOT NULL,
+"issued_by" text NOT NULL,
+"issued_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE "pos_monthly_invoice_receipts" (
+"receipt_id" integer PRIMARY KEY NOT NULL,
+"invoice_id" uuid NOT NULL
+);
+
+
+CREATE TABLE "annual_report_submissions" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"year" integer NOT NULL,
+"export_id" uuid NOT NULL,
+"state" text DEFAULT 'pending' NOT NULL,
+"staging_path" text NOT NULL,
+"object_path" text,
+"filename" text NOT NULL,
+"mime" text NOT NULL,
+"byte_size" integer NOT NULL,
+"sha256" text,
+"outcome" text,
+"submitted_on" date,
+"reference" text,
+"note" text,
+"supersedes_id" uuid,
+"created_by" text NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"recorded_at" timestamp with time zone,
+CONSTRAINT "annual_report_submissions_complete" CHECK ((state <> 'recorded'::text) OR ((object_path IS NOT NULL) AND (sha256 IS NOT NULL) AND (outcome IS NOT NULL) AND (submitted_on IS NOT NULL) AND (reference IS NOT NULL) AND (recorded_at IS NOT NULL))),
+CONSTRAINT "annual_report_submissions_outcome" CHECK (outcome = ANY (ARRAY['submitted'::text, 'accepted'::text, 'rejected'::text])),
+CONSTRAINT "annual_report_submissions_size" CHECK ((byte_size >= 1) AND (byte_size <= 10485760)),
+CONSTRAINT "annual_report_submissions_state" CHECK (state = ANY (ARRAY['pending'::text, 'recorded'::text]))
+);
+
+
+CREATE TABLE "pos_booking_drafts" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"period_id" uuid,
+"entry_date" date NOT NULL,
+"document_date" date,
+"tax_date" date,
+"receipt_date" date,
+"description" text NOT NULL,
+"reference" text,
+"status" "journal_entry_status" DEFAULT 'draft' NOT NULL,
+"source_type" text DEFAULT 'document' NOT NULL,
+"created_by" text NOT NULL,
+"posted_at" timestamp with time zone,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "pos_booking_drafts_period_id_check" CHECK (period_id IS NULL),
+CONSTRAINT "pos_booking_drafts_posted_at_check" CHECK (posted_at IS NULL),
+CONSTRAINT "pos_booking_drafts_status_check" CHECK (status = 'draft'::journal_entry_status)
+);
+
+
+CREATE TABLE "payment_ledger_allocations" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"payment_id" uuid NOT NULL,
+"journal_line_id" uuid NOT NULL,
+"allocated_amount" numeric(18, 2) NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "payment_ledger_allocations_amount_ck" CHECK (allocated_amount > (0)::numeric)
+);
+
+
+CREATE TABLE "pos_booking_draft_lines" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"entry_id" uuid NOT NULL,
+"account_id" uuid NOT NULL,
+"side" "journal_entry_side" NOT NULL,
+"amount" numeric(18, 2) NOT NULL,
+"description" text,
+"sequence" integer DEFAULT 0 NOT NULL,
+"partner_id" uuid,
+"cost_center_id" uuid,
+"vat_code_id" uuid,
+"vat_amount" numeric(18, 2) DEFAULT '0'
+);
+
+
+CREATE TABLE "pos_monthly_invoice_deliveries" (
+"invoice_id" uuid PRIMARY KEY NOT NULL,
+"state" text NOT NULL,
+"attempt_id" uuid NOT NULL,
+"attempt_count" integer DEFAULT 1 NOT NULL,
+"environment" text NOT NULL,
+"account_hash" text NOT NULL,
+"from_address" text NOT NULL,
+"to_address" text NOT NULL,
+"external_id" text NOT NULL,
+"xml_hash" text NOT NULL,
+"document_id" text,
+"message" text,
+"actor_id" text NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE "bookie_old_native_ledger_evidence" (
+"company_id" uuid NOT NULL,
+"native_line_id" uuid NOT NULL,
+"source_line_id" text NOT NULL,
+"dur_date" date,
+"original_document_number" text,
+"original_gl_metadata" jsonb NOT NULL,
+"original_closings" jsonb NOT NULL,
+"source_digest" text NOT NULL,
+"imported_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "bookie_old_native_ledger_evidence_pkey" PRIMARY KEY("company_id","native_line_id"),
+CONSTRAINT "bookie_old_native_ledger_source_native_unique" UNIQUE("company_id","source_line_id","native_line_id")
+);
+
+
+CREATE TABLE "bookie_old_ar_settlements" (
+"company_id" uuid NOT NULL,
+"invoice_id" uuid NOT NULL,
+"source_line_id" text NOT NULL,
+"original_amount" numeric(18, 2) NOT NULL,
+"closed_amount" numeric(18, 2) NOT NULL,
+"remaining_amount" numeric(18, 2) NOT NULL,
+"source_as_of" date NOT NULL,
+"evidence" jsonb NOT NULL,
+"source_sha256" text NOT NULL,
+"imported_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "bookie_old_ar_settlements_pkey" PRIMARY KEY("company_id","invoice_id"),
+CONSTRAINT "bookie_old_ar_settlements_source_unique" UNIQUE("company_id","source_line_id"),
+CONSTRAINT "bookie_old_ar_balances_valid" CHECK ((original_amount > (0)::numeric) AND (closed_amount >= (0)::numeric) AND (remaining_amount >= (0)::numeric) AND (original_amount = (closed_amount + remaining_amount)))
+);
+
+
+CREATE TABLE "bookie_old_ap_settlements" (
+"company_id" uuid NOT NULL,
+"invoice_id" uuid NOT NULL,
+"source_line_id" text NOT NULL,
+"original_amount" numeric(18, 2) NOT NULL,
+"closed_amount" numeric(18, 2) NOT NULL,
+"remaining_amount" numeric(18, 2) NOT NULL,
+"source_as_of" date NOT NULL,
+"evidence" jsonb NOT NULL,
+"source_sha256" text NOT NULL,
+"imported_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "bookie_old_ap_settlements_pkey" PRIMARY KEY("company_id","invoice_id"),
+CONSTRAINT "bookie_old_ap_settlements_source_unique" UNIQUE("company_id","source_line_id"),
+CONSTRAINT "bookie_old_ap_settlements_balances_valid" CHECK ((original_amount > (0)::numeric) AND (closed_amount >= (0)::numeric) AND (remaining_amount >= (0)::numeric) AND (original_amount = (closed_amount + remaining_amount)))
+);
+
+
+CREATE TABLE "bookie_old_bank_ap_closings" (
+"company_id" uuid NOT NULL,
+"closing_id" text NOT NULL,
+"statement_id" uuid NOT NULL,
+"invoice_id" uuid NOT NULL,
+"source_bank_line_id" text NOT NULL,
+"source_invoice_line_id" text NOT NULL,
+"amount" numeric(18, 2) NOT NULL,
+"recorded_date" date NOT NULL,
+"source_sha256" text NOT NULL,
+"imported_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "bookie_old_bank_ap_closings_pkey" PRIMARY KEY("company_id","closing_id")
+);
+
+
+ALTER TABLE "invoices" ADD COLUMN "historical_net" numeric(18, 2);
+
+ALTER TABLE "invoices" ADD COLUMN "historical_vat" numeric(18, 2);
+
+ALTER TABLE "invoices" ADD COLUMN "historical_gross" numeric(18, 2);
+
+ALTER TABLE "invoices" ADD COLUMN "historical_reference" text;
+
+ALTER TABLE "artikli" ADD COLUMN "kds_izkljucen" boolean DEFAULT false NOT NULL;
+
+ALTER TABLE "artikli" ADD COLUMN "recipe_batch_pieces" integer;
+
+ALTER TABLE "artikli" ADD COLUMN "prepared_norm_portion_quantity" numeric(12, 6);
+
+ALTER TABLE "prepared_food_daily_ledgers" ADD COLUMN "preparation_batches" jsonb;
+
+ALTER TABLE "prepared_food_daily_ledgers" ADD COLUMN "normative_batch_pieces" integer;
+
+ALTER TABLE "prepared_food_daily_ledgers" ADD COLUMN "preparation_recipe_snapshot" jsonb;
+
+ALTER TABLE "pos_allergen_research_jobs" ADD CONSTRAINT "pos_allergen_research_jobs_artikel_id_enota_id_fkey" FOREIGN KEY ("artikel_id","enota_id") REFERENCES "public"."artikli"("id","enota_id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "partner_settlement_events" ADD CONSTRAINT "partner_settlement_events_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "partner_settlement_events" ADD CONSTRAINT "partner_settlement_events_close_event_id_fkey" FOREIGN KEY ("close_event_id") REFERENCES "public"."partner_settlement_events"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "partner_settlement_events" ADD CONSTRAINT "partner_settlement_events_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "partner_settlement_events" ADD CONSTRAINT "partner_settlement_events_partner_id_fkey" FOREIGN KEY ("partner_id") REFERENCES "public"."counterparties"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "partner_settlement_events" ADD CONSTRAINT "partner_settlement_events_source_line_id_fkey" FOREIGN KEY ("source_line_id") REFERENCES "public"."journal_entry_lines"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "partner_settlement_events" ADD CONSTRAINT "partner_settlement_events_target_line_id_fkey" FOREIGN KEY ("target_line_id") REFERENCES "public"."journal_entry_lines"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "annual_report_exports" ADD CONSTRAINT "annual_report_exports_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "bank_account_metadata" ADD CONSTRAINT "bank_account_metadata_bank_account_id_fkey" FOREIGN KEY ("bank_account_id") REFERENCES "public"."accounts"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "bank_account_metadata" ADD CONSTRAINT "bank_account_metadata_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "annual_reports" ADD CONSTRAINT "annual_reports_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "payment_batches" ADD CONSTRAINT "payment_batches_bank_account_id_fkey" FOREIGN KEY ("bank_account_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "payment_batches" ADD CONSTRAINT "payment_batches_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "payment_batch_items" ADD CONSTRAINT "payment_batch_items_batch_id_fkey" FOREIGN KEY ("batch_id") REFERENCES "public"."payment_batches"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "payment_batch_items" ADD CONSTRAINT "payment_batch_items_payment_id_fkey" FOREIGN KEY ("payment_id") REFERENCES "public"."payments"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_monthly_invoices" ADD CONSTRAINT "pos_monthly_invoices_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_monthly_invoices" ADD CONSTRAINT "pos_monthly_invoices_counterparty_id_fkey" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_monthly_invoices" ADD CONSTRAINT "pos_monthly_invoices_enota_id_fkey" FOREIGN KEY ("enota_id") REFERENCES "public"."enote"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_monthly_invoice_receipts" ADD CONSTRAINT "pos_monthly_invoice_receipts_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."pos_monthly_invoices"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_monthly_invoice_receipts" ADD CONSTRAINT "pos_monthly_invoice_receipts_receipt_id_fkey" FOREIGN KEY ("receipt_id") REFERENCES "public"."racuni"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "annual_report_submissions" ADD CONSTRAINT "annual_submission_correction_scope" FOREIGN KEY ("supersedes_id","export_id") REFERENCES "public"."annual_report_submissions"("id","export_id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "annual_report_submissions" ADD CONSTRAINT "annual_submission_export_scope" FOREIGN KEY ("export_id","company_id","year") REFERENCES "public"."annual_report_exports"("id","company_id","year") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "pos_booking_drafts" ADD CONSTRAINT "pos_booking_drafts_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "payment_ledger_allocations" ADD CONSTRAINT "payment_ledger_allocations_journal_line_id_fkey" FOREIGN KEY ("journal_line_id") REFERENCES "public"."journal_entry_lines"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "payment_ledger_allocations" ADD CONSTRAINT "payment_ledger_allocations_payment_id_fkey" FOREIGN KEY ("payment_id") REFERENCES "public"."payments"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "pos_booking_draft_lines" ADD CONSTRAINT "pos_booking_draft_lines_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "pos_booking_draft_lines" ADD CONSTRAINT "pos_booking_draft_lines_cost_center_id_fkey" FOREIGN KEY ("cost_center_id") REFERENCES "public"."cost_centers"("id") ON DELETE set null ON UPDATE no action;
+
+ALTER TABLE "pos_booking_draft_lines" ADD CONSTRAINT "pos_booking_draft_lines_entry_id_fkey" FOREIGN KEY ("entry_id") REFERENCES "public"."pos_booking_drafts"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "pos_booking_draft_lines" ADD CONSTRAINT "pos_booking_draft_lines_partner_id_fkey" FOREIGN KEY ("partner_id") REFERENCES "public"."counterparties"("id") ON DELETE set null ON UPDATE no action;
+
+ALTER TABLE "pos_booking_draft_lines" ADD CONSTRAINT "pos_booking_draft_lines_vat_code_id_fkey" FOREIGN KEY ("vat_code_id") REFERENCES "public"."vat_code"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "pos_monthly_invoice_deliveries" ADD CONSTRAINT "pos_monthly_invoice_deliveries_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."pos_monthly_invoices"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_native_ledger_evidence" ADD CONSTRAINT "bookie_old_native_ledger_evidence_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_native_ledger_evidence" ADD CONSTRAINT "bookie_old_native_ledger_evidence_native_line_id_fkey" FOREIGN KEY ("native_line_id") REFERENCES "public"."journal_entry_lines"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_ar_settlements" ADD CONSTRAINT "bookie_old_ar_settlements_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_ar_settlements" ADD CONSTRAINT "bookie_old_ar_settlements_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_ap_settlements" ADD CONSTRAINT "bookie_old_ap_settlements_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_ap_settlements" ADD CONSTRAINT "bookie_old_ap_settlements_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_bank_ap_closings" ADD CONSTRAINT "bookie_old_bank_ap_closings_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_bank_ap_closings" ADD CONSTRAINT "bookie_old_bank_ap_closings_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "bookie_old_bank_ap_closings" ADD CONSTRAINT "bookie_old_bank_ap_closings_statement_id_fkey" FOREIGN KEY ("statement_id") REFERENCES "public"."bank_statements"("id") ON DELETE restrict ON UPDATE no action;
+
+CREATE INDEX "partner_settlement_events_external_close_idx" ON "partner_settlement_events" USING btree ("company_id","external_closing_id");
+
+CREATE UNIQUE INDEX "partner_settlement_events_idempotency_uq" ON "partner_settlement_events" USING btree ("company_id","idempotency_key");
+
+CREATE INDEX "partner_settlement_events_line_idx" ON "partner_settlement_events" USING btree ("company_id","source_line_id");
+
+CREATE INDEX "partner_settlement_events_target_idx" ON "partner_settlement_events" USING btree ("company_id","target_line_id");
+
+CREATE INDEX "annual_report_exports_scope" ON "annual_report_exports" USING btree ("company_id","year","created_at");
+
+CREATE UNIQUE INDEX "bank_account_metadata_account_uq" ON "bank_account_metadata" USING btree ("bank_account_id");
+
+CREATE UNIQUE INDEX "bank_account_metadata_company_iban_uq" ON "bank_account_metadata" USING btree ("company_id","iban");
+
+CREATE UNIQUE INDEX "annual_reports_company_year_unique" ON "annual_reports" USING btree ("company_id","year");
+
+CREATE UNIQUE INDEX "payment_batches_company_idempotency_uq" ON "payment_batches" USING btree ("company_id","idempotency_key");
+
+CREATE UNIQUE INDEX "payment_batch_items_active_payment_uq" ON "payment_batch_items" USING btree ("payment_id") WHERE (released_at IS NULL);
+
+CREATE UNIQUE INDEX "pos_monthly_invoices_company_idempotency_uq" ON "pos_monthly_invoices" USING btree ("company_id","idempotency_key");
+
+CREATE UNIQUE INDEX "pos_monthly_invoices_company_number_uq" ON "pos_monthly_invoices" USING btree ("company_id","invoice_number");
+
+CREATE UNIQUE INDEX "pos_monthly_invoices_company_year_sequence_uq" ON "pos_monthly_invoices" USING btree ("company_id","year","sequence");
+
+CREATE UNIQUE INDEX "pos_monthly_invoices_unit_partner_month_uq" ON "pos_monthly_invoices" USING btree ("enota_id","counterparty_id","month");
+
+CREATE INDEX "annual_report_submissions_scope" ON "annual_report_submissions" USING btree ("company_id","year");
+
+CREATE UNIQUE INDEX "annual_report_submissions_supersedes" ON "annual_report_submissions" USING btree ("supersedes_id");
+
+CREATE INDEX "pos_booking_drafts_company_date" ON "pos_booking_drafts" USING btree ("company_id","entry_date");
+
+CREATE UNIQUE INDEX "pos_booking_drafts_company_reference" ON "pos_booking_drafts" USING btree ("company_id","reference");
+
+CREATE UNIQUE INDEX "payment_ledger_allocations_payment_line_uq" ON "payment_ledger_allocations" USING btree ("payment_id","journal_line_id");
+
+CREATE INDEX "payment_ledger_allocations_source_idx" ON "payment_ledger_allocations" USING btree ("journal_line_id");
+
+CREATE INDEX "pos_booking_draft_lines_entry" ON "pos_booking_draft_lines" USING btree ("entry_id");
+
+CREATE INDEX "bookie_old_native_ledger_source_idx" ON "bookie_old_native_ledger_evidence" USING btree ("company_id","source_line_id");
+
+CREATE INDEX "bookie_old_bank_ap_closings_statement_idx" ON "bookie_old_bank_ap_closings" USING btree ("company_id","statement_id");
+
+CREATE UNIQUE INDEX "invoices_historical_reference_unique" ON "invoices" USING btree ("company_id","historical_reference");
+
+ALTER TABLE "artikli" ADD CONSTRAINT "artikli_prepared_norm_portion_positive" CHECK ((prepared_norm_portion_quantity IS NULL) OR (prepared_norm_portion_quantity > (0)::numeric));
+   </generated_migration_diff>
+
+   <migration_warnings>
+   No additional migration warnings were generated.
+   </migration_warnings>

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, date, index, uniqueIndex, foreignKey, check } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, date, index, uniqueIndex, unique, foreignKey, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { annualReportExportsTable } from "./annual-report-exports";
@@ -26,7 +26,7 @@ export const annualReportSubmissionsTable = pgTable("annual_report_submissions",
   recordedAt: timestamp("recorded_at", { withTimezone: true }),
 }, t => [
   index("annual_report_submissions_scope").on(t.companyId, t.year),
-  uniqueIndex("annual_report_submissions_id_export").on(t.id, t.exportId),
+  unique("annual_report_submissions_id_export").on(t.id, t.exportId),
   uniqueIndex("annual_report_submissions_supersedes").on(t.supersedesId),
   foreignKey({ name: "annual_submission_export_scope", columns: [t.exportId, t.companyId, t.year],
     foreignColumns: [annualReportExportsTable.id, annualReportExportsTable.companyId, annualReportExportsTable.year] }).onDelete("cascade"),

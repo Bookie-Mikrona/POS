@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, index, uniqueIndex, check } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, index, unique, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { companiesTable } from "./companies";
@@ -24,7 +24,7 @@ export const annualReportExportsTable = pgTable("annual_report_exports", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [
   index("annual_report_exports_scope").on(t.companyId, t.year, t.createdAt),
-  uniqueIndex("annual_report_exports_id_scope").on(t.id, t.companyId, t.year),
+  unique("annual_report_exports_id_scope").on(t.id, t.companyId, t.year),
   check("annual_report_exports_year", sql`${t.year} BETWEEN 2000 AND 2100`),
   check("annual_report_exports_format", sql`${t.format} IN ('pdf','xlsx','xml','publication-pdf')`),
   check("annual_report_exports_purpose", sql`${t.purpose} IN ('review','statistics','publication','combined')`),
