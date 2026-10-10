@@ -39,6 +39,7 @@ import {
   type ModSkupinaFull,
   ApiError,
   customFetch,
+  useListDailyLunchOffers,
   useAddMulticourseMenu,
   useGetKdsNastavitve,
   getGetKdsNastavitveQueryKey,
@@ -1183,6 +1184,10 @@ export default function Order() {
   });
   const danasStr = preparedFoodAvailability?.businessDate ?? poslovniDatumZaCas();
   const { data: dnevniMeniDanes } = useListDnevniMeni({ od: danasStr, do: danasStr });
+  const { data: ponudbeKosil } = useListDailyLunchOffers();
+  const kosilaAktivna = (ponudbeKosil?.offers ?? []).some(
+    (p) => p.status === "published" && String(p.businessDate).slice(0, 10) === danasStr,
+  );
   // This endpoint is intentionally not generated yet; keep its cache key explicit
   // so menu configuration changes get a normal freshness path.
   const { data: multicourseMenuji = [] } = useQuery<MulticourseMenuConfig[]>({
@@ -2916,7 +2921,7 @@ export default function Order() {
 
       {/* ── Desni del — Račun ────────────────────────────────── */}
       <div className={`w-full md:w-[400px] flex-col md:h-full flex-1 min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
-        {narocilo.status === "odprto" && (
+        {narocilo.status === "odprto" && kosilaAktivna && (
           <details className="shrink-0 border-b bg-card px-3 py-1.5 md:py-2">
             <summary className="cursor-pointer text-sm font-semibold">Dodaj dnevno kosilo</summary>
             <div className="pt-3">

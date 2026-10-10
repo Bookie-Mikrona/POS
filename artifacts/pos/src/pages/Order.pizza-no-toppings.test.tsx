@@ -159,6 +159,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useListKategorije: () => ({ data: [mockKategorija], isLoading: false }),
   getListKategorijeQueryKey: () => ["/api/kategorije"],
   useListDnevniMeni: () => ({ data: [], isLoading: false }),
+  useListDailyLunchOffers: () => ({ data: { offers: [] }, isLoading: false }),
   useListProstori: () => ({ data: [], isLoading: false }),
   useListMize: () => ({ data: [{ id: 5, stevilka: 5, ime: "Miza 5", status: "odprto", narocila: [] }] }),
   useListNarocila: () => ({ data: [] }),
