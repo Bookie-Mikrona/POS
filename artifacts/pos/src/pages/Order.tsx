@@ -1631,6 +1631,8 @@ export default function Order() {
     const availabilityByArticle = new Map(availabilityItems.map((item) => [item.articleId, item]));
     const mapped = onlyActiveArticles(artikli).map((article) => ({
       ...article,
+      // Artikel brez lastne barve prevzame barvo svoje kategorije.
+      barva: article.barva ?? (kategorije?.find(k => k.id === article.kategorijaId)?.barva ?? null),
       modifierAvailability: modifierAvailabilityById,
       availableQuantity: article.jePica && availabilityByArticle.get(article.id)?.availableBySize
         ? (Object.values(availabilityByArticle.get(article.id)!.availableBySize!).some((quantity) => quantity == null || quantity > 0)
@@ -1643,7 +1645,7 @@ export default function Order() {
     const ordered = orderedIds.flatMap(id => (map.has(id) ? [map.get(id)!] : []));
     const extra = mapped.filter(a => !orderedIds.includes(a.id));
     return [...ordered, ...extra];
-  }, [artikli, orderedIds, preparedFoodAvailability, modifierAvailabilityById]);
+  }, [artikli, kategorije, orderedIds, preparedFoodAvailability, modifierAvailabilityById]);
 
   // ── Search & filter ──────────────────────────────────────────
   const [activeKategorija, setActiveKategorija] = useState<string>("all");
@@ -2850,7 +2852,7 @@ export default function Order() {
             <TabsList className="h-auto flex-wrap w-full justify-start gap-1 bg-transparent p-0">
               <TabsTrigger value="all" className="rounded-full border text-xs h-7 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary">Vse</TabsTrigger>
               {kategorije?.map(k => (
-                <TabsTrigger key={k.id} value={k.id.toString()} className="rounded-full border text-xs h-7 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary">{k.ime}</TabsTrigger>
+                <TabsTrigger key={k.id} value={k.id.toString()} style={{ "--kc": k.barva, borderColor: k.barva } as React.CSSProperties} className="rounded-full border-2 text-xs h-7 px-3 data-[state=active]:bg-[var(--kc)] data-[state=active]:text-white">{k.ime}</TabsTrigger>
               ))}
             </TabsList>
           </div>
