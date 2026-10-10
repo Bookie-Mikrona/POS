@@ -1643,7 +1643,7 @@ function EditIzdajnicaDialog({
   id, nabavniArtikli, onClose, onSaved,
 }: {
   id: number;
-  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null }[];
+  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null; drobniInventar?: boolean }[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -1655,6 +1655,8 @@ function EditIzdajnicaDialog({
   const [datum, setDatum] = useState("");
   const [opomba, setOpomba] = useState("");
   const [rows, setRows] = useState<IzdajnicaRow[]>([]);
+  const [scope, setScope] = useState<"material" | "drobni">("material");
+  const scopeArtikli = nabavniArtikli.filter(a => jeDrobniInventar(a) === (scope === "drobni"));
   const initializedId = useRef<number | null>(null);
   const izdEditKoliRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const [izdEditDdOpenIdx, setIzdEditDdOpenIdx] = useState<number | null>(null);
@@ -1668,6 +1670,8 @@ function EditIzdajnicaDialog({
     initializedId.current = data.id;
     setDatum(new Date(data.datum).toISOString().slice(0, 10));
     setOpomba(data.opomba ?? "");
+    const prvi = data.postavke[0] as { artikelId: number } | undefined;
+    setScope(jeDrobniInventar(nabavniArtikli.find(a => a.id === prvi?.artikelId)) ? "drobni" : "material");
     setRows(data.postavke.map((p: { artikelId: number; kolicina: number }) => ({ artikelId: p.artikelId, kolicina: String(p.kolicina) })));
   }, [data]);
 
@@ -1683,6 +1687,10 @@ function EditIzdajnicaDialog({
   const handleSave = () => {
     const validRows = rows.filter(r => r.artikelId > 0 && r.kolicina !== "");
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    if (validRows.some(r => !scopeArtikli.some(a => a.id === r.artikelId))) {
+      toast({ title: "Izdaja materiala in drobnega inventarja mora biti ločena", description: "Odstranite artikle iz druge skupine ali jih vnesite na ločeni izdajnici.", variant: "destructive" });
+      return;
+    }
     updateIzdajnica.mutate({
       id,
       data: {
@@ -1719,6 +1727,9 @@ function EditIzdajnicaDialog({
           <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
         ) : (
           <div className="space-y-4">
+            <p className="text-sm font-medium text-muted-foreground">
+              {scope === "drobni" ? "Izdaja drobnega inventarja" : "Izdaja materiala"}
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Datum</Label>
@@ -1736,8 +1747,8 @@ function EditIzdajnicaDialog({
                   const isOpen = izdEditDdOpenIdx === i;
                   const selectedArtikel = row.artikelId > 0 ? nabavniArtikli.find(a => a.id === row.artikelId) : null;
                   const filtered = izdEditDdFilter
-                    ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(izdEditDdFilter.toLowerCase()))
-                    : nabavniArtikli;
+                    ? scopeArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(izdEditDdFilter.toLowerCase()))
+                    : scopeArtikli;
                   return (
                     <div key={i} className="flex gap-2 items-center">
                       <div className="relative flex-1">
@@ -3682,6 +3693,18 @@ export default function Zaloge() {
   const [izdDatum, setIzdDatum] = useState("");
   const [izdOpomba, setIzdOpomba] = useState("");
   const [izdRows, setIzdRows] = useState<IzdajnicaRow[]>([{ artikelId: 0, kolicina: "" }]);
+  const [izdScope, setIzdScope] = useState<"material" | "drobni">("material");
+  const izdScopeArtikli = nabavniArtikli.filter(a => jeDrobniInventar(a) === (izdScope === "drobni"));
+  const spremeniIzdScope = (scope: "material" | "drobni") => {
+    if (scope === izdScope) return;
+    setIzdScope(scope);
+    setIzdRows([{ artikelId: 0, kolicina: "" }]);
+    setIzdDropdownOpenIdx(null);
+    setIzdDropdownFilter("");
+    setIzdNovArtikelRowIdx(null);
+    setIzdDiffOpen(false);
+    setIzdDiffRows([]);
+  };
   const izdArtDialogRef = useRef<HTMLDivElement>(null);
   const [izdDropdownOpenIdx, setIzdDropdownOpenIdx] = useState<number | null>(null);
   const [izdDropdownFilter, setIzdDropdownFilter] = useState("");
@@ -3713,6 +3736,7 @@ export default function Zaloge() {
   const openIzdDialog = () => {
     setIzdDatum(new Date().toISOString().slice(0, 10));
     setIzdOpomba("");
+    setIzdScope("material");
     setIzdRows([{ artikelId: 0, kolicina: "" }]);
     setIzdDropdownOpenIdx(null);
     setIzdDropdownFilter("");
@@ -3725,7 +3749,7 @@ export default function Zaloge() {
   };
 
   const openIzdDiff = () => {
-    const neNormativni = nabavniArtikli.filter(a => !a.vNormativih);
+    const neNormativni = izdScopeArtikli.filter(a => !a.vNormativih);
     setIzdDiffRows(neNormativni.map(a => {
       const z = zaloge?.find(z => z.artikelId === a.id);
       const knjizno = Number(z?.kolicina ?? 0);
@@ -3734,7 +3758,7 @@ export default function Zaloge() {
     setIzdDiffOpen(true);
   };
   const handleSaveIzdajnica = () => {
-    const validRows = izdRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
+    const validRows = izdRows.filter(r => r.artikelId > 0 && r.kolicina !== "" && izdScopeArtikli.some(a => a.id === r.artikelId));
     // Razlika zalog: poraba = knjizno − dejansko, samo kjer poraba > 0
     const diffPostavke = izdDiffOpen
       ? izdDiffRows
@@ -4506,6 +4530,12 @@ export default function Zaloge() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto">
           <div className="space-y-4">
+            <Tabs value={izdScope} onValueChange={value => spremeniIzdScope(value as "material" | "drobni")}>
+              <TabsList>
+                <TabsTrigger value="material">Izdaja materiala</TabsTrigger>
+                <TabsTrigger value="drobni">Izdaja drobnega inventarja</TabsTrigger>
+              </TabsList>
+            </Tabs>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Datum</Label>
@@ -4525,8 +4555,8 @@ export default function Zaloge() {
                   const isOpen = izdDropdownOpenIdx === i;
                   const selectedArtikel = row.artikelId > 0 ? nabavniArtikli.find(a => a.id === row.artikelId) : null;
                   const filtered = izdDropdownFilter
-                    ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(izdDropdownFilter.toLowerCase()))
-                    : nabavniArtikli;
+                    ? izdScopeArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(izdDropdownFilter.toLowerCase()))
+                    : izdScopeArtikli;
                   return (
                     <Fragment key={i}>
                     <div className="flex gap-2 items-center">
@@ -4687,7 +4717,7 @@ export default function Zaloge() {
           </div>
           </div>
           {izdDropdownOpenIdx !== null && izdDropdownPos !== null && (() => {
-            const izdF = izdDropdownFilter ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(izdDropdownFilter.toLowerCase())) : nabavniArtikli;
+            const izdF = izdDropdownFilter ? izdScopeArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(izdDropdownFilter.toLowerCase())) : izdScopeArtikli;
             return (
               <div style={{ position: 'absolute', top: izdDropdownPos.top, left: izdDropdownPos.left, width: 240, zIndex: 100 }}
                    className="bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
