@@ -20,6 +20,7 @@ import {
   normalizeArticleImage,
 } from "../../lib/article-image-normalization";
 import { isAllowedOneToOneSelfNorm, requiresClassicNormativ } from "../../lib/normativ-validation";
+import { uporabiSamodejneSkupine } from "../../lib/samodejne-opcije";
 import { automaticDrinkVolume } from "../../lib/drink-volume";
 import { AutomaticDrinkNormativeError, resolveAutomaticDrinkNormative } from "../../lib/automatic-drink-normative";
 import { lockPosBusinessDay } from "../../lib/pos-z-helpers";
@@ -725,6 +726,14 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
       return;
     }
     throw error;
+  }
+
+  if (prodajniArtikel) {
+    try {
+      await uporabiSamodejneSkupine(tenotaId, row.id, row.ime);
+    } catch (error) {
+      req.log.warn({ err: error, artikelId: row.id }, "Samodejne obvezne izbire niso bile dodane");
+    }
   }
 
   const [withKat] = await db
