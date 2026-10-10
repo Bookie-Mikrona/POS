@@ -21,6 +21,7 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 vi.mock("@/lib/gatewayOfflineStore", () => ({ useGatewayOfflineContext: () => gatewayState }));
 vi.mock("@/contexts/NapravaContext", () => ({ useNaprava: () => ({ naprava: null, napravaKljuc: null }) }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { capabilities: ["phone_orders"] } }) }));
 vi.mock("@/contexts/AutoStartContext", () => ({ useAutoStart: () => ({ block: vi.fn(), isBlocked: true }) }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("@/hooks/use-kds", () => ({ useQrWaiterRequests: () => ({ data: [] }), useUpdateQrWaiterRequest: () => ({ mutate: vi.fn() }) }));

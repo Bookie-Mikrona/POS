@@ -16,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGlasovniUkaz } from "@/hooks/use-glasovni-ukaz";
 import { RezervacijaDialog } from "@/components/RezervacijaDialog";
 import { RazpolozljivostMizDialog } from "@/components/RazpolozljivostMizDialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { TelefonNarociloDialog } from "@/components/TelefonNarociloDialog";
 import { KdsCountdown, KdsTypeBadge, type KdsTarget } from "@/lib/kdsNarocilo";
 import { formatPosCas, formatPosDatum } from "@/lib/posCas";
@@ -809,6 +810,8 @@ export default function Home() {
   const search = useSearch();
 
   const [aktivniFilter, setAktivniFilter] = useState<"vse" | "prosta" | "zasedena" | "delno_zaracunana" | "vse_zaracunano" | "rezervirana">("vse");
+  const { user: avtUser } = useAuth();
+  const telefonskaNarocilaOmogocena = avtUser?.capabilities?.includes("phone_orders") ?? false;
   const [telefonDialogOpen, setTelefonDialogOpen] = useState(false);
   const [izbiraNarocilMizaId, setIzbiraNarocilMizaId] = useState<number | null>(null);
   const prostoLsKey = `pos_aktivni_prostor_${napravaKljuc}`;
@@ -999,7 +1002,7 @@ export default function Home() {
             <CalendarClock className="w-4 h-4 mr-1.5" />
             <span>Poišči mizo</span>
           </Button>
-          <Button
+          {telefonskaNarocilaOmogocena && <Button
             size="sm"
             onClick={() => { setSkipAutoStart(); block(); setTelefonDialogOpen(true); }}
             disabled={isPending}
@@ -1008,7 +1011,7 @@ export default function Home() {
           >
             <Phone className="w-4 h-4 mr-1.5" />
             <span>Telefonsko naročilo</span>
-          </Button>
+          </Button>}
           {(mize?.length ?? 0) === 0 ? (
             <Button
               size="sm"
@@ -1024,7 +1027,7 @@ export default function Home() {
         </div>
       </div>
       <QrWaiterQueue requests={waiterRequests} mize={vseMize ?? []} />
-      {telefonskaNarocila.length > 0 && (
+      {telefonskaNarocilaOmogocena && telefonskaNarocila.length > 0 && (
         <Card data-testid="aktivna-telefonska-narocila">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -1131,10 +1134,10 @@ export default function Home() {
             <ShoppingCart className="w-4 h-4 mr-2" />
             Direktna prodaja
           </Button>
-           <Button variant="outline" onClick={() => { setSkipAutoStart(); block(); setTelefonDialogOpen(true); }} disabled={isPending}>
+           {telefonskaNarocilaOmogocena && <Button variant="outline" onClick={() => { setSkipAutoStart(); block(); setTelefonDialogOpen(true); }} disabled={isPending}>
              <Phone className="w-4 h-4 mr-2" />
              Telefonsko naročilo
-           </Button>
+           </Button>}
         </div>
       ) : hasProstori ? (
         <div className="space-y-3 md:space-y-8">
