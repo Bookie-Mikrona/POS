@@ -452,6 +452,11 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
           className="text-xs font-semibold leading-tight pr-5"
           style={{ color: hasColor ? "rgba(255,255,255,0.95)" : undefined }}
         >
+          {(artikel as { plu?: string | null }).plu && (
+            <span className="mr-1.5 rounded bg-black/15 px-1 py-0.5 text-[10px] font-bold tabular-nums">
+              {(artikel as { plu?: string | null }).plu}
+            </span>
+          )}
           {artikel.ime}
         </span>
         {(() => {
