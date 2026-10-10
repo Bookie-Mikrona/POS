@@ -455,6 +455,18 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
           {artikel.ime}
         </span>
         {(() => {
+          // Slovenski naziv (npr. pri italijanskih kavah), da natakarji pri prodaji niso zmedeni.
+          const slovenskiNaziv = artikel.opis?.match(/^Slovensko:\s*(.+)$/i)?.[1];
+          return slovenskiNaziv ? (
+            <span
+              className="text-[11px] leading-tight pr-5"
+              style={{ color: hasColor ? "rgba(255,255,255,0.8)" : "hsl(var(--muted-foreground))" }}
+            >
+              {slovenskiNaziv}
+            </span>
+          ) : null;
+        })()}
+        {(() => {
           const hhCena = artikel.happyHourCena;
           const hhAktiven = isHappyHourActive && (hhCena != null || artikel.happyHourCenaMala != null || artikel.happyHourCenaDruzinska != null);
           const hhOznaka = artikel.jePica
