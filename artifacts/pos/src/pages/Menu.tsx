@@ -1165,6 +1165,7 @@ export default function Menu() {
   };
 
   const normativNabavniArtikli = (artikli ?? []).filter(a =>
+    !(a as typeof a & { drobniInventar?: boolean }).drobniInventar &&
     canUseAsNormativInput(editingArt?.id ?? null, artMealType, a),
   );
   const filteredNormativArtikli = (artMealType === "composite" && normativDropdownGroup !== "all"
