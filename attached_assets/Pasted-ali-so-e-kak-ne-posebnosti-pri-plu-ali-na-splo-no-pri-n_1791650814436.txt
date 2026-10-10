@@ -1,0 +1,56 @@
+ali so še kakšne posebnosti pri plu ali na splošno pri naročanju
+
+Poleg osnovne izbire artiklov in velikosti obstaja v slovenski gostinski praksi še nekaj ključnih tehničnih in operativnih posebnosti, ki so bistvene za nemoteno delo ter pravilno vodenje zalog in računov.
+
+1. Sistemske in posebne PLU kode (Sistemski gumbi)
+Poleg pijač in hrane imajo napredni POS sistemi definirane posebne PLU kode za sistemske funkcije, ki jih natakarji uporabljajo vsak dan:
+
+Storno / Preklic artikla (PLU 999 ali tipka STORNO): Uporabi se, ko se natakar zboti pri vnosu ali ko gost odpove naročilo, preden je pijača pripravljena.
+
+Popusti in promocije (PLU 990–995): Kode za avtomatsko obračunavanje popustov (npr. -10 % za študente, -10 % popust na malico, Gratis / Čast hiše).
+
+Kavcija za embalažo / Zaboji (PLU 980–985): Pomembno pri prodaji pijač v vračljivi embalaži (npr. gajba piva, steklenica 1.0 l za s seboj), kjer sistem samodejno doda ali odšteje vrednost kaucije.
+
+Odpisi in lastna poraba (PLU 996–998): Za beleženje razlitja (kalo), poškodovanih artiklov ali pijače/hrane, ki jo porabi osebje med izmeno.
+
+2. Povezava naročila s kuhinjo ali šankom (KDS in kuhinjski tiskalniki)
+Ko natakar na mobilnem dlančniku pritisne POŠLJI (ali POŠLJI V KUHINJO), POS sistem naročilo samodejno usmeri na prave lokacije na podlagi nastavljenih skupin:
+
+Pijača (PLU 1–399) → Tiskalnik na šanku: Šankist dobi izpis z vsemi pijačami in opombami (npr. kava z mrzlim mlekom).
+
+Hrana in Pice (PLU 400–899) → Tiskalnik v kuhinji ali KDS zaslon (Kitchen Display System): Kuhar na zaslonu vidi odprta naročila po mizah, razvrščena po času oddaje.
+
+Zaporedje postrežbe (Hodi / Tečaji): Pri hrani natakar na dlančniku določi zaporedje (npr. HOD 1: Juha, HOD 2: Glavna jed). Kuhinja najprej dobi obvestilo za predjed, ko gost zaključi, pa natakar na dlančniku klikne "Pripravi 2. hod".
+
+3. Delitev in prenos računov pri mizi
+Ena najpogostejših zahtev gostov v Sloveniji je ločeno plačilo (vsak plača svoje) ali premik na drugo mizo:
+
+Ločevanje po artiklih / gostih:
+
+Natakar na dlančniku odpre mizo in preprosto označi artikle, ki jih želi prvi gost plačati (npr. 2x kava + 1x Radenska), ter natisne delni račun. Preostanek artiklov ostane odprt na mizi za ostale goste.
+
+Premik mize / Združevanje:
+
+Če se gostje presedejo s terase v notranjost ali združijo dve mizi (npr. Miza 3 se združi z Mizo 4), natakar na dlančniku izvede funkcijo Premakni mizo, ne da bi morala tiskati ali stornirati naročilo.
+
+4. Normativi in davčne posebnosti (DDV stopnje)
+V ozadju vsake PLU kode so vezane davčne stopnje in materialni normativi:
+
+Različne stopnje DDV:
+
+22 % DDV: Alkoholne pijače (pivo, vino, žganje) in storitve.
+
+9,5 % DDV: Brezalkoholne pijače, kava, čaj, hrana in dostava.
+
+Avtomatsko razdolževanje sestavljenih artiklov:
+
+Ko natakar odtipka PLU 210 (Brizganec / Špricer), program v skladišču ne razdolži "brizganca", temveč samodejno razdolži 0,10 l belega vina in 0,10 l Radenske.
+
+Pri PLU 220 (Aperol Spritz) sistem razdolži 0,06 l Prosecca, 0,04 l Aperola in sodo.
+
+5. Avtomatski predlogi in opozorila na dlančniku
+Sodobni mobilni POS vmesniki pomagajo natakarju preprečevati napake:
+
+Opozorilo o zalogi: Če v skladišču zmanjka določenega artikla (npr. piva Heineken ali čokoladne torte), gumb na dlančniku posivi ali pa opozori "Zaloga: 0 kos".
+
+Vsiljeni vprašalnik (Pop-up opombe): Ob izbiri zrezka ali pice dlančnik natakarja samodejno vpraša: "Kako pečeno?" ali "Katero testo?", da ne pozabi vprašati gosta.
