@@ -54,6 +54,7 @@ import ModifikatorjePanel from "@/components/ModifikatorjePanel";
 import { ArticleImageCropDialog } from "@/components/ArticleImageCropDialog";
 import { MassYieldFields, EMPTY_MASS_YIELD, normalizeMassYield, type MassYieldValues } from "@/components/MassYieldFields";
 import { ToGoArticlePicker } from "@/components/ToGoArticlePicker";
+import { pluSkupinaZaKategorijo, predlagajPlu } from "@/lib/plu-skupine";
 import { sortMenuArticles } from "@/lib/article-menu-sort";
 import { DROBNI_INVENTAR_SKUPINE, drobniInventarSkupina, sortDrobniInventar } from "@/lib/drobni-inventar-groups";
 import { downloadArtikelKatalogPdf, type ArtikelKatalogScope } from "@/lib/artikel-katalog-pdf";
@@ -140,6 +141,7 @@ export default function Menu() {
   const [editingKat, setEditingKat] = useState<Kategorija | null>(null);
   const [catName, setCatName] = useState("");
   const [catColor, setCatColor] = useState("#22c55e");
+  const [catColorRocno, setCatColorRocno] = useState(false);
   const [catOrder, setCatOrder] = useState("0");
   const [catTip, setCatTip] = useState<"hrana" | "pijaca" | "none">("none");
   const [catDnevnoFiltriranje, setCatDnevnoFiltriranje] = useState(false);
@@ -855,7 +857,7 @@ export default function Menu() {
   // ── Kategorija handlers ──────────────────────────────────────
   const openNewCat = () => {
     setCatMode("nova"); setEditingKat(null);
-    setCatName(""); setCatColor("#22c55e"); setCatOrder("0"); setCatTip("none"); setCatDnevnoFiltriranje(false);
+    setCatName(""); setCatColorRocno(false); setCatColor("#22c55e"); setCatOrder("0"); setCatTip("none"); setCatDnevnoFiltriranje(false);
     setCatDialogOpen(true);
   };
 
@@ -2199,7 +2201,7 @@ export default function Menu() {
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
               <Label>Ime</Label>
-              <KlavijaturaInput value={catName} onChange={setCatName} placeholder="Npr. Pijače" naslov="Ime kategorije" />
+              <KlavijaturaInput value={catName} onChange={(v) => { setCatName(v); if (catMode === "nova" && !catColorRocno) { const s = pluSkupinaZaKategorijo(v); if (s) setCatColor(s.barva); } }} placeholder="Npr. Pijače" naslov="Ime kategorije" />
             </div>
             <div className="space-y-2">
               <Label>Tip kategorije</Label>
@@ -2216,7 +2218,7 @@ export default function Menu() {
               <div className="space-y-2">
                 <Label>Barva</Label>
                 <div className="flex items-center gap-2">
-                  <Input type="color" value={catColor} onChange={e => setCatColor(e.target.value)} className="w-12 h-10 p-1 cursor-pointer" />
+                  <Input type="color" value={catColor} onChange={e => { setCatColorRocno(true); setCatColor(e.target.value); }} className="w-12 h-10 p-1 cursor-pointer" />
                   <span className="text-sm text-muted-foreground font-mono">{catColor}</span>
                 </div>
               </div>
@@ -2450,6 +2452,7 @@ export default function Menu() {
               {artProdajniArtikel && !artPovratnaEmbalaza && (
                 <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                   <Label htmlFor="artikel-plu">Šifra (PLU)</Label>
+                  <div className="flex gap-2">
                   <Input
                     id="artikel-plu"
                     value={artPlu}
@@ -2457,6 +2460,19 @@ export default function Menu() {
                     placeholder="Npr. 12"
                     inputMode="text"
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const kat = kategorije?.find(k => String(k.id) === artCat)?.ime;
+                      const predlog = predlagajPlu(kat, (artikli ?? []).filter(a => a.id !== editingArt?.id).map(a => (a as { plu?: string | null }).plu));
+                      if (predlog) setArtPlu(predlog);
+                      else toast({ title: "V razponu ni proste šifre", variant: "destructive" });
+                    }}
+                  >
+                    Predlagaj
+                  </Button>
+                  </div>
                   <p className="text-xs text-muted-foreground">Kratka šifra za hiter vnos v iskalniku naročila. Mora biti enolična.</p>
                 </div>
               )}

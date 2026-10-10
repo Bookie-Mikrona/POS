@@ -80,6 +80,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNastavitve } from "@/contexts/NastavitveContext";
 import OpombaDialog from "@/components/OpombaDialog";
+import { razcleniKolicinoInPlu } from "@/lib/plu-skupine";
 import { KlavijaturaInput } from "@/components/KlavijaturaInput";
 import { casZaPosDatetimeLocal, formatPosCas, poslovniDatumZaCas, posDatetimeLocalToIso } from "@/lib/posCas";
 import { isOrderArticleVisible } from "@/lib/order-article-visibility";
@@ -1717,7 +1718,7 @@ export default function Order() {
     }
     const modMatch = new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>();
     if (search.trim()) {
-      const q = search.trim().toLowerCase();
+      const q = (razcleniKolicinoInPlu(search)?.plu ?? search.trim()).toLowerCase();
       // Šifra (PLU): točno ujemanje ima prednost pred iskanjem po imenu
       const poPlu = list.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === q);
       if (poPlu.length > 0) return { filteredArtikli: poPlu, filteredArtikliModMatch: modMatch };
@@ -2769,6 +2770,17 @@ export default function Order() {
                   placeholder="Iskanje artikla..."
                   value={search}
                   onChange={setSearch}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    const qp = razcleniKolicinoInPlu(search);
+                    const kolicina = qp?.kolicina ?? 1;
+                    const sifra = (qp?.plu ?? search.trim()).toLowerCase();
+                    if (!sifra) return;
+                    const zadetek = filteredArtikli.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === sifra);
+                    if (zadetek.length !== 1) return;
+                    e.preventDefault();
+                    if (handleAddArtikel(zadetek[0].id, kolicina) !== "blocked") setSearch("");
+                  }}
                   naslov="Iskanje artikla"
                   className="pl-8 pr-8 h-9"
                 />
