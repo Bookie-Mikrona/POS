@@ -2829,6 +2829,21 @@ export default function Order() {
               >
                 {searchNumericKeyboard ? "123" : "abc"}
               </button>
+              {(() => {
+                // Predogled zadetka šifre, da ga je videti nad tipkovnico še pred Enter.
+                if (!search.trim()) return null;
+                const qp = razcleniKolicinoInPlu(search);
+                const sifra = (qp?.plu ?? search.trim()).toLowerCase();
+                const z = filteredArtikli.filter(x => ((x as { plu?: string | null }).plu ?? "").toLowerCase() === sifra);
+                if (z.length !== 1) return null;
+                return (
+                  <div className="absolute left-0 right-0 -top-9 z-10 flex items-center gap-2 rounded-md border border-green-300 bg-green-50 px-2 py-1 text-sm font-semibold text-green-900 shadow pointer-events-none">
+                    <span className="tabular-nums">{qp?.kolicina ?? 1}×</span>
+                    <span className="truncate">{z[0].ime}</span>
+                    <span className="ml-auto tabular-nums">{(z[0].cena * (qp?.kolicina ?? 1)).toFixed(2)} €</span>
+                  </div>
+                );
+              })()}
               {glasovnoAktivno && (
                 <div className="absolute left-0 right-10 -top-8 bg-red-50 border border-red-200 rounded-md px-2 py-1 text-xs text-red-700 truncate pointer-events-none">
                   {glasovnoTranskript ? glasovnoTranskript : <span className="opacity-60 italic">Poslušam…</span>}
