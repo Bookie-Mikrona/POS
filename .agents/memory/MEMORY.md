@@ -155,3 +155,4 @@
 - [Obseg razvojnega okolja](development-environment-scope.md) — uporabnik dela izključno v dev; neskladje z naslovom na posnetku najprej razjasni, ne diagnosticiraj drugega okolja.
 - [Razvojna orodja in okolje](development-tooling-guides.md) — zaganjalniki, TypeScript, OpenAPI, paketi, razvojni 502, preizkusi in poti prenosov.
 - [Shared SMTP identity](shared-smtp-identity.md) — the central Mikrona relay serves multiple companies; recipients must see the document owner's business identity.
+- [Avtomatizacija brez ročnih vnosov](avtomatizacija-brez-rocnih-vnosov.md) — privzeto samodejno, ročni vnos le za popravek; sprašuj le pri nepovratnem ali dvoumnem
