@@ -9,6 +9,18 @@ import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
 
 const router: IRouter = Router();
 
+const MESANA_IZDAJA_NAPAKA = "Izdaja materiala in drobnega inventarja mora biti na ločenih izdajnicah";
+
+/** Vrne true, če izbrani artikli vključujejo tako material kot drobni inventar. */
+async function jeMesanaIzdaja(artikelIds: number[], enotaId: number): Promise<boolean> {
+  if (!artikelIds.length) return false;
+  const rows = await db
+    .select({ drobni: artikliTable.drobniInventar })
+    .from(artikliTable)
+    .where(and(inArray(artikliTable.id, artikelIds), eq(artikliTable.enotaId, enotaId)));
+  return new Set(rows.map(r => r.drobni === true)).size > 1;
+}
+
 /** Ročne izdajnice se knjižijo ob 23:58:00 UTC — pred inventuro (23:59:59). */
 function endOfDayIzdajnica(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -64,6 +76,9 @@ router.post("/izdajnice", requireEnota, async (req, res): Promise<void> => {
     res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
   }
   const artikelMap = new Map(artikliRows.map(a => [a.id, a]));
+  if (await jeMesanaIzdaja(artikelIds, enotaId)) {
+    res.status(400).json({ error: MESANA_IZDAJA_NAPAKA }); return;
+  }
 
   const docDatum = datum ? endOfDayIzdajnica(datum) : new Date();
   const stevilka = await nextStevilkaIzdajnica(docDatum.getFullYear(), enotaId);
@@ -187,6 +202,9 @@ router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
 
   const { datum, opomba, postavke } = req.body;
   let didUpdatePostavke = false;
+  if (Array.isArray(postavke) && await jeMesanaIzdaja(postavke.map((p: any) => p.artikelId), enotaId)) {
+    res.status(400).json({ error: MESANA_IZDAJA_NAPAKA }); return;
+  }
 
   await db.transaction(async (tx) => {
     const txUpdates: Partial<typeof existing> = {};
