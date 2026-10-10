@@ -1,0 +1,53 @@
+prikaži vse vrste kav v ponudbi v gostinskem obratu z originalnimi italijanskimi izrazi in slovenskimi z normativi. upoštevaj smetane s sifonom ali smetane v spreju. podaj tudi normativ mleka v l, kjer je potrebno
+
+Tukaj je celovit pregled kavnih napitkov v gostinski ponudbi z originalnimi italijanskimi izrazi, slovenskimi poimenovanji ter natančnimi gostinskimi normativi za mletokavo, mleko (v litrih) in smetano (iz sifona ali spreja).
+
+1. Pregled kavnih napitkov z normativi
+Italijanski izraz	Slovenski izraz	Normativ mlete kave	Normativ mleka (litri / ml)	Normativ smetane (sifon ali sprej)	Opis napitka
+Caffè Espresso	Kratka kava / Espresso	7–9 g (0,007–0,009 kg)	/	/	Ekstrahira se 20–30 sekund za 25–30 ml napitka. Osnova vseh ostalih kav.
+Caffè Ristretto	Ristreto / Zelo kratka kava	7–9 g	/	/	Ekstrakcija do ~15–20 ml. Zelo gosta, z manj grenkobe.
+Caffè Lungo	Podaljšana kava	7–9 g	/	/	Ekstrakcija do 50–70 ml vode skozi kavo.
+Caffè Doppio	Dvojni espresso	14–18 g	/	/	Dvojna dozacija kave in vode (~50–60 ml).
+Caffè Macchiato	Kava z mlekom (kratka)	7–9 g	0,02 l (20 ml penjenega mleka)	/	Espresso z "madežem" tople mlečne pene.
+Caffè Macchiato Lungo	Podaljšana kava z mlekom	7–9 g	0,03–0,05 l (30–50 ml mleka)	/	Podaljšani espresso z dodano mlečno peno.
+Cappuccino	Kapučino	7–9 g	0,12–0,15 l (120–150 ml mleka)	/	1/3 espressa, 1/3 segretega mleka in 1/3 goste mikro-pene. Skupaj ~150–180 ml napitka.
+Caffè Latte	Kava z mlekom (v skodelici)	7–9 g	0,18–0,20 l (180–200 ml mleka)	/	Več mleka in manj pene kot pri kapučinu.
+Latte Macchiato	Bela kava / Latte makijato	7–9 g	0,20 l (200 ml mleka)	/	Postreženo v visokem kozarcu: penjeno mleko na dnu, nato espresso (ustvari tri plasti).
+Caffè con Panna	Kava s smetano	7–9 g	/	20–25 g (ali 0,02–0,025 l tekoče smetane)	Espresso prekrit s kapo stepene smetane.
+Caffè Viennese	Dunajska kava	7–9 g	/	30–40 g (ali 0,03–0,04 l tekoče smetane)	Podaljšana kava z bogatejšo kapo smetane (pogosto posuta s kakavom ali cimetom).
+Caffè Corretto	Kava z žganjem	7–9 g	/	/	Espresso z dodatkom 0,02–0,03 l žgane pijače (grappa, konjak, rum).
+Caffè Shakerato	Leden kava (šejkana)	7–14 g (1 ali 2 espressa)	/	Po želji 15–20 g	Pretreseno v šejkerju z ledom in sladkornim sirupom.
+Caffè Affogato	Kava s sladoledom	7–9 g	/	Po želji 15–20 g	Espresso preliten preko 1 krogle vanilijevega sladoleda (~50 g).
+2. Normativi in kalkulacija za smetano
+Pri obračunu normativov smetane v gostinstvu velja razlikovati med sifonom (ročno polnjenje z N₂O kapsulami) in industrijskim sprejem:
+
+A) Smetana v sifonu (N₂O kapsula)
+Kalkulacija v normativu se vedno obračunava po teži tekoče smetane pred napihovanjem:
+
+Sestavine za polnjenje: 0,5 l tekoče smetane (33–35 % m.m.) + 1 kapsula N₂O (8 g).
+
+Volumenski izkoristek: Iz 0,5 l tekoče smetane plin ustvari ~1,5 do 2 litra goste pene.
+
+Poraba na kavo (Caffè con Panna): 20–25 g tekoče smetane (iz 0,5 l tekoče smetane dobite ~20–25 porcij kave s smetano).
+
+Strošek kapsule v normativu: Se priračuna kot 1/20 ali 1/25 cene posamezne N₂O kapsule na postreženo kavo.
+
+B) Smetana v spreju (doza pod tlakom)
+Kalkulacija v normativu: Ker je smetana že napihnjena pod tlakom, se poraba obračunava direktno po teži izbrizgane smetane na porcijo.
+
+Poraba na kavo (Caffè con Panna): 15–20 g smetane iz doze.
+
+Lastnosti: Hitrejša postrežba brez pomivanja sifona, vendar je pena manj obstojna na vročem espressu v primerjavi s klasično mlečno smetano iz sifona.
+
+3. Normativ porabe mleka v litrih (Povzetek za naročanje)
+Če izračunavamo povprečno porabo mleka na 100 postreženih napitkov v lokalu:
+
+1 l mleka (0,01 l na črtico):
+
+Zadošča za ~50x Caffè Macchiato (pri 0,02 l mleka/kavo)
+
+Zadošča za ~6–8x Cappuccino (pri ~0,12–0,15 l mleka/kavo)
+
+Zadošča za ~5x Latte Macchiato / Belih kav (pri 0,20 l mleka/kavo)
+
+
