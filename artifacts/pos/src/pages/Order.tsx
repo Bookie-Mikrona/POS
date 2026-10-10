@@ -681,6 +681,9 @@ function GrupaGumbStaro({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa
                 disabled={pendingArtikliIds.has(a.id)}
               >
                 <span className="text-xs font-semibold leading-tight">{a.ime}</span>
+                {a.opis?.match(/^Slovensko:\s*(.+)$/i)?.[1] && (
+                  <span className="text-[11px] leading-tight opacity-75">{a.opis.match(/^Slovensko:\s*(.+)$/i)?.[1]}</span>
+                )}
                 <span className="text-xs font-bold mt-0.5" style={{ color: a.barva ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>{a.cena.toFixed(2)} €</span>
                 {privzetiImena && (
                   <div className="flex items-center gap-0.5 text-[10px] leading-tight mt-1" style={{ color: a.barva ? "rgba(255,255,255,0.7)" : "hsl(var(--muted-foreground))" }}>
