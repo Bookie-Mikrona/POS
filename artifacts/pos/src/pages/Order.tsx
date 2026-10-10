@@ -1708,6 +1708,9 @@ export default function Order() {
     const modMatch = new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>();
     if (search.trim()) {
       const q = search.trim().toLowerCase();
+      // Šifra (PLU): točno ujemanje ima prednost pred iskanjem po imenu
+      const poPlu = list.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === q);
+      if (poPlu.length > 0) return { filteredArtikli: poPlu, filteredArtikliModMatch: modMatch };
       const byName = list.filter(a => ujemaSeArtikel(a.ime, q, extraSinonimi));
       if (byName.length > 0) return { filteredArtikli: byName, filteredArtikliModMatch: modMatch };
       // Ni zadetkov po imenu — išči po modifikatorjih

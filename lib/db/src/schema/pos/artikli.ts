@@ -48,6 +48,8 @@ export const artikliTable = pgTable("artikli", {
   enotaId: integer("enota_id").notNull().references(() => enoteTable.id, { onDelete: "cascade" }),
   ime: text("ime").notNull(),
   opis: text("opis"),
+  /** Kratka šifra (PLU) za hiter vnos; enolična znotraj enote. */
+  plu: text("plu"),
   cena: numeric("cena", { precision: 10, scale: 2 }).notNull(),
   /** Prodajna cena male pice; null, kadar velikost ni v uporabi. */
   cenaMala: numeric("cena_mala", { precision: 10, scale: 2 }),

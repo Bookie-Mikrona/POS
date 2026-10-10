@@ -11,6 +11,7 @@ import {
   useDeleteArtikel,
   useUpdateKategorija,
   useUpdateArtikel,
+  customFetch,
   useGetArtikelNormativi,
   useGetArtikelNormativeChangeHistory,
   useUpdateArtikelNormativi,
@@ -151,6 +152,7 @@ export default function Menu() {
   const [multicourseEditorEnabled, setMulticourseEditorEnabled] = useState(false);
   const [artName, setArtName] = useState("");
   const [artOpis, setArtOpis] = useState("");
+  const [artPlu, setArtPlu] = useState("");
   const [artPrice, setArtPrice] = useState("");
   const [artCenaMala, setArtCenaMala] = useState("");
   const [artCenaDruzinska, setArtCenaDruzinska] = useState("");
@@ -938,6 +940,7 @@ export default function Menu() {
     setArtDialogTab("osnovno");
     setMulticourseEditorEnabled(false);
     setArtOpis("");
+    setArtPlu("");
     setArtName(""); setArtPrice(""); setArtCenaMala(""); setArtCenaDruzinska(""); setArtCat(""); setArtAktiven(true); setArtColor(null);
     setArtNabavniArtikel(false); setArtProdajniArtikel(true); setArtDrobniInventar(false); setArtJePica(false);
     setArtPripravaVrsta("hrana"); setArtPripravaVrstaIzbrana(false);
@@ -1002,6 +1005,7 @@ export default function Menu() {
     setArtDialogTab("osnovno");
     setMulticourseEditorEnabled(Boolean(a.isMulticourseMenu));
     setArtOpis(a.opis ?? "");
+    setArtPlu((a as { plu?: string | null }).plu ?? "");
     setArtName(a.ime); setArtPrice(String(a.cena));
     setArtCenaMala((a as typeof a & { cenaMala?: number | null }).cenaMala != null ? String((a as typeof a & { cenaMala: number }).cenaMala) : "");
     setArtCenaDruzinska((a as typeof a & { cenaDruzinska?: number | null }).cenaDruzinska != null ? String((a as typeof a & { cenaDruzinska: number }).cenaDruzinska) : "");
@@ -1714,6 +1718,17 @@ export default function Menu() {
       });
     };
 
+    const shraniPlu = async (artikelId: number, prejsnja: string) => {
+      const nova = artPlu.trim();
+      if (nova === prejsnja.trim()) return;
+      try {
+        await customFetch(`/api/artikli/${artikelId}/plu`, { method: "PATCH", body: JSON.stringify({ plu: nova }) });
+      } catch (e) {
+        const opis = (e as { data?: { error?: string } }).data?.error ?? (e instanceof Error ? e.message : undefined);
+        toast({ title: "Šifre (PLU) ni bilo mogoče shraniti", description: opis, variant: "destructive" });
+      }
+    };
+
     if (artMode === "uredi" && editingArt) {
       updateArtikel.mutate({
         id: editingArt.id,
@@ -1725,9 +1740,10 @@ export default function Menu() {
           },
         },
       }, {
-        onSuccess: (updatedArtikel) => {
+        onSuccess: async (updatedArtikel) => {
+          await shraniPlu(editingArt.id, (editingArt as { plu?: string | null }).plu ?? "");
           queryClient.setQueryData<Artikel[]>(getListArtikliQueryKey(), current =>
-            current?.map(article => article.id === updatedArtikel.id ? updatedArtikel : article),
+            current?.map(article => article.id === updatedArtikel.id ? { ...updatedArtikel, plu: artPlu.trim() || null } as Artikel : article),
           );
           finishSave(editingArt.id, "Artikel posodobljen", "updated");
         },
@@ -1746,7 +1762,8 @@ export default function Menu() {
           normativItems: validNormativItems,
         },
       }, {
-        onSuccess: (createdArtikel) => {
+        onSuccess: async (createdArtikel) => {
+          await shraniPlu(createdArtikel.id, "");
           finishSave(createdArtikel.id,
             createdArtikel.hasNormativ && validNormativItems.length === 0
               ? "Artikel dodan; normativ pijače ustvarjen samodejno"
@@ -2429,6 +2446,20 @@ export default function Menu() {
                   </p>
                 )}
               </div>
+
+              {artProdajniArtikel && !artPovratnaEmbalaza && (
+                <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+                  <Label htmlFor="artikel-plu">Šifra (PLU)</Label>
+                  <Input
+                    id="artikel-plu"
+                    value={artPlu}
+                    onChange={event => setArtPlu(event.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 10))}
+                    placeholder="Npr. 12"
+                    inputMode="text"
+                  />
+                  <p className="text-xs text-muted-foreground">Kratka šifra za hiter vnos v iskalniku naročila. Mora biti enolična.</p>
+                </div>
+              )}
 
               {artProdajniArtikel && !artPovratnaEmbalaza && (
                 <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">

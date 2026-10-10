@@ -136,6 +136,7 @@ const SELECT_FIELDS = {
   id: artikliTable.id,
   ime: artikliTable.ime,
   opis: artikliTable.opis,
+  plu: artikliTable.plu,
   cena: artikliTable.cena,
   cenaMala: artikliTable.cenaMala,
   cenaDruzinska: artikliTable.cenaDruzinska,
@@ -206,6 +207,7 @@ function mapRow(r: Record<string, unknown>) {
     id: r.id as number,
     ime: r.ime as string,
     opis: (r.opis as string | null) ?? null,
+    plu: (r.plu as string | null) ?? null,
     cena: Number(r.cena),
     cenaMala: r.cenaMala == null ? null : Number(r.cenaMala),
     cenaDruzinska: r.cenaDruzinska == null ? null : Number(r.cenaDruzinska),
@@ -1602,6 +1604,24 @@ router.get("/artikli/izvozi-cenik.pdf", async (req: Request, res: Response): Pro
     }),
   });
   res.type("application/pdf").attachment("cenik-z-alergeni.pdf").send(pdf);
+});
+
+router.patch("/artikli/:id/plu", requireEnota, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const id = Number(req.params.id);
+  const surov = req.body?.plu;
+  if (!Number.isInteger(id) || (surov != null && typeof surov !== "string")) { res.status(400).json({ error: "Neveljavna šifra." }); return; }
+  const plu = typeof surov === "string" ? surov.trim() : "";
+  if (plu && !/^[A-Za-z0-9]{1,10}$/.test(plu)) { res.status(400).json({ error: "Šifra (PLU) sme imeti do 10 črk ali številk." }); return; }
+  if (plu) {
+    const [zasedena] = await db.select({ id: artikliTable.id, ime: artikliTable.ime }).from(artikliTable)
+      .where(and(eq(artikliTable.enotaId, tenotaId), sql`lower(${artikliTable.plu}) = ${plu.toLowerCase()}`, sql`${artikliTable.id} <> ${id}`)).limit(1);
+    if (zasedena) { res.status(409).json({ error: `Šifra ${plu} je že dodeljena artiklu »${zasedena.ime}«.` }); return; }
+  }
+  const posodobljeno = await db.update(artikliTable).set({ plu: plu || null })
+    .where(and(eq(artikliTable.id, id), eq(artikliTable.enotaId, tenotaId))).returning({ id: artikliTable.id });
+  if (!posodobljeno.length) { res.status(404).json({ error: "Artikel ni najden." }); return; }
+  res.json({ id, plu: plu || null });
 });
 
 router.get("/artikli/:id", async (req, res): Promise<void> => {
