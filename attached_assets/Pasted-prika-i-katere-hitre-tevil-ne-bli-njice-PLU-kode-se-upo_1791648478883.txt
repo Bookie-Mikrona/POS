@@ -1,0 +1,214 @@
+prikaži katere hitre številčne bližnjice (PLU kode) se uporabljajo v praksi
+
+In practice, PLU (Price Look-Up) codes in catering/hospitality POS systems are short 2-, 3-, or 4-digit numbers assigned to items so waitstaff can enter orders rapidly using a numeric keypad without searching through categories.
+
+While every establishment configures its own PLU register based on its beverage and food menu, standardized code ranges and conventions are widely established in Slovenian hospitality practice to ensure fast onboarding for waiters.
+
+1. Standardized PLU Code Ranges (By Category)
+In most Slovenian bars, cafes, and restaurants, PLU codes are structured into logical number blocks:
+
+Code Range	Category / Group	Example Items
+1 – 49	Coffee & Hot Beverages	Espresso, Macchiato, Cappuccino, Tea, Hot Chocolate
+50 – 99	Water & Soft Drinks	Still Water, Mineral Water, Juices, Sodas (Coca-Cola, Fanta, Radenska)
+100 – 199	Beers (Draft & Bottled)	Draft Beer (Laško/Union 0.3l, 0.5l), Bottled Beer, Craft Beer, Non-Alcoholic Beer
+200 – 299	Wines (Open & Bottled)	Janževec, Cviček, Malvazija, Cabernet, Sparkling Wine, Spritzer
+300 – 399	Spirits, Liquors & Cocktails	Rum, Pelinkovec, Stock 84, Gin, Whiskey, Jägermeister, Aperol Spritz
+400 – 499	Ice Cream & Desserts	Ice Cream Scoop, Croissants, Cakes, Iced Coffee
+500 – 899	Food & Kitchen Orders	Soups, Pizzas, Daily Lunches (Malice), Mains, Salads, Sides
+900 – 999	Extras, Modifiers & Service	Milk supplement, Whipped Cream, Extra Cup, Discount/Correction
+2. Concrete Examples from Practice (Typical Cafe/Bar PLU Table)
+Below is a typical real-world PLU list used in a Slovenian cafe or bar:
+
+A) Hot Beverages (Kave in topli napitki)
+1 – Espresso (Kratka kava)
+
+2 – Caffè Macchiato (Kava z mlekom - kratka)
+
+3 – Cappuccino (Kapučino)
+
+4 – Caffè Lungo (Podaljšana kava)
+
+5 – Caffè Macchiato Lungo (Podaljšana kava z mlekom)
+
+6 – Caffè Latte / Bela kava
+
+7 – Caffè con Panna (Kava s smetano)
+
+8 – Decaf Espresso (Brezkofeinska kava kratka)
+
+9 – Decaf Macchiato (Brezkofeinska kava z mlekom)
+
+10 – Tea with Lemon/Honey (Čaj z limono in medom)
+
+12 – Hot Chocolate (Vroča čokolada)
+
+15 – Kakav
+
+B) Non-Alcoholic Drinks (Brezalkoholne pijače)
+51 – Radenska / Mineral Water 0.25 l
+
+52 – Still Water (Plastenka) 0.5 l
+
+55 – Coca-Cola 0.25 l
+
+56 – Coca-Cola Zero 0.25 l
+
+60 – Fanta / Sprite 0.25 l
+
+65 – Cockta 0.275 l
+
+70 – Natural Orange Juice 0.2 l (Naravni pomarančni sok)
+
+72 – Fructal Juice 0.2 l (Sadni sok)
+
+80 – Cedevita
+
+85 – Red Bull
+
+C) Beer (Pivo)
+101 – Laško Draft 0.5 l (Točeno svetlo)
+
+102 – Laško Draft 0.3 l
+
+103 – Laško Draft 0.2 l
+
+105 – Union Draft 0.5 l
+
+106 – Union Draft 0.3 l
+
+110 – Laško Bottle 0.5 l (Steklenica)
+
+111 – Union Bottle 0.5 l
+
+120 – Non-Alcoholic Beer 0.5 l (Uni / Heineken 0.0)
+
+125 – Radler 0.5 l
+
+D) Wines & Mixed Drinks (Vina in mešane pijače)
+201 – Open White Wine 0.1 l (Belo odprto)
+
+202 – Open Red Wine 0.1 l (Rdeče odprto)
+
+205 – Cviček 0.1 l
+
+208 – Malvazija 0.1 l
+
+210 – Spritzer / Brizganec (0.1 l wine + 0.1 l mineral water)
+
+215 – Belo vino 1.0 l (Litro strežba)
+
+220 – Aperol Spritz
+
+225 – Hugo
+
+E) Spirits & Modifiers (Žgane pijače in dodatki)
+301 – Rum 0.03 l
+
+302 – Pelinkovec 0.03 l
+
+305 – Stock 84 0.03 l
+
+310 – Jägermeister 0.03 l
+
+315 – Gin 0.03 l
+
+320 – Vodka 0.03 l
+
+901 – Extra Milk / Dodatno mleko (0.02 l)
+
+902 – Extra Whipped Cream / Smetana dodatek (20 g)
+
+905 – Honey / Med porcija
+
+3. How Waiters Use PLUs in POS Practice
+Numeric Keypad Speed:
+In high-volume environments (terraces, festivals, morning coffee rushes), entering 1 + ENTER (or tapping PLU 1) takes under half a second, compared to navigating through Beverages -> Hot Drinks -> Espresso.
+
+Multi-Item Entry:
+To order 3 Espressos and 2 Cappuccinos:
+
+Keypad: 3 × 1 (or 3 * 1) → 3x Espresso
+
+Keypad: 2 × 3 (or 2 * 3) → 2x Cappuccino
+
+Orderman & Handheld Compatibility:
+Physical dlančniki (like Orderman or dedicated Android POS units) feature hardware or fixed soft numeric keypads explicitly designed around PLU code muscle memory.
+
+ali ta enoten sistem uporablja večina obratov
+
+V slovenski gostinski praksi ni z zakonom ali predpisom predpisanega enotnega nacionalnega seznama PLU kod, se pa v praksi večina gostinskih obratov drži zelo podobnega logičnega načela in podobnih razponov številska sistematizacije, ki ga spodbujajo ponudniki gostinskih programov (npr. Microgramm Advantik, POS Elektronček / Prestige, Pantheon RA/RC, POS Sector).
+
+Razlogi, zakaj večina obratov uporablja zelo podobno logiko, ter kje nastajajo razlike:
+
+1. Zakaj se v praksi uporablja enak sistem razponov?
+Enostavno usposabljanje osebja (fluktuacija študentov in natakarjev): Študenti in natakarji pogosto menjajo gostinske obrate. Če so kave povsod v razponu 1–49 (kjer je 1 skoraj povsod espresso), piva v razponu 100–199 ter brezalkoholne pijače v 50–99, se natakar v novem lokalu priuči v le nekaj minutah.
+
+Privzete prednastavitve ponudnikov POS opreme: Ko gostinec kupi gostinski program, dobi v sistemu že vnaprej pripravljen tipični cenik z definiranimi skupinami in prednastavljenimi številskimi razponi.
+
+Ergonomija tipkanja na dlančnikih: Številke od 1 do 9 so najhitreje dosegljive z enim ali dvema dotikoma palca, zato so na teh najnižjih številkah vedno artikli, ki se prodajajo najpogosteje (kratka kava, kava z mlekom, kapučino).
+
+2. Kje nastajajo razlike med obrati?
+Čeprav so razponi skupin (kategorije) večinoma enaki, se točne številke posameznih artiklov med lokali lahko razlikujejo:
+
+Različna ponudba artiklov:
+
+Lokal A ima kot glavno točeno pivo Laško (PLU 101), Lokal B pa kot glavno točeno pivo Union (PLU 101).
+
+Kavarne vs. Restavracije:
+
+Kavarne in bari imajo do podrobnosti razdeljene in zapomnjene PLU kode za vse pijače (1 do 399), saj je poudarek na hitri postrežbi pijače.
+
+Restavracije in picerije pogosteje uporabljajo PLU kode za hrano (500+ za pice, kuhinjske jedi in menije), pri čemer pri pijači pogosto preklopijo na vizualni mrežni prikaz na zaslonu na dotik.
+
+3. Sodobni trend: PLU kode vs. Zasloni na dotik (Touchscreen)
+Z uveljavitvijo pametnih telefonov in Android dlančnikov z velikimi zasloni na dotik se načini vnosa v gostinstvu danes delijo na dva pristopa:
+
+Pritisk na barvne ikone/grafične gumbe (Touch UI): Uporablja se na večini sodobnih tablic in telefonov. Natakar klikne kategorijo Topli napitki ali Pivo in izbere sliko/gumb artikla (kot je prikazano na vaši prvi sliki).
+
+Hitri številčni vnos (PLU vnos): Še vedno ostaja nepremagljiv po hitrosti na terasah, ob jutranjih konicah ter na klasičnih dlančnikih (kot je Orderman), kjer natakar z enim prstom vtipka 1 + ENTER ali 2 × 101 in odda naročilo v šank v manj kot sekundi.
+
+ali je tudi Pritisk na barvne ikone/grafične gumbe (Touch UI) poenoten (barve)?
+
+V slovenski gostinski praksi pri Touch UI vmesnikih barve gumbov in kategorij niso uradno predpisane s standardom, se je pa z desetletji uporabe v praksi izoblikoval zelo močan nepisani standard (konvencija).
+
+Ker večina slovenskih ponudnikov gostinske opreme (Microgramm Advantik, POS Elektronček / Prestige, Pantheon RA/RC, TRONpos, POS Sector) ponuja prednastavljene predloge (prednastavljene barvne sheme), je večina gostinskih obratov prevzela zelo podobne vizualne vzorce.
+
+1. Tipična barvna konvencija kategorij v praksi
+V večini slovenskih lokalov boste na Touch UI zaslonih opazili naslednjo barvno razdelitev:
+
+Barva gumba / skupine	Kategorija v gostinstvu	Zakaj prav ta barva?
+Rjava / Tople zemeljske barve	Topli napitki / Kave	Asociacija na kavo, kakav in čaj.
+Modra (Svetlo ali temno modra)	Brezalkoholne pijače / Voda	Asociacija na vodo, osvežitev in hladne pijače.
+Rumena / Zlato-oranžna	Pivo (Točeno in flaširano)	Barva piva in piveče pene.
+Rdeča / Vijolična	Vina / Penine	Barva rdečega vina ali grozdja.
+Temno rdeča / Jantarna / Rjava	Žgane pijače / Koktajli	Barva žganic (konjak, rum, viski, pelinkovec).
+Zelena	Hrana / Solate / Predjedi	Asociacija na svežino, hrano ali kuhinjske naloge.
+Oranžna / Rdeča	Pice / Glavne jedi	Asociacija na krušno peč, meso in tople jedi.
+Rožnata / Svetlo rumena	Sladice / Sladoled	Barva kreme, sladic in sadja.
+2. Barve za sistemske funkcije in stanja miz
+Poleg kategorij artiklov so barve še bolj poenotene pri upravljanju miz in ukazov:
+
+Stanja miz na tlorisu:
+
+Zelena: Prosta miza.
+
+Rdeča: Zasedena miza (naročilo je odprto in še ni plačano).
+
+Rumena / Oranžna: Miza, kjer je bil račun že natisnjen (predračun), a še ni zaključeno plačilo.
+
+Modra: Miza v postopku dodajanja artiklov ali ločevanja računov.
+
+Sistemski gumbi:
+
+Zelena: Pošlji v kuhinjo / šank, Potrdi, Plačaj.
+
+Rdeča: Prekliči, Briši artikel, Storno.
+
+Modra / Siva: Natisni predračun, Spremeni mizo, Premakni goste.
+
+3. Zakaj se gostinci držijo teh barv?
+Intuitivno delo brez branja: Ob konicah natakarji ne berejo besedila na gumbih, temveč delajo po principu vizualnega spomina (npr. "rjava skupina zgoraj levo → kava").
+
+Hitrejše uvajanje novih zaposlenih: Ko nov natakar menja lokal, takoj ve, da se topli napitki in piva nahajajo pod prepoznavnimi barvnimi skupinami.
+
+Možnost prilagoditve: Večina programov omogoča, da lastnik barve gumbov po želji spremeni (npr. prilagodi celostni grafični podobi svojega lokala), vendar se večina odloči za privzete nastavitve, saj so te najbolj praktične za osebje.
