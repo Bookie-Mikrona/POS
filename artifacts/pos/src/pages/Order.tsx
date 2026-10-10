@@ -3530,7 +3530,7 @@ export default function Order() {
         )}
 
         <div className="shrink-0 px-3 py-2 md:p-4 border-t bg-card space-y-2 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:space-y-0 max-md:gap-y-1.5">
-          <div className="flex justify-between items-center max-md:flex-col max-md:items-start max-md:justify-center max-md:shrink-0">
+          <div className="flex justify-between items-center max-md:flex-col max-md:items-end max-md:justify-center max-md:shrink-0 max-md:order-2">
             <span className="text-sm text-muted-foreground max-md:text-xs leading-none">
               {aktivniGostStevilka !== null ? `Gost ${aktivniGostStevilka}` : "Skupaj"}
             </span>
@@ -3543,7 +3543,7 @@ export default function Order() {
           )}
           <Button
             size="lg"
-            className="w-full max-md:flex-1 max-md:min-w-0 text-lg h-12"
+            className="w-full max-md:flex-1 max-md:min-w-0 max-md:order-1 text-lg h-12"
             onClick={() => {
               const gostParam = aktivniGostStevilka !== null && neracunanePostavke.length > 0
                 ? `&gost=${aktivniGostStevilka}`
