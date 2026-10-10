@@ -2,11 +2,11 @@ import { and, eq } from "drizzle-orm";
 import { artModSkupineTable, db, modSkupineTable, modifikatorjiTable } from "@workspace/db";
 
 /**
- * Samodejne obvezne izbire pri jedeh, kjer natakar mora gosta vedno vprašati.
- * Namenoma ni neobveznih skupin (mleko, led ...): vsaka skupina odpre okno
- * pri vsakem dodajanju artikla in bi upočasnila hiter vnos.
+ * Samodejne skupine izbir. Obvezne (pečenost, jajca) in neobvezne (mleko, led ...).
+ * Vsaka skupina odpre okno ob vsakem dodajanju artikla, zato neobvezne skupine
+ * dobijo le artikli brez drugih skupin. Vse izbire so brez doplačila.
  */
-export type SamodejnaSkupina = { ime: string; izbire: string[] };
+export type SamodejnaSkupina = { ime: string; izbire: string[]; obvezna?: boolean; maxIzbir?: number };
 
 function normaliziraj(ime: string): string {
   return ime.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -14,12 +14,35 @@ function normaliziraj(ime: string): string {
 
 const PECENOST: SamodejnaSkupina = {
   ime: "Pečenost",
+  obvezna: true,
   izbire: ["Rare (krvavo)", "Medium rare", "Medium", "Medium well", "Well done (prepečeno)"],
 };
 const JAJCA: SamodejnaSkupina = {
   ime: "Priprava jajc",
+  obvezna: true,
   izbire: ["Na oko", "Umešana", "Trdo kuhana", "Mehko kuhana"],
 };
+
+const MLEKO: SamodejnaSkupina = { ime: "Mleko", izbire: ["Brez mleka", "Hladno mleko", "Toplo mleko", "Sojino mleko", "Ovseno mleko", "Brez laktoze"] };
+const CAJ: SamodejnaSkupina = { ime: "Dodatki k čaju", izbire: ["Z limono", "Z medom"], maxIzbir: 2 };
+const LED: SamodejnaSkupina = { ime: "Led", izbire: ["Z ledom", "Brez ledu"] };
+const LIMONA: SamodejnaSkupina = { ime: "Limona", izbire: ["Z limono"] };
+const PRELIV: SamodejnaSkupina = { ime: "Preliv", izbire: ["Oljčno olje in kis", "Jogurtov preliv", "Brez preliva"] };
+
+/** Neobvezne skupine glede na kategorijo in ime; kličejo se le za artikle brez drugih skupin. */
+export function neobveznoSkupineZaArtikel(ime: string, kategorija: string | null | undefined): SamodejnaSkupina[] {
+  const n = normaliziraj(ime);
+  const k = normaliziraj(kategorija ?? "");
+  if (/topl/.test(k)) {
+    if (/caj/.test(n)) return [CAJ];
+    if (/kav|espresso|macchiato|cappuccino|kapucin|latte|lungo|bela/.test(n)) return [MLEKO];
+    return [];
+  }
+  if (/brezalk|sok|voda/.test(k)) return [LED, LIMONA];
+  if (/zgan/.test(k)) return [LED];
+  if (/solat/.test(k)) return [PRELIV];
+  return [];
+}
 
 export function samodejneSkupineZaArtikel(ime: string): SamodejnaSkupina[] {
   const n = normaliziraj(ime);
@@ -38,15 +61,23 @@ export async function uporabiSamodejneSkupine(
   enotaId: number,
   artikelId: number,
   ime: string,
+  kategorija?: string | null,
   dbOrTx: typeof db = db,
 ): Promise<string[]> {
   const dodane: string[] = [];
-  for (const def of samodejneSkupineZaArtikel(ime)) {
+  const obstojece = await dbOrTx.select({ s: artModSkupineTable.skupinaId }).from(artModSkupineTable)
+    .where(eq(artModSkupineTable.artikelId, artikelId));
+  const skupine = [
+    ...samodejneSkupineZaArtikel(ime),
+    ...(obstojece.length === 0 ? neobveznoSkupineZaArtikel(ime, kategorija) : []),
+  ];
+  for (const def of skupine) {
     let [skupina] = await dbOrTx.select({ id: modSkupineTable.id }).from(modSkupineTable)
       .where(and(eq(modSkupineTable.enotaId, enotaId), eq(modSkupineTable.ime, def.ime)));
     if (!skupina) {
       [skupina] = await dbOrTx.insert(modSkupineTable).values({
-        enotaId, ime: def.ime, obvezna: true, minIzbir: 1, maxIzbir: 1, vrstniRed: 0,
+        enotaId, ime: def.ime, obvezna: def.obvezna ?? false,
+        minIzbir: def.obvezna ? 1 : 0, maxIzbir: def.obvezna ? 1 : def.maxIzbir ?? 1, vrstniRed: 0,
       }).returning({ id: modSkupineTable.id });
       await dbOrTx.insert(modifikatorjiTable).values(
         def.izbire.map((izbira, i) => ({ skupinaId: skupina.id, ime: izbira, cenaDodatek: "0", vrstniRed: i })),

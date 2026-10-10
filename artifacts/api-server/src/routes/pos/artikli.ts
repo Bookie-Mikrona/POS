@@ -730,7 +730,8 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
 
   if (prodajniArtikel) {
     try {
-      await uporabiSamodejneSkupine(tenotaId, row.id, row.ime);
+      const [kat] = row.kategorijaId == null ? [] : await db.select({ ime: kategorijeTable.ime }).from(kategorijeTable).where(eq(kategorijeTable.id, row.kategorijaId));
+      await uporabiSamodejneSkupine(tenotaId, row.id, row.ime, kat?.ime);
     } catch (error) {
       req.log.warn({ err: error, artikelId: row.id }, "Samodejne obvezne izbire niso bile dodane");
     }
