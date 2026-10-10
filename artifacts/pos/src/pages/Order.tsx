@@ -78,7 +78,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNastavitve } from "@/contexts/NastavitveContext";
-import SystemInputDialog from "@/components/SystemInputDialog";
+import OpombaDialog from "@/components/OpombaDialog";
 import { KlavijaturaInput } from "@/components/KlavijaturaInput";
 import { casZaPosDatetimeLocal, formatPosCas, poslovniDatumZaCas, posDatetimeLocalToIso } from "@/lib/posCas";
 import { isOrderArticleVisible } from "@/lib/order-article-visibility";
@@ -1010,7 +1010,7 @@ export default function Order() {
   // avtomatskimi Chrome restarti), da gumb ne utripa med ponovnim zaganjanjem seje.
   const [glasovnoAktivno, setGlasovnoAktivno] = useState(false);
   const [glasovnoTranskript, setGlasovnoTranskript] = useState("");
-  const [opombaPostavka, setOpombaPostavka] = useState<{ id: number; kolicina: number; opomba: string | null } | null>(null);
+  const [opombaPostavka, setOpombaPostavka] = useState<{ id: number; artikelId: number; kolicina: number; opomba: string | null } | null>(null);
   const { zacni: zacniMikrofon, ustavi: ustaviMikrofon } = useGlasovniUkaz();
   const [steviloGostov, setSteviloGostov] = useState(0);
   const [aktivniGostStevilka, setAktivniGostStevilka] = useState<number | null>(urlGost);
@@ -3277,7 +3277,7 @@ export default function Order() {
                         <button
                           type="button"
                           className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border transition-colors ${postavka.opomba ? "bg-amber-50 text-amber-500 border-amber-200 hover:bg-amber-100" : "bg-muted/60 text-muted-foreground border-border hover:bg-violet-50 hover:text-violet-500 hover:border-violet-200"}`}
-                          onClick={() => setOpombaPostavka({ id: postavka.id, kolicina: postavka.kolicina, opomba: postavka.opomba ?? null })}
+                          onClick={() => setOpombaPostavka({ id: postavka.id, artikelId: postavka.artikelId, kolicina: postavka.kolicina, opomba: postavka.opomba ?? null })}
                             disabled={jePostavkaVObdelavi}
                             title={jeZacasnaPostavka ? "Artikel se še shranjuje" : "Vnesi opombo s tipkovnico"}
                         >
@@ -4822,8 +4822,8 @@ export default function Order() {
       </DialogContent>
     </Dialog>
     {opombaPostavka && (
-      <SystemInputDialog
-        naslov="Opomba"
+      <OpombaDialog
+        artikelId={opombaPostavka.artikelId}
         vrednost={opombaPostavka.opomba ?? ""}
         onPotrdi={(nova) => handleShraniOpombo(opombaPostavka.id, opombaPostavka.kolicina, nova)}
         onPreklic={() => setOpombaPostavka(null)}

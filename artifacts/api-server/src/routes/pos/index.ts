@@ -48,6 +48,7 @@ import fursDiagnostikaRouter from "./furs-diagnostika";
 import kupecRouter from "./kupec";
 import glasovniSinonimiRouter from "./glasovni-sinonimi";
 import glasovniUkazRouter from "./glasovni-ukaz";
+import hitreOpombeRouter from "./hitre-opombe";
 import dnevniMeniRouter from "./dnevni-meni";
 import modSkupineRouter from "./modifikatorske-skupine";
 import inventureRouter from "./inventure";
@@ -395,6 +396,7 @@ export const protectedPosRouterMounts: ProtectedPosRouterMount[] = [
   { prefix: "", childRouter: fursDiagnostikaRouter },
   { prefix: "", childRouter: kupecRouter },
   { prefix: "", childRouter: glasovniSinonimiRouter },
+  { prefix: "", childRouter: hitreOpombeRouter },
   { prefix: "", childRouter: glasovniUkazRouter, before: [posActorContext] },
   { prefix: "", childRouter: dnevniMeniRouter },
   { prefix: "", childRouter: modSkupineRouter },

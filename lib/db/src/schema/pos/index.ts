@@ -39,6 +39,7 @@ export * from "./dostava-operacije";
 export * from "./viva-vracila";
 export * from "./tiskalne-naloge";
 export * from "./glasovni-sinonimi";
+export * from "./hitre-opombe";
 export * from "./dnevni-meni";
 export * from "./daily-lunch";
 export * from "./malice";
