@@ -2947,7 +2947,7 @@ export default function Menu() {
                     <Label className="font-semibold">
                       {normativSectionTitle(artMealType, artProdajniArtikel)}
                     </Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {editingArt &&
                        lahkoVidiZgodovinoNormativa &&
                        canOfferSmartNormativ({
