@@ -16,7 +16,7 @@ import generate_pos_manual_pdf as base
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-accounting-manual-src"
-OUTPUT = ROOT / "docs" / "POS-Gostinstvo-racunovodski-prirocnik-v1.4.pdf"
+OUTPUT = ROOT / "generated-artifacts" / "POS-Gostinstvo-racunovodski-prirocnik-v1.5.pdf"
 SOURCE_FILES = [
     ("I", "Računovodska sled in delo s temeljnicami", "00-uvod-in-delo-s-temeljnicami.md"),
     ("II", "Privzeti konti in preslikave", "01-privzeti-konti.md"),
@@ -35,7 +35,7 @@ class AccountingManualDocTemplate(base.ManualDocTemplate):
             canvas.line(18 * mm, 16.5 * mm, A4[0] - 18 * mm, 16.5 * mm)
             canvas.setFont("Manual", 8.2)
             canvas.setFillColor(base.MUTED)
-            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — računovodski priročnik v1.4")
+            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — računovodski priročnik v1.5")
             canvas.drawRightString(A4[0] - 18 * mm, 11.5 * mm, f"Stran {page}")
         canvas.restoreState()
 
@@ -47,11 +47,11 @@ def build_story(styles, doc):
         Paragraph("Mikrona d.o.o.", styles["cover_meta"]),
         Spacer(1, 38 * mm),
         Paragraph("POS Gostinstvo", styles["cover_title"]),
-        Paragraph("Celovit računovodski priročnik · izdaja 1.4", styles["cover_subtitle"]),
+        Paragraph("Računovodski prenos POS dokumentov · izdaja 1.5", styles["cover_subtitle"]),
         Spacer(1, 13 * mm),
         Table(
             [
-                ["Različica", Paragraph("1.4", styles["body"])],
+                ["Različica", Paragraph("1.5", styles["body"])],
                 [
                     "Obseg",
                     Paragraph(
@@ -104,7 +104,7 @@ def build_story(styles, doc):
         ParagraphStyle("ATOC3", fontName="Manual", fontSize=8.2, leading=11, leftIndent=21 * mm, textColor=base.MUTED),
     ]
     story.extend([toc, PageBreak()])
-    for numeral, title, filename in SOURCE_FILES:
+    for chapter_number, (numeral, title, filename) in enumerate(SOURCE_FILES, start=1):
         part = Paragraph(f"DEL {numeral}<br/><br/>{html.escape(title)}", styles["part"])
         part._manual_heading_level = 1
         part._manual_heading_text = f"DEL {numeral}: {title}"
@@ -119,7 +119,10 @@ def build_story(styles, doc):
                 f"{filename} vsebuje datume zunaj oblike dd.mm.yyyy: "
                 + ", ".join(invalid_dates)
             )
-        flowables = base.markdown_to_flowables(markdown, styles, doc.width)
+        flowables = base.markdown_to_flowables(
+            markdown, styles, doc.width, chapter_number, filename,
+            include_pos_packages=False,
+        )
         if not flowables:
             raise ValueError(f"{filename} po filtriranju nima vsebine")
         story.extend(flowables)
@@ -129,6 +132,7 @@ def build_story(styles, doc):
 
 
 def main() -> None:
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     base.register_fonts()
     styles = base.make_styles()
     doc = AccountingManualDocTemplate(
@@ -139,7 +143,7 @@ def main() -> None:
         rightMargin=19 * mm,
         topMargin=18 * mm,
         bottomMargin=21 * mm,
-        title="POS Gostinstvo — celovit računovodski priročnik v1.4",
+        title="POS Gostinstvo — računovodski prenos dokumentov v1.5",
         author="Bookie",
         subject="Računovodski priročnik za modul POS Gostinstvo",
         creator="Bookie POS Gostinstvo",

@@ -608,12 +608,12 @@ Pred potrditvijo vsak dan odkljukajte:
 - [ ] osnutek ima pravilno obdobje in je obdobje odprto;
 - [ ] potrjene temeljnice so prenesene samo enkrat.
 
-## 13. KIR — knjiga izdanih računov
+## 13. Predaja izdanih računov glavni knjigi
 
-Vsak pravilno zaključen POS račun z izhodnim DDV ustvari sled za KIR. V
-kontroli povežite izvorni račun, KIR-vrstico in temeljnico ter preverite
-številko, datum izdaje oziroma davčni datum, DDV-kodo, osnovo, DDV, bruto
-znesek, način plačila in status. Storno, vračilo in dobropis morajo kazati
-izvirnik in nasprotni učinek; odprta miza, rezervacija in nedokončano naročilo
-ne sodijo v KIR. KIR je podprt za pravilno knjižene vire, XML pa se pripravi
-šele po uspešni predoddajni kontroli.
+Predajte zaključene POS račune, storna in vračila z referencami izvirnikov,
+datumi, DDV-kodami, osnovami, DDV, bruto zneski in statusom prenosa.
+Odprta miza, rezervacija in nedokončano naročilo niso izdani računi.
+
+Pregled knjige izdanih računov je naloga modula **Glavna knjiga**, ne POS.
+Nadaljujte po poglavju »Davčne evidence« njegovega priročnika; prenosa
+POS dokumenta ne zamenjajte s potrjeno davčno evidenco.

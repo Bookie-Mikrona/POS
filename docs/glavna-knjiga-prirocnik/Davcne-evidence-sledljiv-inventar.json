@@ -1,0 +1,67 @@
+[
+  {
+    "id": "TAX-KIR-001", "domain": "davčne evidence", "feature": "KIR – knjiga izdanih računov",
+    "user_roles": ["računovodja", "administrator"],
+    "prerequisites": ["izbrano podjetje in davčno obdobje", "pravilno knjiženi izdani računi", "veljavna DDV-preslikava"],
+    "normal_flow": "Glavna knjiga → DDV evidence → KIR/KPR Evidenca: preverite izdane račune in povezave izvorni račun → KIR-vrstica → temeljnica ter datum, partnerja, kodo, osnovo, DDV, bruto znesek in status.",
+    "exceptions_recovery": "Odprta miza ni račun. Manjkajoč vir ali preslikavo razjasnite pred izvozom; fiskalna potrditev ni dokaz popolne evidence.",
+    "business_effect": "Izdani računi in popravki podjetja so sledljivi od izvora do davčne evidence in glavne knjige.",
+    "ui_evidence": ["artifacts/erp-web/src/components/layout/Shell.tsx", "artifacts/erp-web/src/pages/ddv.tsx", "artifacts/erp-web/src/pages/ddv-evidence.tsx"],
+    "api_evidence": ["artifacts/api-server/src/lib/vatLedger.ts", "artifacts/api-server/src/lib/vatXmlGenerator.ts"],
+    "manual_evidence": ["docs/glavna-knjiga-prirocnik/02-davcne-evidence.md — 1. KIR"],
+    "implementation_status": "IMPLEMENTIRANO", "coverage_status": "PRAVILNO", "severity": "KRITIČNO",
+    "gap_or_correction": "Preneseno iz obeh POS inventarjev in združeno v en postopek Glavne knjige. Prerazvrstitev ni nov funkcionalni preizkus."
+  },
+  {
+    "id": "TAX-KPR-001", "domain": "davčne evidence", "feature": "KPR – knjiga prejetih računov",
+    "user_roles": ["računovodja", "administrator"],
+    "prerequisites": ["izbrano podjetje in davčno obdobje", "knjižen prejeti račun", "datum prejema", "veljavna KPR-preslikava"],
+    "normal_flow": "V Glavni knjigi preverite prejete račune, dobavitelja, številko, datume, kodo, osnovo, DDV in odbitnost ter povezavo listina → KPR-vrstica → temeljnica.",
+    "exceptions_recovery": "Dobavnica brez računa ni popoln KPR; popravki ohranijo izvirnik. Manjkajoč datum, koda ali preslikava zadrži izvoz.",
+    "business_effect": "Davčni podatki prejetih računov podjetja ostanejo povezani z izvorom in računovodskim učinkom.",
+    "ui_evidence": ["artifacts/erp-web/src/pages/ddv.tsx", "artifacts/erp-web/src/pages/ddv-evidence.tsx"],
+    "api_evidence": ["artifacts/api-server/src/lib/vatLedger.ts", "artifacts/api-server/src/lib/vatXmlGenerator.ts"],
+    "manual_evidence": ["docs/glavna-knjiga-prirocnik/02-davcne-evidence.md — 2. KPR"],
+    "implementation_status": "IMPLEMENTIRANO", "coverage_status": "PRAVILNO", "severity": "KRITIČNO",
+    "gap_or_correction": "Preneseno iz obeh POS inventarjev; odpravljen napačen opis KPR kot postopka zunanje oddaje XML. Ni novega funkcionalnega preizkusa."
+  },
+  {
+    "id": "TAX-GL-001", "domain": "davčne evidence", "feature": "Uskladitev KIR/KPR z glavno knjigo",
+    "user_roles": ["računovodja"],
+    "prerequisites": ["isto podjetje in obdobje", "KIR/KPR izpis", "izpis glavne knjige"],
+    "normal_flow": "Računovodja ročno primerja število dokumentov, osnove, DDV po stopnjah, preskoke, dvojnike in korekcijske verige ter dokumentira razlike.",
+    "exceptions_recovery": "Prikazana rekonciliacija z DDV-O ni dokaz popolne uskladitve s saldi glavne knjige. Razliko raziščite po izvorni referenci.",
+    "business_effect": "Dokumentirana ročna uskladitev zmanjša tveganje manjkajočih ali podvojenih davčnih zapisov.",
+    "ui_evidence": ["artifacts/erp-web/src/pages/ddv-evidence.tsx"],
+    "api_evidence": ["artifacts/api-server/src/routes/vatLedgerReport.ts"],
+    "manual_evidence": ["docs/glavna-knjiga-prirocnik/02-davcne-evidence.md — 3. Uskladitev"],
+    "implementation_status": "NEPOTRJENO", "coverage_status": "PRAVILNO", "severity": "VISOKO",
+    "gap_or_correction": "Status velja za popolno avtomatsko uskladitev, ne za opisani ročni postopek. Ohranjen je prejšnji status NEPOTRJENO."
+  },
+  {
+    "id": "TAX-XML-001", "domain": "davčne evidence", "feature": "KIR/KPR XML izvoz",
+    "user_roles": ["računovodja", "administrator"],
+    "prerequisites": ["izbrano podjetje in davčno obdobje", "evidence brez predoddajnih napak"],
+    "normal_flow": "V Glavni knjigi preverite formalne kontrole in preslikave, ustvarite davčne datoteke ter shranite XML oziroma ZIP in dokazno sled.",
+    "exceptions_recovery": "Manjkajoč datum, preslikava, DDV-koda ali aktivna evidenčna vrstica zadrži izvoz. Delne datoteke ne uporabljajte.",
+    "business_effect": "Računovodja dobi davčne datoteke za ločeno zunanjo oddajo.",
+    "ui_evidence": ["artifacts/erp-web/src/pages/ddv-evidence.tsx"],
+    "api_evidence": ["artifacts/api-server/src/routes/vatSubmissions.ts", "artifacts/api-server/src/lib/vatXmlGenerator.ts"],
+    "manual_evidence": ["docs/glavna-knjiga-prirocnik/02-davcne-evidence.md — 4. KIR/KPR XML"],
+    "implementation_status": "IMPLEMENTIRANO", "coverage_status": "PRAVILNO", "severity": "VISOKO",
+    "gap_or_correction": "Preneseno v Glavno knjigo. Generiranje in prenos nista dokaz uspešne oddaje; ni izvedena nova davčna oddaja."
+  },
+  {
+    "id": "TAX-EDAVKI-001", "domain": "davčne evidence", "feature": "Neposredna elektronska oddaja KIR/KPR v eDavke",
+    "user_roles": ["računovodja", "administrator"],
+    "prerequisites": ["preverjene izvozne datoteke", "zunanji odobreni postopek eDavki"],
+    "normal_flow": "Datoteke iz Glavne knjige oddajte po zunanjem odobrenem postopku in shranite povratnico oziroma zavrnitev z referenco oddane datoteke.",
+    "exceptions_recovery": "Ne prikazujte uspešne neposredne oddaje brez dokazila; izvoz datotek ni dokaz prejema eDavkov.",
+    "business_effect": "Ločitev izvoza od dejanske oddaje prepreči lažen dokaz davčne skladnosti.",
+    "ui_evidence": ["artifacts/erp-web/src/pages/ddv-evidence.tsx"],
+    "api_evidence": ["artifacts/api-server/src/routes/vatSubmissions.ts"],
+    "manual_evidence": ["docs/glavna-knjiga-prirocnik/02-davcne-evidence.md — 5. Oddaja"],
+    "implementation_status": "NI IMPLEMENTIRANO", "coverage_status": "PRAVILNO", "severity": "KRITIČNO",
+    "gap_or_correction": "Neposredna oddaja iz aplikacije ni implementirana. Ohranjen je prejšnji status; podprt izvoz in zunanja oddaja sta ločena."
+  }
+]

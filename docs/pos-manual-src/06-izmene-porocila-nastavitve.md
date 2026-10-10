@@ -2308,13 +2308,13 @@ Ne popravljajte ga z dodatnim plačilom, nasprotnim pologom ali ročnim
 spreminjanjem zneska brez odobrenega računovodskega postopka.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-1e2e962a1c72 package=lite -->
-## 54. Davčni evidenci KIR in KPR ter predaja računovodstvu
+## 54. Predaja izvornih dokumentov računovodstvu
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-2846e287831e package=lite -->
-### 54.1 KIR — knjiga izdanih računov
+### 54.1 Izdani računi in popravki
 
-Zaključen in fiskalno potrjen račun je izvor za KIR, vendar operativno
-poročilo POS samo po sebi še ni KIR. Pri predaji računovodstvu morajo ostati
+Zaključen in fiskalno potrjen račun je izvorni dokument za računovodstvo,
+vendar operativno poročilo POS ni davčna evidenca. Pri predaji morajo ostati
 povezani številka računa, datum izdaje oziroma davčni datum, DDV-koda, osnova,
 DDV, bruto znesek, način plačila, status in povezava na storno oziroma
 dobropis. Odprta miza, rezervacija, nedokončano naročilo ali odpad niso
@@ -2323,31 +2323,35 @@ izdani račun in se v KIR ne smejo vključiti kot prihodek.
 Pri stornu ali vračilu ne ustvarite novega navideznega računa. Uporabite
 odobren postopek in shranite povezavo izvirni račun → KIR-vrstica →
 nasprotni dokument. Fiskalna potrditev je dokaz izvornega računa, ne dokaz,
-da je bil KIRKPR XML že pripravljen ali oddan.
+da je bila davčna evidenca že pripravljena ali oddana.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-3279682fef0c package=lite -->
-### 54.2 KPR — knjiga prejetih računov
+### 54.2 Prejeti računi in dobaviteljski popravki
 
 Prejeti dobaviteljski `RACUN`, `DOBROPIS` ali `BREMEPIS` mora pred potrditvijo
 vsebovati dobavitelja, številko listine, datum listine, datum prejema oziroma
 davčni datum, DDV-kodo, osnovo, DDV, odbitnost in povezavo na popravek ali
 izvirnik. Prejemnica brez računa je lahko samo zalogovni dokument; ne
-predstavljajte je kot popoln KPR-zapis. Pri dobropisu in bremepisu preverite,
+predstavljajte je kot že obdelan prejeti račun. Pri dobropisu in bremepisu preverite,
 da se učinek ne podvoji v zalogi, obveznosti ali DDV.
 
-POS-operativni moduli ne predstavljajo samodejne oddaje v eDavke. Predaja
-računovodstvu mora vsebovati izvorno listino, potrjeno temeljnico, KIR/KPR
-status in morebitno zavrnitev ali manjkajočo preslikavo.
+Predaja računovodstvu mora vsebovati izvorno listino, povezano temeljnico
+oziroma status prenosa ter morebitno zavrnitev ali manjkajočo preslikavo.
+
+**Davčne evidence so del modula Glavna knjiga, ne POS Gostinstvo.**
+Pregled KIR/KPR, uskladitev z glavno knjigo, davčni XML izvoz in postopek
+oddaje v eDavke so opisani v priročniku za glavno knjigo, poglavje
+»Davčne evidence«. POS pripravi izvorne podatke; njihova predaja še ne
+pomeni knjiženja, pravilnosti davčne evidence ali uspešne davčne oddaje.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-56eb44cda046 package=lite -->
 ### 54.3 Kontrolni seznam pred predajo
 
-- [ ] KIR vsebuje vse zaključene račune, storna in vračila brez odprtih miz.
-- [ ] KPR vsebuje pravilno potrjene prejete račune in povezane popravke.
-- [ ] Pri KIR in KPR so preverjeni datum, partner, DDV-koda, osnova in DDV.
-- [ ] KIR/KPR ni zamenjan s POS ali skladiščnim poročilom.
-- [ ] XML izvoz, če ga pripravi računovodski sistem, ima shranjen rezultat,
-      čas, uporabnika in morebitno povratno napako.
+- [ ] Predani so vsi zaključeni računi, storna in vračila ter povezave na izvirnike.
+- [ ] Predani so prejeti računi in popravki; dobavnice brez računa so jasno ločene.
+- [ ] Pri izvornih dokumentih so preverjeni datum, partner, DDV-koda, osnova in DDV.
+- [ ] Shranjeni so rezultat prenosa, reference in morebitne napake.
+- [ ] Računovodja nadaljuje obdelavo davčnih evidenc v modulu Glavna knjiga.
 
 <!-- pos-heading: id=pos-02-monthly-contract-invoices package=lite -->
 ## 55. Mesečni račun pogodbeni firmi za malice

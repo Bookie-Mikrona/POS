@@ -29,6 +29,7 @@ AUDIT_FILES = [Path(f"/tmp/inventory-sl2-{index}.json") for index in range(1, 6)
 REVIEW_DATE = date(2026, 10, 10)
 BASELINE_REVIEW_DATE = date(2026, 10, 5)
 INVENTORY_TITLE = "POS Gostinstvo — sledljiv inventar priročnika"
+REVIEW_REPORT = "POS-Gostinstvo-pregled-prirocnika-2026-10-10.md"
 
 STATUS_MAP = {
     "CORRECT": "PRAVILNO",
@@ -293,7 +294,7 @@ def write_markdown(rows: list[dict[str, Any]]) -> None:
         "o ponovnem funkcionalnem preizkusu vseh postopkov. Datum pregleda "
         "je zapisan po vrsticah; izvoz starejšemu zapisu ne pripiše novega "
         "datuma. Obseg aktualnega pregleda in njegove omejitve so v "
-        "`POS-Gostinstvo-pregled-prirocnika-2026-10-10.md`.",
+        f"`{REVIEW_REPORT}`.",
         "",
         "## Povzetek pokritosti",
         "",

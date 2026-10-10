@@ -33,7 +33,7 @@ from reportlab.platypus.tableofcontents import TableOfContents
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
 POS_PLAN_SCHEMA = ROOT / "lib" / "db" / "src" / "schema" / "company-pos-plans.ts"
-MANUAL_VERSION = "8.12"
+MANUAL_VERSION = "8.13"
 MANUAL_RELEASE_DATE = date(2026, 10, 10)
 OUTPUT = ROOT / "generated-artifacts" / f"POS-Gostinstvo-prirocnik-v{MANUAL_VERSION}.pdf"
 PUBLIC_OUTPUT = ROOT / "artifacts" / "pos" / "public" / "POS-Gostinstvo-prirocnik.pdf"
@@ -520,13 +520,14 @@ def markdown_to_flowables(
     chapter_number: int,
     source_name: str,
     seen_ids: set[str] | None = None,
+    include_pos_packages: bool = True,
 ):
-    cleaned, _ = extract_heading_metadata(
-        text,
-        source_name,
-        seen_ids,
-        preserve_refs=True,
-    )
+    if include_pos_packages:
+        cleaned, _ = extract_heading_metadata(
+            text, source_name, seen_ids, preserve_refs=True,
+        )
+    else:
+        cleaned = text
     cleaned = clean_source(cleaned)
     lines = renumber_headings(cleaned, chapter_number).splitlines()
     story = []
@@ -588,20 +589,24 @@ def markdown_to_flowables(
             level = len(heading.group(1))
             title = heading.group(2).strip()
             metadata = HEADING_REF.search(title)
-            if metadata is None:
+            if include_pos_packages and metadata is None:
                 raise ValueError(
                     f"{source_name}: naslov po filtriranju nima vezanih metapodatkov."
                 )
-            package = metadata.group(2)
             title = HEADING_REF.sub("", title).strip()
-            package_label = PACKAGE_LABELS[package]
+            suffix = ""
+            bookmark_suffix = ""
+            if include_pos_packages:
+                package = metadata.group(2)
+                suffix = f"&nbsp;&nbsp;{package_badge(package)}"
+                bookmark_suffix = f" [POS {PACKAGE_LABELS[package]}]"
             para = Paragraph(
-                f"{inline_markup(title)}&nbsp;&nbsp;{package_badge(package)}",
+                f"{inline_markup(title)}{suffix}",
                 styles[f"h{level}"],
             )
             para._manual_heading_level = level
             para._manual_heading_text = (
-                f"{re.sub(r'[*`]', '', title)} [POS {package_label}]"
+                f"{re.sub(r'[*`]', '', title)}{bookmark_suffix}"
             )
             story.append(para)
             index += 1

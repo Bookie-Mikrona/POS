@@ -1,7 +1,7 @@
 # POS Gostinstvo — sledljiv inventar priročnika
 
 **Datum izvoza inventarja:** 10.10.2026
-**Število evidentiranih uporabniških postopkov:** 89
+**Število evidentiranih uporabniških postopkov:** 84
 
 Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak pokritost uporabniškega postopka v priročniku.
 
@@ -11,7 +11,7 @@ Oznake so dokumentacijska ocena posameznih zapisov, ne potrdilo o ponovnem funkc
 
 | Status | Število |
 |---|---:|
-| PRAVILNO | 89 |
+| PRAVILNO | 84 |
 | DELNO | 0 |
 | MANJKA | 0 |
 | NAPAČNO | 0 |
@@ -20,16 +20,16 @@ Oznake so dokumentacijska ocena posameznih zapisov, ne potrdilo o ponovnem funkc
 
 | Stanje | Število |
 |---|---:|
-| IMPLEMENTIRANO | 87 |
-| NI IMPLEMENTIRANO | 1 |
-| NEPOTRJENO | 1 |
+| IMPLEMENTIRANO | 84 |
+| NI IMPLEMENTIRANO | 0 |
+| NEPOTRJENO | 0 |
 
 ## Pomembnost
 
 | Pomembnost | Število |
 |---|---:|
-| KRITIČNO | 30 |
-| VISOKO | 49 |
+| KRITIČNO | 27 |
+| VISOKO | 47 |
 | SREDNJE | 9 |
 | NIZKO | 1 |
 
@@ -122,11 +122,6 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 | ZAL-002 | zaloga | Pripravljena/sestavljena hrana in razpoložljivost | PRAVILNO | VISOKO |
 | ZAL-003 | zaloga | WAC izračun po prejemu in kontrola nabavne cene | PRAVILNO | KRITIČNO |
 | ZAL-004 | zaloga | Začetna zaloga, inventura in kartica zaloge | PRAVILNO | VISOKO |
-| TAX-GEN-KIR-001 | davčne evidence | KIR izdanih računov in popravkov | PRAVILNO | KRITIČNO |
-| TAX-GEN-KPR-001 | davčne evidence | KPR prejetih računov | PRAVILNO | KRITIČNO |
-| TAX-GEN-GL-001 | davčne evidence | Uskladitev KIR/KPR z GL | PRAVILNO | VISOKO |
-| TAX-GEN-XML-001 | davčne evidence | KIRKPR XML izvoz | PRAVILNO | VISOKO |
-| TAX-GEN-EDAVKI-001 | davčne evidence | Neposredna oddaja KIR/KPR v eDavke | PRAVILNO | KRITIČNO |
 | NOR-NORMAL-PORTION | normativi | Normalna porcija v g/ml za normativ pripravljenega kg/l polizdelka | PRAVILNO | VISOKO |
 | GK-POS-ARCHIVE-EXPORT | poročila | Samostojni arhiv POS temeljnic, potrjen prenos v GK in izvoz obdobja | PRAVILNO | VISOKO |
 | UNIT-FUNCTION-POLICY | Nastavitve | Paket, funkcije enote, odvisnosti in blokade izklopa | PRAVILNO | VISOKO |

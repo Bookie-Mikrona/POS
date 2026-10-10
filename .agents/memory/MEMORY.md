@@ -149,7 +149,7 @@
 - [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.
 - [Samostojne postavke GK](native-ledger-open-items.md) — odprtost in plačila brez nadomestnih računov; neznana zapadlost in ločeni strani ostanejo razvidni.
 - [Izolacija finančnih testov](financial-integration-test-isolation.md) — dejanska zapiranja preveri z zunanjo transakcijo in rollbackom, ne z brisanjem zaščitenih sledi.
-- [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — analitične dimenzije potrebujejo podrobna splošna navodila, ne nastavitev za Mikrono.
+- [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — splošna navodila za dimenzije; davčne evidence sodijo v GK, ne v POS dokumentacijo.
 - [Razrez pripravljenih sladic](dessert-preparation-yields.md) — privzeti kosi iz normativa; kuhar izbere razrez vsake priprave, ne da bi samo razrez povečal porabo surovin.
 - [Receptne pretvorbe žličk](recipe-spoon-gram-conversions.md) — bogat ščepec soli 1 g; ½ žličke pecilnega praška 2,5 g; poravnana žlička cimeta 4 g.
 - [Obseg razvojnega okolja](development-environment-scope.md) — uporabnik dela izključno v dev; neskladje z naslovom na posnetku najprej razjasni, ne diagnosticiraj drugega okolja.

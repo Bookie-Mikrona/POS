@@ -1856,13 +1856,11 @@ Končna odločitev vsebuje »uspešno«, »uspešno po obnovitvi« ali »še ni 
 Odločitev »še ni potrjeno« navede naslednjo konkretno vajo in odgovorno osebo.
 
 <!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-806132e45946 package=lite -->
-## 37. Računovodja: KIR, KPR in predaja
+## 37. Predaja računovodstvu in meja modula POS
 
-- [ ] Vsi zaključeni računi, storna in vračila imajo vir za KIR.
-- [ ] Vsi potrjeni prejeti računi in povezani popravki imajo vir za KPR.
-- [ ] Preverjeni so partner, datum, DDV-koda, osnova, DDV in odbitnost.
-- [ ] Uskladitev KIR/KPR z glavno knjigo je dokumentirana; avtomatski popolni
-      tie-out ni domnevan brez dokazila.
-- [ ] XML izvoz in dejanska oddaja v eDavke sta preverjena ločeno.
-- [ ] Shranjeni so XML, čas, uporabnik, hash oziroma referenca datoteke in
-      povratnica ali zavrnitev; aplikacija sama ne pomeni oddaje v eDavke.
+- [ ] Predani so vsi zaključeni izdani in prejeti računi ter povezani popravki.
+- [ ] Preverjeni so partner, datum, DDV-koda, osnova in DDV izvorne listine.
+- [ ] Predaja ima dokazljiv rezultat, reference in seznam nerešenih napak.
+- [ ] Obravnava KIR/KPR, uskladitev in davčni izvoz se nadaljujejo v modulu
+      **Glavna knjiga**, po njegovem priročniku za davčne evidence.
+- [ ] Zaključek POS dneva ni dokaz davčne oddaje ali prejema v eDavkih.

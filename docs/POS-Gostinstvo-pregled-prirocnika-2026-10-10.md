@@ -6,6 +6,13 @@
 
 ## Kaj je bilo pregledano
 
+**Dopolnitev za izdajo 8.13:** po razmejitvi obsega so KIR, KPR,
+uskladitev, davčni XML izvoz in eDavki preneseni v priročnik za glavno
+knjigo ter njegov ločeni inventar. POS inventar zdaj vsebuje 84 postopkov,
+davčni inventar Glavne knjige pa pet. Spodnje številke 85/89 opisujejo
+zgodovinski obseg izdaje 8.12, ne trenutnega POS inventarja. Razmejitev
+ne pomeni novega funkcionalnega prevzema ali spremembe davčnih podatkov.
+
 - Besedilo vseh 12 poglavij, vključno s kratkimi navodili, podrobnimi
   postopki, izjemami in kontrolnimi primeri.
 - Dokazne reference vseh 85 predhodnih inventarnih zapisov; preverjen je

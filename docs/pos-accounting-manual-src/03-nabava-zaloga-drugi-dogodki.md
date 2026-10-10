@@ -798,29 +798,14 @@ referenci, ne po končnem saldu. Najprej preverite preskočene temeljnice,
 storna, delna plačila, časovne zamike kartičnega kliringa, dobropise in
 neodbitni DDV. Šele nato izvedite dokumentiran popravek ali storno.
 
-## 23. KPR — knjiga prejetih računov
+## 23. Predaja prejetih računov glavni knjigi
 
-### 23.1 Nastanek in kontrola KPR-vrstice
+Predajte prejeti račun, datum prejema, dobavitelja, številko in datum
+listine, davčne podatke ter povezave na popravke in temeljnico. Dobavnica
+brez računa je zalogovni vir, ne nadomestni račun. Dobropis in bremepis
+morata ohraniti povezavo na izvirnik in ne smeta podvojiti zaloge,
+obveznosti ali DDV.
 
-Pravilno potrjen prejeti `RACUN` ustvari KPR-vrstico in vhodno DDV-vrstico v
-evidenci. Povežite **izvorno listino → KPR-vrstico → GL temeljnico**. Preverite
-dobavitelja, številko in datum listine, datum prejema, davčni datum, DDV-kodo,
-osnovo, odbitni DDV, neodbitni del in partnerja. Prejemnica brez računa je
-lahko zalogovni vir, ni pa sama po sebi popoln KPR.
-
-### 23.2 Popravki in predaja
-
-Dobropis in bremepis morata imeti povezavo na izvirni račun. Če avtomatski
-knjižni učinek ni potrjen, uporabite odobreno ročno temeljnico in preverite,
-da se zaloga, obveznost ali DDV ne zajame dvakrat. KPR se lahko vključi v
-KIRKPR XML šele, ko ima datum prejema, veljavno KPR-preslikavo in aktivno
-vrstico v `vat_ledger`. Predoddajna kontrola blokira manjkajoče preslikave,
-neničelne DDV-vrstice brez `vatCodeId` in knjižene DDV-vrstice brez evidence.
-
-### 23.3 Kontrolni seznam KPR
-
-- [ ] Številka, dobavitelj, datum listine in datum prejema so dokazljivi.
-- [ ] DDV-koda, osnova, odbitnost in DDV se ujemajo z računom.
-- [ ] KPR-vrstica ima povezavo na prejeto listino in GL temeljnico.
-- [ ] Dobropis oziroma bremepis ima povezavo na izvirnik.
-- [ ] Manjkajoča preslikava ali vrstica evidence je odpravljena pred izvozom.
+Pregled knjige prejetih računov in njena davčna obdelava sodita v modul
+**Glavna knjiga**. Postopek nadaljujte po poglavju »Davčne evidence«
+priročnika za glavno knjigo, ne v operativnem modulu POS.

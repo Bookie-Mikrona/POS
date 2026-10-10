@@ -18,7 +18,9 @@ def main() -> None:
     base.CSV_OUTPUT = DOCS / "POS-Gostinstvo-racunovodski-sledljiv-inventar.csv"
     base.XLSX_OUTPUT = DOCS / "POS-Gostinstvo-racunovodski-sledljiv-inventar.xlsx"
     base.MD_OUTPUT = DOCS / "POS-Gostinstvo-racunovodski-sledljiv-inventar.md"
-    base.REVIEW_DATE = date(2026, 9, 21)
+    base.REVIEW_DATE = date(2026, 10, 10)
+    base.BASELINE_REVIEW_DATE = date(2026, 9, 21)
+    base.REVIEW_REPORT = "pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md"
     base.INVENTORY_TITLE = (
         "POS Gostinstvo — sledljiv inventar računovodskega priročnika"
     )
