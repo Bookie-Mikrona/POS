@@ -95,8 +95,12 @@ preverite račune in poiščite dejanski vzrok.
 5. Izberite oziroma vpišite jasen razlog.
 6. Dodajte sklic ali opombo, kadar je zahtevan.
 7. Preglejte smer in znesek.
-8. Potrdite premik.
-9. Fizično denar položite ali odvzemite takoj ob potrditvi.
+8. Shranite osnutek; pripravljavec svojega premika ne more potrditi sam.
+9. Druga pooblaščena oseba preveri dokazilo in potrdi premik. Preverite stanje **POTRJEN**.
+
+Evidentirajte dejanski fizični dogodek, ne načrtovanega prenosa. Premike
+za zaključevani poslovni dan vnesite in potrdite pred Z-poročilom.
+Z-poročilo dan zaklene in onemogoči nove vnose za ta dan.
 
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f8445d7095bc package=lite -->
 ### 4.3 Kontrola premika
@@ -1309,15 +1313,21 @@ Pri uporabniškem opisu je prikazan računovodski namig D 220 / K 100.
 
 Pri uporabniškem opisu je prikazan računovodski namig D 100 / K 109.
 
-`DVIG_GOTOVINE` je dvig gotovine iz blagajne.
+`DVIG_GOTOVINE` je **dvig z bančnega TRR**, ne odvzem iz predala.
 
-Za ta tip zapišite razlog, prejemnika in sklic kuverte.
+Knjiženje je D 109 / K 110. Gotovino predala poveča šele ločen
+prejem gotovine (`POLOG_GOTOVINE`, D 100 / K 109).
 
 `POLOG_TRR` je polog gotovine na transakcijski račun.
 
 Pri uporabniškem opisu je prikazan računovodski namig D 109 / K 100.
 
-`PRILIV_TRR` je priliv na TRR, kadar ga dovoljuje vaš poslovni postopek.
+`PRILIV_TRR` je bančni priliv po predhodnem pologu, D 110 / K 109.
+Vnesite ga na datum dejanskega priliva po bančnem dokazilu; ne spremeni
+gotovine predala. Uskladite ga z obdelavo izpiska, da ne podvojite knjiženja.
+
+Praktični primeri vseh petih vrst ter zaključek z menjalnim denarjem
+so v razdelku **X- in Z-poročilo ter blagajniški premiki**.
 
 `STORNO` ni tip za neposreden ročni izbor novega premika.
 
@@ -1827,6 +1837,9 @@ Označite, kdo ga je predal.
 Označite, katera blagajna ga je prejela.
 
 Po potrditvi premik poveča pričakovano gotovino.
+Začetnega menjalnega denarja, ki je že vključen v nastavitvi blagajne,
+ne vnesite še enkrat kot dodaten prejem. Opis izvora denarja mora
+ustrezati dejanskemu dogodku in računovodskemu postopku podjetja.
 
 Polog ni prodaja.
 
@@ -1837,7 +1850,10 @@ Polog ne sme prikrivati viška od prejšnje izmene.
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-a4e3415781dc package=lite -->
 ### 25.7 Dvig gotovine v sef
 
-Dvig gotovine zmanjša fizično stanje predala.
+Odvzem gotovine v sef zmanjša fizično stanje predala, vendar ni isto
+kot **Dvig z bančnega TRR**. Med petimi ponujenimi vrstami ni posebnega
+prenosa v sef ali med dvema blagajnama. Ne izberite bančnega dviga
+za tak dogodek; postopek evidence uskladite z vodjo in računovodstvom.
 
 V opis vpišite razlog dviga.
 

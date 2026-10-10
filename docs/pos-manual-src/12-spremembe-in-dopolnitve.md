@@ -176,8 +176,8 @@ vloge, enote in dejanski dostop so pojasnjeni v poglavju 09.
 ## 8. Povzetek trenutne dokumentacije
 
 Ta dodatek združuje slovar, kontrolne sezname, učne in predajne pripomočke
-ter sklice na podrobne postopke. Priročnik je izdaja **v8.10**, datirana
-**05.10.2026**. To je različica dokumentacije, ne številka različice POS
+ter sklice na podrobne postopke. Priročnik je izdaja **v8.11**, datirana
+**10.10.2026**. To je različica dokumentacije, ne številka različice POS
 aplikacije.
 
 Seznam funkcij in zaslonov se lahko razlikuje glede na vlogo uporabnika,
@@ -1781,6 +1781,14 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-47cfbfb45934 package=lite -->
 ## 39. Kratka zgodovina dokumentacije
+
+**10.10.2026 — priročnik v8.11.** Dopolnjeni so blagajniški premiki:
+pet praktičnih primerov, vezava na izbrano blagajno, osnutek in ločena
+potrditev, zaporedje pred Z-poročilom, zaklep dneva, scenarija pologa A/B
+ter posamezni in dnevni prag 420,00 EUR. Popravljen je napačen opis
+bančnega dviga kot odvzema iz predala. Dodana so opozorila o podvajanju
+menjalnega denarja in bančnih knjižb. Ta dopolnitev je pregled navedenih
+postopkov, ne potrditev ponovnega pregleda vseh drugih funkcij POS.
 
 **05.10.2026 — priročnik v8.10.** Dodan je vnos normativa za eno normalno
 porcijo pri pripravljenem polizdelku v kg/l, s primeroma 400 g golaža in

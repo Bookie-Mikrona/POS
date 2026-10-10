@@ -2056,8 +2056,8 @@ Pred **Z-poročilom** vodja:
 
 1. preveri vse odprte oziroma neusklajene plačilne poskuse;
 2. pregleda gotovino, kartice, bone, TRR, napitnine, storna in vračila;
-3. vnese dejanski polog ali dvig z razlogom in dovoljenjem;
-4. preveri, da je premik viden v blagajniški evidenci;
+3. pred izdajo Z vnese dejanske blagajniške premike z opisom in dokazilom;
+4. zagotovi, da druga pooblaščena oseba premike potrdi in da imajo stanje **POTRJEN**, ne le **OSNUTEK**;
 5. potrdi Z-poročilo šele po uskladitvi pričakovanega in dejanskega stanja;
 6. po zaključku preveri številko Z, datum poslovanja in rezultat prenosa.
 
@@ -2065,6 +2065,78 @@ Polog in dvig nista nadomestilo za popravek napačnega plačila. Storno
 blagajniškega premika ohrani izvirni premik in revizijsko sled; ne brišite ga in
 ne ustvarjajte nasprotnega premika brez dovoljenja. Pri razliki zapišite
 pričakovani znesek, dejanski znesek, razliko, razlog in odgovorno osebo.
+
+**Katera blagajna?** Premik pripada izbrani blagajni trenutne enote,
+na primer PP001-B001. Pred vnosom preverite enoto, blagajno in poslovni
+datum. Gotovine različnih blagajn ne združujte. Poslovni dan lahko glede
+na nastavitve enote sega čez polnoč.
+
+**Pred ali po Z-poročilu?** Premik, ki se nanaša na gotovino tega
+poslovnega dne, vnesite in dajte v potrditev **pred Z-poročilom**.
+Osnutek še ne spremeni teoretičnega stanja in ni zajet kot potrjen premik.
+Po Z-poročilu je dan zaklenjen; nov vnos za ta dan je zavrnjen.
+Pozabljeni premik sporočite vodji in uporabite dovoljen postopek odklepa,
+popravka in ponovnega zaključka. Ne vnašajte lažnega datuma samo zato,
+da bi obšli zaklep.
+
+**Pet vrst premikov in praktični primeri**
+
+Konti spodaj so računovodski namigi iz izbirnika: D pomeni debet,
+K kredit. Dejanski analitični konti sledijo nastavitvam podjetja.
+
+| Vrsta premika | Praktični primer | Knjiženje in učinek na gotovino blagajne |
+| --- | --- | --- |
+| Izplačilo dobavitelju | Dobavitelju kruha iz predala plačate 85,00 EUR. Izberite dobavitelja oziroma povezan prejeti račun in shranite dokazilo. | D 220 / K 100; gotovina se zmanjša za 85,00 EUR. |
+| Prejem gotovine / menjalni denar | Po predhodnem dvigu z banke v predal dejansko prejmete dodatnih 200,00 EUR. | D 100 / K 109; gotovina se poveča za 200,00 EUR. |
+| Dvig z bančnega TRR | Na banki dvignete 200,00 EUR, ki jih šele nesete v lokal. | D 109 / K 110; gotovina predala se še ne spremeni. Ko denar prejme blagajna, ločeno evidentirajte prejem gotovine. |
+| Polog gotovine na TRR | Iz predala vzamete 600,00 EUR izkupička za polog na banko. | D 109 / K 100; gotovina se zmanjša za 600,00 EUR, znesek je do bančne potrditve na poti. |
+| Bančni priliv po pologu | Na bančnem izpisku je potrjen predhodni polog 600,00 EUR. | D 110 / K 109; zapre se denar na poti, gotovina predala se ne spremeni. |
+
+Bančno stopnjo vnesite na datum dejanskega bančnega dogodka. To je lahko
+isti ali poznejši dan, ne nujno naslednji delovni dan. Z računovodstvom
+uskladite obdelavo izpiska, da istega dviga ali priliva ne knjižite dvakrat.
+Premik ni prodaja, ne nadomešča računa in sam po sebi ne dokazuje pravilno
+zaprtega prejetega računa.
+
+**Menjalni denar ne sme biti upoštevan dvakrat.** Teoretično stanje že
+vključuje menjalni denar iz nastavitev blagajne. Če je začetnih 50,00 EUR
+že zajetih v tej nastavitvi, jih ne vnesite še kot dodatni prejem 50,00 EUR.
+Prejem gotovine uporabite za dejanski dodatni vnos denarja glede na že
+upoštevano osnovo. Lastnikov vložek ni samodejno bančni dvig; izvor in
+pravilno knjiženje mora določiti računovodstvo.
+
+**Polog na TRR: scenarij A ali B**
+
+- **A — menjalni denar ostane:** v predalu je 650,00 EUR, od tega
+  50,00 EUR nastavljenega menjalnega denarja. Položite 600,00 EUR;
+  po potrditvi ostane pričakovanih 50,00 EUR. Program zavrne polog,
+  ki bi posegel v nastavljeni menjalni denar.
+- **B — položen je tudi menjalni denar:** iz istega predala položite
+  vseh 650,00 EUR; po potrditvi ostane pričakovanih 0,00 EUR.
+  Pred naslednjim poslovnim dnem preverite dejansko začetno gotovino
+  in nastavitev menjalnega denarja.
+
+**Izplačila dobaviteljem in 420,00 EUR.** Program pri potrditvi preveri
+posamezno plačilo in dnevni seštevek plačil istemu dobavitelju.
+Če znesek preseže 420,00 EUR, zahteva dokumentiran razlog izjeme.
+Primer: plačili 250,00 EUR in 200,00 EUR istemu dobavitelju isti dan skupaj
+presežeta prag. Sam vpis razloga ne pomeni, da je gotovinsko plačilo
+zakonito; upravičenost preverite z računovodstvom, sicer uporabite TRR.
+
+**Praktično zaporedje zaključka**
+
+1. Preverite enoto in blagajno, na primer PP001-B001, ter poslovni datum.
+2. Zaključite plačila in preštejte gotovino; ne popravljajte manjka z izmišljenim premikom.
+3. Če gotovino dejansko odvajate na banko, vnesite **Polog na TRR**, znesek in scenarij A ali B.
+4. Shranite osnutek. Druga pooblaščena oseba ga mora potrditi; pripravljavec svojega premika ne more potrditi sam.
+5. Preverite stanje **POTRJEN** in ponovno primerjajte teoretično stanje s preostankom v predalu.
+6. Izdajte Z-poročilo šele po uskladitvi. Poznejši bančni priliv evidentirajte ločeno na njegov dejanski datum.
+
+Pričakovana gotovina je nastavljeni menjalni denar + gotovinska prodaja
++ potrjeni prejemi gotovine − potrjena izplačila dobaviteljem − potrjeni
+pologi na TRR. Dvig z bančnega TRR in bančni priliv ne spreminjata
+fizične gotovine predala. Podrobnejša navodila so v sklopu
+**Konec izmene, blagajniški premiki, poročila in POS→ERP**.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f4775e72353d package=extended -->
 ## 52. Meje spletnih plačil in rezervacij

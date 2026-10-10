@@ -1495,3 +1495,17 @@ mtime_ms = 1791532715646
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/80cc5b9f-ea77-4295-a462-563838ab5fd9/55fb598c-b310-428a-b842-c757be5b5711"
 storage_version_token = "1791532729061495"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "Yra_Xqj0eBLGYPw4BG51k"
+uri = "file://generated-artifacts/POS-Gostinstvo-prirocnik-v8.11.pdf"
+type = "pdf"
+title = "POS Gostinstvo — priročnik v8.11"
+description = "Dopolnjena navodila za vseh pet blagajniških premikov, praktične primere in zaključek pred Z-poročilom."
+logical_id = "a1606a9e-fe51-4d05-a5af-537d9584e304"
+content_hash = "sha256:38bc82b12906bb6a654400d35d8d86c868adf44007d01712aa281b02cf04ea77"
+size = 2650483
+mtime_ms = 1791592209836
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/a1606a9e-fe51-4d05-a5af-537d9584e304/51c0a1c4-3df1-4d95-a92d-55714a8d8dbf"
+storage_version_token = "1791592249006704"
+content_type = "application/pdf"

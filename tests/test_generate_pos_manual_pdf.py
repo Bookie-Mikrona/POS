@@ -207,9 +207,24 @@ def test_pdf_chapter_titles_match_pos_manual_navigation() -> None:
 
 
 def test_published_manual_matches_versioned_pdf() -> None:
-    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "05.10.2026"
+    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "10.10.2026"
     assert generator.OUTPUT.exists()
     assert generator.PUBLIC_OUTPUT.read_bytes() == generator.OUTPUT.read_bytes()
+
+
+def test_cash_movement_instructions_cover_close_and_actual_bank_withdrawal() -> None:
+    source = (generator.SOURCE_DIR / "06-izmene-porocila-nastavitve.md").read_text(encoding="utf-8")
+    for phrase in (
+        "pred Z-poročilom", "OSNUTEK", "POTRJEN", "PP001-B001",
+        "D 220 / K 100", "D 100 / K 109", "D 109 / K 110",
+        "D 109 / K 100", "D 110 / K 109",
+        "250,00 EUR in 200,00 EUR", "50,00 EUR nastavljenega menjalnega denarja",
+        "pripravljavec svojega premika ne more potrditi sam",
+    ):
+        assert phrase in source
+    detailed = (generator.SOURCE_DIR / "08-nastavitve-po-sklopih.md").read_text(encoding="utf-8")
+    assert "`DVIG_GOTOVINE` je **dvig z bančnega TRR**, ne odvzem iz predala." in detailed
+    assert "`DVIG_GOTOVINE` je dvig gotovine iz blagajne." not in detailed
 
 
 def test_current_manual_covers_all_recent_pos_change_groups() -> None:

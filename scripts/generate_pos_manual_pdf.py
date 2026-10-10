@@ -33,9 +33,9 @@ from reportlab.platypus.tableofcontents import TableOfContents
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
 POS_PLAN_SCHEMA = ROOT / "lib" / "db" / "src" / "schema" / "company-pos-plans.ts"
-MANUAL_VERSION = "8.10"
-MANUAL_RELEASE_DATE = date(2026, 10, 5)
-OUTPUT = ROOT / "docs" / f"POS-Gostinstvo-prirocnik-v{MANUAL_VERSION}.pdf"
+MANUAL_VERSION = "8.11"
+MANUAL_RELEASE_DATE = date(2026, 10, 10)
+OUTPUT = ROOT / "generated-artifacts" / f"POS-Gostinstvo-prirocnik-v{MANUAL_VERSION}.pdf"
 PUBLIC_OUTPUT = ROOT / "artifacts" / "pos" / "public" / "POS-Gostinstvo-prirocnik.pdf"
 LOGO = ROOT / "docs" / "mikrona-logo.png"
 

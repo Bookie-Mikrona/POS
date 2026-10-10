@@ -23,3 +23,16 @@ napake, medtem ko so nekatera operativna navodila presegala dokazano izvedbo.
 **How to apply:** Pred novo izdajo preveri UI/API dokazila, uskladi kanonični
 inventar, regeneriraj vse izhode in PDF ter opravi neodvisni pregled
 visoko/kritično pomembnih postopkov.
+
+Operativna navodila morajo vključevati praktične primere in zaporedje
+korakov, ne samo seznam polj; pregled mora iskati tudi protislovja med
+kratkim in podrobnim opisom istega postopka.
+
+**Why:** Uporabnik je ponovno opozoril, da bi morala biti navodila za
+blagajniške premike in zaključek dneva že vključena; delna pokritost
+ne pomeni uporabnega ali pravilnega postopka.
+
+**How to apply:** Ob dopolnitvi poišči vse povezane odseke, preveri jih
+glede na trenutno izvedbo in jasno loči lokalni popravek od celovitega
+pregleda priročnika. Ne trdi, da je celoten priročnik preverjen na podlagi
+enega popravljenega poglavja.
