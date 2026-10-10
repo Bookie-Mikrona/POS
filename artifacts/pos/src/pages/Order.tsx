@@ -687,7 +687,11 @@ function GrupaGumbStaro({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa
                 onClick={() => { onAdd(a.id); setOpen(false); }}
                 disabled={pendingArtikliIds.has(a.id)}
               >
-                <span className="text-xs font-semibold leading-tight">{a.ime}</span>
+                <span className="text-xs font-semibold leading-tight">
+                {(a as { plu?: string | null }).plu && (
+                  <span className="mr-1.5 rounded bg-black/15 px-1 py-0.5 text-[10px] font-bold tabular-nums">{(a as { plu?: string | null }).plu}</span>
+                )}
+                {a.ime}</span>
                 {a.opis?.match(/^Slovensko:\s*(.+)$/i)?.[1] && (
                   <span className="text-[11px] leading-tight opacity-75">{a.opis.match(/^Slovensko:\s*(.+)$/i)?.[1]}</span>
                 )}
@@ -832,6 +836,9 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-sm sm:text-xl font-bold leading-tight" style={{ color: aHasColor ? "rgba(255,255,255,0.95)" : undefined }}>
+                    {(a as { plu?: string | null }).plu && (
+                  <span className="mr-1.5 rounded bg-black/15 px-1 py-0.5 text-[10px] font-bold tabular-nums">{(a as { plu?: string | null }).plu}</span>
+                )}
                     {a.varLabel}
                   </div>
                   <div className="text-xs mt-0.5 truncate" style={{ color: aHasColor ? "rgba(255,255,255,0.6)" : "hsl(var(--muted-foreground))" }}>
@@ -1716,6 +1723,12 @@ export default function Order() {
     );
     if (narocilo?.nacin === "telefon") {
       list = list.filter(a => a.toGo === true);
+    }
+    // Točna šifra (PLU) se išče po vseh kategorijah, ne glede na izbran zavihek.
+    if (search.trim()) {
+      const sifra = (razcleniKolicinoInPlu(search)?.plu ?? search.trim()).toLowerCase();
+      const poSifri = list.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === sifra);
+      if (poSifri.length > 0) return { filteredArtikli: poSifri, filteredArtikliModMatch: new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>() };
     }
     if (activeKategorija !== "all") {
       list = list.filter(a => a.kategorijaId != null && a.kategorijaId.toString() === activeKategorija);
