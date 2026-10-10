@@ -1,0 +1,47 @@
+Primerjava delovanja pri vodilnih slovenskih ponudnikih
+A) Microgramm (Sistem Advantik)
+Način delovanja: Namenska Android aplikacija na dlančnikih/poslovnih telefonih z integriranim mobilnim tiskalnikom ali brez.
+
+Zaslon izbire artiklov:
+
+Razdeljen na mrežo barvnih gumbov po kategorijah (Topli napitki, Pijača, Hrana).
+
+Hitri vnosi količin: Dotik na gumb samodejno prišteje +1 artikla na naročilo.
+
+Opombe in normativi: Ob kliku na artikel (npr. kava) se odpre hitro pop-up okno za izbiro opomb: "z mrzlim mlekom", "brezkofeinska", "s smetano", ali normativov za kuhinjo (npr. "brez čebule", "srednje pečen").
+
+Naročanje & Tiskanje: En dotik na gumb "Pošlji" takoj pošlje naročilo na šank/v kuhinjo na KDS (kuhinjski zaslon) ali kuhinjski tiskalnik.
+
+B) POS Elektronček / Orderman (NCR)
+Način delovanja: Profesionalni namenski dlančniki (Orderman) ali Android naprave.
+
+Zaslon izbire artiklov:
+
+Zelo prilagojen delu na neposredni sončni svetlobi na terasah.
+
+Uporablja t. i. hitre številčne bližnjice (PLU kode) ali grafični mrežni prikaz artiklov.
+
+Natakar lahko artikel izbere s klikom na ikono ali pa hitro vtipka številko artikla (npr. 101 za espresso, 102 za cappuccino).
+
+Vnos atributov: Vgrajen podmeni za delitev računov po gostih (Gost 1, Gost 2) in prenos artiklov med mizami.
+
+C) Datalab PANTHEON RA/RC / POS Sector
+Način delovanja: Deluje na mobilnih tablicah in pametnih telefonih (Android / iOS).
+
+Zaslon izbire artiklov:
+
+Iskalnik in barvne skupine: Na vrhu je iskalno polje (možnost glasovnega ali tekstovnega iskanja) + filtriranje po kategorijah.   
+PNG
+
+Pregled košarice/naročila: Zgoraj desno je vseskozi viden znesek in število artiklov v košarici (npr. Naročilo (2) na sliki).   
+PNG
+
+Z enim potegom v levo ali desno se odpre pregled trenutno vnesenih artiklov pred zaključkom ali pošiljanjem v kuhinjo.
+
+3. Skupne ključne funkcionalnosti mobilnih vmesnikov
+Izbira mize in tloris terase: Pred vnosom artiklov natakar na grafičnem tlorisu ali seznamu izbere številko mize (npr. Miza 1 - Terasa).   
+PNG
+
+Hitre opombe za šank/kuhinjo: Možnost vnosa opomb brez tipkanja (vnaprej pripravljeni gumbi: z ledom, brez sladkorja, z mrzlim mlekom, ločeni računi).
+
+Tiskanje računa pri mizi: Če dlančnik vsebuje vgrajen tiskalnik ali prenosni Bluetooth tiskalnik za pasom, se izpis in davčna potrditev računa (FURS) izvede neposredno pred gostom.
