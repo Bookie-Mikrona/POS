@@ -700,7 +700,9 @@ function GrupaGumbStaro({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa
 }
 
 // Izvleče razlikovalni del variante (npr. "3 decilitre", "velika", "1")
-function ekstrahirajVariantoLabel(ime: string): string {
+function ekstrahirajVariantoLabel(ime: string, opis?: string | null): string {
+  // Italijanske kave: celoten naziv brez »Caffè«, da se »Lungo« in »Macchiato Lungo« ne zamenjata.
+  if (opis && /^Slovensko:/i.test(opis)) return ime.replace(/^Caff[eè]\s+/i, "").trim();
   const volMatch = ime.match(/\d+[,.]?\d*\s*(decilitr[a-z]*|dl\b|litr[a-z]*|liter\b|ml\b|cl\b|l\b)/i);
   if (volMatch) return volMatch[0].trim();
   const sizeMatch = ime.match(/\b(velik[ao]?[io]?|mali?[ao]?[io]?|majhni?[ao]?[io]?)\b/i);
@@ -734,7 +736,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
 
   const varianteZLabeli = useMemo(() =>
     grupa.children
-      .map(a => ({ ...a, varLabel: ekstrahirajVariantoLabel(a.ime) }))
+      .map(a => ({ ...a, varLabel: ekstrahirajVariantoLabel(a.ime, a.opis) }))
       .sort((a, b) => variantoSortKljuc(a.varLabel, a.cena) - variantoSortKljuc(b.varLabel, b.cena)),
     [grupa.children]
   );
@@ -823,7 +825,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
                     {a.varLabel}
                   </div>
                   <div className="text-xs mt-0.5 truncate" style={{ color: aHasColor ? "rgba(255,255,255,0.6)" : "hsl(var(--muted-foreground))" }}>
-                    {a.ime}
+                    {a.opis?.match(/^Slovensko:\s*(.+)$/i)?.[1] ?? a.ime}
                   </div>
                   {privzetiImena && (
                     <div className="flex items-center gap-0.5 text-[10px] leading-tight mt-1" style={{ color: aHasColor ? "rgba(255,255,255,0.7)" : "hsl(var(--muted-foreground))" }}>
