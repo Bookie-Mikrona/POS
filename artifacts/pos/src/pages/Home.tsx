@@ -146,9 +146,10 @@ const TLORIS_H = 440;
 const TLORIS_CW = 88;
 const TLORIS_CH = 54;
 
-export function MizaCard({ miza, aktivnaNarocila, onSelectMiza, onCancelNarocilo, onRezerviraj, isPending }: {
+export function MizaCard({ miza, aktivnaNarocila, onSelectMiza, onCancelNarocilo, onRezerviraj, isPending, rezervacijeOmogocene = true }: {
   miza: Miza;
   aktivnaNarocila: Narocilo[];
+  rezervacijeOmogocene?: boolean;
   onSelectMiza: (mizaId: number) => void;
   onCancelNarocilo: (narociloId: number, mizaId: number) => void;
   onRezerviraj: (miza: Miza) => void;
@@ -330,7 +331,7 @@ export function MizaCard({ miza, aktivnaNarocila, onSelectMiza, onCancelNarocilo
             <span className="text-destructive">Zapri prazno mizo</span>
           </Button>
         )}
-        {!showReservations && miza.status === "prosta" && (
+        {rezervacijeOmogocene && !showReservations && miza.status === "prosta" && (
           <Button
             className="w-full h-9 text-xs"
             variant="outline"
@@ -429,7 +430,7 @@ export function MizaNarocilaDialog({
           )}
 
           {/* Reservations Section */}
-          {miza && (
+          {miza && onRezerviraj && (
             <div className="space-y-2 pt-4 border-t">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Rezervacije</h3>
@@ -811,6 +812,7 @@ export default function Home() {
 
   const [aktivniFilter, setAktivniFilter] = useState<"vse" | "prosta" | "zasedena" | "delno_zaracunana" | "vse_zaracunano" | "rezervirana">("vse");
   const { user: avtUser } = useAuth();
+  const rezervacijeOmogocene = avtUser?.capabilities?.includes("reservations") ?? false;
   const telefonskaNarocilaOmogocena = avtUser?.capabilities?.includes("phone_orders") ?? false;
   const [telefonDialogOpen, setTelefonDialogOpen] = useState(false);
   const [izbiraNarocilMizaId, setIzbiraNarocilMizaId] = useState<number | null>(null);
@@ -937,6 +939,7 @@ export default function Home() {
     onCancelNarocilo: handleCancelNarocilo,
     onRezerviraj: handleRezervirajClick,
     isPending,
+    rezervacijeOmogocene,
   };
 
   const renderMizaCard = (miza: Miza) => {
@@ -991,7 +994,7 @@ export default function Home() {
           </Button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
+          {rezervacijeOmogocene && <Button
             size="sm"
             variant="outline"
             onClick={() => setRazpolozljivostDialogOpen(true)}
@@ -1001,7 +1004,7 @@ export default function Home() {
           >
             <CalendarClock className="w-4 h-4 mr-1.5" />
             <span>Poišči mizo</span>
-          </Button>
+          </Button>}
           {telefonskaNarocilaOmogocena && <Button
             size="sm"
             onClick={() => { setSkipAutoStart(); block(); setTelefonDialogOpen(true); }}
@@ -1215,10 +1218,10 @@ export default function Home() {
         miza={izbirnaMiza}
         narocila={izbirnaNarocila}
         onDodajNarocilo={handleDodajNarocilo}
-        onRezerviraj={handleRezervirajClick}
-        onEditRezervacija={handleEditRezervacija}
-        onZacniRezervacijo={handleZacniRezervacijo}
-        onSprostiRezervacijo={handleSprostiRezervacijo}
+        onRezerviraj={rezervacijeOmogocene ? handleRezervirajClick : undefined}
+        onEditRezervacija={rezervacijeOmogocene ? handleEditRezervacija : undefined}
+        onZacniRezervacijo={rezervacijeOmogocene ? handleZacniRezervacijo : undefined}
+        onSprostiRezervacijo={rezervacijeOmogocene ? handleSprostiRezervacijo : undefined}
         gatewayMode={gatewayMode}
         isPending={isPending}
       />
