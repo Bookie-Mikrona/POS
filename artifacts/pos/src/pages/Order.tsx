@@ -2917,7 +2917,7 @@ export default function Order() {
       {/* ── Desni del — Račun ────────────────────────────────── */}
       <div className={`w-full md:w-[400px] flex-col md:h-full flex-1 min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
         {narocilo.status === "odprto" && (
-          <details className="shrink-0 border-b bg-card px-3 py-2">
+          <details className="shrink-0 border-b bg-card px-3 py-1.5 md:py-2">
             <summary className="cursor-pointer text-sm font-semibold">Dodaj dnevno kosilo</summary>
             <div className="pt-3">
               <DailyLunchOrderFlow
@@ -2930,7 +2930,7 @@ export default function Order() {
             </div>
           </details>
         )}
-        <div className="shrink-0 p-3 md:p-2.5 border-b bg-card space-y-1.5 md:space-y-0.5">
+        <div className="shrink-0 px-3 py-1.5 md:p-2.5 border-b bg-card space-y-1 md:space-y-0.5">
           <OrderContextLine
             prostorIme={prostorIme}
             mizaIme={narocilo.mizaIme ?? null}
@@ -2968,7 +2968,7 @@ export default function Order() {
               {glasovnoTranskript ? glasovnoTranskript : <span className="opacity-60 italic">Poslušam…</span>}
             </div>
           )}
-          <div className="md:hidden rounded-md bg-muted/50 px-2.5 py-2.5 text-xs space-y-2" data-testid="mobile-order-summary">
+          <div className="md:hidden rounded-md bg-muted/50 px-2.5 py-1.5 text-xs space-y-1.5" data-testid="mobile-order-summary">
             <OrderContextLine
               prostorIme={prostorIme}
               mizaIme={narocilo.mizaIme ?? null}
@@ -2976,7 +2976,7 @@ export default function Order() {
               stevilkaNarocila={stevilkaNarocila}
               virOznaka={virOznaka}
               dostavaOb={predvidenCas}
-              className="pb-2 border-b border-border/60"
+              className="pb-1.5 border-b border-border/60"
             />
             {jeTelefonskoNarocilo && (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -3529,21 +3529,21 @@ export default function Order() {
           </div>
         )}
 
-        <div className="shrink-0 p-3 md:p-4 border-t bg-card space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">
+        <div className="shrink-0 px-3 py-2 md:p-4 border-t bg-card space-y-2 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:space-y-0 max-md:gap-y-1.5">
+          <div className="flex justify-between items-center max-md:flex-col max-md:items-start max-md:justify-center max-md:shrink-0">
+            <span className="text-sm text-muted-foreground max-md:text-xs leading-none">
               {aktivniGostStevilka !== null ? `Gost ${aktivniGostStevilka}` : "Skupaj"}
             </span>
-            <span className="text-xl md:text-2xl font-bold text-primary tabular-nums">
+            <span className="text-xl md:text-2xl font-bold text-primary tabular-nums max-md:leading-tight">
               {neracunaneSkupaj.toFixed(2)} €
             </span>
           </div>
           {ddvNeskladje && (
-            <DdvNeskladjeAlert razlika={ddvNeskladje.razlika} />
+            <div className="max-md:order-last max-md:w-full"><DdvNeskladjeAlert razlika={ddvNeskladje.razlika} /></div>
           )}
           <Button
             size="lg"
-            className="w-full text-lg h-12"
+            className="w-full max-md:flex-1 max-md:min-w-0 text-lg h-12"
             onClick={() => {
               const gostParam = aktivniGostStevilka !== null && neracunanePostavke.length > 0
                 ? `&gost=${aktivniGostStevilka}`
