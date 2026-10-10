@@ -3694,7 +3694,9 @@ export default function Zaloge() {
     if (!inputEl || !dialogEl) { setIzdDropdownPos(null); return; }
     const ir = inputEl.getBoundingClientRect();
     const dr = dialogEl.getBoundingClientRect();
-    setIzdDropdownPos({ top: ir.bottom - dr.top + 4, left: ir.left - dr.left });
+    const prostorPod = window.innerHeight - ir.bottom;
+    const top = prostorPod < 220 && ir.top > 220 ? ir.top - dr.top - 208 - 4 : ir.bottom - dr.top + 4;
+    setIzdDropdownPos({ top, left: ir.left - dr.left });
   }, [izdDropdownOpenIdx]);
   const [izdNovArtikelRowIdx, setIzdNovArtikelRowIdx] = useState<number | null>(null);
   const izdArtInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -4494,7 +4496,7 @@ export default function Zaloge() {
       <Dialog open={izdDialogOpen} onOpenChange={v => { setIzdDialogOpen(v); if (!v) setIzdDropdownOpenIdx(null); }}>
         <DialogContent
           ref={izdArtDialogRef}
-          className="max-w-xl max-h-[90vh] flex flex-col overflow-hidden"
+          className="max-w-xl max-h-[90vh] flex flex-col overflow-visible"
           onEscapeKeyDown={e => { if (izdDropdownOpenIdx !== null) e.preventDefault(); }}
         >
           <DialogHeader>
