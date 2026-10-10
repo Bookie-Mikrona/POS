@@ -26,7 +26,8 @@ XLSX_OUTPUT = DOCS / "POS-Gostinstvo-sledljiv-inventar.xlsx"
 MD_OUTPUT = DOCS / "POS-Gostinstvo-sledljiv-inventar.md"
 
 AUDIT_FILES = [Path(f"/tmp/inventory-sl2-{index}.json") for index in range(1, 6)]
-REVIEW_DATE = date(2026, 10, 5)
+REVIEW_DATE = date(2026, 10, 10)
+BASELINE_REVIEW_DATE = date(2026, 10, 5)
 INVENTORY_TITLE = "POS Gostinstvo — sledljiv inventar priročnika"
 
 STATUS_MAP = {
@@ -255,7 +256,8 @@ def row_values(row: dict[str, Any], separator: str = "\n") -> list[str]:
         str(row.get("coverage_status", "")),
         str(row.get("severity", "")),
         str(row.get("gap_or_correction", "")),
-        REVIEW_DATE.strftime("%d.%m.%Y"),
+        date.fromisoformat(row["reviewed_on"]).strftime("%d.%m.%Y")
+        if row.get("reviewed_on") else BASELINE_REVIEW_DATE.strftime("%d.%m.%Y"),
     ]
 
 
@@ -280,12 +282,18 @@ def write_markdown(rows: list[dict[str, Any]]) -> None:
     lines = [
         f"# {INVENTORY_TITLE}",
         "",
-        f"**Datum pregleda:** {REVIEW_DATE.strftime('%d.%m.%Y')}",
-        f"**Število preverjenih uporabniških postopkov:** {len(rows)}",
+        f"**Datum izvoza inventarja:** {REVIEW_DATE.strftime('%d.%m.%Y')}",
+        f"**Število evidentiranih uporabniških postopkov:** {len(rows)}",
         "",
         "Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, "
         "strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak "
         "pokritost uporabniškega postopka v priročniku.",
+        "",
+        "Oznake so dokumentacijska ocena posameznih zapisov, ne potrdilo "
+        "o ponovnem funkcionalnem preizkusu vseh postopkov. Datum pregleda "
+        "je zapisan po vrsticah; izvoz starejšemu zapisu ne pripiše novega "
+        "datuma. Obseg aktualnega pregleda in njegove omejitve so v "
+        "`POS-Gostinstvo-pregled-prirocnika-2026-10-10.md`.",
         "",
         "## Povzetek pokritosti",
         "",
@@ -367,7 +375,7 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
             "subject": "Sledljivost funkcij programa do uporabniškega priročnika",
             "author": "Bookie",
             "company": "Mikrona d.o.o.",
-            "comments": f"Pregled izveden {REVIEW_DATE.strftime('%d.%m.%Y')}",
+            "comments": f"Izvoz inventarja {REVIEW_DATE.strftime('%d.%m.%Y')}; datum pregleda po vrsticah",
         }
     )
 
@@ -440,7 +448,7 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
     summary.write("A1", INVENTORY_TITLE, title_format)
     summary.write(
         "A2",
-        f"Pregled uporabniških postopkov in pokritosti priročnika · "
+        f"Izvoz inventarja postopkov in pokritosti priročnika · "
         f"{REVIEW_DATE.strftime('%d.%m.%Y')}",
         subtitle_format,
     )

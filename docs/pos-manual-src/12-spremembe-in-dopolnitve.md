@@ -1993,11 +1993,14 @@ ne povratno embalažo, nato vključi »Drobni inventar (količinsko spremljanje)
 Shranitev zavrne neustrezno kombinacijo vrste artikla, prodaje ali embalaže.
 Ne spreminjajte vrste prek API ali drugega uporabniškega računa.
 
-V meniju je tudi možnost »Naloži drobni inventar v aktivno enoto?« oziroma
-»Naloži v šifrant«. Ta uvozi manjkajoče predloge kozarcev, posode, pribora,
-kuhinjskih pripomočkov in tekstila; obstoječe predloge preskoči ter ne ustvari
-začetnih količin ali knjižb. Večja oprema je ločena od te evidence, zato je ne
-označujte kot drobni inventar zaradi priročnosti.
+Za izbor predlog v **Nastavitve → Poslovne enote** odprite
+**Predloge drobnega inventarja**; menijska bližnjica **Naloži predloge v aktivno enoto** vodi
+na ta zaslon. Označite posamezne predmete ali skupine, kliknite
+**Uvozi označene**, preverite aktivno enoto ter potrdite uvoz.
+Uvoz doda le označene manjkajoče predloge kozarcev, posode, pribora,
+kuhinjskih pripomočkov in tekstila; obstoječe predloge preskoči ter ne
+ustvari začetnih količin ali knjižb. Večja oprema je ločena od te evidence,
+zato je ne označujte kot drobni inventar zaradi priročnosti.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-44-2-allergen-exception-4c7e1d9b2a63 package=lite -->
 ### 44.2 Izjema pri alergenu: prodajni artikel brez normativa
@@ -2048,3 +2051,21 @@ velikost, enoto in povezavo. Ne začnite druge inventure zgolj zato, ker
 nalaganje še poteka. Po potrditvi inventuro preverite na seznamu inventur in
 stanje artiklov; popravljanje potrjene inventure spreminja zalogovna gibanja,
 zato uporabite sledljiv korekcijski postopek.
+
+<!-- pos-heading: id=pos-current-documentation-review-summary package=lite -->
+## Dokumentacijski pregled različice 8.12
+
+Različica z dne **10.10.2026** usklajuje kratke in podrobne postopke za
+odmore ter blagajniške premike, nadomešča zastarela navodila za uvoz
+drobnega inventarja in ločuje začetne količine materiala od drobnega
+inventarja. Poglavje 09 dodaja konkretne odvisnosti funkcij enote,
+blokade izklopa, stalne in začasne enote, identiteto e-poštnega
+pošiljatelja ter namestitev Viva Android mostu.
+
+Pregled je dokumentacijski in statičen: obsega besedilo vseh 12 poglavij,
+reference inventarja ter izbrane dejanske uporabniške in strežniške poti.
+Ne pomeni novega preskusa vsake naprave, zunanjega ponudnika ali vseh
+postopkov. Oznaka **PRAVILNO** v inventarju ocenjuje dokumentacijsko
+pokritost posameznega zapisa, ne dokazuje uspešnega plačila, prejema
+eDavkov, dostave e-pošte ali fizičnega tiska. Pri teh postopkih velja
+preverjanje dejanskega rezultata po ustreznem poglavju.

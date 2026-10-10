@@ -1,6 +1,12 @@
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5dbd05388542 package=lite -->
 # 06 Plačilo, račun, FURS in tisk
 
+Postopki spodaj veljajo le za vključene funkcije aktivne enote in njenega
+paketa POS. Zlasti prodaja in unovčenje darilnih bonov nista omogočena
+samodejno v vsakem lokalu. Če ustrezni gumb ali način plačila manjka,
+preverite funkcijo darilnih bonov ter uporabniško vlogo po poglavju 09;
+ne uporabljajte drugega načina plačila kot nadomestka za unovčenje bona.
+
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-29b6d71c2c79 package=lite -->
 ## 1. Namen sklopa
 

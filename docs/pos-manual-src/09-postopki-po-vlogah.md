@@ -2238,3 +2238,109 @@ Pri odprtem naročilu oziroma pogovornem oknu lahko obvestila osvežujejo
 ozadje. Preverite, da izbrane velikosti, modifikatorji in vnesene količine
 ostanejo pravilni. Če se pojavi opozorilo ali zavrnitev, najprej primerjajte
 shranjene postavke in stanje priprave ter šele nato nadaljujte.
+
+<!-- pos-heading: id=pos-current-unit-function-policy package=lite -->
+## Vrste enot, paket POS in dostopne funkcije
+
+Vrsta gostinskega obrata je predloga začetnih funkcij, ne trajno pravilo
+o tem, kaj mora enota uporabljati. Paket podjetja določa zgornjo mejo;
+dejansko vključene funkcije izbrane enote in uporabniška vloga določajo
+dostop. Če meni ali gumb manjka, najprej preverite te tri pogoje.
+Neposredno odpiranje stare povezave ni obvoz omejitve.
+
+1. V **Nastavitve → Poslovne enote** poiščite pravo enoto in odprite
+   urejanje. Preverite prikazani paket podjetja in funkcije enote.
+2. Izberite vrsto obrata ter preglejte predlagane funkcije. Spremembe
+   pred shranjevanjem preverite posamično; naziv profila ni dokaz,
+   da je vsaka njegova funkcija dejansko vključena.
+3. Upoštevajte odvisnosti: **Dostava** zahteva **Telefonska naročila**,
+   **Rezervacije** zahtevajo **Mize**, **Večhodni meniji** pa **Kuhinjo**.
+   Če kombinacija ni dovoljena, preberite opozorilo in popravite izbor.
+4. Pri izklopu najprej dokončajte odprte postopke. Strežnik lahko
+   izklop zavrne zaradi odprtih naročil, aktivnih izmen, nedokončane
+   izdaje ali FURS postopka, osnutkov premikov, nezaključene pripravljene
+   hrane, načrtovanih ali aktivnih dogodkov, prihodnjih rezervacij,
+   osnutkov prenosov ali neizkoriščenih bonov. Nabor je odvisen od
+   izklopljene funkcije; ne brišite zgodovine samo za odstranitev blokade.
+5. Shranite ter po osvežitvi preverite dejansko navigacijo in dostop
+   običajnega uporabnika. Skrbniški dostop do nastavitev sam po sebi ne
+   pomeni dostopa do vseh operativnih funkcij.
+
+**Primer:** enota brez dostave ne kaže zavihka **Dostava**.
+**Dnevni meni**, **Malice** in **Kosila** so dostopni, če je vključena
+vsaj ena od funkcij kuhinje ali pripravljene hrane. Upravljanje **QR-menija**
+zahteva funkcijo QR-menija. **Javna stran** je dostopna z rezervacijami ali
+darilnimi boni, vendar to ne vključi samodejno QR-naročanja.
+
+**Darilni boni:** brez funkcije darilnih bonov ni običajne prodaje niti
+unovčenja. Gumb na blagajni in možnost uporabe bona sta odvisna od te
+funkcije; ne sklepajte, da obstajata v vsakem lokalu. Nastavitev posamezne
+enote spoštujte tudi, če je darilni bon opisan v tem priročniku.
+
+<!-- pos-heading: id=pos-current-permanent-temporary-units package=lite -->
+### Stalna, premična in začasna enota niso isto
+
+Prva enota podjetja se ustvari kot stalna. Tudi **Food truck** je privzeto
+stalna enota, čeprav se fizično premika; premičnost ne pomeni omejenega
+obdobja poslovanja. To ni prepoved dogodkov ali drugih funkcij, če so
+posebej vključene.
+
+Za dodatno časovno omejeno prodajno mesto v urejanju izberite **Začasna
+enota** ter določite veljavno obdobje in matično enoto istega podjetja.
+Enota ne more biti sama sebi matična. Preverite začetek in konec obdobja
+pred shranjevanjem; ne podaljšujte ga samo za obvoz zaključka dogodka.
+Prenos zaloge in vračilo po dogodku obravnavajte po poglavju 07,
+ne kot novo začetno zalogo.
+
+Pri ustvarjanju nove enote lahko označite **Dodaj privzete predloge
+drobnega inventarja**. To doda šifrant novi enoti, ne pa količin ali knjižb.
+Za naknadni izbor posameznih predlog uporabite postopek iz poglavja 04.
+
+<!-- pos-heading: id=pos-current-mail-business-identity package=lite -->
+## Pošiljanje e-pošte in identiteta podjetja
+
+E-pošto urejajte v operativnem kontekstu pravilnega podjetja in enote.
+V nastavitvah pošiljanja preverite strežnik, vrata, uporabniško ime,
+naslov pošiljatelja ter prikazano ime. Privzeta vrata obrazca so **465**;
+to ni zahteva za vsakega ponudnika. Uporabite dejanske parametre
+odobrenega poštnega strežnika, ne predlaganega primera brez preverjanja.
+Gesla in druge poverilnice vnesite samo v namensko polje, ne v opombe.
+
+1. Preverite naziv in kontaktni e-naslov podjetja, ki je lastnik dokumenta.
+2. Shranite nastavitve ter pošljite preskusno sporočilo na nadzorovan naslov.
+3. Pri prejetem poslovnem dokumentu preverite vidno ime pošiljatelja in
+   naslov za odgovor. Preskus SMTP povezave sam ne dokazuje pravilne
+   identitete vsakega poslanega dokumenta.
+4. Če prejemnik sporočila ne prejme, preverite napako, naslov in neželeno
+   pošto. Dokumenta ali računa ne ustvarjajte še enkrat zaradi nedostave.
+
+Pri skupnem poštnem strežniku se tehnični naslov lahko razlikuje od
+kontaktnega naslova lokala. Prejemnik mora videti ime podjetja dokumenta;
+če je kontaktni naslov v drugi domeni, se lahko uporabi kot naslov za
+odgovor. Ne pričakujte, da bo aplikacija poljubno tujo domeno uporabljala
+kot tehničnega pošiljatelja. Napačne identitete ne popravljajte s spremembo
+podatkov drugega podjetja.
+
+<!-- pos-heading: id=pos-current-viva-bridge-installation package=lite -->
+## Viva Android: namestitev in varen povratek iz plačila
+
+V **Nastavitve** pri nastavitvah terminalov poiščite
+**Bookie Viva Bridge — Android APK** in izberite **Prenesi Viva Bridge**. Namestite ga na vsako
+Android napravo, na kateri uporabljate Viva Android Terminal.
+
+1. Preneseno datoteko odprite v mapi **Prenosi** in potrdite namestitev
+   iz odobrenega vira. Preverite tudi namestitev Viva Terminal aplikacije
+   na isti napravi.
+2. Če Android javi **Aplikacija ni nameščena**, naj skrbnik preveri staro
+   namestitev in skladnost paketa. Stari most odstranjujte in nadomeščajte
+   šele brez odprtega ali nejasnega plačilnega poskusa; zabeležite vezavo
+   naprave, ker jo bo po zamenjavi morda treba obnoviti.
+3. Preverite izbran ponudnik in **Demo način**. Drug aktivni terminal lahko
+   ima prednost pred Android tokom; upoštevajte opozorila v nastavitvah.
+4. Opravite nadzorovan preskus. Povratek na zaslon POS sam ne dokazuje
+   uspešnega plačila; preverite rezultat istega poskusa in izdani račun.
+
+Navadno spletno okno ni nadomestilo za namensko Android aplikacijo. Če se Viva aplikacija
+ne vrne ali POS ne prejme preverljivega rezultata, odprite obnovitev
+istega poskusa iz poglavja 06. Ne sprožite novega bremenjenja in ne
+potrjujte kartice ročno samo zato, ker terminal prikazuje uspeh.

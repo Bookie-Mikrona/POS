@@ -73,8 +73,11 @@ zapis zahteva popravek oziroma pojasnilo in ponovno pošiljanje v potrditev.
 
 Blagajniški premik evidentira fizični denar, ki ni neposredno plačilo računa.
 
-Tipični primeri so polog menjalnega denarja, dvig gotovine v sef ali vračilo
-za vnaprej evidentirani razlog.
+Tipični primeri so prejem gotovine, gotovinsko plačilo dobavitelju,
+polog na TRR, dvig z bančnega TRR in dejanski priliv na TRR.
+Prenos denarja v sef ni bančni dvig in med ponujenimi vrstami nima
+posebnega prenosa; uporabite odobreno evidenco predaje. Vračilo gostu
+obravnavajte po postopku vračila računa, ne kot poljuben premik.
 
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8c57d7232140 package=lite -->
 ### 4.1 Kdaj uporabiti premik
@@ -395,10 +398,17 @@ Pred odmorom preverite, ali lahko drug uporabnik prevzame odprta naročila.
 
 Ne puščajte svoje prijave odklenjene na skupni napravi.
 
-Ker v pregledani izvedbi ni potrjenega gumba oziroma postopka za začetek in
-konec odmora, uporabite odobreno kadrovsko evidenco podjetja. Če je čas odmora
-napačen ali manjka, zabeležite dejanski čas in zahtevajte popravek v tej
-evidenci; ne ustvarjajte izmišljene nove izmene.
+Na strani **Izmene** pri svoji aktivni izmeni izberite **Plačan odmor**
+ali **Neplačan odmor** glede na dejanski dogovor. Ob vrnitvi kliknite
+**Zaključi odmor**. Hkrati je dovoljen samo en odprt odmor; dokler je
+odmor odprt, izmene ni mogoče zaključiti. Neplačani odmor zmanjša efektivne
+ure, plačani pa ne.
+
+Med odprtim odmorom natakar ni na voljo za pripis pri izdaji računa;
+račun se lahko izda brez natakarja. To ni razlog za izmišljeno odjavo ali
+odpiranje druge izmene. Če čas odmora ni pravilen ali je oseba pozabila
+zaključiti odmor, zabeležite dejanski čas in predajte sledljiv popravek
+vodji v **Obračun ur**. Ne ustvarjajte izmišljene nove izmene.
 
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-552fc0b46a7a package=lite -->
 ### 12.2 Predaja med osebjem

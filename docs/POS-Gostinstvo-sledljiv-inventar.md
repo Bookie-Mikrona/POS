@@ -1,15 +1,17 @@
 # POS Gostinstvo — sledljiv inventar priročnika
 
-**Datum pregleda:** 05.10.2026
-**Število preverjenih uporabniških postopkov:** 85
+**Datum izvoza inventarja:** 10.10.2026
+**Število evidentiranih uporabniških postopkov:** 89
 
 Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak pokritost uporabniškega postopka v priročniku.
+
+Oznake so dokumentacijska ocena posameznih zapisov, ne potrdilo o ponovnem funkcionalnem preizkusu vseh postopkov. Datum pregleda je zapisan po vrsticah; izvoz starejšemu zapisu ne pripiše novega datuma. Obseg aktualnega pregleda in njegove omejitve so v `POS-Gostinstvo-pregled-prirocnika-2026-10-10.md`.
 
 ## Povzetek pokritosti
 
 | Status | Število |
 |---|---:|
-| PRAVILNO | 85 |
+| PRAVILNO | 89 |
 | DELNO | 0 |
 | MANJKA | 0 |
 | NAPAČNO | 0 |
@@ -18,7 +20,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Stanje | Število |
 |---|---:|
-| IMPLEMENTIRANO | 83 |
+| IMPLEMENTIRANO | 87 |
 | NI IMPLEMENTIRANO | 1 |
 | NEPOTRJENO | 1 |
 
@@ -26,8 +28,8 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Pomembnost | Število |
 |---|---:|
-| KRITIČNO | 29 |
-| VISOKO | 46 |
+| KRITIČNO | 30 |
+| VISOKO | 49 |
 | SREDNJE | 9 |
 | NIZKO | 1 |
 
@@ -127,3 +129,7 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 | TAX-GEN-EDAVKI-001 | davčne evidence | Neposredna oddaja KIR/KPR v eDavke | PRAVILNO | KRITIČNO |
 | NOR-NORMAL-PORTION | normativi | Normalna porcija v g/ml za normativ pripravljenega kg/l polizdelka | PRAVILNO | VISOKO |
 | GK-POS-ARCHIVE-EXPORT | poročila | Samostojni arhiv POS temeljnic, potrjen prenos v GK in izvoz obdobja | PRAVILNO | VISOKO |
+| UNIT-FUNCTION-POLICY | Nastavitve | Paket, funkcije enote, odvisnosti in blokade izklopa | PRAVILNO | VISOKO |
+| DI-SELECTIVE-IMPORT | Meni | Izbor in uvoz predlog drobnega inventarja v aktivno enoto | PRAVILNO | VISOKO |
+| MAIL-BUSINESS-IDENTITY | Nastavitve | SMTP, preskus dostave in poslovna identiteta pošiljatelja | PRAVILNO | VISOKO |
+| VIVA-BRIDGE-INSTALL | Naprave | Namestitev Viva Android mostu in varen povratek plačila | PRAVILNO | KRITIČNO |

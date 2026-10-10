@@ -194,7 +194,7 @@ def test_manual_heading_package_assignments_match_migration_snapshot() -> None:
         )
 
     digest = hashlib.sha256("\n".join(assignments).encode()).hexdigest()
-    assert digest == "f82fee68a8ac6f3a94f884ee8c3e0167187c8157accc918fc06ebda3ce8c7b57"
+    assert digest == "fc5180139c5872cd1fe1c2117f5f1b6d424924fc8c3897ce4e097e7664cec33d"
 
 
 def test_pdf_chapter_titles_match_pos_manual_navigation() -> None:
@@ -255,3 +255,33 @@ def test_current_manual_covers_all_recent_pos_change_groups() -> None:
             assert f"id={identifier} " in source
     shift = (generator.SOURCE_DIR / "02-placila-racuni-furs-tisk.md").read_text(encoding="utf-8")
     assert "pos-02-monthly-contract-invoices" not in shift
+
+
+def test_short_break_instructions_do_not_deny_existing_controls() -> None:
+    source = (generator.SOURCE_DIR / "08-nastavitve-po-sklopih.md").read_text(encoding="utf-8")
+    short = source.split("### 12.1 Odmor", 1)[1].split("### 12.2", 1)[0]
+    assert "ni potrjenega gumba" not in source
+    for phrase in ("Plačan odmor", "Neplačan odmor", "Zaključi odmor",
+                   "izmene ni mogoče zaključiti", "Obračun ur"):
+        assert phrase in short
+    assert "Tipični primeri so polog menjalnega denarja, dvig gotovine v sef" not in source
+
+
+def test_catalog_import_instructions_match_selective_ui_not_old_dialog() -> None:
+    chapter = (generator.SOURCE_DIR / "04-zaloge-dokumenti.md").read_text(encoding="utf-8")
+    section = chapter.split("### 4.2 Nov nabavni artikel", 1)[1].split("### 4.3", 1)[0]
+    assert "Uvozi označene" in section
+    assert "Začetni izbor je prazen" in section
+    assert "ne odpre več starega pogovornega okna" in section
+    summary = (generator.SOURCE_DIR / "12-spremembe-in-dopolnitve.md").read_text(encoding="utf-8")
+    assert "»Naloži v šifrant«" not in summary
+
+
+def test_current_review_includes_function_policy_email_and_bridge() -> None:
+    source = (generator.SOURCE_DIR / "09-postopki-po-vlogah.md").read_text(encoding="utf-8")
+    for identifier in ("pos-current-unit-function-policy", "pos-current-permanent-temporary-units",
+                       "pos-current-mail-business-identity", "pos-current-viva-bridge-installation"):
+        assert f"id={identifier} " in source
+    assert "Prva enota podjetja se ustvari kot stalna" in source
+    assert "Vrsta gostinskega obrata je predloga" in source
+    assert "Isti plačilni poskus" in source or "istega poskusa" in source

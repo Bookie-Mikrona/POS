@@ -36,3 +36,15 @@ ne pomeni uporabnega ali pravilnega postopka.
 glede na trenutno izvedbo in jasno loči lokalni popravek od celovitega
 pregleda priročnika. Ne trdi, da je celoten priročnik preverjen na podlagi
 enega popravljenega poglavja.
+
+Datum izvoza inventarja ni datum ponovnega pregleda vseh njegovih vrstic.
+Vsak zapis mora obdržati lastni datum zadnje preveritve; besedilni pregled
+vseh poglavij ni enakovreden ponovnemu funkcionalnemu prevzemu vseh tokov.
+
+**Why:** Enoten datum in skupni status »PRAVILNO« sta ustvarjala vtis
+aktualne popolne preveritve, čeprav so kratka navodila vsebovala zastarela
+pravila in so bile posamezne dokazne reference stare.
+
+**How to apply:** Pri regeneriranju inventarja spreminjaj datum preveritve
+le dejansko pregledanim zapisom; skupaj z izdajo navedi obseg pregleda
+in ločeno omejitve za fizične naprave ter zunanje storitve.

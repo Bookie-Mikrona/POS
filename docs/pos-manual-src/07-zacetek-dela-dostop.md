@@ -64,14 +64,22 @@ prehodu na sistem.
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-a1bcabf35954 package=lite -->
 ### 4.2 Vnos
 
-1. Odprite **Zaloge** in izberite začetne zaloge.
-2. Izberite skladišče in datum reza.
+1. Odprite **Zaloge → Začetne zaloge** v pravilni aktivni enoti.
+2. Pred izbiro artikla izberite obseg **Material** ali **Drobni inventar**
+   ter datum reza oziroma leto v prikazanem obrazcu.
 3. Dodajte artikel.
 4. Vnesite količino v pravilni merski enoti.
-5. Vnesite vrednost oziroma ceno, ki jo zahteva obrazec.
+5. Pri **Materialu** preverite nabavno ceno in vrednost. Pri
+   **Drobnem inventarju** vnesite samo količine; cenovni in vrednostni stolpci se za
+   ta obseg ne uporabljajo.
 6. Ponovite za vse artikle.
 7. Preglejte ničelne, negativne in nenavadno velike količine.
 8. Potrdite dokument samo po skupnem pregledu.
+
+Preklop obsega loči živilski material od količinske evidence kozarcev,
+krožnikov in podobnih predmetov. Pred potrditvijo preverite obseg še enkrat.
+Uvoz predlog artiklov sam po sebi ni začetna zaloga; dejansko količino
+vnesite ločeno in je ne podvojite, če že obstaja prejemnica istega blaga.
 
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-5897b04ceff3 package=lite -->
 ### 4.3 Kontrola po vnosu

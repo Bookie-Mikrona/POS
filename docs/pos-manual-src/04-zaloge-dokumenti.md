@@ -160,7 +160,27 @@ Za ročni vnos drobnega inventarja v **Upravljanje menija** odprite seznam artik
 
 Ta bližnjica ne ustvari prodajnega artikla, začetne količine, zalogovne knjižbe ali vrednotenja. Pri tej vrsti drobnega inventarja ni zavihka **Alergeni**, preverjanja alergenov ali obveznega alergenskega profila. To ne velja za živilske artikle, ki se prodajajo gostu: pri njih je treba alergene še vedno preveriti in ustrezno evidentirati.
 
-Če želite naložiti katalog predlog, odprite **Dejanja → Naloži predloge v aktivno enoto** in potrdite **Naloži v šifrant**. Uvoz velja samo za trenutno aktivno enoto. Doda manjkajoče predloge, obstoječe artikle pa preskoči; rezultat pokaže število dodanih in že prisotnih. Uvoz je varen za ponovitev: uporablja stabilne ključe predlog in primerja tudi normalizirana imena, zato ne ustvarja kopij zaradi velikih/malih črk ali diakritike.
+Če želite uvoziti predloge, v **Nastavitve → Poslovne enote** odprite
+**Predloge drobnega inventarja**. Bližnjica v **Upravljanje menija →
+Dejanja → Naloži predloge v aktivno enoto** vas usmeri v nastavitve;
+ne odpre več starega pogovornega okna za uvoz celotnega kataloga.
+
+1. Preverite aktivno enoto. Uvoz ne velja za vse enote podjetja.
+2. Označite posamezne predmete ali celo skupino. Začetni izbor je prazen;
+   samo odprtje seznama ne označi in ne uvozi ničesar.
+3. Preverite število označenih ter kliknite **Uvozi označene**.
+4. V potrditvi ponovno preverite enoto in število ter potrdite uvoz.
+5. Preberite rezultat **Dodano** in **že prisotno/preskočeno**.
+   Nato preverite artikle v aktivni enoti.
+
+Uvoz doda samo označene manjkajoče predloge, obstoječe pa preskoči.
+Ne ustvari začetnih količin, vrednotenja ali temeljnic. Večja oprema je
+prikazana ločeno kot **Predlogi za osnovna sredstva (OS)** in ni del
+izbora drobnega inventarja. Če se katalog ne naloži ali uvoz vrne napako,
+preberite sporočilo in preverite enoto ter dovoljenja; ne uvažajte druge
+enote kot obvoz. Uvoz je varen za ponovitev: uporablja stabilne ključe
+predlog in primerja tudi normalizirana imena, zato ne ustvarja kopij zaradi
+velikih/malih črk ali diakritike.
 
 Katalog je razdeljen v sedem podskupin; prikazana pogostost popisa oziroma obnove je priporočilo, ne samodejni urnik:
 

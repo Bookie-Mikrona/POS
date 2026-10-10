@@ -842,14 +842,14 @@ content_type = "application/pdf"
 id = "SbldO7w1iz_D0qKrsCQVm"
 uri = "file://docs/POS-Gostinstvo-sledljiv-inventar.xlsx"
 type = "table"
-title = "Sledljiv inventar POS Gostinstvo"
-description = "Ponovno ustvarjen inventar s popravljenim izrazoslovjem."
+title = "Sledljiv inventar — 89 postopkov"
+description = "Dokumentacijska pokritost, UI/API reference in ločeni datumi pregledov; ni potrdilo o ponovnem funkcionalnem preizkusu vseh postopkov."
 logical_id = "1a800a38-9749-4515-af19-5b03751ba552"
-content_hash = "sha256:1e63bbb708881be81ae5003e8d70c571b878be9c1af53ad3513450c84f5bd37d"
-size = 39064
-mtime_ms = 1790022568207
-storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/1a800a38-9749-4515-af19-5b03751ba552/3d363792-5cd0-44a1-8280-164645b3b02b"
-storage_version_token = "1790022752311507"
+content_hash = "sha256:9f7f41cb914e14cc790cfd560b8e7e1d8bf3c0001a678ab485b8c8d1b547b244"
+size = 47868
+mtime_ms = 1791593306605
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/1a800a38-9749-4515-af19-5b03751ba552/5cad7b03-5043-499d-9ceb-0ed5ec5f5a50"
+storage_version_token = "1791593464043313"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 [[outputs]]
@@ -1508,4 +1508,18 @@ size = 2650483
 mtime_ms = 1791592209836
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/a1606a9e-fe51-4d05-a5af-537d9584e304/51c0a1c4-3df1-4d95-a92d-55714a8d8dbf"
 storage_version_token = "1791592249006704"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "ECrvvD0sQHQPcRIVYEgrU"
+uri = "file://generated-artifacts/POS-Gostinstvo-prirocnik-v8.12.pdf"
+type = "pdf"
+title = "POS Gostinstvo — priročnik 8.12"
+description = "Popravljena navodila za odmore, gotovino, drobni inventar, funkcije enot, e-pošto in Viva Android. Izdaja z dne 10.10.2026."
+logical_id = "c4b846ac-1749-444e-86f9-0d144853ce63"
+content_hash = "sha256:bb35a7a5962ee490254cde2daa77f52b5901bf981a62c1629f7dac6a9dcde12e"
+size = 2665352
+mtime_ms = 1791593305731
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/c4b846ac-1749-444e-86f9-0d144853ce63/b17cd9fe-f1b2-4103-b2f2-1761604f4dc1"
+storage_version_token = "1791593463394116"
 content_type = "application/pdf"

@@ -542,6 +542,7 @@
   },
   {
     "id": "NAP-001",
+    "reviewed_on": "2026-10-10",
     "domain": "Naprave/tiskalniki/integracije",
     "feature": "Konfiguracija terminalov, tiskalnikov, lokalnega prehoda in integracij",
     "user_roles": [
@@ -984,6 +985,7 @@
   },
   {
     "id": "UPR-001",
+    "reviewed_on": "2026-10-10",
     "domain": "Uporabniki/vloge",
     "feature": "Upravljanje POS uporabnikov, natakarskih profilov, enot in dovoljenj",
     "user_roles": [
@@ -1863,6 +1865,7 @@
   },
   {
     "id": "GOT-002",
+    "reviewed_on": "2026-10-10",
     "domain": "nadzor gotovine",
     "feature": "Z poročilo, polog/dvig in storno premika",
     "user_roles": [
@@ -1974,6 +1977,7 @@
   },
   {
     "id": "OSE-001",
+    "reviewed_on": "2026-10-10",
     "domain": "osebje",
     "feature": "Odmori osebja in računovodstvo delovnega časa",
     "user_roles": [
@@ -2390,6 +2394,7 @@
   },
   {
     "id": "ZAL-004",
+    "reviewed_on": "2026-10-10",
     "domain": "zaloga",
     "feature": "Začetna zaloga, inventura in kartica zaloge",
     "user_roles": [
@@ -2603,5 +2608,77 @@
     "severity": "VISOKO",
     "implementation_status": "IMPLEMENTIRANO",
     "gap_or_correction": "Izdaja loči POS arhiv od GK statusa in dokumentira imena enot, datumski obseg izvozov, izrecno potrditev prenosa, ohranitev originala ter preprečevanje dvojnikov."
+  },
+  {
+    "id": "UNIT-FUNCTION-POLICY",
+    "reviewed_on": "2026-10-10",
+    "domain": "Nastavitve",
+    "feature": "Paket, funkcije enote, odvisnosti in blokade izklopa",
+    "user_roles": ["administrator", "vodja"],
+    "prerequisites": ["pravilno podjetje in enota", "dostop do urejanja enote"],
+    "normal_flow": "Preglej paket in funkcije, preveri odvisnosti, dokončaj blokirajoče postopke, shrani in preveri navigacijo običajnega uporabnika.",
+    "exceptions_recovery": "Zavrnitev izklopa zaradi odprtih postopkov se rešuje z njihovim pravilnim zaključkom, ne brisanjem zgodovine ali odpiranjem skrite poti. Prva enota je stalna, food truck privzeto tudi; dodatna začasna enota potrebuje matično enoto in obdobje.",
+    "business_effect": "Konfiguracija dostopa; sprememba profila ni finančni dokument in ne ustvari zaloge.",
+    "ui_evidence": ["artifacts/pos/src/pages/Settings.tsx", "artifacts/pos/src/lib/unitProfiles.ts", "artifacts/pos/src/pages/Checkout.tsx"],
+    "api_evidence": ["artifacts/api-server/src/routes/pos/enote.ts", "artifacts/api-server/src/lib/unitCapabilityBlockers.ts", "lib/db/src/unit-capability-policy.ts"],
+    "manual_evidence": ["docs/pos-manual-src/09-postopki-po-vlogah.md: Vrste enot, paket POS in dostopne funkcije", "docs/pos-manual-src/06-izmene-porocila-nastavitve.md"],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "implementation_status": "IMPLEMENTIRANO",
+    "gap_or_correction": "Dopolnjene konkretne odvisnosti, navigacija, prodaja in unovčenje bonov ter razlika med premičnostjo in začasnostjo."
+  },
+  {
+    "id": "DI-SELECTIVE-IMPORT",
+    "reviewed_on": "2026-10-10",
+    "domain": "Meni",
+    "feature": "Izbor in uvoz predlog drobnega inventarja v aktivno enoto",
+    "user_roles": ["administrator", "vodja"],
+    "prerequisites": ["aktivna enota", "skrbniški dostop do nastavitev", "naložen katalog"],
+    "normal_flow": "Nastavitve → Poslovne enote → označi artikle ali skupine → Uvozi označene → potrdi pravo enoto → preveri dodane in preskočene.",
+    "exceptions_recovery": "Prazen izbor ne uvaža. Napako kataloga ali uvoza odpravi pred ponovnim poskusom; ne zamenjaj enote kot obvoz. Ponoven uvoz obstoječe predloge preskoči.",
+    "business_effect": "Samo nabavni šifrant, brez začetnih količin ali GK; večja oprema ostane ločena.",
+    "ui_evidence": ["artifacts/pos/src/pages/Settings.tsx", "artifacts/pos/src/pages/Menu.tsx"],
+    "api_evidence": ["artifacts/api-server/src/routes/pos/artikli.ts", "artifacts/api-server/src/lib/drobni-inventar-catalog.ts"],
+    "manual_evidence": ["docs/pos-manual-src/04-zaloge-dokumenti.md: Nov nabavni artikel in drobni inventar", "docs/pos-manual-src/12-spremembe-in-dopolnitve.md: 44.1"],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "implementation_status": "IMPLEMENTIRANO",
+    "gap_or_correction": "Odstranjeno staro navodilo za neposreden uvoz celega kataloga iz menijskega dialoga; dokumentiran selektivni uvoz."
+  },
+  {
+    "id": "MAIL-BUSINESS-IDENTITY",
+    "reviewed_on": "2026-10-10",
+    "domain": "Nastavitve",
+    "feature": "SMTP, preskus dostave in poslovna identiteta pošiljatelja",
+    "user_roles": ["administrator"],
+    "prerequisites": ["pravilno podjetje in operativna enota", "odobreni SMTP parametri"],
+    "normal_flow": "Preveri podatke podjetja in SMTP, shrani, pošlji preskus ter na prejetem poslovnem dokumentu preveri ime in naslov za odgovor.",
+    "exceptions_recovery": "Vrata 465 so privzeti predlog, ne zahteva za vse ponudnike. Nedostava ni razlog za nov račun. Tehnični naslov skupnega strežnika ni nujno kontaktni naslov lokala.",
+    "business_effect": "Dostava obstoječega dokumenta ne ustvari nove prodaje.",
+    "ui_evidence": ["artifacts/pos/src/pages/Settings.tsx"],
+    "api_evidence": ["artifacts/api-server/src/lib/pos-email.ts", "artifacts/api-server/src/lib/company-email-sender.ts", "artifacts/api-server/src/lib/email-sender.ts"],
+    "manual_evidence": ["docs/pos-manual-src/09-postopki-po-vlogah.md: Pošiljanje e-pošte in identiteta podjetja"],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "implementation_status": "IMPLEMENTIRANO",
+    "gap_or_correction": "Dodano ločeno preverjanje dejanske dostave in identitete lastnika dokumenta; tehnični rele ni naziv gostinca."
+  },
+  {
+    "id": "VIVA-BRIDGE-INSTALL",
+    "reviewed_on": "2026-10-10",
+    "domain": "Naprave",
+    "feature": "Namestitev Viva Android mostu in varen povratek plačila",
+    "user_roles": ["administrator", "blagajnik"],
+    "prerequisites": ["podprta Android naprava", "Viva Terminal in most na isti napravi", "pravilna konfiguracija ponudnika"],
+    "normal_flow": "Prenesi Viva Bridge iz nastavitev, namesti na napravo, preveri Demo način in prednost terminala ter izvedi nadzorovan preskus z istim plačilnim poskusom.",
+    "exceptions_recovery": "Napaka namestitve zahteva skrbniški pregled stare namestitve; mostu ne odstranjuj med nejasnim plačilom. Manjkajoč povratek se obnavlja na istem poskusu brez nove bremenitve.",
+    "business_effect": "Namestitev mostu ni dokaz plačila; račun zahteva preverjen rezultat.",
+    "ui_evidence": ["artifacts/pos/src/pages/Settings.tsx", "artifacts/pos/src/pages/Checkout.tsx"],
+    "api_evidence": ["artifacts/api-server/src/routes/pos/terminal.ts"],
+    "manual_evidence": ["docs/pos-manual-src/09-postopki-po-vlogah.md: Viva Android: namestitev in varen povratek iz plačila", "docs/pos-manual-src/06-izmene-porocila-nastavitve.md"],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "implementation_status": "IMPLEMENTIRANO",
+    "gap_or_correction": "Dodana manjkajoča namestitev mostu; uspešen zaslonski povratek ni dokaz plačila. Fizična naprava in banka v tem dokumentacijskem pregledu nista ponovno testirani."
   }
 ]
