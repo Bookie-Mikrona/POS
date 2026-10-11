@@ -4243,7 +4243,7 @@ export default function Order() {
                 {artIme}
               </DialogTitle>
               <DialogDescription className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                <span>Izberi možnosti pred potrditvijo.</span>
+                <span>Izberi možnosti pred potrditvijo. <span className="text-[10px] opacity-60" data-testid="mod-dialog-version">[v4 {Math.round(vidnoObmocje.height)}px]</span></span>
                 <span className="tabular-nums font-semibold text-foreground shrink-0 ml-2">{artCenaZaPrikaz.toFixed(2)} €</span>
               </DialogDescription>
             </DialogHeader>
