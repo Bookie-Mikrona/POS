@@ -521,6 +521,20 @@ ${linije.map(vrHtml).join("\n")}
   };
 
   // ── Z-poročilo handler ───────────────────────────────────────
+  // Če je pretekli dan ostal brez Z-poročila, ga ponudimo namesto današnjega (varovalo pred zamenjavo dneva).
+  const predlagajZDatum = async () => {
+    if (!activeBlagajnaId) return;
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const r = await posFetch(`${base}/api/z-porocilo/status?blagajnaId=${activeBlagajnaId}`);
+      if (!r.ok) return;
+      const data = await r.json() as { manjkajociDatum?: string | null };
+      setZPoslovniDatum(data.manjkajociDatum ?? privzetiDatum);
+    } catch {
+      /* ob napaki ostane izbrani datum */
+    }
+  };
+
   const handleZZakljuci = async () => {
     if (!activeBlagajnaId) { setZNapaka("Izberite blagajno v stranski navigaciji."); return; }
     setZLoading(true); setZNapaka(null); setZBlokade([]); setZSnapshot(null);
@@ -4260,7 +4274,7 @@ ${linije.map(vrHtml).join("\n")}
       </Dialog>
 
       {/* ── Dialog: Z-poročilo ─────────────────────────────── */}
-      <Dialog open={zPorociloOpen} onOpenChange={(o) => { setZPorociloOpen(o); if (o) void loadXCash(); else { setZSnapshot(null); setZNapaka(null); setZBlokade([]); setXCash(null); } }}>
+      <Dialog open={zPorociloOpen} onOpenChange={(o) => { setZPorociloOpen(o); if (o) void predlagajZDatum().then(() => loadXCash()); else { setZSnapshot(null); setZNapaka(null); setZBlokade([]); setXCash(null); } }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -4314,7 +4328,7 @@ ${linije.map(vrHtml).join("\n")}
                   <AlertTriangle className="h-4 w-4 text-orange-600" />
                   <AlertTitle className="text-orange-900 font-semibold">Enkratno dejanje</AlertTitle>
                   <AlertDescription className="text-orange-800 text-sm">
-                    Z-poročilo zaklene blagajno za izbrani poslovni dan {zPoslovniDatum}. Po zaključku ustvarjanje novih računov za ta dan ni več mogoče.
+                    Z-poročilo zaklene blagajno za izbrani poslovni dan {zPoslovniDatum.split("-").reverse().join(".")}. Po zaključku ustvarjanje novih računov za ta dan ni več mogoče.
                     Odklep zahteva administratorski dostop in obvezen razlog.
                   </AlertDescription>
                 </Alert>

@@ -17,6 +17,7 @@ import {
 import type { PosRequest } from "../../middlewares/pos";
 import { calculateTheoreticalCashBalance } from "../../lib/cashMovementAccounting";
 import {
+  checkPreviousBusinessDayClosed,
   getZCloseBlockers,
   lockPosBusinessDay,
   type ZCloseBlocker,
@@ -206,8 +207,16 @@ router.get("/z-porocilo/status", async (req: Request, res: Response): Promise<vo
       eq(zPorocilaTable.poslovniDatum, datum),
     )).limit(1);
 
+  // Pretekli dan z dejavnostjo brez Z za to blagajno: UI ga mora ponuditi namesto današnjega.
+  const preteklaVrata = await checkPreviousBusinessDayClosed(db, posReq.enotaId, datum);
+  const manjkajociDatum = !preteklaVrata.allowed
+    && preteklaVrata.missingRegisters.some(r => r.id === blagajnaId)
+    ? preteklaVrata.previousBusinessDate
+    : null;
+
   res.json({
     datum,
+    manjkajociDatum,
     zaklenjen: !!z && z.odklenjenOb === null,
     odklenjen: !!z && z.odklenjenOb !== null,
     zPorociloId: z?.id ?? null,
