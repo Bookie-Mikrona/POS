@@ -185,6 +185,13 @@
     overscroll-behavior: contain;
   }
 
+  /* Dialog, ki ga je treba pripeti na vrh vidnega območja (translate-y-0), npr. izbira modifikatorjev. */
+  [role="dialog"][data-pos-dialog-top] {
+    top: calc(var(--pos-visual-viewport-offset-top) + 0.5rem) !important;
+    max-height: calc(var(--pos-visual-viewport-height) - 1rem) !important;
+    overflow: hidden !important;
+  }
+
   [data-pos-keyboard-overlay] {
     top: var(--pos-visual-viewport-offset-top);
     height: var(--pos-visual-viewport-height);
