@@ -214,6 +214,7 @@ router.get("/z-porocilo/status", async (req: Request, res: Response): Promise<vo
     ? preteklaVrata.previousBusinessDate
     : null;
 
+  res.setHeader("Cache-Control", "no-store");
   res.json({
     datum,
     manjkajociDatum,
