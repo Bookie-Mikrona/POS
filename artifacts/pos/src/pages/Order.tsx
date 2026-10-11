@@ -966,7 +966,33 @@ function DiscountInput({ postavkaId, cenaKos, cenaKosOriginalna, kolicina, onApp
   );
 }
 
+/** Vidno območje zaslona (upošteva tipkovnico in zamik pogleda na starejših WebView-jih). */
+function useVidnoObmocje() {
+  const preberi = () => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    return {
+      top: vv ? vv.offsetTop : 0,
+      height: vv ? vv.height : (typeof window !== "undefined" ? window.innerHeight : 600),
+    };
+  };
+  const [obmocje, setObmocje] = useState(preberi);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const osvezi = () => setObmocje(preberi());
+    vv?.addEventListener("resize", osvezi);
+    vv?.addEventListener("scroll", osvezi);
+    window.addEventListener("resize", osvezi);
+    return () => {
+      vv?.removeEventListener("resize", osvezi);
+      vv?.removeEventListener("scroll", osvezi);
+      window.removeEventListener("resize", osvezi);
+    };
+  }, []);
+  return obmocje;
+}
+
 export default function Order() {
+  const vidnoObmocje = useVidnoObmocje();
   const params = useParams();
   const gatewayOrderId = params.id ? parseLocalOrderRoute(params.id) ?? null : null;
   const cloudId = params.id && !gatewayOrderId && /^\d+$/.test(params.id) ? Number(params.id) : undefined;
@@ -4210,7 +4236,7 @@ export default function Order() {
 
         return (
         <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
-          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl max-h-[calc(100dvh-3rem)] overflow-hidden p-4 sm:p-6" style={{ maxHeight: `calc(${window.innerHeight}px - 3rem)` }}>
+          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl max-h-[calc(100dvh-3rem)] overflow-hidden p-4 sm:p-6" style={{ top: `${vidnoObmocje.top + 8}px`, maxHeight: `${Math.max(200, vidnoObmocje.height - 16)}px` }}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5" />
