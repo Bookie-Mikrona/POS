@@ -522,16 +522,19 @@ ${linije.map(vrHtml).join("\n")}
 
   // ── Z-poročilo handler ───────────────────────────────────────
   // Če je pretekli dan ostal brez Z-poročila, ga ponudimo namesto današnjega (varovalo pred zamenjavo dneva).
-  const predlagajZDatum = async () => {
-    if (!activeBlagajnaId) return;
+  const predlagajZDatum = async (): Promise<string> => {
+    if (!activeBlagajnaId) return zPoslovniDatum;
     try {
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
       const r = await posFetch(`${base}/api/z-porocilo/status?blagajnaId=${activeBlagajnaId}`);
-      if (!r.ok) return;
+      if (!r.ok) return zPoslovniDatum;
       const data = await r.json() as { manjkajociDatum?: string | null };
-      setZPoslovniDatum(data.manjkajociDatum ?? privzetiDatum);
+      const datum = data.manjkajociDatum ?? privzetiDatum;
+      setZPoslovniDatum(datum);
+      return datum;
     } catch {
       /* ob napaki ostane izbrani datum */
+      return zPoslovniDatum;
     }
   };
 
@@ -577,12 +580,12 @@ ${linije.map(vrHtml).join("\n")}
     finally { setZLoading(false); }
   };
 
-  const loadXCash = async () => {
+  const loadXCash = async (datumPrepis?: string) => {
     if (!activeBlagajnaId) return;
     setXCashLoading(true);
     try {
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const response = await posFetch(`${base}/api/x-porocilo?blagajnaId=${activeBlagajnaId}&poslovniDatum=${encodeURIComponent(zPoslovniDatum)}`);
+      const response = await posFetch(`${base}/api/x-porocilo?blagajnaId=${activeBlagajnaId}&poslovniDatum=${encodeURIComponent(datumPrepis ?? zPoslovniDatum)}`);
       const data = await response.json() as XCashSnapshot & { error?: string; napaka?: string };
       if (!response.ok) { setZNapaka(data.error ?? data.napaka ?? "X-poročila ni mogoče pridobiti."); return; }
       setXCash(data);
@@ -4274,7 +4277,7 @@ ${linije.map(vrHtml).join("\n")}
       </Dialog>
 
       {/* ── Dialog: Z-poročilo ─────────────────────────────── */}
-      <Dialog open={zPorociloOpen} onOpenChange={(o) => { setZPorociloOpen(o); if (o) void predlagajZDatum().then(() => loadXCash()); else { setZSnapshot(null); setZNapaka(null); setZBlokade([]); setXCash(null); } }}>
+      <Dialog open={zPorociloOpen} onOpenChange={(o) => { setZPorociloOpen(o); if (o) void predlagajZDatum().then(d => loadXCash(d)); else { setZSnapshot(null); setZNapaka(null); setZBlokade([]); setXCash(null); } }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -4490,7 +4493,7 @@ ${linije.map(vrHtml).join("\n")}
                   setZPorociloOpen(true);
                   setZSnapshot(null);
                   setZNapaka(null);
-                  void loadXCash();
+                  void predlagajZDatum().then(d => loadXCash(d));
                 }}
                 title="Z-poročilo — dnevni zaključek"
                 aria-label="Z-poročilo — dnevni zaključek"
