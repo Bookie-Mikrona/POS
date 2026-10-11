@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
 import { useHappyHour } from "@/contexts/HappyHourContext";
 import { useGlasovniUkaz } from "@/hooks/use-glasovni-ukaz";
@@ -1201,7 +1201,9 @@ export default function Order() {
   const { data: preparedFoodAvailability } = useGetPreparedFoodAvailability({
     query: {
       queryKey: getGetPreparedFoodAvailabilityQueryKey(),
-      refetchInterval: 5_000,
+      // Brez pravice (403) ponavljanje samo obremenjuje strežnik in upočasni naročanje.
+      refetchInterval: (query) => (query.state.status === "error" ? false : 5_000),
+      retry: false,
       staleTime: 2_000,
     },
   });
@@ -1752,6 +1754,8 @@ export default function Order() {
     return map;
   }, [dnevniMeniDanes]);
 
+  // Filtriranje seznama artiklov ne sme zadrževati tipkanja šifre.
+  const odloznoIskanje = useDeferredValue(search);
   const { filteredArtikli, filteredArtikliModMatch } = useMemo(() => {
     // Only show output articles (prodajniArtikel) that have a category assigned
     let list = orderedArtikli.filter((article) =>
@@ -1761,8 +1765,8 @@ export default function Order() {
       list = list.filter(a => a.toGo === true);
     }
     // Točna šifra (PLU) se išče po vseh kategorijah, ne glede na izbran zavihek.
-    if (search.trim()) {
-      const sifra = (razcleniKolicinoInPlu(search)?.plu ?? search.trim()).toLowerCase();
+    if (odloznoIskanje.trim()) {
+      const sifra = (razcleniKolicinoInPlu(odloznoIskanje)?.plu ?? odloznoIskanje.trim()).toLowerCase();
       const poSifri = list.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === sifra);
       if (poSifri.length > 0) return { filteredArtikli: poSifri, filteredArtikliModMatch: new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>() };
     }
@@ -1770,8 +1774,8 @@ export default function Order() {
       list = list.filter(a => a.kategorijaId != null && a.kategorijaId.toString() === activeKategorija);
     }
     const modMatch = new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>();
-    if (search.trim()) {
-      const q = (razcleniKolicinoInPlu(search)?.plu ?? search.trim()).toLowerCase();
+    if (odloznoIskanje.trim()) {
+      const q = (razcleniKolicinoInPlu(odloznoIskanje)?.plu ?? odloznoIskanje.trim()).toLowerCase();
       // Šifra (PLU): točno ujemanje ima prednost pred iskanjem po imenu
       const poPlu = list.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === q);
       if (poPlu.length > 0) return { filteredArtikli: poPlu, filteredArtikliModMatch: modMatch };
@@ -1797,7 +1801,7 @@ export default function Order() {
       return { filteredArtikli: byMod, filteredArtikliModMatch: modMatch };
     }
     return { filteredArtikli: list, filteredArtikliModMatch: modMatch };
-  }, [orderedArtikli, activeKategorija, search, extraSinonimi, narocilo?.nacin, activeMulticourseMenuArticleIds]);
+  }, [orderedArtikli, activeKategorija, odloznoIskanje, extraSinonimi, narocilo?.nacin, activeMulticourseMenuArticleIds]);
 
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() });
@@ -4223,17 +4227,28 @@ export default function Order() {
             }
           }
         }
+        // Okno se zapre takoj: natakar lahko nadaljuje, strežnik potrdi v ozadju.
+        // Ob napaki se izbira vrne, da je ni treba ponovno vnašati.
+        const prejsnjePodIzbire = modDialogPodIzbire;
+        setModDialogArtikelId(null);
+        setModDialogIzbrani([]);
+        setModDialogPodIzbire({});
+        setModDialogKolicina(1);
+        setModDialogOpomba(null);
+        setModDialogVelikostPice(undefined);
+        const obnoviOkno = () => {
+          setModDialogArtikelId(artikelId);
+          setModDialogIzbrani(izbrani);
+          setModDialogPodIzbire(prejsnjePodIzbire);
+          setModDialogKolicina(kolicina);
+          setModDialogOpomba(opomba);
+          setModDialogVelikostPice(velikostPice);
+        };
         addPostavka.mutate(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload, velikostPice } as any },
           {
             onSuccess: (updatedNarocilo) => {
-              setModDialogArtikelId(null);
-              setModDialogIzbrani([]);
-               setModDialogPodIzbire({});
-              setModDialogKolicina(1);
-              setModDialogOpomba(null);
-              setModDialogVelikostPice(undefined);
               clearSkipAutoStart();
               queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo);
               queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
@@ -4245,6 +4260,7 @@ export default function Order() {
                 leaveClosedOrder();
               } else {
                 toast({ title: "Napaka", description: orderAddErrorMessage(err), variant: "destructive" });
+                obnoviOkno();
               }
               settle();
             },

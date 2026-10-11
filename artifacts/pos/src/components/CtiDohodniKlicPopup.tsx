@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BellRing, PhoneCall, UserRound, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -53,6 +53,8 @@ export function CtiDohodniKlicPopup() {
     ...(enotaId ? { "X-Enota-Id": String(enotaId) } : {}),
   }), [enotaId]);
 
+  const dostopZavrnjen = useRef(false);
+
   const naloziKlice = useCallback(async () => {
     if (!enotaId) {
       setKlici([]);
@@ -64,6 +66,7 @@ export function CtiDohodniKlicPopup() {
         headers: headers(),
         cache: "no-store",
       });
+      if (response.status === 403) { dostopZavrnjen.current = true; setKlici([]); return; }
       if (!response.ok) return;
       setKlici(await response.json() as CtiKlic[]);
     } catch {
@@ -72,8 +75,9 @@ export function CtiDohodniKlicPopup() {
   }, [enotaId, headers]);
 
   useEffect(() => {
+    dostopZavrnjen.current = false;
     void naloziKlice();
-    const interval = window.setInterval(() => { void naloziKlice(); }, 5000);
+    const interval = window.setInterval(() => { if (!dostopZavrnjen.current) void naloziKlice(); }, 5000);
     return () => window.clearInterval(interval);
   }, [naloziKlice]);
 
