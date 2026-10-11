@@ -4210,7 +4210,7 @@ export default function Order() {
 
         return (
         <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
-          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl max-h-[calc(100dvh-3rem)] overflow-hidden p-4 sm:p-6">
+          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl max-h-[calc(100dvh-3rem)] overflow-hidden p-4 sm:p-6" style={{ maxHeight: `calc(${window.innerHeight}px - 3rem)` }}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5" />
