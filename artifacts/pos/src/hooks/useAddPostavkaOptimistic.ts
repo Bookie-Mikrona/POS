@@ -180,6 +180,13 @@ export function useAddPostavkaOptimistic(
           );
         }
       },
+      // Strežniški odgovor se zapiše na ravni mutacije, da zaslon ne ostane star, če povratni klic mutate() odpade.
+      onSuccess: (updated, variables) => {
+        queryClient.setQueryData(getGetNarociloQueryKey(variables.id), updated);
+      },
+      onSettled: (_data, _error, variables) => {
+        void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(variables.id) });
+      },
       // onSuccess in onSettled: per-call callbacki v Order.tsx nastavijo strežniški odgovor
       // in invalidirajo aktivna naročila — tukaj ni treba ničesar dodati.
     },

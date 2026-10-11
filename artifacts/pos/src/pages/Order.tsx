@@ -1273,11 +1273,21 @@ export default function Order() {
 
   // Ref sinhroniziran z artikliMapForOrder na vsakem renderu (dlje spodaj);
   // onMutate bere .current ob klicu — vedno najnovejši katalog
+  // Predpomnilnik naročila se mora posodobiti na ravni mutacije: povratni klici posameznega mutate()
+  // se ne izvedejo, če je bil vmes sprožen nov klic ali se je komponenta osvežila, zaslon pa ostane star.
+  const orderCacheSync = {
+    onSuccess: (updated: unknown, variables: { id: number }) => {
+      queryClient.setQueryData(getGetNarociloQueryKey(variables.id), updated);
+    },
+    onSettled: (_data: unknown, _error: unknown, variables: { id: number }) => {
+      void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(variables.id) });
+    },
+  };
   const _artikliMapRef = useRef<Map<number, ArtikelZaOptimistiko>>(new Map());
   const cloudAddPostavka = useAddPostavkaOptimistic(_artikliMapRef);
-  const cloudRemovePostavka = useRemovePostavka();
-  const cloudUpdateKolicina = useUpdatePostavkaKolicina();
-  const cloudAddModifikatorji = useAddPostavkaModifikatorji();
+  const cloudRemovePostavka = useRemovePostavka({ mutation: orderCacheSync });
+  const cloudUpdateKolicina = useUpdatePostavkaKolicina({ mutation: orderCacheSync });
+  const cloudAddModifikatorji = useAddPostavkaModifikatorji({ mutation: orderCacheSync });
   const spojiMutation = useSpojiNarocili();
   const cloudPrestaviMutation = useUpdateNarocilo();
   const cloudUpdateNarociloForOrder = useUpdateNarocilo();
