@@ -2794,11 +2794,16 @@ export default function Order() {
                     if (e.key !== "Enter") return;
                     // Po potrditvi se tipkovnica zapre.
                     window.setTimeout(() => searchInputRef.current?.blur(), 0);
-                    const qp = razcleniKolicinoInPlu(search);
+                    // Vrednost beremo neposredno iz polja: pri zaslonski tipkovnici stanje `search` še ni osvežen.
+                    const vneseno = (e.currentTarget as HTMLInputElement).value ?? search;
+                    const qp = razcleniKolicinoInPlu(vneseno);
                     const kolicina = qp?.kolicina ?? 1;
-                    const sifra = (qp?.plu ?? search.trim()).toLowerCase();
+                    const sifra = (qp?.plu ?? vneseno.trim()).toLowerCase();
                     if (!sifra) return;
-                    const zadetek = filteredArtikli.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === sifra);
+                    const vidni = orderedArtikli.filter(article =>
+                      isOrderArticleVisible(article, activeMulticourseMenuArticleIds.has(article.id))
+                      && (narocilo?.nacin !== "telefon" || article.toGo === true));
+                    const zadetek = vidni.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === sifra);
                     if (zadetek.length !== 1) return;
                     e.preventDefault();
                     if (handleAddArtikel(zadetek[0].id, kolicina) !== "blocked") setSearch("");
