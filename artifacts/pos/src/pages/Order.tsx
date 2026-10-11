@@ -4205,7 +4205,7 @@ export default function Order() {
 
         return (
         <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
-          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6">
+          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl max-h-[calc(100dvh-3rem)] overflow-y-auto p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5" />
@@ -4367,7 +4367,7 @@ export default function Order() {
                 <span className="font-bold tabular-nums">{(artCenaZaPrikaz + skupajDoplačilo + skupajDoplačiloPodIzbire).toFixed(2)} €</span>
               </div>
             )}
-            <div className="flex gap-2 pt-2 border-t">
+            <div className="sticky -bottom-4 sm:-bottom-6 z-10 -mx-4 sm:-mx-6 flex gap-2 border-t bg-background px-4 sm:px-6 py-3">
               <Button variant="outline" className="flex-1" onClick={() => { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); }}>Prekliči</Button>
               <Button className="flex-1" disabled={isPotrdiDisabled || addPostavka.isPending} onClick={handlePotrdiModifikatorje}>
                 Potrdi
