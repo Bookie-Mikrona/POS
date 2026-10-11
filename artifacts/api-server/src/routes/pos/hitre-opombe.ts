@@ -11,6 +11,7 @@ const MAX_DOLZINA = 80;
 const novaSchema = z.object({
   besedilo: z.string().trim().min(1).max(MAX_DOLZINA),
   kategorijaId: z.number().int().positive().nullable().optional(),
+  artikelId: z.number().int().positive().nullable().optional(),
 });
 
 async function najdiArtikel(enotaId: number, artikelId: number) {
@@ -30,32 +31,37 @@ router.get("/hitre-opombe", async (req, res): Promise<void> => {
   if (Number.isInteger(artikelId) && artikelId > 0) {
     const artikel = await najdiArtikel(enotaId, artikelId);
     if (!artikel) { res.status(404).json({ error: "Artikel ni najden" }); return; }
+    // Opomba je vezana na artikel (ali na izrecno izbrano kategorijo); zastareli splošni zapisi se ne ponujajo.
     pogoj = and(
       pogoj,
       artikel.kategorijaId == null
-        ? isNull(hitreOpombeTable.kategorijaId)
-        : or(isNull(hitreOpombeTable.kategorijaId), eq(hitreOpombeTable.kategorijaId, artikel.kategorijaId)),
+        ? eq(hitreOpombeTable.artikelId, artikelId)
+        : or(
+          eq(hitreOpombeTable.artikelId, artikelId),
+          and(isNull(hitreOpombeTable.artikelId), eq(hitreOpombeTable.kategorijaId, artikel.kategorijaId)),
+        ),
     )!;
   }
   const rows = await db.select().from(hitreOpombeTable).where(pogoj).orderBy(asc(hitreOpombeTable.id));
-  res.json(rows.map(r => ({ id: r.id, besedilo: r.besedilo, kategorijaId: r.kategorijaId })));
+  res.json(rows.map(r => ({ id: r.id, besedilo: r.besedilo, kategorijaId: r.kategorijaId, artikelId: r.artikelId })));
 });
 
 router.post("/hitre-opombe", requirePosAdminRole, async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId as number;
   const parsed = novaSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Neveljavna opomba" }); return; }
-  const { besedilo, kategorijaId = null } = parsed.data;
+  const { besedilo, kategorijaId = null, artikelId = null } = parsed.data;
+  if (artikelId != null && !(await najdiArtikel(enotaId, artikelId))) { res.status(404).json({ error: "Artikel ni najden" }); return; }
   if (kategorijaId != null) {
     const [kat] = await db.select({ id: kategorijeTable.id }).from(kategorijeTable)
       .where(and(eq(kategorijeTable.id, kategorijaId), eq(kategorijeTable.enotaId, enotaId)));
     if (!kat) { res.status(404).json({ error: "Kategorija ni najdena" }); return; }
   }
   const obstojece = await db.select().from(hitreOpombeTable).where(eq(hitreOpombeTable.enotaId, enotaId));
-  const duplikat = obstojece.find(o => o.kategorijaId === kategorijaId && o.besedilo.toLowerCase() === besedilo.toLowerCase());
-  if (duplikat) { res.json({ id: duplikat.id, besedilo: duplikat.besedilo, kategorijaId: duplikat.kategorijaId }); return; }
-  const [row] = await db.insert(hitreOpombeTable).values({ enotaId, besedilo, kategorijaId }).returning();
-  res.status(201).json({ id: row.id, besedilo: row.besedilo, kategorijaId: row.kategorijaId });
+  const duplikat = obstojece.find(o => o.kategorijaId === kategorijaId && o.artikelId === artikelId && o.besedilo.toLowerCase() === besedilo.toLowerCase());
+  if (duplikat) { res.json({ id: duplikat.id, besedilo: duplikat.besedilo, kategorijaId: duplikat.kategorijaId, artikelId: duplikat.artikelId }); return; }
+  const [row] = await db.insert(hitreOpombeTable).values({ enotaId, besedilo, kategorijaId, artikelId }).returning();
+  res.status(201).json({ id: row.id, besedilo: row.besedilo, kategorijaId: row.kategorijaId, artikelId: row.artikelId });
 });
 
 router.delete("/hitre-opombe/:id", requirePosAdminRole, async (req, res): Promise<void> => {

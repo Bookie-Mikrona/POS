@@ -45,7 +45,7 @@ export default function OpombaDialog({ artikelId, vrednost, onPotrdi, onPreklic 
 
   const shrani = async (tekst: string) => {
     try {
-      await customFetch("/api/hitre-opombe", { method: "POST", body: JSON.stringify({ besedilo: tekst }) });
+      await customFetch("/api/hitre-opombe", { method: "POST", body: JSON.stringify({ besedilo: tekst, artikelId }) });
       await queryClient.invalidateQueries({ queryKey });
       toast({ title: "Hitra opomba shranjena" });
     } catch (e) { napaka(e, "Hitre opombe ni mogoče shraniti"); }

@@ -2521,7 +2521,12 @@ export default function Order() {
     if (isTemporaryPostavkaId(postavkaId)) return;
     const opomba = novaOpomba.trim() || null;
     updateKolicina.mutate({ id, postavkaId, data: { kolicina, opomba } }, {
-      onSuccess: (u) => { queryClient.setQueryData(getGetNarociloQueryKey(id), u); setOpombaPostavka(null); },
+      onSuccess: (u) => {
+        queryClient.setQueryData(getGetNarociloQueryKey(id), u);
+        // Odgovor lahko ne vsebuje artiklov, dodanih med shranjevanjem; strežnik ostane vir resnice.
+        void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
+        setOpombaPostavka(null);
+      },
       onError: () => toast({ title: "Napaka", description: "Ni bilo mogoče shraniti opombe", variant: "destructive" }),
     });
   };
@@ -2530,7 +2535,10 @@ export default function Order() {
     if (checkBlock()) return;
     if (isTemporaryPostavkaId(postavka.id)) return;
     updateKolicina.mutate({ id, postavkaId: postavka.id, data: { kolicina: postavka.kolicina, opomba: null } }, {
-      onSuccess: (u) => queryClient.setQueryData(getGetNarociloQueryKey(id), u),
+      onSuccess: (u) => {
+        queryClient.setQueryData(getGetNarociloQueryKey(id), u);
+        void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
+      },
       onError: () => toast({ title: "Napaka", description: "Ni bilo mogoče zbrisati opombe", variant: "destructive" }),
     });
   };
