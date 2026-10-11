@@ -2789,9 +2789,11 @@ export default function Order() {
                   onChange={setSearch}
                   ref={searchInputRef}
                   inputMode={searchNumericKeyboard ? "tel" : "text"}
-                  enterKeyHint={searchNumericKeyboard ? "go" : "search"}
+                  enterKeyHint="enter"
                   onKeyDown={(e) => {
                     if (e.key !== "Enter") return;
+                    // Po potrditvi se tipkovnica zapre.
+                    window.setTimeout(() => searchInputRef.current?.blur(), 0);
                     const qp = razcleniKolicinoInPlu(search);
                     const kolicina = qp?.kolicina ?? 1;
                     const sifra = (qp?.plu ?? search.trim()).toLowerCase();
