@@ -4210,7 +4210,7 @@ export default function Order() {
 
         return (
         <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
-          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl max-h-[calc(100dvh-3rem)] overflow-y-auto p-4 sm:p-6">
+          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl max-h-[calc(100dvh-3rem)] overflow-hidden p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5" />
@@ -4230,7 +4230,7 @@ export default function Order() {
                 Nalagam možnosti iz normativov izbranih modifikatorjev …
               </p>
             )}
-            <div className="space-y-5 min-h-0 max-h-[min(62dvh,34rem)] overflow-y-auto overscroll-contain pr-1" style={{ overflowAnchor: "none" }}>
+            <div className="space-y-5 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ overflowAnchor: "none" }}>
               {modifierNormativeError && (
                 <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert" data-testid="modifier-normative-error">
                   Normativa izbranega modifikatorja ni mogoče naložiti. Poskusi znova; naročila še ni mogoče potrditi.
@@ -4372,7 +4372,7 @@ export default function Order() {
                 <span className="font-bold tabular-nums">{(artCenaZaPrikaz + skupajDoplačilo + skupajDoplačiloPodIzbire).toFixed(2)} €</span>
               </div>
             )}
-            <div className="sticky -bottom-4 sm:-bottom-6 z-10 -mx-4 sm:-mx-6 flex gap-2 border-t bg-background px-4 sm:px-6 py-3">
+            <div className="shrink-0 -mx-4 sm:-mx-6 -mb-1 flex gap-2 border-t bg-background px-4 sm:px-6 pt-3">
               <Button variant="outline" className="flex-1" onClick={() => { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); }}>Prekliči</Button>
               <Button className="flex-1" disabled={isPotrdiDisabled || addPostavka.isPending} onClick={handlePotrdiModifikatorje}>
                 Potrdi
