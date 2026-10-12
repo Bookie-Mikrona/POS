@@ -422,12 +422,13 @@ router.get("/companies/:companyId/tips-payroll/export", requireAuth, async (req:
     documentDate: racuniTable.datumCas,
   }).from(tipAllocationsTable)
     .innerJoin(racuniTable, eq(tipAllocationsTable.racunId, racuniTable.id))
+    .innerJoin(enoteTable, eq(racuniTable.enotaId, enoteTable.id))
     .innerJoin(tipPoliciesTable, eq(tipAllocationsTable.tipPolicyId, tipPoliciesTable.id)).where(and(
     eq(tipAllocationsTable.companyId, companyId),
     isNotNull(racuniTable.datumCas),
     inArray(tipPoliciesTable.mode, ["direct_employee", "independent_pool"]),
-    sql`(${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana')::date >= ${from}::date`,
-    sql`(${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana')::date <= ${to}::date`,
+    sql`DATE((${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana') - (${enoteTable.zacetekDnevaUra}::time - TIME '00:00')) >= ${from}::date`,
+    sql`DATE((${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana') - (${enoteTable.zacetekDnevaUra}::time - TIME '00:00')) <= ${to}::date`,
   ));
   type PayrollRow = {
     recipientNatakarId: number | null;

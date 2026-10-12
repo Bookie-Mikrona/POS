@@ -26,7 +26,7 @@ import {
   artikliTable, zalogaGibiTable,
   preparedFoodDailyLedgersTable, preparedFoodStocksTable,
 } from "@workspace/db";
-import { syncPosBookingForMonth } from "./posSyncBooking";
+import { syncPosBookingForDay, syncPosBookingForMonth } from "./posSyncBooking";
 import { openingStockEffectiveAt } from "./pos-opening-stock-time";
 import preparedFoodRouter from "../routes/pos/prepared-food";
 import { getZalogeObDatumu } from "./pos-zaloge-utils";
@@ -229,4 +229,48 @@ it("letna otvoritev artiklov nastopi po novoletni porabi, zamrznjene porcije pa 
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("dnevna poraba zaloge upošteva poslovni dan enote, ne koledarskega dne", async () => {
+  const [company] = await db.insert(companiesTable).values({
+    naziv: "Izoliran dnevni preizkus", podjetjeDavcna: `TEST-MONTH-${crypto.randomUUID()}`,
+  }).returning();
+  const companyId = company.id;
+  await db.insert(companyModulesTable).values({ companyId, module: "pos", enabledBy: "test" });
+  const accounts = await db.insert(accountsTable).values([
+    { companyId, code: "100", name: "Blagajna", type: "asset" },
+    { companyId, code: "400", name: "Stroški materiala", type: "expense" },
+    { companyId, code: "310", name: "Zaloga materiala", type: "asset" },
+  ]).returning();
+  const [unit] = await db.insert(enoteTable).values({
+    companyId, ime: "Dnevna enota", zacetekDnevaUra: "04:00",
+  }).returning();
+  await db.insert(posBookingSettingsTable).values({
+    companyId, salesBookingFrequency: "daily", consumptionBookingFrequency: "daily",
+    cashAccountId: accounts[0]!.id,
+    cogsMaterialAccountId: accounts[1]!.id, inventoryMaterialAccountId: accounts[2]!.id,
+  });
+  const [material] = await db.insert(artikliTable).values({
+    enotaId: unit.id, ime: "Dnevni material", cena: "1", nabavniArtikel: true, vrstaArtikla: "material",
+  }).returning();
+  // Poletni čas: 04:00 v Ljubljani je 02:00 UTC.
+  await db.insert(zalogaGibiTable).values([
+    { ustvarjeno: new Date("2026-07-10T01:59:59.999Z"), vrednost: "-100" }, // prejšnji poslovni dan
+    { ustvarjeno: new Date("2026-07-10T02:00:00.000Z"), vrednost: "-10" },
+    { ustvarjeno: new Date("2026-07-11T01:59:59.999Z"), vrednost: "-20" }, // 03:59:59 naslednjega koledarskega dne
+    { ustvarjeno: new Date("2026-07-11T02:00:00.000Z"), vrednost: "-200" }, // naslednji poslovni dan
+  ].map(value => ({
+    ...value, artikelId: material.id, tip: "poraba" as const, kolicina: value.vrednost,
+    cenaKos: "1", sourceSnapshot: "isolated_daily_boundary_test",
+  })));
+  await syncPosBookingForDay(companyId, "2026-07-10");
+  const [draft] = await db.select().from(posBookingDraftsTable).where(and(
+    eq(posBookingDraftsTable.companyId, companyId),
+    eq(posBookingDraftsTable.reference, `POS:PORABA:2026-07-10:E${unit.id}`),
+  ));
+  expect(draft).toBeDefined();
+  const lines = await db.select().from(posBookingDraftLinesTable)
+    .where(eq(posBookingDraftLinesTable.entryId, draft!.id));
+  expect(lines.filter(line => line.accountId === accounts[1]!.id && line.side === "debit")
+    .reduce((sum, line) => sum + Number(line.amount), 0)).toBeCloseTo(30, 2);
 });

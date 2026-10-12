@@ -1206,6 +1206,7 @@ async function syncPosBookingForDayUnlocked(
       });
       return;
     }
+    const porabaBounds = await getBusinessDayBounds(enota.id, datum);
     const porabaRows = await db
       .select({
         vrstaArtikla: artikliTable.vrstaArtikla,
@@ -1217,7 +1218,8 @@ async function syncPosBookingForDayUnlocked(
         and(
           eq(artikliTable.enotaId, enota.id),
           eq(zalogaGibiTable.tip, "poraba"),
-          sql`${zalogaGibiTable.ustvarjeno}::date = ${datum}::date`,
+          gte(zalogaGibiTable.ustvarjeno, porabaBounds.start),
+          lt(zalogaGibiTable.ustvarjeno, porabaBounds.end),
         ),
       )
       .groupBy(artikliTable.vrstaArtikla);

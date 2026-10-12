@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { poslovniDatumZaCas } from "@/lib/posCas";
 
 const roles = ["starter", "soup", "main", "dessert"] as const;
 const labels = { starter: "Predjed", soup: "Juha", main: "Glavna jed", dessert: "Sladica" };
-const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Ljubljana" }).format(new Date());
+const today = () => poslovniDatumZaCas();
 
 export default function KosilaPage() {
   const [businessDate, setBusinessDate] = useState(today());

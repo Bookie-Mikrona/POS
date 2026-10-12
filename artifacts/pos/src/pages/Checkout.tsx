@@ -116,6 +116,7 @@ import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
 import { useAiSvetovalec } from "@/hooks/use-ai-svetovalec";
 import { AiSvetovalecPanel } from "@/components/AiSvetovalecPanel";
 import { IndividualVoucherScanner, type IndividualVoucherPreview } from "@/components/IndividualVoucherScanner";
+import { poslovniDatumZaCas } from "@/lib/posCas";
 
 interface IssuedRacun {
   id: number;
@@ -3034,7 +3035,7 @@ ${linije.map(vrHtml).join("\n")}
           // Receipt finalization has no KDS mutation; never infer one from live
           // order state during delayed server execution.
           kds: { effects: [] },
-          accounting: { companyId: authorityBundle.server.companyId, businessDate: legalTimestamp.slice(0, 10), syncAfterCommit: true },
+          accounting: { companyId: authorityBundle.server.companyId, businessDate: poslovniDatumZaCas(legalTimestamp, zacetekUra), syncAfterCommit: true },
           // The service allocates the sequence and replaces this premise-label
           // seed with the complete PP-B-sequence legal number.
           print: { receiptNumber: cachedDevice.identity.premiseLabel, issuedAt: legalTimestamp, customerName: null, customerAddress: null, customerTaxNumber: null },

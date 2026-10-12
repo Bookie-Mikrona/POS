@@ -29,7 +29,7 @@ import { generirajEracunXml, type EracunInput } from "../../lib/eracun/generator
 import { getBizboxHost, loginBizbox, buildEnvelope, posljiBizbox, sestaviEddress, preveriEdiEnabled, parseBizboxDocId, getBizboxDocMetadata } from "../../lib/eracun/bizbox";
 import { generatePosInvoicePdf } from "../../lib/external-export-pdf";
 import { buildEslogInvoicePackage } from "../../lib/document-export-package";
-import { getBusinessDayBounds } from "../../lib/pos-business-day";
+import { businessDateForInstant, getBusinessDayBounds, getEnotaBusinessDayStart } from "../../lib/pos-business-day";
 import { CreateRacunBody, ListCardPaymentAttemptsQueryParams, ListCardPaymentAttemptsResponse, ListFursAttemptsQueryParams, ListFursAttemptsResponse } from "@workspace/api-zod";
 import { cardPaymentEvidenceMatchesReceipt, PatchRacunPlacilnaNacinBody, resolveTipPaymentMethod, validatePatchedReceiptPayments, validatePosPayments, validateQrTipOrigin, validateStudentskiBonAvailability } from "../../lib/pos-payment-validation";
 import { hasCardTerminalCharge, reserveTerminalReference } from "../../lib/pos-terminal-reference";
@@ -2094,7 +2094,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
       group.vat = round2(group.vat + izracunajDDVZaokrozen(gross, rate));
       vatGroupMap.set(rate, group);
     }
-    const businessDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Ljubljana" }).format(datumCas);
+    const businessDate = businessDateForInstant(datumCas, await getEnotaBusinessDayStart(tenotaId, tx));
     let distributionProfile: FinalizationPlan["tip"]["distributionProfile"] = null;
     if (tipTreatment.policy && tipTreatment.mode === "direct_employee") {
       const [profile] = await tx.select().from(tipDistributionProfilesTable).where(and(

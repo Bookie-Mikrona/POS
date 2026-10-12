@@ -47,8 +47,9 @@ async function getTipJournalPreview(companyId: string, from: string, to: string)
     receiptCount: sql<number>`COUNT(*)`,
   }).from(racuniTable).innerJoin(enoteTable, eq(racuniTable.enotaId, enoteTable.id)).where(and(
     eq(enoteTable.companyId, companyId),
-    sql`DATE(${racuniTable.ustvarjeno} AT TIME ZONE 'Europe/Ljubljana') >= ${from}`,
-    sql`DATE(${racuniTable.ustvarjeno} AT TIME ZONE 'Europe/Ljubljana') <= ${to}`,
+    // Poslovni dan enote: od začetne ure do iste ure naslednjega dne.
+    sql`DATE((${racuniTable.ustvarjeno} AT TIME ZONE 'Europe/Ljubljana') - (${enoteTable.zacetekDnevaUra}::time - TIME '00:00')) >= ${from}::date`,
+    sql`DATE((${racuniTable.ustvarjeno} AT TIME ZONE 'Europe/Ljubljana') - (${enoteTable.zacetekDnevaUra}::time - TIME '00:00')) <= ${to}::date`,
     sql`CAST(${racuniTable.znesekNapitnina} AS numeric) <> 0`,
   ));
 
