@@ -1785,7 +1785,10 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 **12.10.2026 — priročnik v8.14.** Poslovni mesec in leto sledita začetni
 uri enote; letni prenos zalog in zamrznjenih pripravljenih jedi je mogoč šele po
 tej uri in po zaključku dnevnih evidenc starega leta. Že ustvarjenih začetnih
-zalog ta sprememba ne popravlja. Pregled inventarja postopkov ni bil ponovno
+zalog ta sprememba ne popravlja. Dnevna temeljnica porabe zalog, napitnine
+v predogledu in plačnem izvozu ter datum računa, izdanega brez povezave,
+zdaj sledijo poslovnemu dnevu enote; že knjiženih podatkov to ne popravlja.
+Seznam in izvoz knjige napitnin ostajata po koledarskem dnevu. Pregled inventarja postopkov ni bil ponovno
 opravljen.
 
 **10.10.2026 — priročnik v8.13.** Davčne evidence so razmejene v modul

@@ -630,6 +630,12 @@ zaključila po določenem rezu.
 
 Pri poročilu preverite oznako poslovnega datuma, ne samo datum in uro računa.
 
+Poslovni dan traja od začetne ure enote (privzeto 04:00) do minute pred isto uro
+naslednjega dne (03:59). Račun ali poraba zaloge ob 03:59 sodi še v prejšnji dan,
+ob 04:00 pa v novi dan. Enako velja za dnevno temeljnico porabe zalog, napitnine
+v knjižbenem predogledu in plačnem izvozu ter datum, ki ga prejme račun,
+izdan brez povezave.
+
 Ne zaključujte dneva zgodaj samo zato, ker koledar pokaže polnoč.
 
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-08cb36e315f2 package=lite -->
