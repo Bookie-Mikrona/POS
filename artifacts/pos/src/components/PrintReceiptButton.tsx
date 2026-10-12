@@ -39,7 +39,7 @@ import {
   BT_CONNECTION_EVENT,
 } from "@/lib/printer";
 import { isSunmiPrinterAvailable, printViaSunmi } from "@/lib/sunmiPrinter";
-import { isZcsBridgeAvailable, waitForZcsBridge, printZcsReceipt, getZcsBridgeStatus, getZcsDiagnostics, getZcsBridgeCached, getZcsBridgeType, isBtBridge } from "@/lib/zcsAndroidPrinter";
+import { isZcsBridgeAvailable, waitForZcsBridge, printZcsReceipt, getZcsBridgeStatus, getZcsDiagnostics, getZcsBridgeCached, getZcsBridgeType, isBtBridge, wasZcsBridgeSeen } from "@/lib/zcsAndroidPrinter";
 import { isNb80BridgeAvailable, waitForNb80Bridge, printNb80Receipt, getNb80BridgeCached, getNb80Diagnostics } from "@/lib/nb80AndroidPrinter";
 
 interface PrintReceiptButtonProps {
@@ -471,7 +471,9 @@ export function PrintReceiptButton({
     if (zcsDosegljiv && !jeNb80) {
       return handleZcsPrint();
     }
-    if (jeZcsMostNaprava(sirina) && !jeNb80) {
+    // Če je bil ZCS most v tej seji že dosegljiv, težave (npr. zmanjkalo papirja,
+    // zasedeno) javimo — tiska ne preusmerimo tiho na lokalni tiskalnik.
+    if ((jeZcsMostNaprava(sirina) || wasZcsBridgeSeen() || zcsBridgeAvailable) && !jeNb80) {
       return handleZcsPrintZRetryjem();
     }
     return handleBrowserPrint();

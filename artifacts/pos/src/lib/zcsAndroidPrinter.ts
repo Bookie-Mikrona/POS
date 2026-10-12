@@ -83,9 +83,19 @@ export function getZcsBridgeType(): "bt" | "q10" | "zcs" | null {
   return null;
 }
 
+const ZCS_BRIDGE_SEEN_KEY = "zcs_bridge_seen";
+
+/** Most je bil v tej seji že dosegljiv — kasnejša nedosegljivost ni razlog za brskalniški tisk. */
+export function wasZcsBridgeSeen(): boolean {
+  try { return sessionStorage.getItem(ZCS_BRIDGE_SEEN_KEY) === "1"; } catch { return false; }
+}
+
 function setCacheBridgeAvailable(ok: boolean, model?: string, bridge?: string, singleJobQr?: boolean) {
   _cachedAvailable = ok;
   _cacheExpiry = Date.now() + (ok ? 30_000 : 6_000);
+  if (ok) {
+    try { sessionStorage.setItem(ZCS_BRIDGE_SEEN_KEY, "1"); } catch { /* ni pomnilnika */ }
+  }
   if (model) _bridgeModel = model;
   if (bridge !== undefined) _bridgeType = bridge;
   _singleJobQr = singleJobQr === true;
