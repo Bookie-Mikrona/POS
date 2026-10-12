@@ -2041,13 +2041,6 @@ async function syncPosBookingForMonthUnlocked(
   }
 
   const { start, nextStart, end } = monthBounds(month);
-  const currentMonthStart = `${businessDateForInstant(new Date()).slice(0, 7)}-01`;
-  if (nextStart > currentMonthStart) {
-    return {
-      created,
-      skipped: [{ ref: "vse", reason: "Mesečni zbirnik je dovoljen šele po zaključenem celotnem mesecu" }],
-    };
-  }
 
   const [settings] = await db.select().from(posBookingSettingsTable)
     .where(eq(posBookingSettingsTable.companyId, companyId)).limit(1);
@@ -2063,6 +2056,7 @@ async function syncPosBookingForMonthUnlocked(
   const enote = await db.select({
     id: enoteTable.id,
     ime: enoteTable.ime,
+    zacetekDnevaUra: enoteTable.zacetekDnevaUra,
     costCenterId: enoteTable.costCenterId,
     costCenterCode: costCentersTable.code,
   }).from(enoteTable)
@@ -2073,6 +2067,14 @@ async function syncPosBookingForMonthUnlocked(
     .where(eq(enoteTable.companyId, companyId));
   if (enote.length === 0) {
     return { created, skipped: [{ ref: "vse", reason: "Podjetje nima POS enot" }] };
+  }
+
+  const now = new Date();
+  if (enote.some(enota => businessDateForInstant(now, enota.zacetekDnevaUra ?? "04:00") < nextStart)) {
+    return {
+      created,
+      skipped: [{ ref: "vse", reason: "Mesečni zbirnik je dovoljen šele po zaključenem celotnem mesecu" }],
+    };
   }
 
   const salesFrequency = getEffectiveBookingFrequency(settings, "PRODAJA", start);
