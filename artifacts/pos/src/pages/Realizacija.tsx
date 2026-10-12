@@ -65,9 +65,23 @@ interface RealizacijaData {
   ddvPoStopnjah: DdvStopnja[];
   artikli?: ArtikelZbir[];
   podjetje: { naziv: string; naslov: string; davcnaStevilka: string };
+  poslovnaEnota?: { id: number; naziv: string };
 }
 
 const LJ = "Europe/Ljubljana";
+
+function wrapWords(text: string, width: number): string[] {
+  const lines: string[] = [];
+  let remaining = text;
+  while (remaining.length > width) {
+    const space = remaining.lastIndexOf(" ", width);
+    const end = space > 0 ? space : width;
+    lines.push(remaining.slice(0, end));
+    remaining = remaining.slice(end).trimStart();
+  }
+  if (remaining) lines.push(remaining);
+  return lines;
+}
 
 function datumSlo(iso: string) {
   return new Date(iso).toLocaleDateString("sl-SI", { timeZone: LJ, day: "2-digit", month: "2-digit", year: "numeric" });
@@ -177,6 +191,9 @@ function generirajPrometLinije(
   vrstice.push(center("REALIZACIJA" + (zbirPoDnevih ? " - ZBIR" : "")));
   vrstice.push(center(`${datumSlo(new Date(od).toISOString())} - ${datumSlo(new Date(doParam).toISOString())}`));
   if (data.podjetje.naziv) vrstice.push(center(data.podjetje.naziv.slice(0, COLS)));
+  if (data.poslovnaEnota?.naziv) {
+    vrstice.push(...wrapWords(`Enota: ${data.poslovnaEnota.naziv}`, COLS));
+  }
   vrstice.push(sep("="));
 
   if (data.racuni.length === 0) {
@@ -276,6 +293,9 @@ function generirajArtikliLinije(data: RealizacijaData): string[] {
   vrstice.push(sep("="));
   vrstice.push(center("PRODANO PO ARTIKLIH"));
   if (data.podjetje.naziv) vrstice.push(center(data.podjetje.naziv.slice(0, COLS)));
+  if (data.poslovnaEnota?.naziv) {
+    vrstice.push(...wrapWords(`Enota: ${data.poslovnaEnota.naziv}`, COLS));
+  }
   vrstice.push(sep("="));
   vrstice.push(lr("Artikel", "Kol    Skupaj"));
   vrstice.push(sep("-"));
@@ -569,6 +589,7 @@ export default function Realizacija() {
             {/* Print header */}
             <div className="header mb-4 print:block">
               <div className="text-sm font-bold">{data.podjetje.naziv}</div>
+              {data.poslovnaEnota?.naziv && <div className="text-sm font-semibold">Poslovna enota: {data.poslovnaEnota.naziv}</div>}
               {data.podjetje.naslov && <div className="text-xs text-muted-foreground">{data.podjetje.naslov}</div>}
               {data.podjetje.davcnaStevilka && <div className="text-xs text-muted-foreground">DIŠ: {data.podjetje.davcnaStevilka}</div>}
               <div className="text-xs mt-1">
@@ -800,6 +821,7 @@ export default function Realizacija() {
                       {/* Glava za izpis */}
                       <div className="header mb-3">
                         <div className="text-sm font-bold">{data.podjetje.naziv}</div>
+                        {data.poslovnaEnota?.naziv && <div className="text-sm font-semibold">Poslovna enota: {data.poslovnaEnota.naziv}</div>}
                         {data.podjetje.naslov && <div className="text-xs text-muted-foreground">{data.podjetje.naslov}</div>}
                         {data.podjetje.davcnaStevilka && <div className="text-xs text-muted-foreground">DIŠ: {data.podjetje.davcnaStevilka}</div>}
                         <div className="text-xs mt-1">

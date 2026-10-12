@@ -2114,7 +2114,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Neveljaven format datuma" }); return;
   }
 
-  const [enotaInfo] = await db.select({ zacetekDnevaUra: enoteTable.zacetekDnevaUra })
+  const [enotaInfo] = await db.select({ ime: enoteTable.ime, zacetekDnevaUra: enoteTable.zacetekDnevaUra })
     .from(enoteTable).where(and(eq(enoteTable.id, tenotaId)));
   const zacetekUra = enotaInfo?.zacetekDnevaUra ?? "04:00";
 
@@ -2330,7 +2330,8 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     osnova: Number(r.osnova),
     ddv: Number(r.ddv)}));
 
-  res.json({ racuni: racuniZDdv, skupaj, ddvPoStopnjah: ddvPoStopnjahSkupaj, artikli, zacetekUra, podjetje: {
+  res.json({ racuni: racuniZDdv, skupaj, ddvPoStopnjah: ddvPoStopnjahSkupaj, artikli, zacetekUra,
+    poslovnaEnota: { id: tenotaId, naziv: enotaInfo?.ime ?? "" }, podjetje: {
     naziv: podjetje?.naziv ?? "",
     naslov: podjetjeNaslov,
     davcnaStevilka: podjetje?.idZaDdv ?? ""}});
