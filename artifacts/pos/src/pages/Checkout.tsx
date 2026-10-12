@@ -718,14 +718,23 @@ ${linije.map(vrHtml).join("\n")}
       try {
         const encoded = actorToken.split(".")[0];
         const base64 = encoded!.replace(/-/g, "+").replace(/_/g, "/");
-        const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))) as { n?: number };
-        if (payload.n === selectedId) return true;
+        const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))) as { n?: number; e?: number };
+        // Potekla seja (strežnik jo zavrne) — takoj zahtevaj PIN, ne šele ob napaki izdaje.
+        const potekla = typeof payload.e === "number" && payload.e <= Date.now() + 5_000;
+        if (payload.n === selectedId && !potekla) return true;
       } catch {
         // Pokvarjen ali star žeton se spodaj zamenja z novo PIN potrditvijo.
       }
       sessionStorage.removeItem("pos_actor_session");
     } else if (actorToken) {
-      return true;
+      try {
+        const base64 = actorToken.split(".")[0]!.replace(/-/g, "+").replace(/_/g, "/");
+        const { e } = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))) as { e?: number };
+        if (typeof e === "number" && e <= Date.now() + 5_000) sessionStorage.removeItem("pos_actor_session");
+        else return true;
+      } catch {
+        return true;
+      }
     }
     if (selectedId) {
       localStorage.setItem("pos_last_natakar_id", String(selectedId));
