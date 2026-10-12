@@ -14,3 +14,9 @@ Isto pravilo velja za poslovni mesec: od prvega dne ob začetni uri enote do prv
 **Why:** Uporabnik je izrecno zahteval, da tudi mesečne temeljnice upoštevajo nastavljeno uro, ne zgolj koledarskih datumov.
 
 **How to apply:** Uporabi interval `[prvi dan ob začetni uri, naslednji prvi dan ob začetni uri)` za posamezno enoto in ne omejuj zadnje minute na 03:59:00.
+
+Prehod leta ne prekine gostinskega poslovnega meseca. Pri začetku ob 04:00 sodita promet in poraba 1. januarja pred 04:00 v decembrski POS zbirnik prejšnjega leta.
+
+**Why:** Uporabnik je izrecno navedel novoletno zabavo kot primer, ki mora ostati v decembrskem prometu in porabi.
+
+**How to apply:** Meje decembra izračunaj do 1. januarja naslednjega leta ob uri enote; promet točno ob meji pripada januarju.
