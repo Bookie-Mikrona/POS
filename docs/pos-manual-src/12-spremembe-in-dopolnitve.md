@@ -176,8 +176,8 @@ vloge, enote in dejanski dostop so pojasnjeni v poglavju 09.
 ## 8. Povzetek trenutne dokumentacije
 
 Ta dodatek združuje slovar, kontrolne sezname, učne in predajne pripomočke
-ter sklice na podrobne postopke. Priročnik je izdaja **v8.11**, datirana
-**10.10.2026**. To je različica dokumentacije, ne številka različice POS
+ter sklice na podrobne postopke. Priročnik je izdaja **v8.14**, datirana
+**12.10.2026**. To je različica dokumentacije, ne številka različice POS
 aplikacije.
 
 Seznam funkcij in zaslonov se lahko razlikuje glede na vlogo uporabnika,
@@ -1781,6 +1781,12 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-47cfbfb45934 package=lite -->
 ## 39. Kratka zgodovina dokumentacije
+
+**12.10.2026 — priročnik v8.14.** Poslovni mesec in leto sledita začetni
+uri enote; letni prenos zalog in zamrznjenih pripravljenih jedi je mogoč šele po
+tej uri in po zaključku dnevnih evidenc starega leta. Že ustvarjenih začetnih
+zalog ta sprememba ne popravlja. Pregled inventarja postopkov ni bil ponovno
+opravljen.
 
 **10.10.2026 — priročnik v8.13.** Davčne evidence so razmejene v modul
 Glavna knjiga: KIR, KPR, uskladitev, XML izvoz in postopek eDavki niso

@@ -78,6 +78,11 @@ prehodu na sistem.
 
 Preklop obsega loči živilski material od količinske evidence kozarcev,
 krožnikov in podobnih predmetov. Pred potrditvijo preverite obseg še enkrat.
+Pri letnem prenosu je datum dokumenta 1. januar, dejanska časovna meja pa je
+začetna ura poslovnega dne enote (privzeto 04:00). Promet in poraba 1. januarja
+pred to uro, vključno z novoletno zabavo, še pripadata starem letu. Zato sistem
+začetnih zalog novega leta ne dovoli ustvariti ali spremeniti pred to uro, število
+v prenosu pa naj izhaja iz stanja po zadnjem poslovnem dnevu starega leta.
 Uvoz predlog artiklov sam po sebi ni začetna zaloga; dejansko količino
 vnesite ločeno in je ne podvojite, če že obstaja prejemnica istega blaga.
 
@@ -688,10 +693,14 @@ Namenska stran **Pripravljena hrana** uporablja **Dnevno evidenco** po
 poslovnem datumu, ne splošnega proizvodnega naloga z izbiro skladišča
 surovin in izdelka.
 
-1. Pred prvim dnevnim zaključkom leta v zavihku **Začetna zaloga (Letna)**
+1. Šele po začetni uri poslovnega dne 1. januarja in ko so vse dnevne evidence
+   starega leta zaključene (vključno z novoletno zabavo), v zavihku **Začetna zaloga (Letna)**
    preverite leto, začetno število porcij in strošek na porcijo ter izberite
    **Shrani vse**. To je operativna osnova za vrednotenje kala, ne začetna
-   računovodska knjižba; po prvem zaključenem dnevu leta začetne zaloge za to
+   računovodska knjižba. Prenos prevzame zadnjo zamrznjeno količino in strošek na
+   porcijo starega leta, ne porabi sestavin še enkrat in ne ustvari knjižbe. Če
+   prenos zavrne sporočilo o nezaključeni evidenci ali prezgodnji uri, najprej
+   odpravite vzrok in ga nato ponovite z gumbom **Ponovno preveri**. Po prvem zaključenem dnevu leta začetne zaloge za to
    leto ni več mogoče spreminjati.
 2. V zavihku **Dnevna evidenca** izberite datum. Za vsak artikel vnesite
    odtajano in dejansko novo pripravljeno količino, po potrebi korekcijo ter

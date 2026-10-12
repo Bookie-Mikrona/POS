@@ -2066,6 +2066,11 @@ Za mesečni ERP zbirnik preverite, kako podjetje obravnava poslovne datume ob me
 
 Primer: promet 1. maja ob 01:00 lahko pripada poslovnemu datumu 30. aprila.
 
+Poslovni mesec traja od prvega dne ob začetni uri enote do prvega dne naslednjega
+meseca tik pred to uro. Pri začetku ob 04:00 promet do 03:59:59 naslednjega
+prvega dne še sodi v prejšnji mesec; promet točno ob 04:00 sodi v novega. Isto
+velja za prehod leta: 1. januarja pred 04:00 sodi v decembrski zbirnik.
+
 Tak promet mora biti primerjan po enakem pravilu v POS in ERP.
 
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-95cfaaf6b3a7 package=lite -->
@@ -3347,7 +3352,9 @@ Mesečni zbirnik uporabite šele, ko so vsi dnevi in enote v mesecu pregledani.
 Mesečni postopek:
 
 1. izberite mesec in leto;
-2. preverite, da je mesec zaključen za vse vključene enote;
+2. preverite, da je mesec zaključen za vse vključene enote, upoštevaje začetno
+   uro vsake enote (zbirnik počaka, dokler vse enote ne dosežejo naslednjega
+   meseca);
 3. preglejte predogled obsega in opozorila;
 4. zaženite zbirnik samo enkrat;
 5. počakajte na končni status;
