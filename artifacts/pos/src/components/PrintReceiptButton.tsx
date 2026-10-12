@@ -466,7 +466,12 @@ export function PrintReceiptButton({
     if (jeNb80 && !nb80BridgeAvailable) {
       return handleNb80PrintZRetryjem();
     }
-    if (jeZcsMostNaprava(sirina) && !jeNb80 && !zcsBridgeAvailable) {
+    // Svež preizkus je zanesljivejši od React stanja, ki ob samodejnem tisku
+    // takoj po izdaji lahko še ni posodobljeno (sicer tisk pade na brskalnik).
+    if (zcsDosegljiv && !jeNb80) {
+      return handleZcsPrint();
+    }
+    if (jeZcsMostNaprava(sirina) && !jeNb80) {
       return handleZcsPrintZRetryjem();
     }
     return handleBrowserPrint();
