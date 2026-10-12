@@ -473,6 +473,13 @@ export function PrintReceiptButton({
     }
     // Če je bil ZCS most v tej seji že dosegljiv, težave (npr. zmanjkalo papirja,
     // zasedeno) javimo — tiska ne preusmerimo tiho na lokalni tiskalnik.
+    // Na Androidu ni lokalnega brskalniškega tiskalnika. Status mostu lahko ob
+    // težavi tiskalnika (npr. brez papirja) zastane, zato tisk vseeno poskusimo
+    // in prikažemo dejansko napako mostu.
+    const jeAndroidNaprava = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+    if (!jeNb80 && (jeAndroidNaprava || wasZcsBridgeSeen()) && !zcsDosegljiv) {
+      return handleZcsPrint();
+    }
     if ((jeZcsMostNaprava(sirina) || wasZcsBridgeSeen() || zcsBridgeAvailable) && !jeNb80) {
       return handleZcsPrintZRetryjem();
     }
