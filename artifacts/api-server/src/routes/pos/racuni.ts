@@ -6,6 +6,7 @@ import { broadcastToUnit } from "../../lib/pos-sse";
 import { faktorNormativaModifikatorja, faktorNormativaPodModifikatorja } from "../../lib/pica-poraba";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { syncPosBookingForDay } from "../../lib/posSyncBooking";
+import { receiptBookingDate } from "../../lib/receiptBookingDate";
 import { getSimDatumOrNow } from "../../lib/sim-datum";
 import { preveriCheckout as preveriSumupCheckout } from "../../lib/pos-sumup";
 import { classifyFursDeliveryOutcome, fursQrKoda, fursQrUrl as buildFursQrUrl, fursSigningContextFingerprint as signingContextFingerprint, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, pridobiCompanyCert, round2, zgradiStornoPayloadIzSnapshota } from "../../lib/pos-furs";
@@ -1253,9 +1254,10 @@ router.post("/darilni-boni/izdaja", async (req, res): Promise<void> => {
   }
 
   broadcastToUnit((req as any).enotaId, "update", { type: "racun" });
-  const datum = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Ljubljana" }).format(datumCas);
   setImmediate(() => {
-    syncPosBookingForDay(companyId, datum).catch(err => console.warn("[POS sync]", err));
+    void receiptBookingDate(tenotaId, datumCas)
+      .then(datum => syncPosBookingForDay(companyId, datum))
+      .catch(err => logger.warn({ err, companyId, enotaId: tenotaId }, "POS sinhronizacija poslovnega dne ni uspela"));
   });
   const stanje = await getDarilniBonStanje(companyId);
   res.status(201).json({
@@ -2672,8 +2674,9 @@ router.post("/racuni", async (req, res): Promise<void> => {
 
   // POS → ERP samodejni knjižni osnutki (fire-and-forget, ne blokira odgovora)
   setImmediate(() => {
-    const datum = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Ljubljana" }).format(datumCas);
-    syncPosBookingForDay(companyId, datum).catch(err => console.warn("[POS sync]", err));
+    void receiptBookingDate(tenotaId, datumCas)
+      .then(datum => syncPosBookingForDay(companyId, datum))
+      .catch(err => logger.warn({ err, companyId, enotaId: tenotaId }, "POS sinhronizacija poslovnega dne ni uspela"));
   });
 
   // ── e-račun generiranje (fire-and-forget, ne blokira odgovora, ne sme pokvariti fiskalizacije) ──
