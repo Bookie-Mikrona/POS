@@ -1565,3 +1565,17 @@ mtime_ms = 1791599015741
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/79e4e918-0edc-4800-9a45-00d227058164/d37a5689-8c79-44f5-922c-c3b2f439f65e"
 storage_version_token = "1791599114608594"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "SstWTFOKvBzR-gTAdkIqc"
+uri = "file://artifacts/pos/public/POS-Gostinstvo-prirocnik.pdf"
+type = "pdf"
+title = "POS Gostinstvo priročnik v8.14"
+description = "Posodobljen priročnik z mejami poslovnega meseca in leta ter letnim prenosom zalog."
+logical_id = "7e600854-9e1d-4669-a4f5-1009f2abec0e"
+content_hash = "sha256:d404bdf03b5fcf25600407f901829ee0e0a7f8bc62bc21b3946487f942bdf401"
+size = 2667834
+mtime_ms = 1791780946867
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7e600854-9e1d-4669-a4f5-1009f2abec0e/654d2643-eef2-446f-9ad1-d7469b111757"
+storage_version_token = "1791781134017697"
+content_type = "application/pdf"
