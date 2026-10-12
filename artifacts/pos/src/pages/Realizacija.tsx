@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Printer, Search, FileText, List, AlignJustify } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
-import { getEnotaId } from "@workspace/api-client-react";
+import { posFetch } from "@/lib/pos-auth-headers";
 import { poslovniDatumZaCas } from "@/lib/posCas";
 import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
 
@@ -317,11 +317,13 @@ export default function Realizacija() {
     setLoading(true); setError(null);
     try {
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const enotaId = getEnotaId();
-      const headers: Record<string, string> = {};
-      if (enotaId) headers["X-Enota-Id"] = enotaId;
-      const r = await fetch(`${base}/api/statistike/realizacija?od=${od}&do=${doParam}&_t=${Date.now()}`, { credentials: "include", headers });
-      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? r.statusText); }
+      const r = await posFetch(`${base}/api/statistike/realizacija?od=${od}&do=${doParam}&_t=${Date.now()}`);
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({})) as { error?: string; napaka?: string };
+        throw new Error(e.error ?? e.napaka ?? (r.status === 401
+          ? "Prijavne seje ni bilo mogoče potrditi. Poskusite znova oziroma se ponovno prijavite."
+          : `Napaka pri nalaganju realizacije (HTTP ${r.status}).`));
+      }
       setData(await r.json());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Napaka pri nalaganju");
