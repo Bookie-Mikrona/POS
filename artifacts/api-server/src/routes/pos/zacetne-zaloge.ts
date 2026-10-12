@@ -7,6 +7,7 @@ import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { bookZacetnaZaloga } from "../../lib/posSyncBooking";
 import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
+import { openingStockEffectiveAt } from "../../lib/pos-opening-stock-time";
 
 const router: IRouter = Router();
 
@@ -63,6 +64,10 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
   const zalogeMap = new Map(currentZaloge.map(z => [z.artikelId, Number(z.kolicina)]));
   const artikelMap = new Map(artikliRows.map(a => [a.id, a]));
   const docDatum = datum ? new Date(datum) : new Date();
+  const effectiveAt = await openingStockEffectiveAt(tenotaId, leto, docDatum);
+  if (docDatum.toISOString().slice(0, 10) === `${leto}-01-01` && effectiveAt.getTime() > Date.now()) {
+    res.status(409).json({ error: "Začetne zaloge lahko prenesete šele po začetni uri poslovnega dne novega leta." }); return;
+  }
 
   const { zacetnaZaloga, postavkeResult } = await db.transaction(async (tx) => {
     const [zacetnaZaloga] = await tx.insert(zacetneZalogeTable).values({
@@ -95,7 +100,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
         opomba: `Začetne zaloge ${leto}`,
         referencaId: zacetnaZaloga.id,
         actorSnapshot,
-        effectiveAtSnapshot: docDatum,
+        effectiveAtSnapshot: effectiveAt,
         sourceSnapshot: "zacetne-zaloge"});
 
       postavkeResult.push({
@@ -209,6 +214,10 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
   const updates: Partial<typeof existing> = {};
   if (parsed.data.datum !== undefined) updates.datum = new Date(parsed.data.datum);
   if (parsed.data.opomba !== undefined) updates.opomba = parsed.data.opomba;
+  const effectiveAt = await openingStockEffectiveAt(tenotaId, existing.leto, updates.datum ?? existing.datum);
+  if ((updates.datum ?? existing.datum).toISOString().slice(0, 10) === `${existing.leto}-01-01` && effectiveAt.getTime() > Date.now()) {
+    res.status(409).json({ error: "Začetne zaloge lahko prenesete šele po začetni uri poslovnega dne novega leta." }); return;
+  }
 
   let putBookingResult: { created: string | null; skipped: { reason: string } | null } | null = null;
 
@@ -263,7 +272,7 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
           opomba: `Začetne zaloge ${existing.leto}`,
           referencaId: id,
           actorSnapshot,
-          effectiveAtSnapshot: updates.datum ?? existing.datum,
+          effectiveAtSnapshot: effectiveAt,
           sourceSnapshot: "zacetne-zaloge"});
       }
 
@@ -329,7 +338,7 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
           opomba: `Začetne zaloge ${existing.leto}`,
           referencaId: id,
           actorSnapshot,
-          effectiveAtSnapshot: updates.datum,
+          effectiveAtSnapshot: effectiveAt,
           sourceSnapshot: "zacetne-zaloge",
         });
       }

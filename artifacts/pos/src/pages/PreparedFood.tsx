@@ -680,7 +680,7 @@ export default function PreparedFoodPage() {
   const [stockEdits, setStockEdits] = useState<Record<number, StockEdit>>({});
   
   const { data: artikli } = useListArtikli();
-  const { data: stockData, isLoading: loadingStock } = useListPreparedFoodStocks(year);
+  const { data: stockData, isLoading: loadingStock, error: stockError, refetch: reloadStock } = useListPreparedFoodStocks(year);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -815,7 +815,12 @@ export default function PreparedFoodPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {loadingStock ? (
+              {stockError ? (
+                <div role="alert" className="space-y-3 py-6 text-sm">
+                  <p className="text-destructive">{stockError.message || "Začetne zaloge ni mogoče prenesti. Preverite zaključek dnevnih evidenc starega leta."}</p>
+                  <Button variant="outline" onClick={() => void reloadStock()}>Ponovno preveri</Button>
+                </div>
+              ) : loadingStock ? (
                 <div className="py-8 text-center text-muted-foreground">Nalagam...</div>
               ) : !stockData || stockData.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">Ni artiklov z nastavljenim operativnim načinom "Pripravljena hrana".</div>

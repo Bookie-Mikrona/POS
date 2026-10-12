@@ -34,7 +34,7 @@ import {
   loadModifierAvailabilitySnapshots,
   resolveModifierPortions,
 } from "../../lib/prepared-food-availability";
-import { getEnotaBusinessDayStart } from "../../lib/pos-business-day";
+import { getBusinessDayBounds, getEnotaBusinessDayStart } from "../../lib/pos-business-day";
 import { buildPreparedFoodWasteRecordPdf } from "../../lib/prepared-food-waste-pdf";
 import { isPosBusinessDayClosed, lockPosBusinessDay } from "../../lib/pos-z-helpers";
 import type { PosRequest } from "../../middlewares/pos";
@@ -276,6 +276,20 @@ async function stockForYear(tx: any, enotaId: number, artikelId: number, year: n
     eq(preparedFoodStocksTable.year, year),
   ));
   if (!stock) {
+    const boundary = await getBusinessDayBounds(enotaId, `${year}-01-01`, tx);
+    if (new Date() < boundary.start) {
+      throw new Error(`Prenos zamrznjene zaloge za ${year} je dovoljen šele 1. 1. ob ${boundary.startTime}.`);
+    }
+    const [openPrior] = await tx.select({ id: preparedFoodDailyLedgersTable.id })
+      .from(preparedFoodDailyLedgersTable).where(and(
+        eq(preparedFoodDailyLedgersTable.enotaId, enotaId),
+        eq(preparedFoodDailyLedgersTable.artikelId, artikelId),
+        lt(preparedFoodDailyLedgersTable.businessDate, `${year}-01-01`),
+        isNull(preparedFoodDailyLedgersTable.closedAt),
+      )).limit(1);
+    if (openPrior) {
+      throw new Error("Pred prenosom zamrznjene zaloge zaključite dnevno evidenco starega leta, vključno z novoletno zabavo.");
+    }
     const [prior] = await tx.select().from(preparedFoodStocksTable).where(and(
       eq(preparedFoodStocksTable.enotaId, enotaId), eq(preparedFoodStocksTable.artikelId, artikelId),
       eq(preparedFoodStocksTable.year, year - 1),
@@ -378,6 +392,7 @@ router.get("/prepared-food/stocks/:year", async (req: Request, res: Response): P
   if (!params.success) { res.status(400).json({ error: "Neveljavno leto." }); return; }
   const enotaId = (req as any).enotaId as number;
   const rows = await db.transaction(async (tx) => {
+    await lockPreparedFoodEnota(tx, enotaId);
     const articles = await tx.select({
       id: artikliTable.id,
       name: artikliTable.ime,
@@ -386,7 +401,11 @@ router.get("/prepared-food/stocks/:year", async (req: Request, res: Response): P
       .where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.mealType, "prepared")));
     return Promise.all(articles.map(async (article) =>
       mapStock(await stockForYear(tx, enotaId, article.id, params.data.year), article.name, article.unitOfMeasure)));
+  }).catch((error: Error) => {
+    res.status(409).json({ error: error.message });
+    return null;
   });
+  if (!rows) return;
   res.json(ListPreparedFoodStocksResponse.parse(rows));
 });
 
@@ -450,8 +469,12 @@ router.put("/prepared-food/stocks/:year", async (req: Request, res: Response): P
       updated.push(mapStock(row, article.name, article.unitOfMeasure));
     }
     return { updated };
+  }).catch((error: Error) => {
+    res.status(409).json({ error: error.message });
+    return null;
   });
 
+  if (!result) return;
   if ("error" in result) { res.status(422).json({ error: result.error }); return; }
   res.json(UpdatePreparedFoodStocksResponse.parse(result.updated));
 });
@@ -494,7 +517,11 @@ router.put("/prepared-food/stocks/:year/:articleId", async (req: Request, res: R
       frozenQuantity: String(body.data.openingQuantity), frozenCostPerPortion: String(body.data.openingCostPerPortion), updatedAt: new Date(),
     }).where(eq(preparedFoodStocksTable.id, stock.id)).returning();
      return { ok: true as const, row: mapStock(updated, article.name, article.unitOfMeasure) };
+  }).catch((error: Error) => {
+    res.status(409).json({ error: error.message });
+    return null;
   });
+  if (!result) return;
    if (!result.ok) {
     res.status(result.status).json({ error: result.error });
     return;

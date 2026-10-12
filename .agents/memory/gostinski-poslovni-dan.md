@@ -20,3 +20,9 @@ Prehod leta ne prekine gostinskega poslovnega meseca. Pri začetku ob 04:00 sodi
 **Why:** Uporabnik je izrecno navedel novoletno zabavo kot primer, ki mora ostati v decembrskem prometu in porabi.
 
 **How to apply:** Meje decembra izračunaj do 1. januarja naslednjega leta ob uri enote; promet točno ob meji pripada januarju.
+
+Letni prenos zalog artiklov in zamrznjenih pripravljenih jedi mora izhajati iz stanja po celotnem zadnjem poslovnem dnevu starega leta, vključno z novoletno porabo do začetne ure 1. januarja.
+
+**Why:** Uporabnik je poudaril, da je to predvsem pravilo začetnih zalog, ne zgolj mesečnega poročanja; prezgoden prenos povzroči previsoko otvoritev ali dvakratno porabo.
+
+**How to apply:** Loči dokumentni datum 1. januarja od dejanske časovne meje zalog. Zamrznjene porcije prenesi šele iz zaključenih evidenc starega leta; prenos ne povzroči ponovne porabe surovin.

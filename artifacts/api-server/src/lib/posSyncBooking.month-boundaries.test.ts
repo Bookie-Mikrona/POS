@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { drizzle } from "drizzle-orm/node-postgres";
+import express from "express";
+import supertest from "supertest";
 
 const state = vi.hoisted(() => ({ db: null as any }));
 vi.mock("@workspace/db", async importOriginal => {
@@ -22,19 +24,35 @@ import {
   enoteTable, narocilaTable, racuniTable, postavkeTable, posBookingSettingsTable,
   posBookingDraftsTable, posBookingDraftLinesTable, journalEntriesTable,
   artikliTable, zalogaGibiTable,
+  preparedFoodDailyLedgersTable, preparedFoodStocksTable,
 } from "@workspace/db";
 import { syncPosBookingForMonth } from "./posSyncBooking";
+import { openingStockEffectiveAt } from "./pos-opening-stock-time";
+import preparedFoodRouter from "../routes/pos/prepared-food";
+import { getZalogeObDatumu } from "./pos-zaloge-utils";
 
 let client: PoolClient | undefined;
+let finishTransaction: (() => void) | undefined;
+let transactionDone: Promise<void> | undefined;
 beforeAll(async () => {
   client = await pool.connect();
-  await client.query("BEGIN");
-  state.db = drizzle(client);
+  const rollback = new Error("test rollback");
+  let ready!: () => void;
+  const started = new Promise<void>(resolve => { ready = resolve; });
+  const finished = new Promise<void>(resolve => { finishTransaction = resolve; });
+  transactionDone = drizzle(client).transaction(async tx => {
+    // Drizzle transactions on this object use savepoints, not BEGIN/COMMIT.
+    state.db = tx;
+    ready();
+    await finished;
+    throw rollback;
+  }).catch(error => { if (error !== rollback) throw error; });
+  await Promise.race([started, transactionDone]);
 });
 afterAll(async () => {
   vi.useRealTimers();
   if (client) {
-    try { await client.query("ROLLBACK"); } finally { client.release(); }
+    try { finishTransaction?.(); await transactionDone; } finally { client.release(); }
   }
   state.db = null;
   await pool.end();
@@ -149,4 +167,66 @@ it.each([
   const ledger = await db.select({ count: sql<number>`count(*)::int` }).from(journalEntriesTable)
     .where(eq(journalEntriesTable.companyId, companyId));
   expect(ledger[0]!.count).toBe(0);
+});
+
+it("letna otvoritev artiklov nastopi po novoletni porabi, zamrznjene porcije pa šele po zaključku stare evidence", async () => {
+  const [company] = await db.insert(companiesTable).values({
+    naziv: "Izoliran letni preizkus", podjetjeDavcna: `TEST-MONTH-${crypto.randomUUID()}`,
+  }).returning();
+  const [unit] = await db.insert(enoteTable).values({
+    companyId: company.id, ime: "Letni test", zacetekDnevaUra: "04:00",
+  }).returning();
+  const [material] = await db.insert(artikliTable).values({
+    enotaId: unit.id, ime: "Material", cena: "2", vrstaArtikla: "material", nabavniArtikel: true,
+  }).returning();
+  const openingAt = await openingStockEffectiveAt(unit.id, 2026, new Date("2026-01-01T00:00:00Z"));
+  expect(openingAt.toISOString()).toBe("2026-01-01T03:00:00.000Z");
+  expect(await openingStockEffectiveAt(unit.id, 2026, new Date("2026-02-01T00:00:00Z")))
+    .toEqual(new Date("2026-02-01T00:00:00Z"));
+  await db.insert(zalogaGibiTable).values([
+    { tip: "prejem" as const, kolicina: "10", vrednost: "20", effectiveAtSnapshot: new Date("2025-12-31T18:00:00Z") },
+    { tip: "poraba" as const, kolicina: "-2", vrednost: "-4", effectiveAtSnapshot: new Date("2026-01-01T02:59:59Z") },
+    { tip: "inventura" as const, kolicina: "8", vrednost: "16", effectiveAtSnapshot: openingAt, opomba: "Začetne zaloge 2026" },
+    { tip: "poraba" as const, kolicina: "-1", vrednost: "-2", effectiveAtSnapshot: new Date("2026-01-01T03:00:01Z") },
+  ].map(value => ({ ...value, artikelId: material.id, cenaKos: "2", sourceSnapshot: "isolated_annual_test" })));
+  expect((await getZalogeObDatumu([material.id], new Date(openingAt.getTime() - 1))).get(material.id)?.kolicina).toBe(8);
+  expect((await getZalogeObDatumu([material.id], new Date("2026-01-01T04:00:00Z"))).get(material.id)?.kolicina).toBe(7);
+
+  const [meal] = await db.insert(artikliTable).values({
+    enotaId: unit.id, ime: "Zamrznjena jed", cena: "9", mealType: "prepared",
+  }).returning();
+  const [oldStock] = await db.insert(preparedFoodStocksTable).values({
+    enotaId: unit.id, artikelId: meal.id, year: 2025,
+    openingQuantity: "10", frozenQuantity: "10", frozenCostPerPortion: "2.50",
+  }).returning();
+  const [oldDay] = await db.insert(preparedFoodDailyLedgersTable).values({
+    enotaId: unit.id, artikelId: meal.id, businessDate: "2025-12-31",
+  }).returning();
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => { (req as any).enotaId = unit.id; next(); });
+  app.use(preparedFoodRouter);
+  vi.useFakeTimers({ toFake: ["Date"] });
+  try {
+    vi.setSystemTime(new Date("2026-01-01T02:59:59Z"));
+    const tooEarly = await supertest(app).get("/prepared-food/stocks/2026");
+    expect(tooEarly.status).toBe(409);
+    vi.setSystemTime(openingAt);
+    const stillOpen = await supertest(app).get("/prepared-food/stocks/2026");
+    expect(stillOpen.status).toBe(409);
+    expect(stillOpen.body.error).toContain("zaključite dnevno evidenco");
+    expect(await db.select().from(preparedFoodStocksTable).where(and(
+      eq(preparedFoodStocksTable.enotaId, unit.id), eq(preparedFoodStocksTable.year, 2026),
+    ))).toHaveLength(0);
+    // Emulate the old day's completed balance; route must copy only this final state.
+    await db.update(preparedFoodStocksTable).set({ frozenQuantity: "8" }).where(eq(preparedFoodStocksTable.id, oldStock.id));
+    await db.update(preparedFoodDailyLedgersTable).set({ closedAt: openingAt }).where(eq(preparedFoodDailyLedgersTable.id, oldDay.id));
+    const carried = await supertest(app).get("/prepared-food/stocks/2026");
+    expect(carried.status).toBe(200);
+    expect(carried.body[0]).toMatchObject({ year: 2026, openingQuantity: 8, frozenQuantity: 8, openingCostPerPortion: 2.5 });
+    const again = await supertest(app).get("/prepared-food/stocks/2026");
+    expect(again.body[0].id).toBe(carried.body[0].id);
+  } finally {
+    vi.useRealTimers();
+  }
 });
