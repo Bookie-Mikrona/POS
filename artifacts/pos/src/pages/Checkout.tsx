@@ -2284,7 +2284,7 @@ ${linije.map(vrHtml).join("\n")}
             return;
           }
           setDdvNapaka(null);
-          toast({ title: "Napaka", description: "Ni bilo mogoče izdati računa.", variant: "destructive" });
+          toast({ title: "Napaka", description: body?.error ? `Ni bilo mogoče izdati računa: ${body.error}` : `Ni bilo mogoče izdati računa.${status ? ` (koda ${status})` : ""}`, variant: "destructive", duration: 10000 });
         },
       }
     );
