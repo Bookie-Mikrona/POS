@@ -2229,6 +2229,21 @@ ${linije.map(vrHtml).join("\n")}
             setLocation("/");
             return;
           }
+          if (status === 401 && typeof body?.code === "string" && body.code.startsWith("POS_ACTOR_")) {
+            // Strežnik je zahtevo zavrnil pred izdajo: račun ni nastal, zato je varno ponoviti.
+            racunIdempotencyRef.current = null;
+            sessionStorage.removeItem("pos_actor_session");
+            notifyPosActorSessionChanged();
+            requestPosActorSession();
+            releasePaymentGuard();
+            toast({
+              title: body.code === "POS_ACTOR_SHIFT_CLOSED" ? "Izmena natakarja je zaprta" : "Seja natakarja je potekla",
+              description: "Račun ni bil izdan. Ponovno vnesite PIN natakarja in znova potrdite izdajo.",
+              variant: "destructive",
+              duration: 10000,
+            });
+            return;
+          }
           if (status === 401) {
             toast({
               title: "Prijavna seja je potekla",
@@ -2284,7 +2299,7 @@ ${linije.map(vrHtml).join("\n")}
             return;
           }
           setDdvNapaka(null);
-          toast({ title: "Napaka", description: body?.error ? `Ni bilo mogoče izdati računa: ${body.error}` : `Ni bilo mogoče izdati računa.${status ? ` (koda ${status})` : ""}`, variant: "destructive", duration: 10000 });
+          toast({ title: "Napaka", description: (body?.error ?? (body as { napaka?: string } | undefined)?.napaka) ? `Ni bilo mogoče izdati računa: ${body?.error ?? (body as { napaka?: string }).napaka}${body?.code ? ` [${body.code}]` : (body as { koda?: string } | undefined)?.koda ? ` [${(body as { koda?: string }).koda}]` : ""}` : `Ni bilo mogoče izdati računa.${status ? ` (koda ${status})` : ""}`, variant: "destructive", duration: 10000 });
         },
       }
     );
