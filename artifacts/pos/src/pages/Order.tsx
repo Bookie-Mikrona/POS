@@ -1602,13 +1602,14 @@ export default function Order() {
   // Primer: gost 1 prazen, gost 2 ima artikle → preimenuj gost 2 → gost 1
   // Primer: samo 1 gost z artikli (vrzel ali brisanje) → počisti vse gostStevilka
   const isCompacting = useRef(false);
+  const isAssigningGuests = useRef(false);
   const aktivniGostStevilkaRef = useRef(aktivniGostStevilka);
   useEffect(() => { aktivniGostStevilkaRef.current = aktivniGostStevilka; }, [aktivniGostStevilka]);
   // Sledimo prejšnjemu nizu gostov — shouldClear se sproži samo ko se gostji ZMANJŠAJO (ne povečajo)
   const prevGostjiRef = useRef<number[]>([]);
 
   useEffect(() => {
-    if (isCompacting.current) return;
+    if (isCompacting.current || isAssigningGuests.current) return;
 
     const gostji = [...new Set(
       nezaracunaneVse.map(p => p.gostStevilka ?? null).filter((g): g is number => g !== null)
@@ -2417,24 +2418,29 @@ export default function Order() {
   };
 
   const handleDodajPrvegaGosta = async () => {
-    if (checkBlock()) return;
-    const nezaracunane = vsePostavke.filter(p => !p.racunId);
+    if (checkBlock() || isAssigningGuests.current) return;
+    const nezaracunane = vsePostavke.filter(p => p.racunId === null);
+    if (nezaracunane.some(p => isTemporaryPostavkaId(p.id))) {
+      toast({ title: "Počakajte", description: "Artikli se še shranjujejo. Nato znova dodajte gosta." });
+      return;
+    }
     if (nezaracunane.length > 0) {
-      setSteviloGostov(2);
-      setAktivniGostStevilka(2);
+      isAssigningGuests.current = true;
       try {
-        await Promise.all(
-          nezaracunane.map(p =>
-            updateKolicina.mutateAsync({
-              id,
-              postavkaId: p.id,
-              data: { kolicina: p.kolicina, gostStevilka: 1 },
-            })
-          )
-        );
-        await queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
+        for (const p of nezaracunane) {
+          await updateKolicina.mutateAsync({
+            id,
+            postavkaId: p.id,
+            data: { kolicina: p.kolicina, gostStevilka: 1 },
+          });
+        }
+        setSteviloGostov(2);
+        setAktivniGostStevilka(2);
       } catch {
         toast({ title: "Napaka", description: "Ni bilo mogoče pripisati postavk gostu", variant: "destructive" });
+      } finally {
+        isAssigningGuests.current = false;
+        await queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
       }
     } else {
       setSteviloGostov(1);

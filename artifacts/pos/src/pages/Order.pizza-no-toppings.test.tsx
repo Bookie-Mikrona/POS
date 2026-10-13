@@ -60,6 +60,7 @@ const mockKategorija = { id: 1, ime: "Pice", barva: null, vrstniRed: 1 };
 
 const mockAddPostavkaMutate = vi.hoisted(() => vi.fn());
 const mockUpdatePostavkaMutate = vi.hoisted(() => vi.fn());
+const mockUpdatePostavkaAsync = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
 const mockSetLocation = vi.hoisted(() => vi.fn());
 const mockZacniGlasovni = vi.hoisted(() => vi.fn());
@@ -170,7 +171,7 @@ vi.mock("@workspace/api-client-react", () => ({
   customFetch: vi.fn(() => Promise.resolve([])),
   useAddPostavkaModifikatorji: () => ({ mutate: vi.fn(), isPending: false }),
   useRemovePostavka: () => ({ mutate: vi.fn() }),
-  useUpdatePostavkaKolicina: () => ({ mutate: mockUpdatePostavkaMutate, mutateAsync: vi.fn() }),
+  useUpdatePostavkaKolicina: () => ({ mutate: mockUpdatePostavkaMutate, mutateAsync: mockUpdatePostavkaAsync }),
   useSpojiNarocili: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useUpdateNarocilo: () => ({ mutate: vi.fn(), isPending: false }),
   getGetNarociloQueryKey: (id: number) => ["/api/narocila", id],
@@ -278,6 +279,7 @@ describe("Order — pica BREZ modifikatorske skupine (modSkupine=[])", () => {
     mockToast.mockClear();
     mockAddPostavkaMutate.mockClear();
     mockUpdatePostavkaMutate.mockClear();
+    mockUpdatePostavkaAsync.mockReset();
     mockSetLocation.mockClear();
     mockZacniGlasovni.mockClear();
     mockZacniGlasovni.mockReturnValue(true);
@@ -285,6 +287,54 @@ describe("Order — pica BREZ modifikatorske skupine (modSkupine=[])", () => {
     mockNarocilo.postavke = [];
     mockKdsState.stations = [];
     mockKdsState.nalogi = [];
+  });
+
+  it("canceling a note leaves both lines intact and assigns both to guest 1 sequentially", async () => {
+    mockNarocilo.postavke = [7, 8].map(id => ({
+      id, artikelId: 11, ime: `Artikel ${id}`, kolicina: 1, cenaKos: 8.5,
+      skupaj: 8.5, davek: 9.5, parentPostavkaId: null, racunId: null,
+      gostStevilka: null, opomba: null,
+    }));
+    let finishFirst!: () => void;
+    mockUpdatePostavkaAsync
+      .mockImplementationOnce(() => new Promise<void>(resolve => { finishFirst = resolve; }))
+      .mockResolvedValueOnce(mockNarocilo);
+    render(<Wrapper qc={qc}><Order /></Wrapper>);
+    fireEvent.click(screen.getAllByTitle("Vnesi opombo s tipkovnico")[0]);
+    fireEvent.change(screen.getByLabelText("Opomba"), { target: { value: "Ne shrani" } });
+    fireEvent.click(screen.getByRole("button", { name: "Prekliči" }));
+    expect(screen.queryByLabelText("Opomba")).not.toBeInTheDocument();
+    expect(mockUpdatePostavkaMutate).not.toHaveBeenCalled();
+    expect(mockUpdatePostavkaAsync).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: "+ Dodaj gosta" })[0]);
+    await waitFor(() => expect(mockUpdatePostavkaAsync).toHaveBeenCalledTimes(1));
+    expect(mockUpdatePostavkaAsync).toHaveBeenNthCalledWith(1, {
+      id: NAROCILO_ID, postavkaId: 7, data: { kolicina: 1, gostStevilka: 1 },
+    });
+    // A second click while assigning must not start another batch.
+    fireEvent.click(screen.getAllByRole("button", { name: "+ Dodaj gosta" })[0]);
+    expect(mockUpdatePostavkaAsync).toHaveBeenCalledTimes(1);
+    await act(async () => finishFirst());
+    await waitFor(() => expect(mockUpdatePostavkaAsync).toHaveBeenCalledTimes(2));
+    expect(mockUpdatePostavkaAsync).toHaveBeenNthCalledWith(2, {
+      id: NAROCILO_ID, postavkaId: 8, data: { kolicina: 1, gostStevilka: 1 },
+    });
+    expect(screen.getAllByRole("button", { name: "Gost 2" }).length).toBeGreaterThan(0);
+    expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({ title: "Napaka" }));
+  });
+
+  it("refreshes the order after failed guest assignment without opening guest 2", async () => {
+    mockNarocilo.postavke = [{
+      id: 7, artikelId: 11, ime: "Artikel", kolicina: 1, cenaKos: 8.5,
+      skupaj: 8.5, davek: 9.5, parentPostavkaId: null, racunId: null, gostStevilka: null,
+    }];
+    mockUpdatePostavkaAsync.mockRejectedValueOnce(new Error("Network failure"));
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    render(<Wrapper qc={qc}><Order /></Wrapper>);
+    fireEvent.click(screen.getAllByRole("button", { name: "+ Dodaj gosta" })[0]);
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: "Napaka" })));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["/api/narocila", NAROCILO_ID] });
+    expect(screen.queryByRole("button", { name: "Gost 2" })).not.toBeInTheDocument();
   });
 
   it("colors the actual order row by its KDS ticket and updates it when prepared", async () => {

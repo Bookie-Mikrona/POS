@@ -5,11 +5,13 @@ const BACKUP_LOCK_KEY = "bookie-database-backup-v1";
 
 type ReleaseLock = () => Promise<void>;
 
-async function tryAcquireLock(lockKey: string): Promise<ReleaseLock | null> {
+async function tryAcquireLock(lockKey: string, shared = false): Promise<ReleaseLock | null> {
   const client = await pool.connect();
   try {
     const result = await client.query<{ acquired: boolean }>(
-      "SELECT pg_try_advisory_lock(hashtext($1)) AS acquired",
+      shared
+        ? "SELECT pg_try_advisory_lock_shared(hashtext($1)) AS acquired"
+        : "SELECT pg_try_advisory_lock(hashtext($1)) AS acquired",
       [lockKey],
     );
     if (!result.rows[0]?.acquired) {
@@ -26,7 +28,9 @@ async function tryAcquireLock(lockKey: string): Promise<ReleaseLock | null> {
     if (released) return;
     released = true;
     try {
-      await client.query("SELECT pg_advisory_unlock(hashtext($1))", [lockKey]);
+      await client.query(shared
+        ? "SELECT pg_advisory_unlock_shared(hashtext($1))"
+        : "SELECT pg_advisory_unlock(hashtext($1))", [lockKey]);
     } finally {
       client.release();
     }
@@ -42,7 +46,9 @@ export async function acquireBackupLock(): Promise<ReleaseLock | null> {
 }
 
 export async function isDatabaseRestoreInProgress(): Promise<boolean> {
-  const release = await tryAcquireLock(RESTORE_LOCK_KEY);
+  // Probes may overlap: only the exclusive restore lock must block them.
+  // Exclusive probes incorrectly report another ordinary request as a restore.
+  const release = await tryAcquireLock(RESTORE_LOCK_KEY, true);
   if (!release) return true;
   await release();
   return false;
