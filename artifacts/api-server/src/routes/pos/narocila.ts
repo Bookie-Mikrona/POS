@@ -3324,6 +3324,41 @@ router.delete("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<vo
   await updateSkupaj(params.data.id, tenotaId);
   await osveziPredvidenPrevzem(params.data.id, tenotaId);
 
+  // Če je bilo naročilo delno plačano in so bile nato izbrisane vse preostale
+  // nezaračunane postavke, je vse preostalo že pokrito z računi: zaključi ga
+  // in sprosti mizo (enako kot ob plačilu zadnje postavke).
+  const preostale = await db.select({ racunId: postavkeTable.racunId }).from(postavkeTable)
+    .where(eq(postavkeTable.narociloId, params.data.id));
+  if (preostale.length > 0 && preostale.every((p) => p.racunId != null)) {
+    await db.transaction(async (tx) => {
+      const [zaprto] = await tx.update(narocilaTable).set({ status: "zakljuceno" })
+        .where(and(
+          eq(narocilaTable.id, params.data.id),
+          eq(narocilaTable.enotaId, tenotaId),
+          eq(narocilaTable.status, "odprto"),
+        )).returning({ mizaId: narocilaTable.mizaId });
+      if (zaprto?.mizaId != null) {
+        await tx.update(mizeTable).set({
+          status: "prosta",
+          rezervacijaNarocnikId: null,
+          rezervacijaStrankaIme: null,
+          rezervacijaTelefon: null,
+          rezervacijaOpomba: null,
+          rezervacijaVeljaDo: null,
+        }).where(and(
+          eq(mizeTable.id, zaprto.mizaId),
+          eq(mizeTable.enotaId, tenotaId),
+          sql`NOT EXISTS (
+            SELECT 1 FROM ${narocilaTable}
+            WHERE ${narocilaTable.mizaId} = ${mizeTable.id}
+              AND ${narocilaTable.enotaId} = ${tenotaId}
+              AND ${narocilaTable.status} = 'odprto'
+          )`,
+        ));
+      }
+    });
+  }
+
   const narocilo = await getNarociloById(params.data.id, "", tenotaId);
   if (!narocilo) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
   broadcastToUnit(tenotaId, "update", { type: "narocilo", id: params.data.id });
