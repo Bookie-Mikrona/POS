@@ -18,6 +18,7 @@ import { ChevronDown, ChevronRight, AlertCircle, RefreshCw, X, Printer, Banknote
 import { PartnerjiSelector } from "@/components/PartnerjiSelector";
 import { useToast } from "@/hooks/use-toast";
 import { poslovniDatumZaCas } from "@/lib/posCas";
+import { hasReceiptPrintChanges } from "@/lib/receipt-print-changes";
 import { MonthlyInvoicesDialog } from "@/components/MonthlyInvoicesDialog";
 import { FursStateBadge, ReliabilityPanels, classifyFursReceipt } from "@/components/PaymentReliabilityPanels";
 
@@ -1470,7 +1471,7 @@ export default function Receipts() {
     setPrintDialog({
       id: r.id,
       stevilkaRacuna: r.stevilkaRacuna,
-      placilnaNacin: r.placilnaNacin,
+      placilnaNacin: nacin,
       skupaj: r.skupaj,
       znesekGotovina: r.znesekGotovina ?? null,
       znesekKartica: r.znesekKartica ?? null,
@@ -1980,9 +1981,7 @@ export default function Receipts() {
                 const bon = dialogBon !== "" ? parseDecimal(dialogBon) : null;
                 const bonPica = dialogBonPica !== "" ? parseDecimal(dialogBonPica) : null;
                 const steviloBonov = dialogSteviloBonov !== "" ? parseInt(dialogSteviloBonov) : null;
-                await updatePlacilnaNacin.mutateAsync({
-                  id: printDialog.id,
-                  data: {
+                const data = {
                     placilnaNacin: dialogPlacilnaNacin,
                     znesekGotovina: gotovina ?? undefined,
                     znesekKartica: kartica ?? undefined,
@@ -1994,7 +1993,11 @@ export default function Receipts() {
                       kupecNaziv: dialogKupecNaziv ?? undefined,
                       kupecNaslov: dialogKupecNaslov ?? undefined,
                     } : {}),
-                  },
+                  };
+                if (!hasReceiptPrintChanges(printDialog, data)) return;
+                await updatePlacilnaNacin.mutateAsync({
+                  id: printDialog.id,
+                  data,
                 });
                 queryClient.invalidateQueries({ queryKey: getListRacuniQueryKey() });
               }}

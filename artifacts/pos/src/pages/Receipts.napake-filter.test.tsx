@@ -13,7 +13,7 @@
  */
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, screen, within } from "@testing-library/react";
+import { render, fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import Receipts from "./Receipts";
@@ -95,13 +95,24 @@ const vsiRacuni = [racunPotrjen, racunTestni, racunNapakaStatus, racunBrezZoi];
 const dataRef = vi.hoisted(() => ({ current: null as unknown }));
 const mockPonoviMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
+const mockUpdate = vi.hoisted(() => vi.fn());
+const mockPrinted = vi.hoisted(() => vi.fn());
+const mockPrintError = vi.hoisted(() => vi.fn());
 
 // ── Moki modulov ─────────────────────────────────────────────────────────────
 
 vi.mock("@workspace/api-client-react", () => ({
   useListRacuni: () => ({ data: dataRef.current, isLoading: false }),
   usePonoviPosiljanjeRacuna: () => ({ mutate: mockPonoviMutate, isPending: false }),
-  useUpdateRacunPlacilnaNacin: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateRacunPlacilnaNacin: () => ({ mutateAsync: mockUpdate, isPending: false }),
+  useStornirajRacun: () => ({ mutate: vi.fn(), isPending: false }),
+  useListUnknownVivaRefunds: () => ({ data: { items: [] }, isLoading: false }),
+  useListVivaVracila: () => ({ data: [], isLoading: false }),
+  useResolveUnknownVivaRefund: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useVivaTerminalRefund: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  getListUnknownVivaRefundsQueryKey: () => ["/api/terminal/viva/unknown"],
+  getListVivaVracilaQueryKey: () => ["/api/terminal/viva/refunds"],
+  vivaTerminalRefundStatus: vi.fn(),
   useListFursAttempts: () => ({ data: { items: [] }, isLoading: false }),
   useListCardPaymentAttempts: () => ({ data: { items: [] }, isLoading: false }),
   useRetryFursBatch: () => ({ mutate: vi.fn(), isPending: false }),
@@ -136,10 +147,14 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 vi.mock("@/components/PrintReceiptButton", () => ({
-  PrintReceiptButton: ({ stevilkaRacuna }: { stevilkaRacuna: string }) => (
-    <button type="button">Natisni {stevilkaRacuna}</button>
+  PrintReceiptButton: ({ stevilkaRacuna, onBeforePrint }: { stevilkaRacuna: string; onBeforePrint?: () => Promise<void> }) => (
+    <button type="button" onClick={async () => {
+      try { await onBeforePrint?.(); mockPrinted(); } catch (error) { mockPrintError(error); }
+    }}>Natisni {stevilkaRacuna}</button>
   ),
 }));
+vi.mock("@/components/PartnerjiSelector", () => ({ PartnerjiSelector: () => null }));
+vi.mock("@/components/MonthlyInvoicesDialog", () => ({ MonthlyInvoicesDialog: () => null }));
 
 // ── Pomožne funkcije ─────────────────────────────────────────────────────────
 
@@ -225,5 +240,47 @@ describe("Receipts — filter napak FURS", () => {
     fireEvent.click(screen.getByTestId("button-filter-furs-failed"));
 
     expect(screen.getByText("Ni računov FURS v stanju »failed« za izbrane filtre.")).toBeInTheDocument();
+  });
+});
+
+describe("Receipts — kopija računa brez nepotrebnega preverjanja actorja", () => {
+  beforeEach(() => {
+    dataRef.current = [{
+      ...racunPotrjen, skupaj: 2.7, znesekGotovina: 2.7, znesekKartica: 0,
+      znesekBon: 0, znesekBonPica: 0, steviloBonov: 0,
+      kupecNaziv: "Test d.o.o.", kupecDavcnaStevilka: "12345678", kupecNaslov: "Testni naslov",
+    }];
+    mockUpdate.mockReset();
+    mockUpdate.mockRejectedValue(new Error("POS actor seja je potekla ali ni veljavna."));
+    mockPrinted.mockReset();
+    mockPrintError.mockReset();
+  });
+
+  function openPrint() {
+    renderReceipts();
+    fireEvent.click(screen.getByText(racunPotrjen.stevilkaRacuna));
+    fireEvent.click(screen.getByRole("button", { name: "Natisni" }));
+    return within(screen.getByRole("dialog"));
+  }
+
+  it("nespremenjen račun natisne tudi ob potekli actor seji, brez PATCH", async () => {
+    const dialog = openPrint();
+    fireEvent.click(dialog.getByRole("button", { name: `Natisni ${racunPotrjen.stevilkaRacuna}` }));
+    await waitFor(() => expect(mockPrinted).toHaveBeenCalledOnce());
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockPrintError).not.toHaveBeenCalled();
+  });
+
+  it("dejanski popravek zneskov še vedno potrebuje zaščiten PATCH in ob 401 ne natisne", async () => {
+    const dialog = openPrint();
+    fireEvent.change(dialog.getByLabelText("Gotovina (€)"), { target: { value: "2,60" } });
+    fireEvent.change(dialog.getByLabelText("Darilni bon (€)"), { target: { value: "0,10" } });
+    fireEvent.click(dialog.getByRole("button", { name: `Natisni ${racunPotrjen.stevilkaRacuna}` }));
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledOnce());
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      id: racunPotrjen.id, data: expect.objectContaining({ znesekGotovina: 2.6, znesekBon: 0.1 }),
+    }));
+    await waitFor(() => expect(mockPrintError).toHaveBeenCalledOnce());
+    expect(mockPrinted).not.toHaveBeenCalled();
   });
 });

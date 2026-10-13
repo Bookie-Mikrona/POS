@@ -62,3 +62,9 @@ Odklep z actor PIN-om nikoli ne sme samodejno nadaljevati predhodno prekinjenega
 **Why:** Samodejni replay po PIN-u bi dejanje izvedel brez nove izrecne uporabnikove potrditve.
 
 **How to apply:** Po odklepu naj se UI samo odklene; uporabnik mora občutljivo dejanje znova sprožiti.
+
+Ponovni tisk nespremenjenega izdanega računa ne zahteva actor PIN-a. Sprememba kupca ali plačilnih podatkov pa ostane občutljivo dejanje z veljavno actor sejo.
+
+**Why:** Uporabnik je potrdil, da tisk kopije ne sme biti blokiran po izteku natakarjeve seje. Tisk ni nova izdaja računa in ne sme neopaženo spreminjati že izdanih poslovnih podatkov.
+
+**How to apply:** Loči tisk od popravka; pri nespremenjenih podatkih sploh ne pošiljaj zahteve za spremembo. Ne odstranjuj zaščite na mutacijah, da bi omogočil kopije. Prijava blagajne, dostop do enote in evidenca kopij ostanejo veljavni.
