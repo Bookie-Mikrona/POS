@@ -2712,7 +2712,7 @@ export default function Order() {
 
   if (!narocilo) return <div className="p-8">Naročilo ne obstaja.</div>;
 
-  const postavkeCount = (narocilo?.postavke ?? []).filter(p => p.parentPostavkaId == null).length;
+  const postavkeCount = (narocilo?.postavke ?? []).filter(p => p.parentPostavkaId == null && p.racunId === null).length;
   const currentMizaProstorId = mize?.find(m => m.id === narocilo.mizaId)?.prostorId ?? null;
   const prostorIme = narocilo.prostorIme
     ?? (currentMizaProstorId != null ? (prostori?.find(p => p.id === currentMizaProstorId)?.ime ?? null) : null);
