@@ -69,6 +69,7 @@ import {
 import { createVatLedgerEntries, type EntryMeta, type VatLine } from "./vatLedger";
 import { businessDateForInstant, getBusinessDayBounds } from "./pos-business-day";
 import { resolvePosBookingPeriod } from "./posBookingPeriod";
+import { bookingReceiptStatus, loadReceiptTaxGroups, sumReceiptTaxGroups } from "./pos-receipt-tax";
 
 import { slovenskiDatumZaSporocilo } from "./slovenian-date-message";
 
@@ -725,7 +726,7 @@ async function syncPosBookingForDayUnlocked(
       ), '04:00'::time)
     ) AT TIME ZONE 'Europe/Ljubljana'
   `;
-  const statusOk = notInArray(racuniTable.status, ["storniran"]);
+  const statusOk = bookingReceiptStatus();
   // Ko je POS A-račun že knjižen, je številka POS računa njegova stabilna
   // povezava z invoiceom. Izključimo ga iz vseh ponovnih dnevnih seštevkov,
   // tudi če se na izvornem računu kasneje spremeni kupec ali način plačila.
@@ -737,6 +738,13 @@ async function syncPosBookingForDayUnlocked(
       AND ${invoicesTable.invoiceNumber} = ('POS-' || ${racuniTable.stevilkaRacuna})
       AND ${invoicesTable.linkedEntryId} IS NOT NULL
       AND ${invoicesTable.status} IN ('posted', 'paid')
+  )`;
+  const separatePaidB2bWhere = sql`EXISTS (
+    SELECT 1 FROM ${journalEntriesTable}
+    WHERE ${journalEntriesTable.companyId} = ${companyId}
+      AND ${journalEntriesTable.reference} = ('POS:B2B:' || ${racuniTable.stevilkaRacuna})
+      AND ${journalEntriesTable.createdBy} = 'pos-sync'
+      AND ${journalEntriesTable.status} IN ('draft', 'posted')
   )`;
 
   // Prejšnje različice so ustvarjale zbirne osnutke brez oznake enote. Ob prvem
@@ -754,6 +762,7 @@ async function syncPosBookingForDayUnlocked(
   // A-račune knjižimo pred dnevnimi zbirniki. Šele uspešno povezana in
   // potrjena terjatev je izključena iz zbirnika, zato manjkajoče nastavitve
   // ne morejo povzročiti tihe izgube prihodkov ali DDV.
+  await syncPaidBusinessReceipts();
   await syncKir();
 
   // Dnevne temeljnice se ustvarjajo ločeno za vsako POS enoto. KIR spodaj
@@ -831,6 +840,7 @@ async function syncPosBookingForDayUnlocked(
           datumWhere,
           statusOk,
           not(retainedPostedArWhere),
+          not(separatePaidB2bWhere),
           notInArray(racuniTable.placilnaNacin, ["lastna_poraba", "reprezentanca"]),
           eq(racuniTable.jeDarilniBonIzdaja, false),
         ),
@@ -856,31 +866,17 @@ async function syncPosBookingForDayUnlocked(
     }
 
     // 1b. Prihodki in DDV po vrsti artikla × DDV stopnji — BREZ lastna/repr postavk
-    const prodajaVrstice = await db
-      .select({
-        kategorijaId: sql<number | null>`COALESCE(${postavkeTable.kategorijaId}, ${artikliTable.kategorijaId})`,
-        vrstaArtikla: postavkeTable.vrstaArtikla,
-        davek:        postavkeTable.davek,
-        bruto:        sql<string>`COALESCE(SUM(CAST(${postavkeTable.skupaj} AS numeric)), 0)`,
-      })
-      .from(postavkeTable)
-      .innerJoin(racuniTable, eq(racuniTable.id, postavkeTable.racunId))
-      .leftJoin(artikliTable, eq(artikliTable.id, postavkeTable.artikelId))
-      .where(
+    const prodajaVrstice = sumReceiptTaxGroups(await loadReceiptTaxGroups(
         and(
           enotaOk,
           datumWhere,
           statusOk,
           not(retainedPostedArWhere),
+          not(separatePaidB2bWhere),
           notInArray(racuniTable.placilnaNacin, ["lastna_poraba", "reprezentanca"]),
           eq(racuniTable.jeDarilniBonIzdaja, false),
-        ),
-      )
-      .groupBy(
-        sql`COALESCE(${postavkeTable.kategorijaId}, ${artikliTable.kategorijaId})`,
-        postavkeTable.vrstaArtikla,
-        postavkeTable.davek,
-      );
+        )!,
+      ));
 
     // ── Debet: plačilni načini ───────────────────────────────────────────────
 
@@ -1012,10 +1008,8 @@ async function syncPosBookingForDayUnlocked(
       const davekPct = dec(row.davek);
       if (bruto.abs().lte("0.005")) continue;
 
-      const neto = davekPct.gt(0)
-        ? bruto.times(100).div(davekPct.plus(100)).toDecimalPlaces(2)
-        : bruto;
-      const ddv  = bruto.minus(neto);
+      const neto = dec(row.neto);
+      const ddv = dec(row.ddv);
 
       skupajBruto = skupajBruto.plus(bruto);
 
@@ -1471,6 +1465,111 @@ async function syncPosBookingForDayUnlocked(
     })();
   }
 
+  // Plačan račun na podjetje je samostojna listina tudi brez interne GK/KIR.
+  // D prejeto plačilo / K prihodki + DDV; brez izmišljene odprte terjatve.
+  async function syncPaidBusinessReceipts(): Promise<void> {
+    const receipts = await db.select().from(racuniTable).where(and(
+      inArray(racuniTable.enotaId, enotaIds), datumWhere, statusOk,
+      not(retainedPostedArWhere),
+      notInArray(racuniTable.placilnaNacin, ["negotovinsko", "lastna_poraba", "reprezentanca"]),
+      eq(racuniTable.jeDarilniBonIzdaja, false),
+      or(sql`NULLIF(TRIM(${racuniTable.kupecDavcnaStevilka}), '') IS NOT NULL`,
+        isNotNull(racuniTable.kupecCpId), isNotNull(racuniTable.kupecId)),
+    ));
+    const references = receipts.map(r => `POS:B2B:${r.stevilkaRacuna}`);
+    // Odstranitev kupca ali razveljavitev ne sme pustiti zastarelega osnutka.
+    await db.delete(journalEntriesTable).where(and(
+      eq(journalEntriesTable.companyId, companyId),
+      eq(journalEntriesTable.entryDate, datum),
+      eq(journalEntriesTable.createdBy, "pos-sync"),
+      eq(journalEntriesTable.status, "draft"),
+      like(journalEntriesTable.reference, "POS:B2B:%"),
+      references.length ? notInArray(journalEntriesTable.reference, references) : sql`TRUE`,
+    ));
+    for (const receipt of receipts) {
+      const ref = `POS:B2B:${receipt.stevilkaRacuna}`;
+      const [existing] = await db.select({ status: journalEntriesTable.status })
+        .from(journalEntriesTable).where(and(
+          eq(journalEntriesTable.companyId, companyId), eq(journalEntriesTable.reference, ref),
+          eq(journalEntriesTable.status, "posted"),
+        )).limit(1);
+      if (existing) continue;
+      if (hasPostedSalesForUnit(receipt.enotaId)
+        || await hasAnyMonthlyEntry(companyId, datum.slice(0, 7), receipt.enotaId, "PRODAJA")) {
+        skipped.push({ ref, reason: "Potrjena ali mesečna prodaja že vsebuje račun; za ločitev je potreben računovodski popravek." });
+        continue;
+      }
+      const lines: SyncLine[] = [];
+      let missing = false;
+      for (const [amount, account, desc] of [
+        [receipt.znesekGotovina, settings.cashAccountId, "Gotovina"],
+        [receipt.znesekKartica, settings.cardAccountId, "Kartica / POS terminal"],
+        [receipt.znesekBon, settings.advancePaymentsAccountId, "Unovčitev darilnega bona"],
+        [receipt.znesekBonPica, settings.voucherAccountId, "Bon za pico"],
+        [receipt.znesekSubvencija, settings.subsidyReceivableAccountId, "Študentski bon"],
+        [receipt.znesekNegotovinsko, settings.otherPaymentAccountId, "Ostalo plačilo"],
+      ] as const) {
+        if (dec(amount).isZero()) continue;
+        if (!account) { missing = true; break; }
+        pushSignedLine(lines, account, "debit", dec(amount), desc);
+      }
+      // Napitnine imajo lasten davčni/pogodbeni tok; ne prenesemo jih tiho.
+      if (missing || dec(receipt.znesekNapitnina).gt(0)) {
+        skipped.push({ ref, reason: "Ločitev B2B ni izvedena: manjkajoč plačilni konto ali napitnina; račun ostane v zbirniku." });
+        continue;
+      }
+      const groups = await loadReceiptTaxGroups(eq(racuniTable.id, receipt.id));
+      const vatAccounts: Record<string, string | null | undefined> = {
+        "22.00": settings.vat22AccountId, "9.50": settings.vat95AccountId, "5.00": settings.vat5AccountId,
+      };
+      const vatCodes: Record<string, string | null | undefined> = {
+        "22.00": settings.vat22VatCodeId, "9.50": settings.vat95VatCodeId, "5.00": settings.vat5VatCodeId,
+      };
+      for (const group of groups) {
+        const rate = dec(group.davek);
+        const revenue = getCategoryRevenueAccount(group.kategorijaId,
+          group.vrstaArtikla ?? "storitev", rate, settings, categoryRevenueAccounts);
+        const vat = vatAccounts[rate.toFixed(2)];
+        if (!revenue || (!dec(group.ddv).isZero() && !vat)) { missing = true; break; }
+        pushSignedLine(lines, revenue, "credit", dec(group.neto), `Prihodki kategorije ${group.kategorijaId ?? "brez kategorije"}`);
+        if (vat) pushSignedLine(lines, vat, "credit", dec(group.ddv), `Izhodni DDV ${rate.toString()}%`, {
+          vatCodeId: vatCodes[rate.toFixed(2)], vatAmount: dec(group.ddv).abs().toFixed(2),
+        });
+      }
+      if (missing || !groups.length || !isBalanced(lines)) {
+        skipped.push({ ref, reason: "B2B nima popolnih kontov ali usklajenega plačilnega razreza; račun ostane v zbirniku." });
+        continue;
+      }
+      const partner = await ensureCounterparty(companyId,
+        receipt.kupecNaziv?.trim() || `Kupec ${receipt.kupecDavcnaStevilka ?? receipt.id}`,
+        receipt.kupecDavcnaStevilka, receipt.kupecNaslov, receipt.kupecZavezanecDdv ?? false);
+      const unit = enote.find(e => e.id === receipt.enotaId)!;
+      const merged = mergeLines(lines.map(line => ({
+        ...line, partnerId: partner, enotaId: unit.id,
+        costCenterId: unit.costCenterCode ? unit.costCenterId : null,
+      })));
+      // Zamenjava posamezne listine je atomarna; knjiženih zapisov ne spreminjamo.
+      await db.transaction(async tx => {
+        await tx.delete(journalEntriesTable).where(and(
+          eq(journalEntriesTable.companyId, companyId), eq(journalEntriesTable.reference, ref),
+          eq(journalEntriesTable.status, "draft"),
+        ));
+        const [entry] = await tx.insert(journalEntriesTable).values({
+          companyId, periodId: period!.id, entryDate: datum, documentDate: datum,
+          description: `POS račun ${receipt.stevilkaRacuna} · ${receipt.kupecNaziv ?? "Podjetje"} · ${unit.ime}`,
+          reference: ref, status: "draft", sourceType: "document", createdBy: "pos-sync",
+        }).returning({ id: journalEntriesTable.id });
+        await tx.insert(journalEntryLinesTable).values(merged.map((line, sequence) => ({
+          entryId: entry!.id, accountId: line.accountId, side: line.side,
+          amount: line.amount.toFixed(2), description: line.desc, sequence,
+          partnerId: line.partnerId, costCenterId: line.costCenterId,
+          vatCodeId: line.vatCodeId, vatAmount: line.vatAmount,
+        })));
+      });
+      created.push(ref);
+    }
+  }
+
   // ── KIR: Knjiga izdanih računov ──────────────────────────────────────────────
   async function syncKir(): Promise<void> {
     // Samostojni POS pripravi temeljnice, ne knjiži interne GK/KIR.
@@ -1578,12 +1677,24 @@ async function syncPosBookingForDayUnlocked(
             ),
           )
       : [];
+    const ordinaryIds = vsiRacuni.filter(r =>
+      r.placilnaNacin !== "lastna_poraba" && r.placilnaNacin !== "reprezentanca",
+    ).map(r => r.id);
+    const taxSnapshots = ordinaryIds.length
+      ? await loadReceiptTaxGroups(inArray(racuniTable.id, ordinaryIds))
+      : [];
 
     // Helper: zgradi invoice lines iz seznam postavk za dano skupino računov
     function buildInvoiceLines(
       racunIdsFilter: number[],
-    ): Array<{ kategorijaId: number | null; vrstaArtikla: string; davekPct: Decimal; bruto: Decimal }> {
+    ): Array<{ kategorijaId: number | null; vrstaArtikla: string; davekPct: Decimal; bruto: Decimal; neto?: Decimal; ddv?: Decimal }> {
       const filterSet = new Set(racunIdsFilter);
+      if (racunIdsFilter.every(id => ordinaryIds.includes(id))) {
+        return sumReceiptTaxGroups(taxSnapshots.filter(row => filterSet.has(row.racunId))).map(row => ({
+          kategorijaId: row.kategorijaId, vrstaArtikla: row.vrstaArtikla ?? "storitev",
+          davekPct: dec(row.davek), bruto: dec(row.bruto), neto: dec(row.neto), ddv: dec(row.ddv),
+        }));
+      }
       const agg = new Map<string, Decimal>();
       for (const p of vsePostavke) {
         if (!filterSet.has(p.racunId ?? 0)) continue;
@@ -1609,7 +1720,7 @@ async function syncPosBookingForDayUnlocked(
       invoiceNumber: string;
       invoiceDate:   string;
       counterpartyId: string;
-      lines: Array<{ kategorijaId: number | null; vrstaArtikla: string; davekPct: Decimal; bruto: Decimal }>;
+      lines: Array<{ kategorijaId: number | null; vrstaArtikla: string; davekPct: Decimal; bruto: Decimal; neto?: Decimal; ddv?: Decimal }>;
       notes?: string;
       dueDate?: string | null;
       status?: "paid" | "posted";
@@ -1643,13 +1754,13 @@ async function syncPosBookingForDayUnlocked(
           });
           return false;
         }
-        const neto = l.davekPct.gt(0)
+        const neto = l.neto ?? (l.davekPct.gt(0)
           ? l.bruto.times(100).div(l.davekPct.plus(100)).toDecimalPlaces(2)
-          : l.bruto;
+          : l.bruto);
         preparedLines.push({
           ...l,
           neto,
-          ddv: l.bruto.minus(neto),
+          ddv: l.ddv ?? l.bruto.minus(neto),
           revenueAccountId: revAcc,
         });
       }
@@ -2093,7 +2204,7 @@ async function syncPosBookingForMonthUnlocked(
       ), '04:00'::time)
     ) AT TIME ZONE 'Europe/Ljubljana'
   `;
-  const statusOk = notInArray(racuniTable.status, ["storniran"]);
+  const statusOk = bookingReceiptStatus();
   const retainedPostedArWhere = sql`EXISTS (
     SELECT 1 FROM ${invoicesTable}
     WHERE ${invoicesTable.companyId} = ${companyId}
@@ -2101,6 +2212,13 @@ async function syncPosBookingForMonthUnlocked(
       AND ${invoicesTable.invoiceNumber} = ('POS-' || ${racuniTable.stevilkaRacuna})
       AND ${invoicesTable.linkedEntryId} IS NOT NULL
       AND ${invoicesTable.status} IN ('posted', 'paid')
+  )`;
+  const separatePaidB2bWhere = sql`EXISTS (
+    SELECT 1 FROM ${journalEntriesTable}
+    WHERE ${journalEntriesTable.companyId} = ${companyId}
+      AND ${journalEntriesTable.reference} = ('POS:B2B:' || ${racuniTable.stevilkaRacuna})
+      AND ${journalEntriesTable.createdBy} = 'pos-sync'
+      AND ${journalEntriesTable.status} IN ('draft', 'posted')
   )`;
 
   for (const enota of enote) {
@@ -2159,6 +2277,7 @@ async function syncPosBookingForMonthUnlocked(
         skupaj: sql<string>`COALESCE(SUM(CAST(${racuniTable.skupaj} AS numeric)), 0)`,
       }).from(racuniTable).where(and(
         enotaOk, rangeWhere, statusOk, not(retainedPostedArWhere),
+        not(separatePaidB2bWhere),
         notInArray(racuniTable.placilnaNacin, ["lastna_poraba", "reprezentanca"]),
         eq(racuniTable.jeDarilniBonIzdaja, false),
       ));
@@ -2176,24 +2295,12 @@ async function syncPosBookingForMonthUnlocked(
       if (skupaj.abs().lte("0.005") && issuedVouchers.abs().lte("0.005")) {
         await deleteMonthlySalesDraft(companyId, month, enota.id);
       } else {
-        const revenueRows = await db.select({
-          kategorijaId: sql<number | null>`COALESCE(${postavkeTable.kategorijaId}, ${artikliTable.kategorijaId})`,
-          vrstaArtikla: postavkeTable.vrstaArtikla,
-          davek: postavkeTable.davek,
-          bruto: sql<string>`COALESCE(SUM(CAST(${postavkeTable.skupaj} AS numeric)), 0)`,
-        }).from(postavkeTable)
-          .innerJoin(racuniTable, eq(racuniTable.id, postavkeTable.racunId))
-          .leftJoin(artikliTable, eq(artikliTable.id, postavkeTable.artikelId))
-          .where(and(
+        const revenueRows = sumReceiptTaxGroups(await loadReceiptTaxGroups(and(
             enotaOk, rangeWhere, statusOk, not(retainedPostedArWhere),
+            not(separatePaidB2bWhere),
             notInArray(racuniTable.placilnaNacin, ["lastna_poraba", "reprezentanca"]),
             eq(racuniTable.jeDarilniBonIzdaja, false),
-          ))
-          .groupBy(
-            sql`COALESCE(${postavkeTable.kategorijaId}, ${artikliTable.kategorijaId})`,
-            postavkeTable.vrstaArtikla,
-            postavkeTable.davek,
-          );
+          )!));
         const lines: SyncLine[] = [];
         const addDebit = (
           amount: Decimal,
@@ -2254,8 +2361,8 @@ async function syncPosBookingForMonthUnlocked(
           const gross = dec(row.bruto);
           const rate = dec(row.davek);
           if (gross.abs().lte("0.005")) continue;
-          const net = rate.gt(0) ? gross.times(100).div(rate.plus(100)).toDecimalPlaces(2) : gross;
-          const vat = gross.minus(net);
+          const net = dec(row.neto);
+          const vat = dec(row.ddv);
           const vrsta = row.vrstaArtikla ?? "storitev";
           const accountId = getCategoryRevenueAccount(
             row.kategorijaId,

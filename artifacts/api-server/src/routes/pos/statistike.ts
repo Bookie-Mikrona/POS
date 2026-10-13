@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, gte, inArray, isNotNull, lt, lte, ne, sql, s
 import { artikliTable, blagajneTable, companiesTable, darilniBonGibiTable, db, dailyLunchSaleSnapshotsTable, enoteTable, kategorijeTable, mizeTable, narocilaTable, nastavitveTable, posCashReconciliationsTable, posUporabnikiTable, postavkeTable, prostoriTable, racuniTable, zPorocilaTable } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
 import { getBusinessDayBounds, getCurrentPosBusinessDate } from "../../lib/pos-business-day";
+import { allocateReceiptTax } from "../../lib/pos-receipt-tax";
 import { getPosReceiptPrefixPattern } from "../../lib/pos-register-receipt-prefix";
 import { getTipBreakdown } from "../../lib/tip-reporting";
 import { getZCloseBlockers } from "../../lib/pos-z-helpers";
@@ -2250,7 +2251,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
   const racunIds = mapped.map(r => r.id);
   // Aktivni računi: brez storniranih in jeStorno — za artikle in skupni DDV-razrez
   const aktivniRacunIds = mapped.filter(r => r.status !== "storniran" && !r.jeStorno).map(r => r.id);
-  type DdvR = { racun_id: string; stopnja: string; vrsta: string; osnova: string; ddv: string };
+  type DdvR = { racun_id: string; stopnja: string; vrsta: string; bruto: string; osnova: string; ddv: string };
   const ddvMap = new Map<number, { stopnja: number; vrsta: string; osnova: number; ddv: number }[]>();
   if (racunIds.length > 0) {
     const ddvRaw = await db.execute(sql`
@@ -2258,6 +2259,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
         p.racun_id,
         p.davek::numeric                                                            AS stopnja,
         COALESCE(p.vrsta_artikla, 'storitev')                                      AS vrsta,
+        SUM(p.skupaj::numeric)                                                    AS bruto,
         SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100.0))                    AS osnova,
         SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric))     AS ddv
       FROM postavke p
@@ -2265,10 +2267,21 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
       GROUP BY p.racun_id, p.davek, COALESCE(p.vrsta_artikla, 'storitev')
       ORDER BY p.racun_id, p.davek, vrsta DESC
     `);
+    const receiptGroups = new Map<number, DdvR[]>();
     for (const row of ddvRaw.rows as DdvR[]) {
       const id = Number(row.racun_id);
-      if (!ddvMap.has(id)) ddvMap.set(id, []);
-      ddvMap.get(id)!.push({ stopnja: Number(row.stopnja), vrsta: row.vrsta, osnova: Number(row.osnova), ddv: Number(row.ddv) });
+      const groups = receiptGroups.get(id) ?? [];
+      groups.push(row);
+      receiptGroups.set(id, groups);
+    }
+    for (const [id, groups] of receiptGroups) {
+      const receipt = mapped.find(r => r.id === id)!;
+      const special = receipt.placilnaNacin === "lastna_poraba" || receipt.placilnaNacin === "reprezentanca";
+      const allocated = special ? groups.map(g => ({ ...g, neto: g.osnova })) :
+        allocateReceiptTax(groups.map(g => ({ ...g, davek: g.stopnja })), String(receipt.ddv), String(receipt.skupaj));
+      ddvMap.set(id, allocated.map(row => ({
+        stopnja: Number(row.stopnja), vrsta: row.vrsta, osnova: Number(row.neto), ddv: Number(row.ddv),
+      })));
     }
   }
 
@@ -2278,57 +2291,77 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     ddvPoStopnjah: ddvMap.get(r.id) ?? []}));
 
   // Skupni DDV po stopnjah in vrsti (material/blago/storitev) — samo aktivni računi
-  type DdvSkupajR = { stopnja: string; vrsta: string; osnova: string; ddv: string };
   const ddvPoStopnjahSkupaj = await (async () => {
     if (aktivniRacunIds.length === 0) return [];
-    const raw = await db.execute(sql`
-      SELECT
-        p.davek::numeric AS stopnja,
-        COALESCE(p.vrsta_artikla, 'storitev')                                      AS vrsta,
-        SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100.0))                   AS osnova,
-        SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric))    AS ddv
-      FROM postavke p
-      WHERE ${inArray(sql`p.racun_id`, aktivniRacunIds)}
-      GROUP BY p.davek, COALESCE(p.vrsta_artikla, 'storitev')
-      ORDER BY p.davek, vrsta DESC
-    `);
-    return (raw.rows as DdvSkupajR[]).map(r => ({
-      stopnja: Number(r.stopnja),
-      vrsta: r.vrsta as "blago" | "storitev" | "material",
-      osnova: Number(r.osnova),
-      ddv: Number(r.ddv)}));
+    const sums = new Map<string, { stopnja: number; vrsta: "blago" | "storitev" | "material"; osnova: number; ddv: number }>();
+    for (const id of aktivniRacunIds) for (const row of ddvMap.get(id) ?? []) {
+      const key = `${row.stopnja}|${row.vrsta}`;
+      const value = sums.get(key) ?? { stopnja: row.stopnja, vrsta: row.vrsta as "blago" | "storitev" | "material", osnova: 0, ddv: 0 };
+      value.osnova += row.osnova;
+      value.ddv += row.ddv;
+      sums.set(key, value);
+    }
+    return [...sums.values()].map(row => ({
+      ...row, osnova: Math.round(row.osnova * 100) / 100, ddv: Math.round(row.ddv * 100) / 100,
+    }));
   })();
 
   // Per-artikel zbir — samo aktivni računi (storniran+jeStorno pari se izničijo z izključitvijo obeh)
-  type ArtikelR = { ime: string; enota: string; kolicina: string; ddv_stopnja: string; vrsta: string; skupaj: string; osnova: string; ddv: string };
+  type ArtikelR = { racun_id: number; ime: string; enota: string; kolicina: string; ddv_stopnja: string; vrsta: string; bruto: string; skupaj: string; osnova: string; ddv: string };
   const artikliRaw = aktivniRacunIds.length > 0
     ? await db.execute(sql`
         SELECT
+          p.racun_id,
           p.ime,
           COALESCE(a.enota_mere, 'KOS') AS enota,
           SUM(p.kolicina)::int AS kolicina,
           p.davek::numeric AS ddv_stopnja,
           COALESCE(p.vrsta_artikla, 'storitev')                                                                          AS vrsta,
+          SUM(p.skupaj::numeric)                                                                                        AS bruto,
           SUM(CASE WHEN r.placilna_nacin IN ('lastna_poraba','reprezentanca') THEN 0::numeric ELSE p.skupaj::numeric END) AS skupaj,
           SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100))                                                          AS osnova,
           SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric))                                         AS ddv
         FROM postavke p
-        JOIN artikli a ON a.id = p.artikel_id
+        LEFT JOIN artikli a ON a.id = p.artikel_id
         JOIN racuni r ON r.id = p.racun_id
         WHERE ${inArray(sql`p.racun_id`, aktivniRacunIds)}
-        GROUP BY p.ime, a.enota_mere, p.davek, COALESCE(p.vrsta_artikla, 'storitev')
+        GROUP BY p.racun_id, p.ime, a.enota_mere, p.davek, COALESCE(p.vrsta_artikla, 'storitev')
         ORDER BY p.ime, p.davek, vrsta DESC
       `)
     : { rows: [] as ArtikelR[] };
-  const artikli = (artikliRaw.rows as ArtikelR[]).map(r => ({
-    ime: r.ime,
-    enota: r.enota,
-    kolicina: Number(r.kolicina),
-    ddvStopnja: Number(r.ddv_stopnja),
-    vrsta: r.vrsta as "blago" | "storitev" | "material",
-    skupaj: Number(r.skupaj),
-    osnova: Number(r.osnova),
-    ddv: Number(r.ddv)}));
+  const articleGroups = new Map<number, ArtikelR[]>();
+  for (const row of artikliRaw.rows as ArtikelR[]) {
+    const id = Number(row.racun_id);
+    const groups = articleGroups.get(id) ?? [];
+    groups.push(row);
+    articleGroups.set(id, groups);
+  }
+  const articleSums = new Map<string, {
+    ime: string; enota: string; kolicina: number; ddvStopnja: number;
+    vrsta: "blago" | "storitev" | "material"; skupaj: number; osnova: number; ddv: number;
+  }>();
+  for (const [id, groups] of articleGroups) {
+    const receipt = mapped.find(r => r.id === id)!;
+    const special = receipt.placilnaNacin === "lastna_poraba" || receipt.placilnaNacin === "reprezentanca";
+    const allocated = special ? groups.map(g => ({ ...g, neto: g.osnova })) :
+      allocateReceiptTax(groups.map(g => ({ ...g, davek: g.ddv_stopnja })), String(receipt.ddv), String(receipt.skupaj));
+    for (const row of allocated) {
+      const key = JSON.stringify([row.ime, row.enota, row.ddv_stopnja, row.vrsta]);
+      const item = articleSums.get(key) ?? {
+        ime: row.ime, enota: row.enota, kolicina: 0, ddvStopnja: Number(row.ddv_stopnja),
+        vrsta: row.vrsta as "blago" | "storitev" | "material", skupaj: 0, osnova: 0, ddv: 0,
+      };
+      item.kolicina += Number(row.kolicina);
+      item.skupaj += Number(row.skupaj);
+      item.osnova += Number(row.neto);
+      item.ddv += Number(row.ddv);
+      articleSums.set(key, item);
+    }
+  }
+  const artikli = [...articleSums.values()].map(row => ({
+    ...row, skupaj: Math.round(row.skupaj * 100) / 100,
+    osnova: Math.round(row.osnova * 100) / 100, ddv: Math.round(row.ddv * 100) / 100,
+  }));
 
   res.json({ racuni: racuniZDdv, skupaj, ddvPoStopnjah: ddvPoStopnjahSkupaj, artikli, zacetekUra,
     poslovnaEnota: { id: tenotaId, naziv: enotaInfo?.ime ?? "" }, podjetje: {

@@ -25,11 +25,13 @@ import {
   posBookingDraftsTable, posBookingDraftLinesTable, journalEntriesTable,
   artikliTable, zalogaGibiTable,
   preparedFoodDailyLedgersTable, preparedFoodStocksTable,
+  accountingPeriodsTable, journalEntryLinesTable, invoicesTable, invoiceLinesTable,
 } from "@workspace/db";
 import { syncPosBookingForDay, syncPosBookingForMonth } from "./posSyncBooking";
 import { openingStockEffectiveAt } from "./pos-opening-stock-time";
 import preparedFoodRouter from "../routes/pos/prepared-food";
 import { getZalogeObDatumu } from "./pos-zaloge-utils";
+import statisticsRouter from "../routes/pos/statistike";
 
 let client: PoolClient | undefined;
 let finishTransaction: (() => void) | undefined;
@@ -56,6 +58,131 @@ afterAll(async () => {
   }
   state.db = null;
   await pool.end();
+});
+
+it.each([false, true])("POS (interna GK: %s) loči plačana B2B računa, ohrani DDV in storno ter se ponovi brez dvojnega prometa", async internalLedger => {
+  const [company] = await db.insert(companiesTable).values({
+    naziv: "Izoliran davčni preizkus", podjetjeDavcna: `TEST-TAX-${crypto.randomUUID()}`,
+  }).returning();
+  await db.insert(companyModulesTable).values({
+    companyId: company.id, module: "pos", enabledBy: "test", enabledAt: new Date("2026-01-01T00:00:00Z"),
+  });
+  if (internalLedger) {
+    await db.insert(companyModulesTable).values({
+      companyId: company.id, module: "erp", enabledBy: "test", enabledAt: new Date("2026-01-01T00:00:00Z"),
+    });
+    await db.insert(accountingPeriodsTable).values({
+      companyId: company.id, name: "Test", startDate: "2026-01-01", endDate: "2026-12-31",
+    });
+  }
+  const entriesTable = internalLedger ? journalEntriesTable : posBookingDraftsTable;
+  const linesTable = internalLedger ? journalEntryLinesTable : posBookingDraftLinesTable;
+  const accounts = await db.insert(accountsTable).values([
+    { companyId: company.id, code: "100", name: "Gotovina", type: "asset" },
+    { companyId: company.id, code: "760", name: "Prihodki", type: "revenue" },
+    { companyId: company.id, code: "260", name: "DDV", type: "liability" },
+    { companyId: company.id, code: "120", name: "Terjatve", type: "asset" },
+  ]).returning();
+  const [unit] = await db.insert(enoteTable).values({
+    companyId: company.id, ime: "Testna enota", zacetekDnevaUra: "04:00",
+  }).returning();
+  await db.insert(posBookingSettingsTable).values({
+    companyId: company.id, cashAccountId: accounts[0]!.id,
+    revenueAccountId: accounts[1]!.id, vat22AccountId: accounts[2]!.id,
+    kirArAccountId: accounts[3]!.id,
+  });
+  async function sale(amount: string, vat: string, day: string, buyer = false,
+    reversalOf?: number, status: "testni" | "storniran" = "testni") {
+    const [order] = await db.insert(narocilaTable).values({
+      enotaId: unit.id, status: "zakljuceno", skupaj: amount,
+    }).returning();
+    const [receipt] = await db.insert(racuniTable).values({
+      enotaId: unit.id, narociloId: order.id, stevilkaRacuna: crypto.randomUUID(),
+      datumCas: new Date(`${day}T11:00:00+02:00`), ustvarjeno: new Date(`${day}T11:00:00+02:00`),
+      skupaj: amount, ddv: vat, osnova: (Number(amount) - Number(vat)).toFixed(2),
+      placilnaNacin: "gotovina", status, znesekGotovina: amount,
+      kupecDavcnaStevilka: buyer ? "12345678" : null, kupecNaziv: buyer ? "Kupec B2B" : null,
+      kupecZavezanecDdv: buyer, jeStorno: reversalOf != null, izvorniRacunId: reversalOf,
+    }).returning();
+    await db.insert(postavkeTable).values({
+      narociloId: order.id, racunId: receipt.id, ime: "Artikel",
+      kolicina: reversalOf ? -1 : 1, cenaKos: String(Math.abs(Number(amount))),
+      skupaj: amount, davek: "22", vrstaArtikla: "storitev",
+    });
+    return receipt;
+  }
+  const day1 = "2026-10-11";
+  const day2 = "2026-10-12";
+  await sale("15.90", "2.86", day1);
+  await sale("8.10", "1.46", day1);
+  for (let i = 0; i < 5; i++) await sale("1.70", "0.31", day1);
+  await sale("6.60", "1.19", day2);
+  await sale("18.20", "3.28", day2);
+  const original = await sale("1.70", "0.31", day2, false, undefined, "storniran");
+  const buyer1 = await sale("2.70", "0.49", day2, true);
+  const buyer2 = await sale("5.40", "0.98", day2, true);
+  await sale("-1.70", "-0.31", day2, false, original.id);
+  for (let repeat = 0; repeat < 2; repeat++) {
+    await syncPosBookingForDay(company.id, day1);
+    await syncPosBookingForDay(company.id, day2);
+    const drafts = await db.select().from(entriesTable)
+      .where(eq(entriesTable.companyId, company.id));
+    expect(drafts).toHaveLength(4);
+    const expected = new Map([
+      [`POS:PRODAJA:${day1}:E${unit.id}`, ["32.50", "5.87"]],
+      [`POS:PRODAJA:${day2}:E${unit.id}`, ["24.80", "4.47"]],
+      [`POS:B2B:${buyer1.stevilkaRacuna}`, ["2.70", "0.49"]],
+      [`POS:B2B:${buyer2.stevilkaRacuna}`, ["5.40", "0.98"]],
+    ]);
+    for (const entry of drafts) {
+      const lines = await db.select().from(linesTable)
+        .where(eq(linesTable.entryId, entry.id));
+      const [gross, vat] = expected.get(entry.reference!)!;
+      expect(lines.find(l => l.accountId === accounts[0]!.id)?.amount).toBe(gross);
+      expect(lines.find(l => l.accountId === accounts[2]!.id)?.amount).toBe(vat);
+      const debits = lines.filter(l => l.side === "debit").reduce((s, l) => s + Number(l.amount), 0);
+      const credits = lines.filter(l => l.side === "credit").reduce((s, l) => s + Number(l.amount), 0);
+      expect(debits).toBeCloseTo(credits, 2);
+    }
+  }
+  if (!internalLedger) {
+    expect(await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, company.id))).toHaveLength(0);
+    expect(await db.select().from(invoicesTable).where(eq(invoicesTable.companyId, company.id))).toHaveLength(0);
+  } else {
+    for (const [receipt, expectedVat] of [[buyer1, "0.49"], [buyer2, "0.98"]] as const) {
+      const [invoice] = await db.select().from(invoicesTable).where(and(
+        eq(invoicesTable.companyId, company.id), eq(invoicesTable.invoiceNumber, `POS-${receipt.stevilkaRacuna}`),
+      ));
+      expect(invoice!.status).toBe("paid");
+      const lines = await db.select().from(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, invoice!.id));
+      expect(lines.reduce((sum, line) => sum + Number(line.vatAmount), 0)).toBeCloseTo(Number(expectedVat), 2);
+    }
+  }
+  const app = express();
+  app.use((req, _res, next) => { (req as any).enotaId = unit.id; next(); });
+  app.use(statisticsRouter);
+  const response = await supertest(app).get(`/statistike/realizacija?od=${day1}&do=${day2}`);
+  expect(response.status).toBe(200);
+  expect(response.body.skupaj.skupaj).toBeCloseTo(65.40, 2);
+  expect(response.body.ddvPoStopnjah.reduce((s: number, row: any) => s + row.ddv, 0)).toBeCloseTo(11.81, 2);
+  expect(response.body.ddvPoStopnjah.reduce((s: number, row: any) => s + row.osnova, 0)).toBeCloseTo(53.59, 2);
+  expect(response.body.artikli.reduce((s: number, row: any) => s + row.skupaj, 0)).toBeCloseTo(65.40, 2);
+  expect(response.body.artikli.reduce((s: number, row: any) => s + row.ddv, 0)).toBeCloseTo(11.81, 2);
+
+  // Storno naslednjega dne ne sme izbrisati prvotnega dnevnega prometa.
+  const earlier = await sale("1.70", "0.31", "2026-10-13", false, undefined, "storniran");
+  await sale("-1.70", "-0.31", "2026-10-14", false, earlier.id);
+  await syncPosBookingForDay(company.id, "2026-10-13");
+  await syncPosBookingForDay(company.id, "2026-10-14");
+  for (const day of ["2026-10-13", "2026-10-14"]) {
+    const [entry] = await db.select().from(entriesTable).where(and(
+      eq(entriesTable.companyId, company.id), eq(entriesTable.reference, `POS:PRODAJA:${day}:E${unit.id}`),
+    ));
+    const lines = await db.select().from(linesTable).where(eq(linesTable.entryId, entry!.id));
+    expect(lines.find(l => l.accountId === accounts[0]!.id)).toMatchObject({
+      amount: "1.70", side: day.endsWith("13") ? "debit" : "credit",
+    });
+  }
 });
 
 it.each([
