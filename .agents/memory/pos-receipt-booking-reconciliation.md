@@ -20,3 +20,9 @@ Izvorni račun in njegov storno sta dve listini. Pri seštevanju ne izloči samo
 **Why:** To promet zmanjša dvakrat. Če je storno poznejšega poslovnega dne, izvirni dnevni promet mora ostati nespremenjen.
 
 **How to apply:** Za knjiženje upoštevaj oba dokumenta v njunih poslovnih intervalih. Operativni prikaz aktivnih prodaj lahko izloči oba, vendar ni nadomestilo za časovno računovodsko sled.
+
+Izvoz za zunanje računovodstvo mora partnerja povezati s posamezno knjižbeno vrstico, ne zgolj z nazivom v opisu temeljnice. Kratki naziv ni enolična identiteta.
+
+**Why:** Uporabnik je potrdil dopolnitev izvoza s partnerjevimi identifikacijskimi in naslovnimi podatki za prenos na partnerjevo kartico. Šifre v Bookie in prejemnikovem programu niso nujno enake.
+
+**How to apply:** Ohraniti je treba isti identifikator kupca na terjatvi in njenem plačilu. Lastne identifikatorje jasno loči od šifer ciljnega programa; brez njegovega dogovorjenega uvoznega formata ne obljubljaj avtomatske preslikave ali zapiranja. Manjkajočih podatkov ne izmišljaj in partnerja ne ugibaj iz besedila opisa.

@@ -12,6 +12,11 @@ const entry: ExportJournal = {
   ],
 };
 const period = { od: "2026-09-01", do: "2026-09-30", podjetje: "Gostilna Križišče", davcna: "12345678" };
+const partner = {
+  partnerSifra: "partner-stable-id", partnerDavcna: "01234567", partnerIdZaDdv: "SI01234567",
+  partnerNaziv: 'Polni naziv; "Šumniki", d.o.o.', partnerNaslov: "Testna ulica 1",
+  partnerPostnaStevilka: "0100", partnerKraj: "Ljubljana", partnerDrzava: "SI",
+};
 
 describe("Izvoz POS temeljnic", () => {
   it("preveri resnične datume, vrstni red in vključujoč enodnevni interval", () => {
@@ -34,6 +39,43 @@ describe("Izvoz POS temeljnic", () => {
       vrstice: [{ ...entry.vrstice[0], opis: "  +cmd" }] }]);
     expect(csv).toContain('"\'=HYPERLINK');
     expect(csv).toContain('"\'  +cmd"');
+  });
+  it("CSV izvozi enake podatke partnerja na terjatvi in plačilu ter prazne vrednosti brez partnerja", () => {
+    const csv = createJournalCsv([{ ...entry, vrstice: [
+      { ...entry.vrstice[0], kontoKoda: "1200000", ...partner },
+      { ...entry.vrstice[1], kontoKoda: "1200000", ...partner },
+      entry.vrstice[2],
+    ] }]);
+    expect(csv).toContain('"Šifra partnerja (Bookie)";"Davčna številka partnerja";"ID za DDV partnerja"');
+    const fields = '"partner-stable-id";"01234567";"SI01234567";"Polni naziv; ""Šumniki"", d.o.o.";"Testna ulica 1";"0100";"Ljubljana";"SI"';
+    expect(csv.split(fields)).toHaveLength(3);
+    expect(csv).toContain('"journal-id";"";"";"";"";"";"";"";""');
+  });
+  it("CSV prepreči formule tudi v vseh partnerjevih poljih", () => {
+    const csv = createJournalCsv([{ ...entry, vrstice: [{
+      ...entry.vrstice[0], ...partner, partnerNaziv: "=CMD()", partnerNaslov: "  +cmd", partnerKraj: "@cmd",
+    }] }]);
+    expect(csv).toContain('"\'=CMD()"');
+    expect(csv).toContain('"\'  +cmd"');
+    expect(csv).toContain('"\'@cmd"');
+  });
+  it("XLSX ohrani partnerjeve identifikatorje in pošto kot besedilo, brez izgube vodilnih ničel", async () => {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await createJournalXlsx([{ ...entry, vrstice: [
+      { ...entry.vrstice[0], ...partner, partnerNaziv: "=CMD()" }, entry.vrstice[1],
+    ] }], period) as unknown as ExcelJS.Buffer);
+    const sheet = workbook.getWorksheet("Temeljnice")!;
+    expect(sheet.columnCount).toBe(20);
+    ["partner-stable-id", "01234567", "SI01234567", "=CMD()", "Testna ulica 1", "0100", "Ljubljana", "SI"]
+      .forEach((value, index) => {
+        expect(sheet.getCell(2, index + 13).value).toBe(value);
+        expect(sheet.getCell(2, index + 13).numFmt).toBe("@");
+      });
+    expect(sheet.getCell("P2").type).toBe(ExcelJS.ValueType.String);
+    expect(sheet.getCell("P3").value).toBe("");
+    expect(sheet.autoFilter).toBe("A1:T1");
+    expect(sheet.getCell("H2").value).toBe(62.4);
+    expect(sheet.getCell("I3").value).toBe(56.99);
   });
   it("pravi XLSX vsebuje številčne zneske, tekstovne konte in povzetek obdobja", async () => {
     const buffer = await createJournalXlsx([entry], period);

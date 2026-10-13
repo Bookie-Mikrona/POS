@@ -11,6 +11,7 @@ import {
   companyModulesTable,
   enoteTable,
   companiesTable,
+  counterpartiesTable,
 } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
 import { syncPosBookingForDay, syncPosBookingForMonth } from "../../lib/posSyncBooking";
@@ -81,9 +82,23 @@ async function loadJournalEntries(companyId: string, od: string, doParam: string
       side: journalEntryLinesTable.side,
       amount: journalEntryLinesTable.amount,
       description: journalEntryLinesTable.description,
+      partnerSifra: counterpartiesTable.id,
+      partnerDavcna: counterpartiesTable.taxId,
+      partnerIdZaDdv: counterpartiesTable.idZaDdv,
+      partnerNaziv: counterpartiesTable.name,
+      partnerNaslov: counterpartiesTable.address,
+      partnerUlica: counterpartiesTable.ulica,
+      partnerPostnaStevilka: counterpartiesTable.postCode,
+      partnerKraj: counterpartiesTable.city,
+      partnerDrzava: counterpartiesTable.country,
+      partnerKodaDrzave: counterpartiesTable.kodaDrzave,
     })
     .from(journalEntryLinesTable)
     .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+    .leftJoin(counterpartiesTable, and(
+      eq(counterpartiesTable.id, journalEntryLinesTable.partnerId),
+      eq(counterpartiesTable.companyId, companyId),
+    ))
     .where(inArray(journalEntryLinesTable.entryId, entryIds))
     .orderBy(asc(journalEntryLinesTable.entryId), asc(journalEntryLinesTable.sequence));
 
@@ -108,6 +123,14 @@ async function loadJournalEntries(companyId: string, od: string, doParam: string
         stran: l.side,
         znesek: parseFloat(l.amount),
         opis: l.description,
+        partnerSifra: l.partnerSifra,
+        partnerDavcna: l.partnerDavcna,
+        partnerIdZaDdv: l.partnerIdZaDdv,
+        partnerNaziv: l.partnerNaziv,
+        partnerNaslov: l.partnerNaslov?.trim() || l.partnerUlica?.trim() || null,
+        partnerPostnaStevilka: l.partnerPostnaStevilka,
+        partnerKraj: l.partnerKraj,
+        partnerDrzava: l.partnerKodaDrzave?.trim() || l.partnerDrzava?.trim() || null,
       })),
       skupajDebet: debet,
     };
