@@ -5,9 +5,9 @@ description: Ločene plačane B2B listine, davčna uskladitev in predznaki storn
 
 Plačan račun na poslovnega kupca je ločena računovodska listina tudi pri gotovini in v samostojnem POS brez interne GK. Če ga ločimo iz dnevne prodaje, mora njegov promet ostati izključen iz dnevnega in mesečnega zbirnika.
 
-**Why:** Uporabnik je potrdil, da zunanji računovodja potrebuje posamične temeljnice računov na podjetje, ne samo skupnega dnevnega zneska. Ločitev ne pomeni nove odprte terjatve za že plačan račun ali dovoljenja za samodejno odprtje interne GK.
+**Why:** Uporabnik je potrdil, da zunanji računovodja potrebuje posamične temeljnice računov na podjetje, ne samo skupnega dnevnega zneska. Dodatno je izrecno zahteval prikaz tudi na kontu 120 in zaprtje že plačane terjatve. To ni dovoljenje za samodejno odprtje interne GK.
 
-**How to apply:** Prejeto plačilo, prihodki in DDV se prenesejo skupaj. Knjižene zgodovine ne preoblikuj samodejno, ker lahko že vsebuje ta promet.
+**How to apply:** Na isti listini in istem partnerju pokaži nastanek terjatve (D 120 / K prihodki in DDV) ter njeno plačilo (D plačilni konto / K 120). Ne knjiži plačanega B2B neposredno samo D plačilo / K prihodki in DDV in ne pusti odprte terjatve. Pri POS brez interne GK je to poravnava v izvozni temeljnici, ne dovoljenje za nove knjižbe interne GK. Knjižene zgodovine ne preoblikuj samodejno, ker lahko že vsebuje ta promet.
 
 DDV v računovodskem zbirniku in realizaciji mora ohraniti zneske izdanih računov; ponovno zaokroževanje združenih postavk ni nov davčni vir.
 

@@ -140,6 +140,21 @@ it.each([false, true])("POS (interna GK: %s) loči plačana B2B računa, ohrani 
       const [gross, vat] = expected.get(entry.reference!)!;
       expect(lines.find(l => l.accountId === accounts[0]!.id)?.amount).toBe(gross);
       expect(lines.find(l => l.accountId === accounts[2]!.id)?.amount).toBe(vat);
+      const arLines = lines.filter(l => l.accountId === accounts[3]!.id);
+      if (entry.reference!.startsWith("POS:B2B:")) {
+        expect(arLines).toHaveLength(2);
+        expect(arLines.find(l => l.side === "debit")).toMatchObject({
+          amount: gross, description: expect.stringContaining("Terjatev za račun"),
+        });
+        expect(arLines.find(l => l.side === "credit")).toMatchObject({
+          amount: gross, description: expect.stringContaining("Zaprtje terjatve"),
+        });
+        expect(arLines[0]!.partnerId).toBeTruthy();
+        expect(arLines[1]!.partnerId).toBe(arLines[0]!.partnerId);
+        expect(arLines.reduce((sum, l) => sum + (l.side === "debit" ? 1 : -1) * Number(l.amount), 0)).toBe(0);
+      } else {
+        expect(arLines).toHaveLength(0);
+      }
       const debits = lines.filter(l => l.side === "debit").reduce((s, l) => s + Number(l.amount), 0);
       const credits = lines.filter(l => l.side === "credit").reduce((s, l) => s + Number(l.amount), 0);
       expect(debits).toBeCloseTo(credits, 2);

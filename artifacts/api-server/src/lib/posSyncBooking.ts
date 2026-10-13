@@ -1466,7 +1466,8 @@ async function syncPosBookingForDayUnlocked(
   }
 
   // Plačan račun na podjetje je samostojna listina tudi brez interne GK/KIR.
-  // D prejeto plačilo / K prihodki + DDV; brez izmišljene odprte terjatve.
+  // D terjatev / K prihodki + DDV ter D plačilo / K ista terjatev.
+  // Obe strani terjatve ostaneta na isti listini in partnerju: račun je plačan.
   async function syncPaidBusinessReceipts(): Promise<void> {
     const receipts = await db.select().from(racuniTable).where(and(
       inArray(racuniTable.enotaId, enotaIds), datumWhere, statusOk,
@@ -1497,6 +1498,10 @@ async function syncPosBookingForDayUnlocked(
       if (hasPostedSalesForUnit(receipt.enotaId)
         || await hasAnyMonthlyEntry(companyId, datum.slice(0, 7), receipt.enotaId, "PRODAJA")) {
         skipped.push({ ref, reason: "Potrjena ali mesečna prodaja že vsebuje račun; za ločitev je potreben računovodski popravek." });
+        continue;
+      }
+      if (!settings.kirArAccountId) {
+        skipped.push({ ref, reason: "Ločitev B2B ni izvedena: konto terjatev do kupcev ni nastavljen; račun ostane v zbirniku." });
         continue;
       }
       const lines: SyncLine[] = [];
@@ -1540,6 +1545,12 @@ async function syncPosBookingForDayUnlocked(
         skipped.push({ ref, reason: "B2B nima popolnih kontov ali usklajenega plačilnega razreza; račun ostane v zbirniku." });
         continue;
       }
+      // Ne dodajamo novega prometa ali DDV; prikažemo nastanek in plačilo
+      // iste terjatve. pushSignedLine ohrani pravilni strani tudi za storno.
+      pushSignedLine(lines, settings.kirArAccountId, "debit", dec(receipt.skupaj),
+        `Terjatev za račun ${receipt.stevilkaRacuna}`);
+      pushSignedLine(lines, settings.kirArAccountId, "credit", dec(receipt.skupaj),
+        `Zaprtje terjatve s POS plačilom računa ${receipt.stevilkaRacuna}`);
       const partner = await ensureCounterparty(companyId,
         receipt.kupecNaziv?.trim() || `Kupec ${receipt.kupecDavcnaStevilka ?? receipt.id}`,
         receipt.kupecDavcnaStevilka, receipt.kupecNaslov, receipt.kupecZavezanecDdv ?? false);
