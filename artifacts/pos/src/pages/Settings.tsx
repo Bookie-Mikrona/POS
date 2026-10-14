@@ -86,7 +86,7 @@ import { KdsSettings } from "@/components/KdsSettings";
 import { UnitCapabilitySwitches } from "@/components/UnitCapabilitySwitches";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { Nastavitve, Miza, Natakari, PoslovniProstor, Prostor } from "@workspace/api-client-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, POS_ENOTA_ID_KEY } from "@/contexts/AuthContext";
 import { useNastavitve } from "@/contexts/NastavitveContext";
 import { posFetch } from "@/lib/pos-auth-headers";
 import { DostavaSettings } from "@/components/DostavaSettings";
@@ -147,7 +147,7 @@ function razcleniDrobniInventarKatalog(vrednost: unknown): {
   };
 }
 
-function DrobniInventarPredloge() {
+function DrobniInventarPredloge({ enote }: { enote: Array<{ id: number; ime: string }> }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [potrdiUvoz, setPotrdiUvoz] = useState(false);
@@ -160,7 +160,7 @@ function DrobniInventarPredloge() {
     retry: false,
     queryFn: async () => {
       if (!getEnotaId()) {
-        throw new Error("Najprej izberite aktivno poslovno enoto (v levem meniju pod »Enota«), nato naložite katalog.");
+        throw new Error("Izberite enoto, v katero želite uvoziti predloge.");
       }
       const response = await posFetch(`${base}/api/artikli/drobni-inventar-predloge`);
       const body: unknown = await response.json().catch(() => null);
@@ -251,6 +251,20 @@ function DrobniInventarPredloge() {
           </Button>
         </div>
 
+        {!aktivnaEnotaId && enote.length > 0 && (
+          <div className="space-y-1.5" data-testid="select-enota-drobni-inventar">
+            <Label>Enota za uvoz</Label>
+            <Select onValueChange={(vrednost) => {
+              localStorage.setItem(POS_ENOTA_ID_KEY, vrednost);
+              window.location.reload();
+            }}>
+              <SelectTrigger><SelectValue placeholder="Izberite enoto" /></SelectTrigger>
+              <SelectContent>
+                {enote.map(e => <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {katalog.isLoading && <p role="status" className="text-sm text-muted-foreground">Nalagam katalog predlog…</p>}
         {katalog.isError && (
           <Alert variant="destructive" data-testid="status-drobni-inventar-katalog-error">
@@ -3082,7 +3096,7 @@ export default function Settings() {
               </Table>
             </CardContent>
           </Card>
-          <DrobniInventarPredloge />
+          <DrobniInventarPredloge enote={(enote ?? []).filter(e => e.aktiven !== false)} />
           {prijavljen?.vloga === "admin" && <TipPolicySettings />}
         </TabsContent>
         )}
