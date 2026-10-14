@@ -182,6 +182,7 @@ const SELECT_FIELDS = {
   skupina: artikliTable.skupina,
   taxCategory: artikliTable.taxCategory,
   jeDelMenija: artikliTable.jeDelMenija,
+  qrNaVoljo: artikliTable.qrNaVoljo,
   addedSugar: artikliTable.addedSugar,
   knCode: artikliTable.knCode,
   alergeni: artikliTable.alergeni,
@@ -257,6 +258,7 @@ function mapRow(r: Record<string, unknown>) {
     skupina: (r.skupina as string | null) ?? null,
     taxCategory: (r.taxCategory as string | null) ?? "food",
     jeDelMenija: Boolean(r.jeDelMenija),
+    qrNaVoljo: r.qrNaVoljo !== false,
     addedSugar: Boolean(r.addedSugar),
     knCode: (r.knCode as string | null) ?? null,
     alergeni: (r.alergeni as string[] | null) ?? [],
@@ -687,6 +689,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         skupina: polizdelek ? null : (parsed.data as { skupina?: string | null }).skupina ?? null,
         taxCategory,
         jeDelMenija,
+        qrNaVoljo: (parsed.data as { qrNaVoljo?: boolean }).qrNaVoljo ?? true,
         addedSugar,
         knCode: (parsed.data as { knCode?: string | null }).knCode ?? null,
         ...allergenData,
@@ -1877,6 +1880,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     updateData.taxCategory = "other";
     updateData.davek = "22";
   }
+  if ("qrNaVoljo" in parsed.data) updateData.qrNaVoljo = (parsed.data as { qrNaVoljo?: boolean }).qrNaVoljo !== false;
   if ("jeDelMenija" in parsed.data) updateData.jeDelMenija = Boolean((parsed.data as { jeDelMenija?: boolean }).jeDelMenija);
   if (naslednjaTaxCategory === "food_drink" || "addedSugar" in parsed.data) {
     updateData.addedSugar = naslednjiAddedSugar;

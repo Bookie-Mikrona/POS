@@ -228,6 +228,7 @@ export default function Menu() {
   const [artSkupina, setArtSkupina] = useState<string>("");
   const [artTaxCategory, setArtTaxCategory] = useState<"food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "vat_super_reduced_5" | "other">("food");
   const [artJeDelMenija, setArtJeDelMenija] = useState(false);
+  const [artQrNaVoljo, setArtQrNaVoljo] = useState(true);
   const artLahkoJeDelMenija = artTaxCategory === "hot_beverage" || artTaxCategory === "cold_beverage";
   const [artAddedSugar, setArtAddedSugar] = useState(false);
   const [artOpisSlike, setArtOpisSlike] = useState("");
@@ -965,6 +966,7 @@ export default function Menu() {
     setArtSkupina("");
     setArtTaxCategory("food");
     setArtJeDelMenija(false);
+    setArtQrNaVoljo(true);
     setArtAddedSugar(false);
     setArtOpisSlike("");
     setArtOpisSlikeTouched(false);
@@ -1053,6 +1055,7 @@ export default function Menu() {
       ? "other"
       : (a as typeof a & { taxCategory?: string }).taxCategory ?? "food";
     setArtTaxCategory(existingTaxCategory as "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "vat_super_reduced_5" | "other");
+    setArtQrNaVoljo((a as typeof a & { qrNaVoljo?: boolean }).qrNaVoljo !== false);
     setArtJeDelMenija(
       Boolean((a as typeof a & { jeDelMenija?: boolean }).jeDelMenija)
       && (existingTaxCategory === "hot_beverage" || existingTaxCategory === "cold_beverage"),
@@ -1620,6 +1623,7 @@ export default function Menu() {
       skupina: artPolizdelek ? null : artSkupina.trim() || null,
       taxCategory: artTaxCategory,
       jeDelMenija: artProdajniArtikel && artLahkoJeDelMenija && artJeDelMenija,
+      qrNaVoljo: artQrNaVoljo,
       addedSugar: artTaxCategory === "food_drink" ? false : artAddedSugar,
       opisSlike: artProdajniArtikel ? (artOpisSlike.trim() || null) : null,
       ...(!artDrobniInventar ? {
@@ -2722,6 +2726,21 @@ export default function Menu() {
                       <span>
                         <span className="block text-sm font-medium">Del menija</span>
                         <span className="block text-xs text-muted-foreground">Pijača dobi 9,5 %; alkohol ostane 22 %.</span>
+                      </span>
+                    </label>
+                  )}
+
+                  {artProdajniArtikel && (
+                    <label className="flex items-start gap-3 rounded-md border p-3">
+                      <input
+                        type="checkbox"
+                        checked={artQrNaVoljo}
+                        onChange={e => setArtQrNaVoljo(e.target.checked)}
+                        className="mt-0.5 h-4 w-4"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium">Prikaži v QR meniju</span>
+                        <span className="block text-xs text-muted-foreground">Če je izklopljeno, gostje artikla v javnem QR meniju ne morejo naročiti.</span>
                       </span>
                     </label>
                   )}

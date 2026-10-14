@@ -13277,6 +13277,9 @@ components:
         jeDelMenija:
           type: boolean
           description: Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.
+        qrNaVoljo:
+          type: boolean
+          description: Ali je artikel viden in naročljiv v javnem QR meniju.
         addedSugar:
           type: boolean
         hasNormativ:
@@ -13466,6 +13469,9 @@ components:
         jeDelMenija:
           type: boolean
           description: Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.
+        qrNaVoljo:
+          type: boolean
+          description: Ali je artikel viden in naročljiv v javnem QR meniju.
         addedSugar:
           type: boolean
         mealType:

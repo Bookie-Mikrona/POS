@@ -2503,6 +2503,8 @@ export interface Artikel {
   taxCategory?: ArtikelTaxCategory;
   /** Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji. */
   jeDelMenija?: boolean;
+  /** Ali je artikel viden in naročljiv v javnem QR meniju. */
+  qrNaVoljo?: boolean;
   addedSugar?: boolean;
   /** Ali ima artikel vsaj en vnos v normativu (receptura) */
   hasNormativ?: boolean;
@@ -2721,6 +2723,8 @@ export interface ArtikelInput {
   taxCategory?: ArtikelInputTaxCategory;
   /** Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji. */
   jeDelMenija?: boolean;
+  /** Ali je artikel viden in naročljiv v javnem QR meniju. */
+  qrNaVoljo?: boolean;
   addedSugar?: boolean;
   mealType?: ArtikelInputMealType;
 }

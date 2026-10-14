@@ -1780,6 +1780,7 @@ export const ListArtikliResponseItem = zod.object({
   "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
   "taxCategory": zod.enum(['food', 'hot_beverage', 'cold_beverage', 'alcoholic', 'food_drink', 'vat_super_reduced_5', 'other']).optional().describe('Davčna vrsta artikla.'),
   "jeDelMenija": zod.boolean().optional().describe('Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.'),
+  "qrNaVoljo": zod.boolean().optional().describe('Ali je artikel viden in naročljiv v javnem QR meniju.'),
   "addedSugar": zod.boolean().optional(),
   "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
   "isMulticourseMenu": zod.boolean().optional().describe('Ali je artikel prodajna ovojnica konfiguriranega večhodnega menija; tak meni uporablja hode namesto klasičnega normativa.'),
@@ -1893,6 +1894,7 @@ export const CreateArtikelBody = zod.object({
   "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\"'),
   "taxCategory": zod.enum(['food', 'hot_beverage', 'cold_beverage', 'alcoholic', 'food_drink', 'vat_super_reduced_5', 'other']).optional(),
   "jeDelMenija": zod.boolean().optional().describe('Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.'),
+  "qrNaVoljo": zod.boolean().optional().describe('Ali je artikel viden in naročljiv v javnem QR meniju.'),
   "addedSugar": zod.boolean().optional(),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional()
 }).and(zod.object({
@@ -1979,6 +1981,7 @@ export const CreateArtikelResponse = zod.object({
   "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
   "taxCategory": zod.enum(['food', 'hot_beverage', 'cold_beverage', 'alcoholic', 'food_drink', 'vat_super_reduced_5', 'other']).optional().describe('Davčna vrsta artikla.'),
   "jeDelMenija": zod.boolean().optional().describe('Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.'),
+  "qrNaVoljo": zod.boolean().optional().describe('Ali je artikel viden in naročljiv v javnem QR meniju.'),
   "addedSugar": zod.boolean().optional(),
   "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
   "isMulticourseMenu": zod.boolean().optional().describe('Ali je artikel prodajna ovojnica konfiguriranega večhodnega menija; tak meni uporablja hode namesto klasičnega normativa.'),
@@ -2195,6 +2198,7 @@ export const GenerateArtikelImageResponse = zod.object({
   "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
   "taxCategory": zod.enum(['food', 'hot_beverage', 'cold_beverage', 'alcoholic', 'food_drink', 'vat_super_reduced_5', 'other']).optional().describe('Davčna vrsta artikla.'),
   "jeDelMenija": zod.boolean().optional().describe('Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.'),
+  "qrNaVoljo": zod.boolean().optional().describe('Ali je artikel viden in naročljiv v javnem QR meniju.'),
   "addedSugar": zod.boolean().optional(),
   "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
   "isMulticourseMenu": zod.boolean().optional().describe('Ali je artikel prodajna ovojnica konfiguriranega večhodnega menija; tak meni uporablja hode namesto klasičnega normativa.'),
@@ -2307,6 +2311,7 @@ export const UploadArtikelImageResponse = zod.object({
   "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
   "taxCategory": zod.enum(['food', 'hot_beverage', 'cold_beverage', 'alcoholic', 'food_drink', 'vat_super_reduced_5', 'other']).optional().describe('Davčna vrsta artikla.'),
   "jeDelMenija": zod.boolean().optional().describe('Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.'),
+  "qrNaVoljo": zod.boolean().optional().describe('Ali je artikel viden in naročljiv v javnem QR meniju.'),
   "addedSugar": zod.boolean().optional(),
   "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
   "isMulticourseMenu": zod.boolean().optional().describe('Ali je artikel prodajna ovojnica konfiguriranega večhodnega menija; tak meni uporablja hode namesto klasičnega normativa.'),
@@ -2412,6 +2417,7 @@ export const GetArtikelResponse = zod.object({
   "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
   "taxCategory": zod.enum(['food', 'hot_beverage', 'cold_beverage', 'alcoholic', 'food_drink', 'vat_super_reduced_5', 'other']).optional().describe('Davčna vrsta artikla.'),
   "jeDelMenija": zod.boolean().optional().describe('Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.'),
+  "qrNaVoljo": zod.boolean().optional().describe('Ali je artikel viden in naročljiv v javnem QR meniju.'),
   "addedSugar": zod.boolean().optional(),
   "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
   "isMulticourseMenu": zod.boolean().optional().describe('Ali je artikel prodajna ovojnica konfiguriranega večhodnega menija; tak meni uporablja hode namesto klasičnega normativa.'),
@@ -2526,6 +2532,7 @@ export const UpdateArtikelBody = zod.object({
   "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\"'),
   "taxCategory": zod.enum(['food', 'hot_beverage', 'cold_beverage', 'alcoholic', 'food_drink', 'vat_super_reduced_5', 'other']).optional(),
   "jeDelMenija": zod.boolean().optional().describe('Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.'),
+  "qrNaVoljo": zod.boolean().optional().describe('Ali je artikel viden in naročljiv v javnem QR meniju.'),
   "addedSugar": zod.boolean().optional(),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional()
 }).and(zod.object({
@@ -2615,6 +2622,7 @@ export const UpdateArtikelResponse = zod.object({
   "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
   "taxCategory": zod.enum(['food', 'hot_beverage', 'cold_beverage', 'alcoholic', 'food_drink', 'vat_super_reduced_5', 'other']).optional().describe('Davčna vrsta artikla.'),
   "jeDelMenija": zod.boolean().optional().describe('Ali se artikel prodaja kot del menija; alkohol kljub temu ostane na splošni stopnji.'),
+  "qrNaVoljo": zod.boolean().optional().describe('Ali je artikel viden in naročljiv v javnem QR meniju.'),
   "addedSugar": zod.boolean().optional(),
   "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
   "isMulticourseMenu": zod.boolean().optional().describe('Ali je artikel prodajna ovojnica konfiguriranega večhodnega menija; tak meni uporablja hode namesto klasičnega normativa.'),
