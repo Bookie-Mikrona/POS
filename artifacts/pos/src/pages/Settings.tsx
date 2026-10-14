@@ -159,9 +159,6 @@ function DrobniInventarPredloge({ enote }: { enote: Array<{ id: number; ime: str
     queryKey: ["drobni-inventar-predloge", getEnotaId()],
     retry: false,
     queryFn: async () => {
-      if (!getEnotaId()) {
-        throw new Error("Izberite enoto, v katero želite uvoziti predloge.");
-      }
       const response = await posFetch(`${base}/api/artikli/drobni-inventar-predloge`);
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
