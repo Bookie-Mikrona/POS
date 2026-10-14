@@ -156,13 +156,18 @@ function DrobniInventarPredloge() {
   const [odprteSkupine, setOdprteSkupine] = useState<Set<string>>(() => new Set());
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const katalog = useQuery({
-    queryKey: ["drobni-inventar-predloge"],
+    queryKey: ["drobni-inventar-predloge", getEnotaId()],
+    retry: false,
     queryFn: async () => {
+      if (!getEnotaId()) {
+        throw new Error("Najprej izberite aktivno poslovno enoto (v levem meniju pod »Enota«), nato naložite katalog.");
+      }
       const response = await posFetch(`${base}/api/artikli/drobni-inventar-predloge`);
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        const message = body && typeof body === "object" && "error" in body && typeof body.error === "string"
-          ? body.error
+        const record = body && typeof body === "object" ? body as Record<string, unknown> : {};
+        const message = typeof record.error === "string" ? record.error
+          : typeof record.napaka === "string" ? record.napaka
           : `Kataloga ni bilo mogoče naložiti (HTTP ${response.status}).`;
         throw new Error(message);
       }
