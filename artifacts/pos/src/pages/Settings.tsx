@@ -595,7 +595,7 @@ function preberiNapakoStrezika(error: unknown): { sporocilo: string; polje?: str
 }
 
 export default function Settings() {
-  const { user: prijavljen, updateUser } = useAuth();
+  const { user: prijavljen, updateUser, refreshAuthorization } = useAuth();
   const dovoljenePaketneFunkcije = prijavljen?.posPlanCapabilities ?? [];
   const jeAdmin = prijavljen?.vloga === "admin" || prijavljen?.vloga === "superadmin";
   const jeSuperAdmin = prijavljen?.vloga === "superadmin";
@@ -791,7 +791,8 @@ export default function Settings() {
     if (!eIme.trim()) return;
     try {
       const defaults = profileDefaults(eProfile);
-      await createEnota.mutateAsync({ data: {
+      const brezAktivneEnote = !prijavljen?.enotaId;
+      const ustvarjena = await createEnota.mutateAsync({ data: {
         ime: eIme.trim(),
         opis: eOpis.trim() || null,
         aktiven: eAktiven,
@@ -804,6 +805,11 @@ export default function Settings() {
       } as any });
       setEIme(""); setEOpis(""); setEAktiven(true); setECostCenterId(""); setEProfile("restaurant"); setEVnesiPrivzetiDrobniInventar(false);
       queryClient.invalidateQueries({ queryKey: getListEnoteQueryKey() });
+      if (brezAktivneEnote && ustvarjena?.id) {
+        // Prva enota postane aktivna samodejno, brez ročnega osveževanja strani.
+        updateUser({ enotaId: ustvarjena.id, enotaIme: ustvarjena.ime });
+      }
+      await refreshAuthorization?.();
       toast({ title: "Enota dodana" });
     } catch (error) {
       toast({ title: "Napaka pri dodajanju enote", description: preberiNapakoStrezika(error).sporocilo, variant: "destructive" });
