@@ -501,7 +501,7 @@ describe("OperativnaPorocila", () => {
     expect(screen.getByText("Notranja miza A")).not.toBeNull();
     expect(screen.getAllByText("Terasa")).toHaveLength(2);
     expect(screen.getByText("Po prostorih")).not.toBeNull();
-    expect(screen.getAllByText("321.50 €")).toHaveLength(2);
+    expect(screen.getAllByText("321,50 €")).toHaveLength(2);
   });
 
   it("loči nejasno kartično plačilo od zavrnjenega FURS poskusa", () => {
@@ -524,7 +524,7 @@ describe("OperativnaPorocila", () => {
     expect(screen.getAllByText("Glavna blagajna")).toHaveLength(2);
     expect(screen.getByText("Zaprite odprto izmeno: Ana Novak.")).not.toBeNull();
     expect(screen.getByText("Uskladitev manjka")).not.toBeNull();
-    expect(screen.getByText("Razlika -5.00 €")).not.toBeNull();
+    expect(screen.getByText("Razlika -5,00 €")).not.toBeNull();
     expect(screen.getByText("Manjko ob zaključku izmene")).not.toBeNull();
     expect(screen.getByText("Z-44")).not.toBeNull();
   });
@@ -547,7 +547,7 @@ describe("OperativnaPorocila", () => {
     expect(screen.getByText("Normativna poraba")).not.toBeNull();
     expect(screen.getByText("Kavna zrna")).not.toBeNull();
     expect(screen.getByText("2,45 kg")).not.toBeNull();
-    expect(screen.getAllByText("54.50 €").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("54,50 €").length).toBeGreaterThan(0);
     expect(screen.getByText("12 gibov")).not.toBeNull();
   });
 
@@ -561,12 +561,12 @@ describe("OperativnaPorocila", () => {
     expect(screen.getByText("Sladkor")).not.toBeNull();
     expect(screen.getByText("Prazno")).not.toBeNull();
     expect(screen.getByText("26000004")).not.toBeNull();
-    expect(screen.getAllByText("12.00 €").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("12,00 €").length).toBeGreaterThan(0);
     expect(screen.getByText("Potrjeni odpisi pripravljene hrane")).not.toBeNull();
     expect(screen.getByText("Dnevna juha")).not.toBeNull();
     expect(screen.getByText("Pretečen rok varne uporabe")).not.toBeNull();
     expect(screen.getByText("#17")).not.toBeNull();
-    expect(screen.getAllByText("8.40 €").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("8,40 €").length).toBeGreaterThan(0);
   });
 
   it("prikaže nedosegljive naprave in neuspešne tiskalne naloge", () => {
@@ -590,7 +590,7 @@ describe("OperativnaPorocila", () => {
     expect(screen.getByText("Espresso")).not.toBeNull();
     expect(screen.getByText("Promet in napitnine po zaposlenem")).not.toBeNull();
     expect(screen.getAllByText("Ana Novak").length).toBeGreaterThan(0);
-    expect(screen.getByText("18.50 €")).not.toBeNull();
+    expect(screen.getByText("18,50 €")).not.toBeNull();
     expect(screen.getByText("Promet po načinu plačila")).not.toBeNull();
     expect(screen.getAllByText("Gotovina").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Kartica").length).toBeGreaterThan(0);
@@ -737,7 +737,7 @@ describe("OperativnaPorocila", () => {
     });
 
     renderPage();
-    expect(screen.queryByText("321.50 €")).toBeNull();
+    expect(screen.queryByText("321,50 €")).toBeNull();
     expect(screen.getByText("Operativna poročila")).not.toBeNull();
   });
 });

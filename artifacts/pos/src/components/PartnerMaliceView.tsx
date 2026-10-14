@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useMemo } from "react";
 import { 
   useListMalicaContracts, 
@@ -285,11 +286,11 @@ export function PartnerMaliceView({ partnerId }: { partnerId: string }) {
             )}
             <div className="flex justify-between">
               <span>Doplačilo višje skupine:</span>
-              <span className="font-medium">{(activeContract.higherGroupSurchargeCents! / 100).toFixed(2)} €</span>
+              <span className="font-medium">{formatEur((activeContract.higherGroupSurchargeCents! / 100))}</span>
             </div>
             <div className="flex justify-between">
               <span>Mesečna kapica:</span>
-              <span className="font-medium">{activeContract.monthlyCoverageLimitCents ? (activeContract.monthlyCoverageLimitCents / 100).toFixed(2) + " €" : "Brez"}</span>
+              <span className="font-medium">{activeContract.monthlyCoverageLimitCents ? formatEur(activeContract.monthlyCoverageLimitCents / 100) : "Brez"}</span>
             </div>
             <div className="flex justify-between">
               <span>Identifikacija:</span>
@@ -373,7 +374,7 @@ export function PartnerMaliceView({ partnerId }: { partnerId: string }) {
                 <div className="flex items-center gap-4">
                   <div className="text-right text-xs text-muted-foreground space-y-0.5">
                     <div>Dnevno: <span className="font-medium text-foreground">{b.dailyLimit ?? "Brez omejitve"}</span></div>
-                    <div>Mesečno: <span className="font-medium text-foreground">{b.monthlyCoverageOverrideCents ? (b.monthlyCoverageOverrideCents / 100).toFixed(2) + " €" : "Po pogodbi"}</span></div>
+                    <div>Mesečno: <span className="font-medium text-foreground">{b.monthlyCoverageOverrideCents ? formatEur(b.monthlyCoverageOverrideCents / 100) : "Po pogodbi"}</span></div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditBen(b)}><Edit className="h-3 w-3" /></Button>

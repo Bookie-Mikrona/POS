@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useMemo } from "react";
 import {
   useListKategorije,
@@ -306,7 +307,7 @@ export default function DnevniMeni() {
                                             {isSelected && <Check className="h-3 w-3" />}
                                             {mod.ime}
                                             {Number(mod.cenaDodatek) > 0 && (
-                                              <span className="text-xs opacity-70">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
+                                              <span className="text-xs opacity-70">+{formatEur(Number(mod.cenaDodatek))}</span>
                                             )}
                                           </button>
                                         );

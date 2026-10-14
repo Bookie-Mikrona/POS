@@ -25,6 +25,8 @@ function novaQrNapravaId(): string {
 }
 
 /** Stabilna, anonimna identiteta tega javnega QR brskalnika. */
+export type PublicStockStatus = 'na_voljo' | 'se_malo' | 'ni_na_voljo';
+
 export function getOrCreateQrNapravaId(): string {
   const saved = window.localStorage.getItem(QR_NAPRAVA_STORAGE_KEY);
   if (saved && QR_NAPRAVA_ID_RE.test(saved)) return saved.toLowerCase();
@@ -74,8 +76,8 @@ export type PublicMenuArticle = {
   jeAlkohol: boolean;
   naVoljo: boolean;
   mealType: 'ala_carte' | 'prepared' | 'composite';
-  availableQuantity: number | null;
-  availableBySize?: { mala: number | null; normalna: number | null; druzinska: number | null } | null;
+  zaloga: PublicStockStatus;
+  zalogaPoVelikosti?: { mala?: PublicStockStatus; normalna?: PublicStockStatus; druzinska?: PublicStockStatus } | null;
   jePica: boolean;
   toGo: boolean;
   toGoEmbalaza: PublicMenuToGoEmbalaza[];

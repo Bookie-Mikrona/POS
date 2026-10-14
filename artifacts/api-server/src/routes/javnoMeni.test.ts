@@ -1539,6 +1539,53 @@ describe("javni QR meni", () => {
     });
   });
 
+  it("javni meni ne vrača internih opomb, točnih količin in praznih kategorij", async () => {
+    const [internalCategory, hiddenCategory, emptyCategory] = await db.insert(kategorijeTable).values([
+      { enotaId, ime: `Interna ${RUN_ID}`, vrstniRed: 20 },
+      { enotaId, ime: `Embalaža QR ${RUN_ID}`, vrstniRed: 21 },
+      { enotaId, ime: `Prazna ${RUN_ID}`, vrstniRed: 22 },
+    ]).returning({ id: kategorijeTable.id });
+    const base = { enotaId, cena: "5.00", davek: "9.5", prodajniArtikel: true } as const;
+    const [internalNote, mixedNote, plentyPrepared, lowPrepared, packaging] = await db.insert(artikliTable).values([
+      { ...base, ime: `Interna pita ${RUN_ID}`, kategorijaId: internalCategory!.id, qrNaVoljo: true,
+        opis: "[Normativ uporabnika — sestavine dopolnjene]\nVir: receptura uporabnika. Znane količine: Moka 1 KG." },
+      { ...base, ime: `Mešan opis ${RUN_ID}`, kategorijaId: internalCategory!.id, qrNaVoljo: true,
+        opis: "Domača juha [Razvojni osnutek] s kruhom." },
+      { ...base, ime: `Veliko porcij ${RUN_ID}`, kategorijaId: internalCategory!.id, qrNaVoljo: true, mealType: "prepared" },
+      { ...base, ime: `Malo porcij ${RUN_ID}`, kategorijaId: internalCategory!.id, qrNaVoljo: true, mealType: "prepared" },
+      { ...base, ime: `Škatla QR ${RUN_ID}`, kategorijaId: hiddenCategory!.id, qrNaVoljo: false },
+    ]).returning({ id: artikliTable.id });
+    const businessDate = await currentBusinessDate(enotaId);
+    await db.insert(preparedFoodDailyLedgersTable).values([
+      { enotaId, artikelId: plentyPrepared!.id, businessDate, thawedQuantity: "24", preparedQuantity: "0" },
+      { enotaId, artikelId: lowPrepared!.id, businessDate, thawedQuantity: "3", preparedQuantity: "0" },
+    ]);
+
+    const response = await supertest(publicApp()).get(`/javno/meni/${qrToken}`);
+    expect(response.status).toBe(200);
+    const byId = (id: number) => response.body.artikli.find((item: { id: number }) => item.id === id);
+
+    expect(byId(internalNote!.id).opis).toBeNull();
+    expect(byId(mixedNote!.id).opis).toBe("Domača juha s kruhom.");
+    expect(JSON.stringify(response.body)).not.toMatch(/Normativ uporabnika|Razvojni osnutek|receptura uporabnika/);
+
+    expect(byId(plentyPrepared!.id)).toMatchObject({ zaloga: "na_voljo", naVoljo: true });
+    expect(byId(lowPrepared!.id)).toMatchObject({ zaloga: "se_malo", naVoljo: true });
+    for (const artikel of response.body.artikli) {
+      expect(artikel).not.toHaveProperty("availableQuantity");
+      expect(artikel).not.toHaveProperty("availableBySize");
+      expect(["na_voljo", "se_malo", "ni_na_voljo"]).toContain(artikel.zaloga);
+    }
+
+    const categoryNames = response.body.kategorije.map((kategorija: { naziv: string }) => kategorija.naziv);
+    expect(categoryNames).toContain(`Interna ${RUN_ID}`);
+    expect(categoryNames).not.toContain(`Embalaža QR ${RUN_ID}`);
+    expect(categoryNames).not.toContain(`Prazna ${RUN_ID}`);
+    for (const kategorija of response.body.kategorije) expect(kategorija.artikli.length).toBeGreaterThan(0);
+    expect(packaging!.id).toBeGreaterThan(0);
+    expect(emptyCategory!.id).toBeGreaterThan(0);
+  });
+
   it("skrije razprodano pripravljeno hrano in pri sočasnih QR naročilih proda zadnjo porcijo samo enkrat", async () => {
     const [preparedArticle] = await db.insert(artikliTable).values({
       enotaId,
@@ -1571,7 +1618,7 @@ describe("javni QR meni", () => {
     const availableMenu = await supertest(publicApp()).get(`/javno/meni/${qrToken}`);
     expect(availableMenu.status).toBe(200);
     expect(availableMenu.body.artikli.find((item: { id: number }) => item.id === preparedArticle!.id))
-      .toMatchObject({ mealType: "prepared", availableQuantity: 1 });
+      .toMatchObject({ mealType: "prepared", zaloga: "se_malo" });
 
     const submit = () => supertest(publicApp())
       .post(`/javno/meni/${qrToken}/narocilo`)
@@ -1634,7 +1681,7 @@ describe("javni QR meni", () => {
     });
     const menuAfterTypeChange = await supertest(publicApp()).get(`/javno/meni/${qrToken}`);
     expect(menuAfterTypeChange.body.artikli.find((item: { id: number }) => item.id === changedArticle!.id))
-      .toMatchObject({ mealType: "prepared", availableQuantity: 1 });
+      .toMatchObject({ mealType: "prepared", zaloga: "se_malo" });
 
     const [modifierInput] = await db.insert(artikliTable).values({
       enotaId,
@@ -1692,7 +1739,7 @@ describe("javni QR meni", () => {
     const menuAfterModifierInputChange = await supertest(publicApp()).get(`/javno/meni/${qrToken}`);
     expect(menuAfterModifierInputChange.body.artikli.find(
       (item: { id: number }) => item.id === modifierInput!.id,
-    )).toMatchObject({ mealType: "prepared", availableQuantity: 1 });
+    )).toMatchObject({ mealType: "prepared", zaloga: "se_malo" });
   });
 
   it("strežniško uveljavi izbiro štirih oziroma treh različnih hodov in materializira sparjene postavke", async () => {

@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -151,10 +152,10 @@ export function EmbalazaTab() {
                           <span className="opacity-70">Skupna zaloga:</span> <span className="font-medium text-foreground">{b.overallPhysicalStock}</span>
                         </div>
                         <div>
-                          <span className="opacity-70">Depozit/kos:</span> <span className="font-medium text-foreground">{b.depozitnaVrednost != null ? `${b.depozitnaVrednost.toFixed(2)} €` : "—"}</span>
+                          <span className="opacity-70">Depozit/kos:</span> <span className="font-medium text-foreground">{b.depozitnaVrednost != null ? `${formatEur(b.depozitnaVrednost)}` : "—"}</span>
                         </div>
                         <div>
-                          <span className="opacity-70">Izpostavljenost:</span> <span className="font-medium text-foreground">{b.izpostavljenostDepozita != null ? `${b.izpostavljenostDepozita.toFixed(2)} €` : "—"}</span>
+                          <span className="opacity-70">Izpostavljenost:</span> <span className="font-medium text-foreground">{b.izpostavljenostDepozita != null ? `${formatEur(b.izpostavljenostDepozita)}` : "—"}</span>
                         </div>
                       </div>
                     </div>

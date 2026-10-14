@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,7 @@ function datumSlo(iso: string): string {
 }
 
 function eur(n: number): string {
-  return n.toFixed(2) + " €";
+  return formatEur(n);
 }
 
 function statusBadge(status: string) {

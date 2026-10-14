@@ -1,7 +1,8 @@
+import { formatEur } from "./formatEur";
 import type { MalicaQuote, MalicaQuoteCoursesItem, MalicaQuoteCoursesItemClassification } from "@workspace/api-client-react";
 
 export function formatQuoteCents(cents: number): string {
-  return (cents / 100).toFixed(2) + " €";
+  return formatEur(cents / 100);
 }
 
 export function formatLimitCents(cents: number | null | undefined): string {

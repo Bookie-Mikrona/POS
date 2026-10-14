@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNaprava } from "@/contexts/NapravaContext";
@@ -224,7 +225,7 @@ function StornoButton({ racun }: { racun: { id: number; stevilkaRacuna: string; 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
       <p className="text-sm text-orange-800 flex-1">
-        Storno računa <span className="font-mono font-semibold">{racun.stevilkaRacuna}</span> ({racun.skupaj.toFixed(2)} €) — izda se nov negativni račun pri FURS.
+        Storno računa <span className="font-mono font-semibold">{racun.stevilkaRacuna}</span> ({formatEur(racun.skupaj)}) — izda se nov negativni račun pri FURS.
       </p>
       <div className="flex gap-2">
         <Button
@@ -701,7 +702,7 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
             <div key={item.id} className="rounded-md border border-amber-200 bg-white p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="font-semibold">{item.stevilkaRacuna} · {Number(item.znesek).toFixed(2)} €</p>
+                  <p className="font-semibold">{item.stevilkaRacuna} · {formatEur(Number(item.znesek))}</p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(item.ustvarjeno).toLocaleString("sl-SI", { timeZone: "Europe/Ljubljana" })}
                     {" · "}<span className="font-mono">{item.refundSessionId}</span>
@@ -828,7 +829,7 @@ function VivaVracilaHistory({
             <div key={v.id} className="space-y-0.5">
               <div className="flex items-center justify-between gap-2 text-[11px]">
                 <span className="flex items-center gap-1.5">
-                  <span className="text-violet-900 font-mono font-semibold">{znesek.toFixed(2)} €</span>
+                  <span className="text-violet-900 font-mono font-semibold">{formatEur(znesek)}</span>
                   {jeDelno && (
                     <span className="rounded px-1 py-0.5 bg-violet-100 text-violet-600 text-[10px] font-medium leading-none">
                       kartični del
@@ -944,7 +945,7 @@ function VivaVracilaHistory({
               <div className="border-t border-violet-200 mt-1.5" />
               <div className="flex items-center justify-between gap-2 text-[11px] pt-0.5">
                 <span className="text-violet-800 font-semibold">Skupaj vrnjeno:</span>
-                <span className="text-violet-900 font-mono font-semibold">{skupajVrnjeno.toFixed(2)} €</span>
+                <span className="text-violet-900 font-mono font-semibold">{formatEur(skupajVrnjeno)}</span>
               </div>
             </>
           );
@@ -997,7 +998,7 @@ function SkupajVracilaPanel({
               <Smartphone className="h-3 w-3" />
               Terminal ({placanaVivaVracila.length}×)
             </span>
-            <span className="font-mono text-slate-700">{skupajVivaVrnjeno.toFixed(2)} €</span>
+            <span className="font-mono text-slate-700">{formatEur(skupajVivaVrnjeno)}</span>
           </div>
         )}
         {stornoRacuni.map(s => (
@@ -1006,13 +1007,13 @@ function SkupajVracilaPanel({
               <Undo2 className="h-3 w-3" />
               Storno {s.stevilkaRacuna}
             </span>
-            <span className="font-mono text-slate-700">{Math.abs(Number(s.skupaj)).toFixed(2)} €</span>
+            <span className="font-mono text-slate-700">{formatEur(Math.abs(Number(s.skupaj)))}</span>
           </div>
         ))}
         <div className="border-t border-slate-200 mt-1" />
         <div className="flex items-center justify-between gap-2 text-[11px] pt-0.5">
           <span className="text-slate-800 font-semibold">Skupaj vrnjeno:</span>
-          <span className="font-mono font-semibold text-slate-900">{skupajVrnjeno.toFixed(2)} €</span>
+          <span className="font-mono font-semibold text-slate-900">{formatEur(skupajVrnjeno)}</span>
         </div>
       </div>
     </div>
@@ -1132,7 +1133,7 @@ function VivaTerminalRefundButton({
         className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50 hover:text-violet-800"
       >
         <Smartphone className="h-3.5 w-3.5" />
-        Vračilo na terminal ({znesekVracila.toFixed(2)} €)
+        Vračilo na terminal ({formatEur(znesekVracila)})
       </Button>
     );
   }
@@ -1142,13 +1143,13 @@ function VivaTerminalRefundButton({
       <div className="flex flex-wrap items-start gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-2">
         <div className="flex-1 space-y-1.5">
           <p className="text-sm text-violet-800">
-            Vračilo <span className="font-mono font-semibold">{znesekVracila.toFixed(2)} €</span> na Viva Terminal — stranka mora priložiti kartico.
+            Vračilo <span className="font-mono font-semibold">{formatEur(znesekVracila)}</span> na Viva Terminal — stranka mora priložiti kartico.
           </p>
           {jeDeljenoPlacilo && (
             <div className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
               <p className="text-xs text-amber-800">
-                Račun je bil plačan delno z gotovino. Vračilo zajema samo kartični del ({znesekVracila.toFixed(2)} € od {racun.skupaj.toFixed(2)} €).
+                Račun je bil plačan delno z gotovino. Vračilo zajema samo kartični del ({formatEur(znesekVracila)} od {formatEur(racun.skupaj)}).
               </p>
             </div>
           )}
@@ -1719,7 +1720,7 @@ export default function Receipts() {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span className={`text-sm font-bold whitespace-nowrap ${znesekCls}`}>{r.skupaj.toFixed(2)} €</span>
+                  <span className={`text-sm font-bold whitespace-nowrap ${znesekCls}`}>{formatEur(r.skupaj)}</span>
                   {jaStorniran && !jaStorno ? (
                     <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200 text-[10px]">Storniran</Badge>
                   ) : jaStorno ? (
@@ -2115,7 +2116,7 @@ export default function Receipts() {
                   {dialogImaVnose && (
                     <div className={`flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium ${dialogJeTocno ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
                       <span>Skupaj vneseno</span>
-                      <span>{dialogVsota.toFixed(2)} € / {dialogSkupaj.toFixed(2)} €</span>
+                      <span>{formatEur(dialogVsota)} / {formatEur(dialogSkupaj)}</span>
                     </div>
                   )}
                 </div>

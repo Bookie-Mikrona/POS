@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
 import { useHappyHour } from "@/contexts/HappyHourContext";
@@ -502,7 +503,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
             <div className="flex items-baseline gap-1.5 flex-wrap">
               {hhAktiven && (
                 <span className="text-[10px] font-bold rounded px-1 py-0" style={{ backgroundColor: "rgba(251,191,36,0.9)", color: "#000" }}>
-                  {artikel.jePica ? `⭐ HH ${hhOznaka}` : `⭐ ${hhCena!.toFixed(2)} €`}
+                  {artikel.jePica ? `⭐ HH ${hhOznaka}` : `⭐ ${formatEur(hhCena!)}`}
                 </span>
               )}
               <span
@@ -514,7 +515,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
                   fontSize: osnovnaCenaJeHappyHour ? "0.7rem" : undefined,
                 }}
               >
-                {artikel.cena.toFixed(2)} €
+                {formatEur(artikel.cena)}
               </span>
             </div>
           );
@@ -708,7 +709,7 @@ function GrupaGumbStaro({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa
                 {a.opis?.match(/^Slovensko:\s*(.+)$/i)?.[1] && (
                   <span className="text-[11px] leading-tight opacity-75">{a.opis.match(/^Slovensko:\s*(.+)$/i)?.[1]}</span>
                 )}
-                <span className="text-xs font-bold mt-0.5" style={{ color: a.barva ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>{a.cena.toFixed(2)} €</span>
+                <span className="text-xs font-bold mt-0.5" style={{ color: a.barva ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>{formatEur(a.cena)}</span>
                 {privzetiImena && (
                   <div className="flex items-center gap-0.5 text-[10px] leading-tight mt-1" style={{ color: a.barva ? "rgba(255,255,255,0.7)" : "hsl(var(--muted-foreground))" }}>
                     <Plus className="h-2.5 w-2.5 shrink-0" />
@@ -793,7 +794,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
         </span>
         <div className="flex items-center justify-between w-full">
           <span className="text-sm font-bold" style={{ color: hasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>
-            {cenaMin === cenaMax ? `${cenaMin.toFixed(2)} €` : `od ${cenaMin.toFixed(2)} €`}
+            {cenaMin === cenaMax ? `${formatEur(cenaMin)}` : `od ${formatEur(cenaMin)}`}
           </span>
           <span className="flex items-center gap-0.5 text-xs" style={{ color: hasColor ? "rgba(255,255,255,0.6)" : "hsl(var(--muted-foreground))" }}>
             <ChevronDown className="w-3.5 h-3.5" />{grupa.children.length}
@@ -867,7 +868,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
                   )}
                 </div>
                 <div className="text-sm sm:text-xl font-extrabold shrink-0 whitespace-nowrap" style={{ color: aHasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>
-                  {a.cena.toFixed(2)} €
+                  {formatEur(a.cena)}
                 </div>
               </button>
             );
@@ -957,7 +958,7 @@ function DiscountInput({ postavkaId, cenaKos, cenaKosOriginalna, kolicina, onApp
       />
       {previewCena !== null && (
         <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
-          → {previewCena.toFixed(2)} €
+          → {formatEur(previewCena)}
         </span>
       )}
       <button
@@ -2771,7 +2772,7 @@ export default function Order() {
           <KdsCountdown target={{ iso: predvidenaDostava, label: "Dostava ob" }} />
         </span>
       )}
-      {typeof cenaDostave === "number" && <> · Dostava {cenaDostave.toFixed(2)} €</>}
+      {typeof cenaDostave === "number" && <> · Dostava {formatEur(cenaDostave)}</>}
     </div>
   ) : null;
 
@@ -2914,7 +2915,7 @@ export default function Order() {
                   <div className="absolute left-0 right-0 -top-9 z-10 flex items-center gap-2 rounded-md border border-green-300 bg-green-50 px-2 py-1 text-sm font-semibold text-green-900 shadow pointer-events-none">
                     <span className="tabular-nums">{qp?.kolicina ?? 1}×</span>
                     <span className="truncate">{z[0].ime}</span>
-                    <span className="ml-auto tabular-nums">{(z[0].cena * (qp?.kolicina ?? 1)).toFixed(2)} €</span>
+                    <span className="ml-auto tabular-nums">{formatEur((z[0].cena * (qp?.kolicina ?? 1)))}</span>
                   </div>
                 );
               })()}
@@ -3502,16 +3503,16 @@ export default function Order() {
                       <span className="hidden sm:flex flex-col items-start ml-1 leading-none">
                         {hasDiscount && (
                           <span className="text-[9px] text-muted-foreground line-through tabular-nums">
-                            {(postavka.cenaKosOriginalna! + (postavka.kolicina ? embalazaSkupaj / postavka.kolicina : 0)).toFixed(2)} €
+                            {formatEur((postavka.cenaKosOriginalna! + (postavka.kolicina ? embalazaSkupaj / postavka.kolicina : 0)))}
                           </span>
                         )}
                         <span className={`text-[10px] tabular-nums ${hasDiscount ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
-                          {cenaKosZEmbalazo.toFixed(2)} €/kos
+                          {formatEur(cenaKosZEmbalazo)}/kos
                         </span>
                       </span>
                       <span className="flex-1" />
                       <span className={`text-base font-extrabold tabular-nums ${postavka.kolicina < 0 ? "text-destructive" : "text-foreground"}`}>
-                        {skupajZEmbalazo.toFixed(2)} €
+                        {formatEur(skupajZEmbalazo)}
                       </span>
                     </div>
                     {/* Vrstica 3: vnosno polje za popust (pogojno) */}
@@ -3553,7 +3554,7 @@ export default function Order() {
                             <Plus className="h-2.5 w-2.5" />
                           </Button>
                         )}
-                        {!d.jeEmbalaza && <span className="text-[10px] tabular-nums text-muted-foreground ml-1">{d.skupaj.toFixed(2)} €</span>}
+                        {!d.jeEmbalaza && <span className="text-[10px] tabular-nums text-muted-foreground ml-1">{formatEur(d.skupaj)}</span>}
                       </div>
                     ))}
                     {/* Modifikatorji (read-only) */}
@@ -3564,7 +3565,7 @@ export default function Order() {
                             <Settings2 className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
                             <span className="flex-1 text-[10px] leading-snug text-muted-foreground">{mc.ime}</span>
                             {mc.skupaj > 0 && (
-                              <span className="text-[10px] tabular-nums text-muted-foreground">+{mc.skupaj.toFixed(2)} €</span>
+                              <span className="text-[10px] tabular-nums text-muted-foreground">+{formatEur(mc.skupaj)}</span>
                             )}
                           </div>
                           {(modChildMapOrder.get(mc.id) ?? [])
@@ -3577,7 +3578,7 @@ export default function Order() {
                                   <span className="text-[9px] text-muted-foreground">{sourceIme}:</span>
                                   <span className="flex-1 text-[10px] leading-snug text-muted-foreground">{nested.ime}</span>
                                   {nested.skupaj > 0 && (
-                                    <span className="text-[10px] tabular-nums text-muted-foreground">+{nested.skupaj.toFixed(2)} €</span>
+                                    <span className="text-[10px] tabular-nums text-muted-foreground">+{formatEur(nested.skupaj)}</span>
                                   )}
                                 </div>
                               );
@@ -3664,7 +3665,7 @@ export default function Order() {
                   }`}
                 >
                   <span>Gost {gost}</span>
-                  <span className="tabular-nums font-bold">{skupaj.toFixed(2)} €</span>
+                  <span className="tabular-nums font-bold">{formatEur(skupaj)}</span>
                 </button>
               ))}
             </div>
@@ -3677,7 +3678,7 @@ export default function Order() {
               {aktivniGostStevilka !== null ? `Gost ${aktivniGostStevilka}` : "Skupaj"}
             </span>
             <span className="text-xl md:text-2xl font-bold text-primary tabular-nums max-md:leading-tight">
-              {neracunaneSkupaj.toFixed(2)} €
+              {formatEur(neracunaneSkupaj)}
             </span>
           </div>
           {ddvNeskladje && (
@@ -3792,7 +3793,7 @@ export default function Order() {
                         <p className="text-xs text-muted-foreground">
                           {new Date(r.ustvarjeno).toLocaleString("sl-SI", { dateStyle: "short", timeStyle: "short" })}
                           {r.mizaStevilka != null && ` · Miza ${r.mizaStevilka}`}
-                          {" · "}{Number(r.skupaj).toFixed(2)} €
+                          {" · "}{formatEur(Number(r.skupaj))}
                         </p>
                       </button>
                     ))}
@@ -3840,7 +3841,7 @@ export default function Order() {
                           />
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium leading-snug ${jeNeaktiven ? "line-through" : ""}`}>{p.ime}</p>
-                            <p className="text-xs text-muted-foreground tabular-nums">{p.cenaKos.toFixed(2)} €/kos{jeNeaktiven ? " · neaktiven" : ""}</p>
+                            <p className="text-xs text-muted-foreground tabular-nums">{formatEur(p.cenaKos)}/kos{jeNeaktiven ? " · neaktiven" : ""}</p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Button variant="outline" size="icon" className="h-6 w-6"
@@ -4202,7 +4203,7 @@ export default function Order() {
                           </span>
                           <span className="flex-1">{choice.ime}</span>
                           {Number(choice.cenaDodatek) > 0 && (
-                            <span className="text-xs tabular-nums text-muted-foreground">+{Number(choice.cenaDodatek).toFixed(2)} €</span>
+                            <span className="text-xs tabular-nums text-muted-foreground">+{formatEur(Number(choice.cenaDodatek))}</span>
                           )}
                         </button>
                       );
@@ -4297,7 +4298,7 @@ export default function Order() {
               </DialogTitle>
               <DialogDescription className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span>Izberi možnosti pred potrditvijo.</span>
-                <span className="tabular-nums font-semibold text-foreground shrink-0 ml-2">{artCenaZaPrikaz.toFixed(2)} €</span>
+                <span className="tabular-nums font-semibold text-foreground shrink-0 ml-2">{formatEur(artCenaZaPrikaz)}</span>
               </DialogDescription>
             </DialogHeader>
             {modDialogSelectedModifierIds.length > 0 && modifierNormativeLoading && (
@@ -4342,7 +4343,7 @@ export default function Order() {
                             {artRazpolozljivostVelikosti[velikost.id] == null ? "Brez izračunane omejitve" : `Na voljo: ${artRazpolozljivostVelikosti[velikost.id]}`}
                           </span>
                         )}
-                        <span className="font-bold">{cenaZaVelikostPice(velikost.id).toFixed(2)} €</span>
+                        <span className="font-bold">{formatEur(cenaZaVelikostPice(velikost.id))}</span>
                       </Button>
                     ))}
                   </div>
@@ -4390,7 +4391,7 @@ export default function Order() {
                               )}
                               {Number(mod.cenaDodatek) > 0 && (
                                 <span className={`shrink-0 tabular-nums text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                                  +{Number(mod.cenaDodatek).toFixed(2)} €
+                                  +{formatEur(Number(mod.cenaDodatek))}
                                 </span>
                               )}
                             </button>
@@ -4433,7 +4434,7 @@ export default function Order() {
                                 <span className="text-xs text-muted-foreground tabular-nums">{availablePortions} porcij</span>
                               )}
                               {Number(mod.cenaDodatek) > 0 && (
-                                <span className="text-xs text-muted-foreground tabular-nums">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
+                                <span className="text-xs text-muted-foreground tabular-nums">+{formatEur(Number(mod.cenaDodatek))}</span>
                               )}
                             </button>
                             {isSelected && renderNestedChoices(mod.id)}
@@ -4448,7 +4449,7 @@ export default function Order() {
             {skupajDoplačilo + skupajDoplačiloPodIzbire > 0 && (
               <div className="border-t pt-2 flex items-center justify-between text-sm px-1">
                 <span className="text-muted-foreground">Skupaj</span>
-                <span className="font-bold tabular-nums">{(artCenaZaPrikaz + skupajDoplačilo + skupajDoplačiloPodIzbire).toFixed(2)} €</span>
+                <span className="font-bold tabular-nums">{formatEur((artCenaZaPrikaz + skupajDoplačilo + skupajDoplačiloPodIzbire))}</span>
               </div>
             )}
             <div className="shrink-0 -mx-4 sm:-mx-6 -mb-1 flex gap-2 border-t bg-background px-4 sm:px-6 pt-3">
@@ -4772,7 +4773,7 @@ export default function Order() {
                           </span>
                           <span className="flex-1">{option.ime}</span>
                           {unavailable && <span className="text-[10px] text-destructive">Ni več na voljo</span>}
-                          {Number(option.cenaDodatek) > 0 && <span className="text-xs tabular-nums text-muted-foreground">+{Number(option.cenaDodatek).toFixed(2)} €</span>}
+                          {Number(option.cenaDodatek) > 0 && <span className="text-xs tabular-nums text-muted-foreground">+{formatEur(Number(option.cenaDodatek))}</span>}
                         </button>
                       );
                     })}
@@ -4906,7 +4907,7 @@ export default function Order() {
                             <span className="flex-1 text-sm">{mod.ime}</span>
                             {!mod.aktiven && <span className="text-[10px] text-destructive">Ni več na voljo</span>}
                             {Number(mod.cenaDodatek) > 0 && (
-                              <span className="text-xs text-muted-foreground tabular-nums">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
+                              <span className="text-xs text-muted-foreground tabular-nums">+{formatEur(Number(mod.cenaDodatek))}</span>
                             )}
                           </button>
                           {isSelected && renderOpcijeNestedChoices(mod.id)}
@@ -4920,7 +4921,7 @@ export default function Order() {
             {skupajDoplačiloOpcije + skupajDoplačiloNestedOpcije > 0 && (
               <div className="border-t pt-2 flex items-center justify-between text-sm px-1">
                 <span className="text-muted-foreground">Doplačilo</span>
-                <span className="font-bold tabular-nums">+{(skupajDoplačiloOpcije + skupajDoplačiloNestedOpcije).toFixed(2)} €</span>
+                <span className="font-bold tabular-nums">+{formatEur((skupajDoplačiloOpcije + skupajDoplačiloNestedOpcije))}</span>
               </div>
             )}
             <div className="flex gap-2 pt-2 border-t">
@@ -4957,7 +4958,7 @@ export default function Order() {
                 <p className="text-sm font-medium">Naročilo #{n.stevilkaNarocila ?? n.id}</p>
                 <p className="text-xs text-muted-foreground">
                   {(n.postavke?.filter(p => p.racunId === null && p.parentPostavkaId == null).length ?? 0)} artiklov •{" "}
-                  {Number(n.skupaj).toFixed(2)} €
+                  {formatEur(Number(n.skupaj))}
                 </p>
               </div>
               <Button

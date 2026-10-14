@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { availableShiftOperators } from "@/lib/available-shift-operators";
@@ -1002,7 +1003,7 @@ ${linije.map(vrHtml).join("\n")}
       queryClient.invalidateQueries({ queryKey: getListRacuniQueryKey() });
       toast({
         title: "Darilni bon je izdan",
-        description: `${result.stevilkaRacuna ?? "Račun"} · ${znesek.toFixed(2)} €. ${result.opozorilo ?? ""}`.trim(),
+        description: `${result.stevilkaRacuna ?? "Račun"} · ${formatEur(znesek)}. ${result.opozorilo ?? ""}`.trim(),
       });
       releasePaymentGuard();
     } catch (error) {
@@ -2289,7 +2290,7 @@ ${linije.map(vrHtml).join("\n")}
               postavke?: Array<{ ime: string; kolicina: number; skupaj: number; davek: number; ddv: number }>;
             };
             setDdvNapaka({
-              sporocilo: `Vrednosti na računu niso usklajene${b.razlika !== undefined ? ` (razlika ${b.razlika.toFixed(2)} €)` : ""} — preverite postavke spodaj.`,
+              sporocilo: `Vrednosti na računu niso usklajene${b.razlika !== undefined ? ` (razlika ${formatEur(b.razlika)})` : ""} — preverite postavke spodaj.`,
               podrobnosti: b.error ?? "",
               razlika: b.razlika,
               skupajNarocilo: b.skupajNarocilo,
@@ -3545,12 +3546,12 @@ ${linije.map(vrHtml).join("\n")}
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Znesek:</span>
-                <span className="font-bold">{issuedRacun.skupaj.toFixed(2)} €</span>
+                <span className="font-bold">{formatEur(issuedRacun.skupaj)}</span>
               </div>
               {issuedRacun.znesekNapitnina && issuedRacun.znesekNapitnina > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Napitnina:</span>
-                  <span className="font-bold">{issuedRacun.znesekNapitnina.toFixed(2)} €</span>
+                  <span className="font-bold">{formatEur(issuedRacun.znesekNapitnina)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm items-center">
@@ -3695,7 +3696,7 @@ ${linije.map(vrHtml).join("\n")}
                   />
                 </div>
               </div>
-              <p className="font-bold text-3xl text-primary">{Number(prikazZnesek).toFixed(2)} €</p>
+              <p className="font-bold text-3xl text-primary">{formatEur(Number(prikazZnesek))}</p>
               <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
                 <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                 <span>Čakam na plačilo...</span>
@@ -3752,7 +3753,7 @@ ${linije.map(vrHtml).join("\n")}
                 <QRCodeSVG value={vivaCheckoutUrl} size={200} />
               </div>
               <p className="font-bold text-2xl text-primary">
-                {terminalskiZnesek.toFixed(2)} €
+                {formatEur(terminalskiZnesek)}
               </p>
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -3783,7 +3784,7 @@ ${linije.map(vrHtml).join("\n")}
                   Plačilni poskus je varno rezerviran. Z naslednjim dotikom odprite Viva Terminal.
                 </p>
               </div>
-              <p className="font-bold text-2xl text-primary">{terminalskiZnesek.toFixed(2)} €</p>
+              <p className="font-bold text-2xl text-primary">{formatEur(terminalskiZnesek)}</p>
               <Button className="w-full" size="lg" asChild>
                 <a href={vivaBridgeLaunchUrl} data-testid="link-odpri-viva-terminal">
                   <ExternalLink className="h-5 w-5 mr-2" />
@@ -3807,7 +3808,7 @@ ${linije.map(vrHtml).join("\n")}
             <p className="text-muted-foreground text-sm">
               Stranka naj vstavi ali prisloni kartico na terminal.
             </p>
-            <p className="font-bold text-2xl text-primary">{terminalskiZnesek.toFixed(2)} €</p>
+            <p className="font-bold text-2xl text-primary">{formatEur(terminalskiZnesek)}</p>
           </CardContent>
         </Card>
       </div>
@@ -3855,7 +3856,7 @@ ${linije.map(vrHtml).join("\n")}
                       >
                         <Receipt className="h-4 w-4 mr-2" />
                         {availableRecoveries.length > 1
-                          ? `Izberi ${recovery.provider} plačilo (${recovery.znesek.toFixed(2)} €${recovery.ustvarjeno ? `, ${new Date(recovery.ustvarjeno).toLocaleString("sl-SI", { timeZone: "Europe/Ljubljana" })}` : ""})`
+                          ? `Izberi ${recovery.provider} plačilo (${formatEur(recovery.znesek)}${recovery.ustvarjeno ? `, ${new Date(recovery.ustvarjeno).toLocaleString("sl-SI", { timeZone: "Europe/Ljubljana" })}` : ""})`
                           : "Zaključi račun brez novega plačila"}
                       </Button>
                     ))}
@@ -3919,9 +3920,9 @@ ${linije.map(vrHtml).join("\n")}
                 <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Nalagam evidenco …</span>
               ) : darilniBonStanje ? (
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div><p className="text-xs text-muted-foreground">Izdano</p><p className="font-semibold">{darilniBonStanje.izdano.toFixed(2)} €</p></div>
-                  <div><p className="text-xs text-muted-foreground">Unovčeno</p><p className="font-semibold">{darilniBonStanje.unovceno.toFixed(2)} €</p></div>
-                  <div><p className="text-xs text-muted-foreground">Odprto</p><p className={`font-semibold ${darilniBonStanje.odprto < 0 ? "text-destructive" : "text-green-700"}`}>{darilniBonStanje.odprto.toFixed(2)} €</p></div>
+                  <div><p className="text-xs text-muted-foreground">Izdano</p><p className="font-semibold">{formatEur(darilniBonStanje.izdano)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Unovčeno</p><p className="font-semibold">{formatEur(darilniBonStanje.unovceno)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Odprto</p><p className={`font-semibold ${darilniBonStanje.odprto < 0 ? "text-destructive" : "text-green-700"}`}>{formatEur(darilniBonStanje.odprto)}</p></div>
                 </div>
               ) : <span className="text-muted-foreground">Stanje evidence ni na voljo.</span>}
             </div>
@@ -3982,7 +3983,7 @@ ${linije.map(vrHtml).join("\n")}
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
               Vnesite skrbniški PIN za potrditev izredne izdaje računa kljub manjšemu DDV neskladju
-              {ddvNapaka?.razlika !== undefined && <> (razlika <strong>{ddvNapaka.razlika.toFixed(2)} €</strong>)</>}.
+              {ddvNapaka?.razlika !== undefined && <> (razlika <strong>{formatEur(ddvNapaka.razlika)}</strong>)</>}.
             </p>
             <div className="space-y-2">
               <Input
@@ -4056,7 +4057,7 @@ ${linije.map(vrHtml).join("\n")}
                   />
                   <div className="flex-1 min-w-0">
                     <label htmlFor={`združi-narocilo-${n.id}`} className="font-semibold text-sm cursor-pointer">
-                      Naročilo #{n.stevilkaNarocila ?? n.id} — {Number(n.skupaj).toFixed(2)} €
+                      Naročilo #{n.stevilkaNarocila ?? n.id} — {formatEur(Number(n.skupaj))}
                     </label>
                     {(() => { const gl = (n.postavke ?? []).filter(p => p.racunId === null && p.parentPostavkaId == null); return gl.length > 0 && (
                       <ul className="mt-0.5 space-y-0 text-xs text-muted-foreground">
@@ -4141,19 +4142,19 @@ ${linije.map(vrHtml).join("\n")}
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Način plačila</p>
                   <div className="rounded-md border divide-y text-sm">
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Gotovina</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.gotovina.toFixed(2)} €</span></div>
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Kartica (bremenitev)</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.kartica.toFixed(2)} €</span></div>
-                    {izpisData.prometPoNacinuPlacila.napitnina !== 0 && <div className="flex justify-between px-3 py-1.5 text-amber-900 bg-amber-50/50"><span>Napitnine (ločeno)</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.napitnina.toFixed(2)} €</span></div>}
-                    {izpisData.prometPoNacinuPlacila.sumup > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">SumUp</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.sumup.toFixed(2)} €</span></div>}
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.bon.toFixed(2)} €</span></div>
-                    {izpisData.prometPoNacinuPlacila.bonPica > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon za pico ({izpisData.prometPoNacinuPlacila.steviloBonov}×)</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.bonPica.toFixed(2)} €</span></div>}
-                    {izpisData.prometPoNacinuPlacila.negotovinsko > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">TRR</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.negotovinsko.toFixed(2)} €</span></div>}
-                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Prodajni skupaj</span><span>{izpisData.skupajPromet.toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Gotovina</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.gotovina)}</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Kartica (bremenitev)</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.kartica)}</span></div>
+                    {izpisData.prometPoNacinuPlacila.napitnina !== 0 && <div className="flex justify-between px-3 py-1.5 text-amber-900 bg-amber-50/50"><span>Napitnine (ločeno)</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.napitnina)}</span></div>}
+                    {izpisData.prometPoNacinuPlacila.sumup > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">SumUp</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.sumup)}</span></div>}
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.bon)}</span></div>
+                    {izpisData.prometPoNacinuPlacila.bonPica > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon za pico ({izpisData.prometPoNacinuPlacila.steviloBonov}×)</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.bonPica)}</span></div>}
+                    {izpisData.prometPoNacinuPlacila.negotovinsko > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">TRR</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.negotovinsko)}</span></div>}
+                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Prodajni skupaj</span><span>{formatEur(izpisData.skupajPromet)}</span></div>
                     {(izpisData.prometPoNacinuPlacila.reprezentanca > 0 || izpisData.prometPoNacinuPlacila.lastna_poraba > 0) && (
                       <>
                         <div className="px-3 py-1 bg-muted/20"><span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Navidezni promet</span></div>
-                        {izpisData.prometPoNacinuPlacila.reprezentanca > 0 && <div className="flex justify-between px-3 py-1.5 opacity-70"><span className="text-muted-foreground">Reprezentanca</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.reprezentanca.toFixed(2)} €</span></div>}
-                        {izpisData.prometPoNacinuPlacila.lastna_poraba > 0 && <div className="flex justify-between px-3 py-1.5 opacity-70"><span className="text-muted-foreground">Lastna poraba</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.lastna_poraba.toFixed(2)} €</span></div>}
+                        {izpisData.prometPoNacinuPlacila.reprezentanca > 0 && <div className="flex justify-between px-3 py-1.5 opacity-70"><span className="text-muted-foreground">Reprezentanca</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.reprezentanca)}</span></div>}
+                        {izpisData.prometPoNacinuPlacila.lastna_poraba > 0 && <div className="flex justify-between px-3 py-1.5 opacity-70"><span className="text-muted-foreground">Lastna poraba</span><span className="font-medium">{formatEur(izpisData.prometPoNacinuPlacila.lastna_poraba)}</span></div>}
                       </>
                     )}
                   </div>
@@ -4163,12 +4164,12 @@ ${linije.map(vrHtml).join("\n")}
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Blagajniški dnevnik — gibanje gotovine</p>
                     <div className="rounded-md border divide-y text-sm">
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Menjalni denar</span><span className="font-medium">{izpisStanje.menjalniDenar.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Gotovinska prodaja</span><span className="font-medium">{izpisStanje.gotovinskaProdaja.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Prejemi gotovine</span><span className="font-medium">{izpisStanje.pologiGotovine.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">− Izplačila dobaviteljem</span><span className="font-medium">{izpisStanje.izplacilaDobaviteljem.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">− Pologi na TRR</span><span className="font-medium">{izpisStanje.pologiTrr.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Teoretično stanje</span><span>{izpisStanje.stanje.toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Menjalni denar</span><span className="font-medium">{formatEur(izpisStanje.menjalniDenar)}</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Gotovinska prodaja</span><span className="font-medium">{formatEur(izpisStanje.gotovinskaProdaja)}</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Prejemi gotovine</span><span className="font-medium">{formatEur(izpisStanje.pologiGotovine)}</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">− Izplačila dobaviteljem</span><span className="font-medium">{formatEur(izpisStanje.izplacilaDobaviteljem)}</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">− Pologi na TRR</span><span className="font-medium">{formatEur(izpisStanje.pologiTrr)}</span></div>
+                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Teoretično stanje</span><span>{formatEur(izpisStanje.stanje)}</span></div>
                     </div>
                   </div>
                 )}
@@ -4182,7 +4183,7 @@ ${linije.map(vrHtml).join("\n")}
                       <div key={premik.id} className="px-3 py-2 space-y-0.5">
                         <div className="flex justify-between gap-2">
                           <span className="font-medium">{premik.tip.replaceAll("_", " ")}</span>
-                          <span className="font-semibold whitespace-nowrap">{premik.znesek.toFixed(2)} €</span>
+                          <span className="font-semibold whitespace-nowrap">{formatEur(premik.znesek)}</span>
                         </div>
                         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                           <span>{new Date(premik.datumCas).toLocaleTimeString("sl-SI", { hour: "2-digit", minute: "2-digit" })} · {premik.status === "OSNUTEK" ? "Osnutek — neknjiženo" : premik.status === "STORNIRAN" ? "Storno" : "Potrjeno"}</span>
@@ -4202,7 +4203,7 @@ ${linije.map(vrHtml).join("\n")}
                       <div key={b.blagajnaKoda} className="px-3 py-1.5 space-y-0.5">
                         <div className="flex justify-between">
                           <span className="font-mono font-medium">{b.blagajnaKoda}</span>
-                          <span className="font-semibold">{b.skupaj.toFixed(2)} € <span className="text-muted-foreground font-normal text-xs">({b.steviloRacunov} rač.)</span></span>
+                          <span className="font-semibold">{formatEur(b.skupaj)} <span className="text-muted-foreground font-normal text-xs">({b.steviloRacunov} rač.)</span></span>
                         </div>
                         {b.odZap && (
                           <div className="text-xs text-muted-foreground">
@@ -4222,14 +4223,14 @@ ${linije.map(vrHtml).join("\n")}
                       <div key={n.natakarIme} className="px-3 py-1.5 space-y-0.5">
                         <div className="flex justify-between">
                           <span className="font-medium">{n.natakarIme}</span>
-                          <span className="font-semibold">{n.skupaj.toFixed(2)} €</span>
+                          <span className="font-semibold">{formatEur(n.skupaj)}</span>
                         </div>
                         <div className="flex gap-3 text-xs text-muted-foreground">
-                          {n.gotovina > 0 && <span>Got. {n.gotovina.toFixed(2)} €</span>}
-                          {n.kartica > 0 && <span>Krt. {n.kartica.toFixed(2)} €</span>}
-                          {n.sumup > 0 && <span>SumUp {n.sumup.toFixed(2)} €</span>}
-                          {n.bon > 0 && <span>Bon {n.bon.toFixed(2)} €</span>}
-                          {n.bonPica > 0 && <span>Bon pica ({n.steviloBonov}×) {n.bonPica.toFixed(2)} €</span>}
+                          {n.gotovina > 0 && <span>Got. {formatEur(n.gotovina)}</span>}
+                          {n.kartica > 0 && <span>Krt. {formatEur(n.kartica)}</span>}
+                          {n.sumup > 0 && <span>SumUp {formatEur(n.sumup)}</span>}
+                          {n.bon > 0 && <span>Bon {formatEur(n.bon)}</span>}
+                          {n.bonPica > 0 && <span>Bon pica ({n.steviloBonov}×) {formatEur(n.bonPica)}</span>}
                           <span className="ml-auto">{n.steviloRacunov} rač.</span>
                         </div>
                       </div>
@@ -4242,10 +4243,10 @@ ${linije.map(vrHtml).join("\n")}
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Prihodki po vrsti (neto)</p>
                     <div className="rounded-md border divide-y text-sm">
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Storitve</span><span className="font-medium">{(izpisData.prihodkiPoVrsti.storitve ?? 0).toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Blago</span><span className="font-medium">{(izpisData.prihodkiPoVrsti.blago ?? 0).toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Material</span><span className="font-medium">{(izpisData.prihodkiPoVrsti.material ?? 0).toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj neto</span><span>{((izpisData.prihodkiPoVrsti.storitve ?? 0) + (izpisData.prihodkiPoVrsti.blago ?? 0) + (izpisData.prihodkiPoVrsti.material ?? 0)).toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Storitve</span><span className="font-medium">{formatEur((izpisData.prihodkiPoVrsti.storitve ?? 0))}</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Blago</span><span className="font-medium">{formatEur((izpisData.prihodkiPoVrsti.blago ?? 0))}</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Material</span><span className="font-medium">{formatEur((izpisData.prihodkiPoVrsti.material ?? 0))}</span></div>
+                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj neto</span><span>{formatEur(((izpisData.prihodkiPoVrsti.storitve ?? 0) + (izpisData.prihodkiPoVrsti.blago ?? 0) + (izpisData.prihodkiPoVrsti.material ?? 0)))}</span></div>
                     </div>
                   </div>
                 )}
@@ -4259,11 +4260,11 @@ ${linije.map(vrHtml).join("\n")}
                         <div key={d.stopnja} className="px-3 py-1.5 space-y-0.5">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">DDV {d.stopnja.toFixed(1).replace(".", ",")} %</span>
-                            <span className="font-medium">{d.ddvZnesek.toFixed(2)} €</span>
+                            <span className="font-medium">{formatEur(d.ddvZnesek)}</span>
                           </div>
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>Osnova</span>
-                            <span>{d.osnova.toFixed(2)} €</span>
+                            <span>{formatEur(d.osnova)}</span>
                           </div>
                         </div>
                       ))}
@@ -4344,8 +4345,8 @@ ${linije.map(vrHtml).join("\n")}
                     <Button type="button" variant="ghost" size="sm" onClick={() => void loadXCash()} disabled={xCashLoading || !activeBlagajnaId}>Osveži</Button>
                   </div>
                   {xCash && <>
-                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pričakovana gotovina</span><strong>{xCash.pricakovanaGotovina.toFixed(2)} €</strong></div>
-                    {xCash.reconciliation && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Zabeležena razlika</span><strong className={xCash.reconciliation.razlika === 0 ? "text-green-700" : "text-orange-700"}>{xCash.reconciliation.razlika.toFixed(2)} €</strong></div>}
+                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pričakovana gotovina</span><strong>{formatEur(xCash.pricakovanaGotovina)}</strong></div>
+                    {xCash.reconciliation && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Zabeležena razlika</span><strong className={xCash.reconciliation.razlika === 0 ? "text-green-700" : "text-orange-700"}>{formatEur(xCash.reconciliation.razlika)}</strong></div>}
                     <Input type="number" step="0.01" min="0" value={xCashInput} onChange={event => setXCashInput(event.target.value)} placeholder="Prešteta gotovina" aria-label="Prešteta gotovina" />
                     <Input value={xOverrideReason} onChange={event => setXOverrideReason(event.target.value)} placeholder="Razlog odstopanja (ob razliki obvezen)" aria-label="Razlog odstopanja" />
                     <Button type="button" variant="outline" className="w-full" onClick={() => void saveCashReconciliation()} disabled={xCashLoading || !xCashInput}>Potrdi uskladitev</Button>
@@ -4415,19 +4416,19 @@ ${linije.map(vrHtml).join("\n")}
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Grand Total</p>
                   <div className="rounded-md border divide-y text-sm">
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">GT prej</span><span className="font-medium">{zSnapshot.grandTotalPrej.toFixed(2)} €</span></div>
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Promet dneva</span><span className="font-medium">{zSnapshot.prometDneva.toFixed(2)} €</span></div>
-                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>GT nov (kumulativa)</span><span>{zSnapshot.grandTotalNov.toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">GT prej</span><span className="font-medium">{formatEur(zSnapshot.grandTotalPrej)}</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Promet dneva</span><span className="font-medium">{formatEur(zSnapshot.prometDneva)}</span></div>
+                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>GT nov (kumulativa)</span><span>{formatEur(zSnapshot.grandTotalNov)}</span></div>
                   </div>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Promet dneva</p>
                   <div className="rounded-md border divide-y text-sm">
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Skupaj promet</span><span className="font-medium">{zSnapshot.skupajPromet.toFixed(2)} €</span></div>
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Gotovina</span><span className="font-medium">{zSnapshot.gotovina.toFixed(2)} €</span></div>
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Kartica (bremenitev)</span><span className="font-medium">{(zSnapshot.kartica + zSnapshot.sumup).toFixed(2)} €</span></div>
-                    {zSnapshot.znesekNapitnina !== 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Napitnine (ločeno)</span><span className="font-medium">{zSnapshot.znesekNapitnina.toFixed(2)} €</span></div>}
-                    {zSnapshot.bon > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon</span><span className="font-medium">{zSnapshot.bon.toFixed(2)} €</span></div>}
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Skupaj promet</span><span className="font-medium">{formatEur(zSnapshot.skupajPromet)}</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Gotovina</span><span className="font-medium">{formatEur(zSnapshot.gotovina)}</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Kartica (bremenitev)</span><span className="font-medium">{formatEur((zSnapshot.kartica + zSnapshot.sumup))}</span></div>
+                    {zSnapshot.znesekNapitnina !== 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Napitnine (ločeno)</span><span className="font-medium">{formatEur(zSnapshot.znesekNapitnina)}</span></div>}
+                    {zSnapshot.bon > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon</span><span className="font-medium">{formatEur(zSnapshot.bon)}</span></div>}
                     <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Število računov</span><span className="font-medium">{zSnapshot.steviloRacunov}</span></div>
                   </div>
                 </div>
@@ -4569,7 +4570,7 @@ ${linije.map(vrHtml).join("\n")}
                        )}
                      </div>
                     <span className="font-bold text-xl text-primary">
-                      {(narocilo.postavke ?? []).filter(p => p.racunId === null).reduce((s, p) => s + Number(p.skupaj), 0).toFixed(2)} €
+                      {formatEur((narocilo.postavke ?? []).filter(p => p.racunId === null).reduce((s, p) => s + Number(p.skupaj), 0))}
                     </span>
                   </div>
                 </CardHeader>
@@ -4654,7 +4655,7 @@ ${linije.map(vrHtml).join("\n")}
                                     {formatMizaProstor(n)} — naročilo #{n.id}
                                   </span>
                                   <span className="font-bold text-amber-900 text-sm">
-                                    {Number(n.skupaj).toFixed(2)} €
+                                    {formatEur(Number(n.skupaj))}
                                   </span>
                                 </div>
                                 {(() => { const gl = (n.postavke ?? []).filter(p => p.racunId === null && p.parentPostavkaId == null); return gl.length > 0 && (
@@ -4787,8 +4788,8 @@ ${linije.map(vrHtml).join("\n")}
                       <span>{formatMizaProstor(selectedOrder)}</span>
                       <span className="text-primary font-bold">
                         {splitMode
-                          ? <>{displaySkupaj.toFixed(2)} € <span className="text-xs font-normal text-muted-foreground">/ {displayNezaracunaneSkupaj.toFixed(2)} €</span></>
-                          : <>{displayNezaracunaneSkupaj.toFixed(2)} €</>
+                          ? <>{formatEur(displaySkupaj)} <span className="text-xs font-normal text-muted-foreground">/ {formatEur(displayNezaracunaneSkupaj)}</span></>
+                          : <>{formatEur(displayNezaracunaneSkupaj)}</>
                         }
                       </span>
                     </div>
@@ -4839,7 +4840,7 @@ ${linije.map(vrHtml).join("\n")}
                                 Gost {g}
                               </span>
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-mono font-semibold">{znesek.toFixed(2)} €</span>
+                                <span className="text-sm font-mono font-semibold">{formatEur(znesek)}</span>
                                 {jeIzbran && (
                                   <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                                 )}
@@ -4958,7 +4959,7 @@ ${linije.map(vrHtml).join("\n")}
                                 const displayCena = jeBrezplacno ? 0 : cenaSkupine;
                                 return (
                                   <span className="text-sm font-mono text-muted-foreground shrink-0">
-                                    {displayCena.toFixed(2)} €
+                                    {formatEur(displayCena)}
                                     {jeBrezplacno && (
                                       <span className="ml-1 line-through text-xs opacity-50">{originalCena.toFixed(2)}</span>
                                     )}
@@ -4973,7 +4974,7 @@ ${linije.map(vrHtml).join("\n")}
                           })}
                           <div className="border-t pt-2 flex justify-between text-sm font-semibold">
                             <span>Skupaj izbrano:</span>
-                            <span className="text-primary">{displaySkupaj.toFixed(2)} €</span>
+                            <span className="text-primary">{formatEur(displaySkupaj)}</span>
                           </div>
                         </div>
                       )}
@@ -4990,7 +4991,7 @@ ${linije.map(vrHtml).join("\n")}
                       <AlertTitle className="text-amber-900 font-bold">Neskladje zneska naročila</AlertTitle>
                       <AlertDescription className="mt-1 space-y-2">
                         <p className="text-amber-800 text-sm">
-                          Skupaj na naročilu (<span className="font-mono font-semibold">{round2(Number(selectedOrder.skupaj)).toFixed(2)} €</span>) se ne ujema z vsoto postavk (<span className="font-mono font-semibold">{vsotaPostavkIzracunana.toFixed(2)} €</span>) — razlika <span className="font-mono font-semibold">{neskladjePostavkSkupaj!.toFixed(2)} €</span>.
+                          Skupaj na naročilu (<span className="font-mono font-semibold">{formatEur(round2(Number(selectedOrder.skupaj)))}</span>) se ne ujema z vsoto postavk (<span className="font-mono font-semibold">{formatEur(vsotaPostavkIzracunana)}</span>) — razlika <span className="font-mono font-semibold">{formatEur(neskladjePostavkSkupaj!)}</span>.
                         </p>
                         <p className="text-amber-800 text-sm">
                           Račun ne bo sprejet. Popravite naročilo (dodajte ali odstranite artikel) ali se obrnite na skrbnika.
@@ -5205,7 +5206,7 @@ ${linije.map(vrHtml).join("\n")}
                         </button>
                         <div className="flex-1 text-right">
                           <p className="text-sm text-muted-foreground">Pokrito z boni</p>
-                          <p className="font-bold text-orange-600">{znesekBonov.toFixed(2)} €</p>
+                          <p className="font-bold text-orange-600">{formatEur(znesekBonov)}</p>
                         </div>
                       </div>
 
@@ -5216,13 +5217,13 @@ ${linije.map(vrHtml).join("\n")}
                           {piceSeznam.slice(0, steviloBonovDejanski).map((p, i) => (
                             <div key={i} className="flex justify-between text-xs text-orange-700">
                               <span>{p.ime}</span>
-                              <span className="font-mono">{p.cenaKos.toFixed(2)} €</span>
+                              <span className="font-mono">{formatEur(p.cenaKos)}</span>
                             </div>
                           ))}
                           {!vsePlacanoZBoni && (
                             <div className="flex justify-between text-xs text-muted-foreground border-t border-orange-200 mt-1 pt-1">
                               <span>Preostalo za plačilo:</span>
-                              <span className="font-mono font-semibold text-foreground">{znesekPreostalega.toFixed(2)} €</span>
+                              <span className="font-mono font-semibold text-foreground">{formatEur(znesekPreostalega)}</span>
                             </div>
                           )}
                           {vsePlacanoZBoni && (
@@ -5250,7 +5251,7 @@ ${linije.map(vrHtml).join("\n")}
                           </p>
                         </div>
                         {znesekSubvencijaDejanski > 0 && (
-                          <Badge className="shrink-0 bg-emerald-700">{znesekSubvencijaDejanski.toFixed(2)} €</Badge>
+                          <Badge className="shrink-0 bg-emerald-700">{formatEur(znesekSubvencijaDejanski)}</Badge>
                         )}
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -5287,7 +5288,7 @@ ${linije.map(vrHtml).join("\n")}
                       </div>
                       {znesekSubvencijaDejanski > 0 && (
                         <p className="text-xs font-medium text-emerald-900">
-                          Doplačilo {placilniNacin === "kartica" ? "s kartico" : "z gotovino"}: {znesekZaDoplacilo.toFixed(2)} €
+                          Doplačilo {placilniNacin === "kartica" ? "s kartico" : "z gotovino"}: {formatEur(znesekZaDoplacilo)}
                         </p>
                       )}
                     </div>
@@ -5297,7 +5298,7 @@ ${linije.map(vrHtml).join("\n")}
                     <div className="space-y-2">
                       <Label className="text-sm">
                         {steviloBonovDejanski > 0
-                          ? <>Način plačila za preostalo <span className="text-primary font-bold">{znesekPreostalega.toFixed(2)} €</span></>
+                          ? <>Način plačila za preostalo <span className="text-primary font-bold">{formatEur(znesekPreostalega)}</span></>
                           : "Način plačila"
                         }
                       </Label>
@@ -5402,7 +5403,7 @@ ${linije.map(vrHtml).join("\n")}
                           </div>
                           {!individualVoucherMode && darilniBonStanje && (
                             <p className={`rounded-md border px-3 py-2 text-xs ${darilniBonStanje.odprto < 0 ? "border-amber-300 bg-amber-50 text-amber-900" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
-                              <strong>Stari boni — skupna evidenca (brez kode):</strong> odprto <strong>{darilniBonStanje.odprto.toFixed(2)} €</strong>. To ni stanje posameznega bona.
+                              <strong>Stari boni — skupna evidenca (brez kode):</strong> odprto <strong>{formatEur(darilniBonStanje.odprto)}</strong>. To ni stanje posameznega bona.
                             </p>
                           )}
                           {individualVoucherMode ? (
@@ -5424,7 +5425,7 @@ ${linije.map(vrHtml).join("\n")}
                               <Minus className="h-4 w-4" />
                             </button>
                             <span className="text-xl font-bold font-mono min-w-[5.5rem] text-center">
-                              {znesekDarilnegaBonaDejanski.toFixed(2)} €
+                              {formatEur(znesekDarilnegaBonaDejanski)}
                             </span>
                             <button
                               type="button"
@@ -5440,13 +5441,13 @@ ${linije.map(vrHtml).join("\n")}
                             <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 space-y-2">
                               <div className="flex justify-between text-sm">
                                 <span className="text-blue-700">Pokrito z darilnim bonom:</span>
-                                <span className="font-mono font-bold text-blue-800">{znesekDarilnegaBonaDejanski.toFixed(2)} €</span>
+                                <span className="font-mono font-bold text-blue-800">{formatEur(znesekDarilnegaBonaDejanski)}</span>
                               </div>
                               {!vsePlacanoZDarilnimBonom && (
                                 <>
                                   <div className="flex justify-between text-sm border-t border-blue-200 pt-2">
                                     <span className="font-medium">Preostalo za plačilo:</span>
-                                    <span className="font-mono font-bold">{znesekPoKritiZDarilnimBonom.toFixed(2)} €</span>
+                                    <span className="font-mono font-bold">{formatEur(znesekPoKritiZDarilnimBonom)}</span>
                                   </div>
                                   <div className="flex gap-2 pt-1">
                                     {[
@@ -5521,7 +5522,7 @@ ${linije.map(vrHtml).join("\n")}
                       <AlertDescription className="mt-1 space-y-3">
                         <p className="text-red-800 font-semibold text-sm leading-snug" data-testid="alert-ddv-sporocilo">
                           {ddvNapaka.razlika !== undefined
-                            ? <>Seštevek DDV v naročilu se ne ujema z vsoto postavk za <strong>{ddvNapaka.razlika.toFixed(2)} €</strong>.</>
+                            ? <>Seštevek DDV v naročilu se ne ujema z vsoto postavk za <strong>{formatEur(ddvNapaka.razlika)}</strong>.</>
                             : "Seštevek DDV v naročilu se ne ujema z vsoto postavk."
                           }
                         </p>
@@ -5529,11 +5530,11 @@ ${linije.map(vrHtml).join("\n")}
                           <div className="text-xs text-red-800 bg-red-100 rounded p-2 space-y-0.5">
                             <div className="flex justify-between">
                               <span>Skupaj po naročilu:</span>
-                              <span className="font-mono font-semibold">{ddvNapaka.skupajNarocilo.toFixed(2)} €</span>
+                              <span className="font-mono font-semibold">{formatEur(ddvNapaka.skupajNarocilo)}</span>
                             </div>
                             <div className="flex justify-between">
                               <span>Skupaj iz postavk:</span>
-                              <span className="font-mono font-semibold">{ddvNapaka.skupajIzPostavk.toFixed(2)} €</span>
+                              <span className="font-mono font-semibold">{formatEur(ddvNapaka.skupajIzPostavk)}</span>
                             </div>
                           </div>
                         )}
@@ -5555,9 +5556,9 @@ ${linije.map(vrHtml).join("\n")}
                                   <tr key={i} className="border-b border-red-100 last:border-0">
                                     <td className="py-0.5 pr-2 truncate max-w-[100px]">{p.ime}</td>
                                     <td className="text-right py-0.5 px-1">{p.kolicina}×</td>
-                                    <td className="text-right py-0.5 px-1 font-mono">{p.skupaj.toFixed(2)} €</td>
+                                    <td className="text-right py-0.5 px-1 font-mono">{formatEur(p.skupaj)}</td>
                                     <td className="text-right py-0.5 px-1">{p.davek}%</td>
-                                    <td className="text-right py-0.5 pl-1 font-mono">{p.ddv.toFixed(2)} €</td>
+                                    <td className="text-right py-0.5 pl-1 font-mono">{formatEur(p.ddv)}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -5586,7 +5587,7 @@ ${linije.map(vrHtml).join("\n")}
                               Izredna izdaja (PIN skrbnika)
                             </Button>
                             <p className="text-xs text-red-700 mt-1 text-center">
-                              Razlika {ddvNapaka.razlika.toFixed(2)} € je manjša od 0.05 € — dovoljena izredna izdaja s PIN kodo skrbnika.
+                              Razlika {formatEur(ddvNapaka.razlika)} je manjša od 0.05 € — dovoljena izredna izdaja s PIN kodo skrbnika.
                             </p>
                           </div>
                         )}

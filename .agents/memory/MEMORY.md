@@ -157,3 +157,4 @@
 - [Shared SMTP identity](shared-smtp-identity.md) — the central Mikrona relay serves multiple companies; recipients must see the document owner's business identity.
 - [Avtomatizacija brez ročnih vnosov](avtomatizacija-brez-rocnih-vnosov.md) — privzeto samodejno, ročni vnos le za popravek; sprašuj le pri nepovratnem ali dvoumnem
 - [Uskladitev POS temeljnic](pos-receipt-booking-reconciliation.md) — plačan B2B ostane posamičen; zbirniki ohranijo izdani DDV in časovno sled storna.
+- [Javni QR meni – kaj gost vidi](qr-meni-javni-podatki.md) — brez internih opomb, brez točnih količin, prazne kategorije skrite; skupni formatter zneskov in imena mize.

@@ -201,12 +201,12 @@ describe("SkupajVracilaPanel — skupni pregled vračil", () => {
     // Terminal vrstica v SkupajVracilaPanel: "Terminal (1×)"
     expect(screen.getByText("Terminal (1×)")).toBeInTheDocument();
 
-    // Storno vrstica (storno 1: abs(-15.00) = 15.00 €)
+    // Storno vrstica (storno 1: abs(-15.00) = 15,00 €)
     expect(screen.getByText(/Storno ST001-B001-000001/)).toBeInTheDocument();
 
-    // Skupna vsota: 5.00 + 15.00 = 20.00 €
+    // Skupna vsota: 5.00 + 15.00 = 20,00 €
     expect(screen.getByText("Skupaj vrnjeno:")).toBeInTheDocument();
-    expect(screen.getByText("20.00 €")).toBeInTheDocument();
+    expect(screen.getByText("20,00 €")).toBeInTheDocument();
   });
 
   it("panel se NE prikaže ko je samo storno brez plačanega Viva vračila (terminal + storno)", () => {
@@ -249,13 +249,13 @@ describe("SkupajVracilaPanel — skupni pregled vračil", () => {
     // Panel mora biti viden
     expect(screen.getByText("Skupaj vračila")).toBeInTheDocument();
 
-    // Vsota: 3.00 (terminal) + abs(-15.00) + abs(-5.25) = 23.25 €
+    // Vsota: 3.00 (terminal) + abs(-15.00) + abs(-5.25) = 23,25 €
     expect(screen.getByText("Skupaj vrnjeno:")).toBeInTheDocument();
-    expect(screen.getByText("23.25 €")).toBeInTheDocument();
+    expect(screen.getByText("23,25 €")).toBeInTheDocument();
 
     // Obe storno vrstici sta prikazani z absolutnimi vrednostmi
     expect(screen.getByText(/Storno ST001-B001-000001/)).toBeInTheDocument();
     expect(screen.getByText(/Storno ST001-B001-000002/)).toBeInTheDocument();
-    expect(screen.getByText("5.25 €")).toBeInTheDocument();
+    expect(screen.getByText("5,25 €")).toBeInTheDocument();
   });
 });

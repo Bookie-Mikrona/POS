@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -358,10 +359,10 @@ export default function Simulacija() {
                         <td className="px-3 py-1.5">{p.artikelIme}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{p.kolicina}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
-                          {p.cenaKos.toFixed(2)} €
+                          {formatEur(p.cenaKos)}
                         </td>
                         <td className="px-3 py-1.5 text-right tabular-nums font-medium">
-                          {(p.kolicina * p.cenaKos).toFixed(2)} €
+                          {formatEur((p.kolicina * p.cenaKos))}
                         </td>
                       </tr>
                     ))}
@@ -370,7 +371,7 @@ export default function Simulacija() {
                     <tr className="border-t bg-muted/20">
                       <td className="px-3 py-1.5 font-medium" colSpan={3}>Skupaj</td>
                       <td className="px-3 py-1.5 text-right tabular-nums font-bold">
-                        {genResult.reduce((s, p) => s + p.kolicina * p.cenaKos, 0).toFixed(2)} €
+                        {formatEur(genResult.reduce((s, p) => s + p.kolicina * p.cenaKos, 0))}
                       </td>
                     </tr>
                   </tfoot>

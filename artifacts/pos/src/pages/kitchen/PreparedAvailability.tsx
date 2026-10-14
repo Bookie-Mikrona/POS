@@ -225,7 +225,14 @@ export function KitchenModifierAvailabilityBadge({
   modifierId?: number | null;
   state: KitchenAvailabilityState;
 }) {
-  return <AvailabilityBadge value={getKitchenModifierAvailabilityBadge(modifierId, state)} />;
+  const value = getKitchenModifierAvailabilityBadge(modifierId, state);
+  if (!value) return null;
+  // Oznaka je v svoji vrstici pod imenom priloge, da nikoli ne prekriva besedila.
+  return (
+    <div className="block w-full whitespace-normal" data-testid="kitchen-modifier-availability-row">
+      <AvailabilityBadge value={value} />
+    </div>
+  );
 }
 
 function displayQuantity(value: number | null | undefined, unit: string): string {

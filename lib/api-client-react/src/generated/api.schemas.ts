@@ -2780,6 +2780,15 @@ export interface PublicMenuModifierGroup {
   opcije: PublicMenuModifierOption[];
 }
 
+export type PublicStockStatus = typeof PublicStockStatus[keyof typeof PublicStockStatus];
+
+
+export const PublicStockStatus = {
+  na_voljo: 'na_voljo',
+  se_malo: 'se_malo',
+  ni_na_voljo: 'ni_na_voljo',
+} as const;
+
 export type PublicMenuArticleMealType = typeof PublicMenuArticleMealType[keyof typeof PublicMenuArticleMealType];
 
 
@@ -2788,6 +2797,15 @@ export const PublicMenuArticleMealType = {
   prepared: 'prepared',
   composite: 'composite',
 } as const;
+
+/**
+ * Status zaloge po velikosti pice; točne količine gostu niso na voljo.
+ */
+export type PublicMenuArticleZalogaPoVelikosti = {
+  mala?: PublicStockStatus;
+  normalna?: PublicStockStatus;
+  druzinska?: PublicStockStatus;
+};
 
 export type PublicMenuArticleToGoEmbalazaItem = {
   id: number;
@@ -2840,12 +2858,9 @@ export interface PublicMenuArticle {
   alergeniPotrjeni: boolean;
   alergeniOpozorila: string[];
   mealType: PublicMenuArticleMealType;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  availableQuantity?: number | null;
-  availableBySize?: PizzaAvailabilityBySize;
+  zaloga: PublicStockStatus;
+  /** Status zaloge po velikosti pice; točne količine gostu niso na voljo. */
+  zalogaPoVelikosti?: PublicMenuArticleZalogaPoVelikosti;
   jePica: boolean;
   /** Ali artikel podpira naročilo To Go */
   toGo: boolean;

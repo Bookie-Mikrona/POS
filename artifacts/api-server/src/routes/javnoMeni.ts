@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { publicStockStatus, sanitizePublicDescription, type PublicStockStatus } from "../lib/publicMenuSanitize";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm";
 import {
@@ -394,7 +395,7 @@ function toMenuArticle(
   return {
     id: row.id,
     naziv: row.naziv,
-    opis: row.opis,
+    opis: sanitizePublicDescription(row.opis),
     slikaUrl: row.slikaUrl,
     cena: Number(row.cena),
     barva: row.barva,
@@ -403,8 +404,12 @@ function toMenuArticle(
       ? Object.values(row.availableBySize).some(quantity => quantity == null || quantity > 0)
       : row.availableQuantity == null || row.availableQuantity > 0),
     mealType: row.mealType,
-    availableQuantity: row.availableQuantity,
-    availableBySize: row.availableBySize,
+    zaloga: publicStockStatus(row.availableQuantity),
+    zalogaPoVelikosti: row.availableBySize
+      ? Object.fromEntries(
+        Object.entries(row.availableBySize).map(([size, quantity]) => [size, publicStockStatus(quantity)]),
+      ) as Partial<Record<PizzaVelikostId, PublicStockStatus>>
+      : undefined,
     jePica: row.jePica,
     toGo: row.toGo,
     toGoEmbalaza,
@@ -462,8 +467,9 @@ type MenuArticle = {
   kategorija: { naziv: string } | null;
   modifikatorji: MenuModifierGroup[];
   mealType: "ala_carte" | "prepared" | "composite";
-  availableQuantity: number | null;
-  availableBySize?: Partial<Record<PizzaVelikostId, number | null>>;
+  /** Gostu se nikoli ne vrne točna količina, samo status. */
+  zaloga: PublicStockStatus;
+  zalogaPoVelikosti?: Partial<Record<PizzaVelikostId, PublicStockStatus>>;
   alergeni: Array<{ koda: string; naziv: string }>;
   alergeniSledi: Array<{ koda: string; naziv: string }>;
   alergeniPotrjeni: boolean;
@@ -1582,6 +1588,9 @@ router.get(
         : [],
     }));
 
+    // Kategorija je v javnem meniju vidna samo, če ima vsaj en prodajni artikel,
+    // ki je za QR izrecno omogočen (qr_na_voljo); prazne kategorije se ne prikažejo.
+    const qrEnabledArticleIds = new Set(rawArticleRows.filter((row) => row.qrNaVoljo).map((row) => row.id));
     const kategorije = new Map<string, { naziv: string; artikli: MenuArticle[] }>();
     for (const artikel of artikli) {
       if (!articleRows.find((row) => row.id === artikel.id)?.salesArticle) continue;
@@ -1608,7 +1617,8 @@ router.get(
         naziv: context.mizaNaziv,
         prostorNaziv: context.prostorNaziv,
       },
-      kategorije: Array.from(kategorije.values()),
+      kategorije: Array.from(kategorije.values())
+        .filter((kategorija) => kategorija.artikli.some((artikel) => qrEnabledArticleIds.has(artikel.id))),
       artikli,
       multicourseMenus: publicMenus.map(menu => ({
         menuArtikelId: menu.menuArtikelId,

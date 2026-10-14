@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useMemo } from "react";
 import { format, addDays, startOfWeek, parseISO, isSameDay } from "date-fns";
 import { sl } from "date-fns/locale";
@@ -80,7 +81,7 @@ export default function MalicePage() {
 
 function formatMoney(cents: number | null | undefined) {
   if (cents == null) return "—";
-  return (cents / 100).toFixed(2) + " €";
+  return formatEur(cents / 100);
 }
 
 function SkupineTab({ bootstrap }: { bootstrap: any }) {

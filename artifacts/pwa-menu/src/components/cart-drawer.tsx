@@ -1,3 +1,4 @@
+import { formatEur } from '@/lib/format';
 import React, { useEffect, useRef, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { Drawer } from 'vaul';
@@ -173,7 +174,7 @@ export function CartDrawer({
                                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">To Go</span>
                               )}
                             </div>
-                            <span className="font-semibold whitespace-nowrap">{itemTotal.toFixed(2)} €</span>
+                            <span className="font-semibold whitespace-nowrap">{formatEur(itemTotal)}</span>
                           </div>
                           
                           {item.modifikatorji.length > 0 && (
@@ -189,7 +190,7 @@ export function CartDrawer({
                            {item.toGo && toGoEmbalaza.length > 0 && (
                              <p className="text-sm text-muted-foreground" data-testid={`cart-to-go-embalaza-${item.id}`}>
                                Embalaža: {toGoEmbalaza
-                                  .map((embalaza) => `${item.kolicina > 1 ? `${item.kolicina}× ` : ""}${embalaza.naziv}${embalaza.cena > 0 ? ` (${(embalaza.cena * item.kolicina).toFixed(2)} €)` : ""}`)
+                                  .map((embalaza) => `${item.kolicina > 1 ? `${item.kolicina}× ` : ""}${embalaza.naziv}${embalaza.cena > 0 ? ` (${formatEur(embalaza.cena * item.kolicina)})` : ""}`)
                                  .join(", ")}
                              </p>
                            )}
@@ -301,16 +302,16 @@ export function CartDrawer({
                 <div className="mb-4 space-y-1.5 text-sm">
                   <div className="flex items-center justify-between text-muted-foreground">
                     <span>Vrednost naročila skupaj</span>
-                    <span data-testid="text-order-subtotal">{reviewSubtotal.toFixed(2)} €</span>
+                    <span data-testid="text-order-subtotal">{formatEur(reviewSubtotal)}</span>
                   </div>
                   <div className="flex items-center justify-between text-muted-foreground">
                     <span>Napitnina</span>
-                    <span data-testid="text-order-tip">{displayTip.toFixed(2)} €</span>
+                    <span data-testid="text-order-tip">{formatEur(displayTip)}</span>
                   </div>
                   <div className="flex items-end justify-between border-t pt-2">
                     <span className="text-base font-medium">Končni seštevek</span>
                     <span className="font-display text-2xl font-semibold" data-testid="text-order-total">
-                      {totalWithTip.toFixed(2)} €
+                      {formatEur(totalWithTip)}
                     </span>
                   </div>
                 </div>

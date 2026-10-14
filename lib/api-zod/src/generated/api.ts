@@ -3958,23 +3958,7 @@ export const GetPublicMenuQueryParams = zod.object({
   "qrNapravaId": zod.coerce.string().min(getPublicMenuQueryQrNapravaIdMin).max(getPublicMenuQueryQrNapravaIdMax).regex(getPublicMenuQueryQrNapravaIdRegExp).describe('Lokalno shranjen naključni UUID javnega QR brskalnika, ki se mora ujemati z aktivirano lokacijsko sejo.')
 })
 
-export const getPublicMenuResponseKategorijeItemArtikliItemAvailableQuantityMin = 0;
-
-export const getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeMalaMin = 0;
-
-export const getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeNormalnaMin = 0;
-
-export const getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeDruzinskaMin = 0;
-
 export const getPublicMenuResponseKategorijeItemArtikliItemToGoEmbalazaItemCenaMin = 0;
-
-export const getPublicMenuResponseArtikliItemAvailableQuantityMin = 0;
-
-export const getPublicMenuResponseArtikliItemAvailableBySizeMalaMin = 0;
-
-export const getPublicMenuResponseArtikliItemAvailableBySizeNormalnaMin = 0;
-
-export const getPublicMenuResponseArtikliItemAvailableBySizeDruzinskaMin = 0;
 
 export const getPublicMenuResponseArtikliItemToGoEmbalazaItemCenaMin = 0;
 
@@ -4021,12 +4005,12 @@ export const GetPublicMenuResponse = zod.object({
   "alergeniPotrjeni": zod.boolean(),
   "alergeniOpozorila": zod.array(zod.string()),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']),
-  "availableQuantity": zod.number().min(getPublicMenuResponseKategorijeItemArtikliItemAvailableQuantityMin).nullish(),
-  "availableBySize": zod.object({
-  "mala": zod.number().min(getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeMalaMin).nullish(),
-  "normalna": zod.number().min(getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeNormalnaMin).nullish(),
-  "druzinska": zod.number().min(getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeDruzinskaMin).nullish()
-}).optional(),
+  "zaloga": zod.enum(['na_voljo', 'se_malo', 'ni_na_voljo']),
+  "zalogaPoVelikosti": zod.object({
+  "mala": zod.enum(['na_voljo', 'se_malo', 'ni_na_voljo']).optional(),
+  "normalna": zod.enum(['na_voljo', 'se_malo', 'ni_na_voljo']).optional(),
+  "druzinska": zod.enum(['na_voljo', 'se_malo', 'ni_na_voljo']).optional()
+}).optional().describe('Status zaloge po velikosti pice; točne količine gostu niso na voljo.'),
   "jePica": zod.boolean(),
   "toGo": zod.boolean().describe('Ali artikel podpira naročilo To Go'),
   "toGoEmbalaza": zod.array(zod.object({
@@ -4088,12 +4072,12 @@ export const GetPublicMenuResponse = zod.object({
   "alergeniPotrjeni": zod.boolean(),
   "alergeniOpozorila": zod.array(zod.string()),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']),
-  "availableQuantity": zod.number().min(getPublicMenuResponseArtikliItemAvailableQuantityMin).nullish(),
-  "availableBySize": zod.object({
-  "mala": zod.number().min(getPublicMenuResponseArtikliItemAvailableBySizeMalaMin).nullish(),
-  "normalna": zod.number().min(getPublicMenuResponseArtikliItemAvailableBySizeNormalnaMin).nullish(),
-  "druzinska": zod.number().min(getPublicMenuResponseArtikliItemAvailableBySizeDruzinskaMin).nullish()
-}).optional(),
+  "zaloga": zod.enum(['na_voljo', 'se_malo', 'ni_na_voljo']),
+  "zalogaPoVelikosti": zod.object({
+  "mala": zod.enum(['na_voljo', 'se_malo', 'ni_na_voljo']).optional(),
+  "normalna": zod.enum(['na_voljo', 'se_malo', 'ni_na_voljo']).optional(),
+  "druzinska": zod.enum(['na_voljo', 'se_malo', 'ni_na_voljo']).optional()
+}).optional().describe('Status zaloge po velikosti pice; točne količine gostu niso na voljo.'),
   "jePica": zod.boolean(),
   "toGo": zod.boolean().describe('Ali artikel podpira naročilo To Go'),
   "toGoEmbalaza": zod.array(zod.object({

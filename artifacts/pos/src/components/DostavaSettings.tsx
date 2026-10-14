@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -193,7 +194,7 @@ export function DostavaSettings({ enotaId }: DostavaSettingsProps) {
               <SelectTrigger id="dostava-artikel"><SelectValue placeholder="Izberite storitev" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Brez dostavne postavke</SelectItem>
-                {storitve.map(artikel => <SelectItem key={artikel.id} value={String(artikel.id)}>{artikel.ime} · {artikel.cena.toFixed(2)} €/km ({artikel.davek} % DDV)</SelectItem>)}
+                {storitve.map(artikel => <SelectItem key={artikel.id} value={String(artikel.id)}>{artikel.ime} · {formatEur(artikel.cena)}/km ({artikel.davek} % DDV)</SelectItem>)}
               </SelectContent>
             </Select>
             {dostavaArtikelId === "none" && <p className="text-sm text-destructive">Dostava ni mogoča, dokler ni izbrana dostavna storitev.</p>}

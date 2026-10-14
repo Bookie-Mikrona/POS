@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics";
@@ -2116,7 +2117,7 @@ export default function Menu() {
                                 const priceContent = (
                                   <div className="flex items-baseline justify-end gap-1.5">
                                     {price.label && <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground/70">{price.label}</span>}
-                                    <span className="text-sm font-mono tracking-tight text-foreground">{price.value.toFixed(2)} €</span>
+                                    <span className="text-sm font-mono tracking-tight text-foreground">{formatEur(price.value)}</span>
                                   </div>
                                 );
                                 if (isEditing) {
@@ -3703,7 +3704,7 @@ export default function Menu() {
                                       </div>
                                       <span className="truncate">{m.ime}</span>
                                       {Number(m.cenaDodatek) !== 0 && (
-                                        <span className="ml-auto text-[10px] text-muted-foreground shrink-0">+{Number(m.cenaDodatek).toFixed(2)} €</span>
+                                        <span className="ml-auto text-[10px] text-muted-foreground shrink-0">+{formatEur(Number(m.cenaDodatek))}</span>
                                       )}
                                     </button>
                                   );
@@ -4118,7 +4119,7 @@ export default function Menu() {
                               <td className="px-3 py-2 text-xs">{r.list ?? "Artikli"}</td>
                               <td className="px-3 py-2">{r.ime}</td>
                               <td className="px-3 py-2 text-xs hidden sm:table-cell">{r.dejanje ?? "Vnos"}</td>
-                              <td className="px-3 py-2 text-right font-mono">{r.cena.toFixed(2)} €</td>
+                              <td className="px-3 py-2 text-right font-mono">{formatEur(r.cena)}</td>
                               <td className="px-3 py-2 text-right font-mono">{r.ddv}%</td>
                               <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">{r.kategorija ?? "—"}</td>
                             </tr>

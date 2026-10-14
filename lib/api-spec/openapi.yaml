@@ -13563,6 +13563,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PublicMenuModifierOption"
+    PublicStockStatus:
+      type: string
+      enum: [na_voljo, se_malo, ni_na_voljo]
     PublicMenuArticle:
       type: object
       required:
@@ -13571,6 +13574,7 @@ components:
         - cena
         - jeAlkohol
         - naVoljo
+        - zaloga
         - jePica
         - toGo
         - toGoEmbalaza
@@ -13619,13 +13623,15 @@ components:
         mealType:
           type: string
           enum: [ala_carte, prepared, composite]
-        availableQuantity:
-          type:
-            - integer
-            - "null"
-          minimum: 0
-        availableBySize:
-          $ref: "#/components/schemas/PizzaAvailabilityBySize"
+        zaloga:
+          $ref: "#/components/schemas/PublicStockStatus"
+        zalogaPoVelikosti:
+          type: object
+          description: Status zaloge po velikosti pice; točne količine gostu niso na voljo.
+          properties:
+            mala: { $ref: "#/components/schemas/PublicStockStatus" }
+            normalna: { $ref: "#/components/schemas/PublicStockStatus" }
+            druzinska: { $ref: "#/components/schemas/PublicStockStatus" }
         jePica:
           type: boolean
         toGo:

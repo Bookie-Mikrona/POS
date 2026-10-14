@@ -1,3 +1,4 @@
+import { formatMizaLabel } from "@/lib/mizaLabel";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Miza, Tloris, TlorisInput, TlorisPostavka,
@@ -931,7 +932,7 @@ export function TlorisEditor({
             {selectedItem ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium whitespace-nowrap">
-                  Izbrano: <span className="text-primary">{selectedItem.kind === 'table' ? `Miza ${mize.find(m => m.id === selectedItem.tableId)?.ime || selectedItem.tableId}` : selectedItem.kind}</span>
+                  Izbrano: <span className="text-primary">{selectedItem.kind === 'table' ? formatMizaLabel(mize.find(m => m.id === selectedItem.tableId)?.ime || String(selectedItem.tableId)) : selectedItem.kind}</span>
                 </span>
                 <div className="flex items-center gap-1 ml-2 bg-background rounded-md p-0.5 border shadow-sm shrink-0">
                   <Button size="icon" variant="ghost" className={cn("h-6 w-6 rounded-sm", selectedItem.locked && 'bg-primary/15 text-primary hover:text-primary')} onClick={() => updateItems(its => itM(its, selectedItem.id, { locked: !selectedItem.locked }))} title="Zakleni/Odkleni element">

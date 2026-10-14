@@ -1,3 +1,4 @@
+import { formatEur } from '@/lib/format';
 import React, { useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { Dialog, DialogClose, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -34,8 +35,8 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
       const defaultMods: Record<number, boolean> = {};
       setSelectedMods(defaultMods);
       setVelikostPice(
-        artikel.velikostiPic.find((velikost) => velikost.id === "normalna" && artikel.availableBySize?.normalna !== 0)?.id
-        ?? artikel.velikostiPic.find((velikost) => artikel.availableBySize?.[velikost.id] !== 0)?.id
+        artikel.velikostiPic.find((velikost) => velikost.id === "normalna" && artikel.zalogaPoVelikosti?.normalna !== 'ni_na_voljo')?.id
+        ?? artikel.velikostiPic.find((velikost) => artikel.zalogaPoVelikosti?.[velikost.id] !== 'ni_na_voljo')?.id
         ?? artikel.velikostiPic[0]?.id,
       );
       setToGo(false);
@@ -45,7 +46,7 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
   if (!artikel) return null;
 
   const handleAdd = () => {
-    if (artikel.jePica && velikostPice && artikel.availableBySize?.[velikostPice] === 0) {
+    if (artikel.jePica && velikostPice && artikel.zalogaPoVelikosti?.[velikostPice] === 'ni_na_voljo') {
       setValidationError('Izbrana velikost pice trenutno ni na voljo.');
       return;
     }
@@ -110,7 +111,7 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
     : 0;
   const opisToGoEmbalaze = toGoEmbalaza.length > 0
     ? toGoEmbalaza
-      .map((embalaza) => `${kolicina > 1 ? `${kolicina}× ` : ""}${embalaza.naziv}${embalaza.cena > 0 ? ` +${(embalaza.cena * kolicina).toFixed(2)} €` : ""}`)
+      .map((embalaza) => `${kolicina > 1 ? `${kolicina}× ` : ""}${embalaza.naziv}${embalaza.cena > 0 ? ` +${formatEur(embalaza.cena * kolicina)}` : ""}`)
       .join(", ")
     : "Brez dodatne embalaže";
   const total = (cenaPice + modsTotal) * kolicina + cenaToGoEmbalaze;
@@ -207,14 +208,12 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
                   {artikel.velikostiPic.map((velikost) => (
                     <Button key={velikost.id} type="button" variant={velikostPice === velikost.id ? "default" : "outline"}
                       className="h-auto min-h-[44px] flex-col gap-0.5 py-1.5 px-1"
-                      disabled={artikel.availableBySize?.[velikost.id] === 0}
+                      disabled={artikel.zalogaPoVelikosti?.[velikost.id] === 'ni_na_voljo'}
                       onClick={() => setVelikostPice(velikost.id)}>
                       <span className="text-sm">{velikost.naziv}</span>
-                      <span className="text-[10px] opacity-80 font-normal">{velikost.premerCm} cm · {velikost.cena.toFixed(2)} €</span>
-                      {artikel.availableBySize && (
-                        <span className="text-[10px] opacity-80 font-normal">
-                          Na voljo: {artikel.availableBySize[velikost.id] == null ? '∞' : artikel.availableBySize[velikost.id]}
-                        </span>
+                      <span className="text-[10px] opacity-80 font-normal">{velikost.premerCm} cm · {formatEur(velikost.cena)}</span>
+                      {artikel.zalogaPoVelikosti?.[velikost.id] === 'se_malo' && (
+                        <span className="text-[10px] opacity-80 font-normal">Še malo</span>
                       )}
                     </Button>
                   ))}
@@ -272,7 +271,7 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
                           <span className="text-[13px] font-medium">{mod.naziv}</span>
                         </div>
                         {mod.cena > 0 && (
-                          <span className="text-[13px] text-muted-foreground">+{mod.cena.toFixed(2)} €</span>
+                          <span className="text-[13px] text-muted-foreground">+{formatEur(mod.cena)}</span>
                         )}
                       </label>
                     ))}
@@ -385,7 +384,7 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
             onClick={handleAdd}
             data-testid="button-add-to-cart"
           >
-            Dodaj · {total.toFixed(2)} €
+            Dodaj · {formatEur(total)}
           </Button>
         </div>
       </DialogContent>

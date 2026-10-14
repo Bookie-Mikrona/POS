@@ -4,14 +4,14 @@ import type { MalicaQuoteCoursesItem } from "@workspace/api-client-react";
 
 describe("malicaQuoteHelpers", () => {
   test("formatQuoteCents formats correctly", () => {
-    expect(formatQuoteCents(1250)).toBe("12.50 €");
-    expect(formatQuoteCents(0)).toBe("0.00 €");
+    expect(formatQuoteCents(1250)).toBe("12,50 €");
+    expect(formatQuoteCents(0)).toBe("0,00 €");
   });
 
   test("formatLimitCents formats correctly", () => {
     expect(formatLimitCents(null)).toBe("Brez omejitve");
     expect(formatLimitCents(undefined)).toBe("Brez omejitve");
-    expect(formatLimitCents(1500)).toBe("15.00 €");
+    expect(formatLimitCents(1500)).toBe("15,00 €");
   });
 
   test("isCourseIncluded returns true for included classification", () => {

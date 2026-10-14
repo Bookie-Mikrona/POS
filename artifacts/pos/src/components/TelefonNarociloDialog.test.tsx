@@ -63,7 +63,7 @@ describe("TelefonNarociloDialog", () => {
 
     fireEvent.click(screen.getByTestId("telefon-nacin-dostava"));
     await act(async () => { await Promise.resolve(); });
-    expect(screen.getByTestId("telefon-naselje-podatki")).toHaveTextContent("Dostavna storitev: Dostava · 5 km × 0.70 € = 3.50 €");
+    expect(screen.getByTestId("telefon-naselje-podatki")).toHaveTextContent("Dostavna storitev: Dostava · 5 km × 0,70 € = 3,50 €");
     expect(screen.getByTestId("telefon-naselje-podatki")).toHaveTextContent("10 min vožnje");
     expect(screen.getByLabelText("Ulica")).toHaveValue("Cesta");
 
@@ -95,7 +95,7 @@ describe("TelefonNarociloDialog", () => {
 
     fireEvent.change(screen.getByLabelText("Naselje"), { target: { value: "8" } });
     await act(async () => { await Promise.resolve(); });
-    expect(screen.getByTestId("telefon-naselje-podatki")).toHaveTextContent("5 km × 0.70 € = 3.50 €");
+    expect(screen.getByTestId("telefon-naselje-podatki")).toHaveTextContent("5 km × 0,70 € = 3,50 €");
 
     fireEvent.click(screen.getByTestId("telefon-nacin-prevzem"));
     expect(screen.queryByText("Dostavni naslov")).not.toBeInTheDocument();

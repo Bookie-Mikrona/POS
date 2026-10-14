@@ -1,3 +1,4 @@
+import { formatEur } from "./formatEur";
 export type DailyLunchMode = "three_course" | "four_course";
 export type DailyLunchRole = "starter" | "soup" | "main" | "dessert";
 
@@ -12,5 +13,5 @@ export function isAvailableQuantity(value: unknown): boolean {
 export function dailyLunchPrice(value?: string | number | null): string {
   if (value == null || value === "") return "—";
   const n = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(n) ? `${n.toFixed(2).replace(".", ",")} €` : "—";
+  return Number.isFinite(n) ? formatEur(n) : "—";
 }

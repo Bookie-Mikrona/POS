@@ -130,7 +130,7 @@ describe('TlorisEditor focused interactions', () => {
       
       // Assert selection
       expect(screen.getByText('Izbrano:')).toBeInTheDocument();
-      expect(screen.getByText('Miza Miza 1')).toBeInTheDocument();
+      expect(screen.getAllByText('Miza 1').length).toBeGreaterThan(1);
     }
 
     // 2. Click empty canvas to deselect
@@ -141,7 +141,7 @@ describe('TlorisEditor focused interactions', () => {
       fireEvent.click(canvas);
       
       // Assert deselection
-      expect(screen.queryByText('Miza Miza 1')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Miza 1')).toHaveLength(1);
       expect(screen.getByText('Ni izbranega elementa')).toBeInTheDocument();
     }
 

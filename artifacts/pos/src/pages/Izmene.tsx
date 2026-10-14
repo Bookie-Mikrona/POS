@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState } from "react";
 import {
   useListIzmene,
@@ -109,7 +110,7 @@ function CloseSummaryDialog({ izmena, open, onClose }: CloseSummaryDialogProps) 
             <Separator />
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Skupni promet</span>
-              <span className="text-2xl font-bold text-primary">{izmena.skupajZnesek.toFixed(2)} €</span>
+              <span className="text-2xl font-bold text-primary">{formatEur(izmena.skupajZnesek)}</span>
             </div>
           </div>
           <Button className="w-full" onClick={onClose}>Zapri</Button>
@@ -340,7 +341,7 @@ function AktivnaIzmenaCard({
           </span>
           <span className="flex items-center gap-1 font-semibold text-primary">
             <Euro className="h-3.5 w-3.5" />
-            {izmena.skupajZnesek.toFixed(2)} €
+            {formatEur(izmena.skupajZnesek)}
           </span>
         </div>
       </CardContent>
@@ -706,7 +707,7 @@ function UporabnikIzmenePage() {
                       </td>
                       <td className="px-4 py-3 text-right">{izmena.steviloRacunov}</td>
                       <td className="px-4 py-3 text-right font-semibold text-primary">
-                        {izmena.skupajZnesek.toFixed(2)} €
+                        {formatEur(izmena.skupajZnesek)}
                       </td>
                        <td className="px-4 py-3 text-right">
                          {natakariId === izmena.natakariId && (izmena.status === "osnutek" || izmena.status === "zavrnjeno") ? (
@@ -952,7 +953,7 @@ function AdminIzmenePage() {
                         <p className="text-xs text-muted-foreground">{formatDate(izmena.zacetek)}</p>
                       </div>
                       <p className="shrink-0 font-semibold text-primary">
-                        {izmena.skupajZnesek.toFixed(2)} €
+                        {formatEur(izmena.skupajZnesek)}
                       </p>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs">
@@ -1025,7 +1026,7 @@ function AdminIzmenePage() {
                       </td>
                       <td className="px-4 py-3 text-right">{izmena.steviloRacunov}</td>
                       <td className="px-4 py-3 text-right font-semibold text-primary">
-                        {izmena.skupajZnesek.toFixed(2)} €
+                        {formatEur(izmena.skupajZnesek)}
                       </td>
                     </tr>
                   );

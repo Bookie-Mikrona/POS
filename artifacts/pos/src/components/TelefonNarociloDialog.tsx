@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Clock3, Phone, Search, Truck } from "lucide-react";
 import { getEnotaId, getGetDostavaPredogledQueryKey, useCreateNarocilo, useGetDostavaPredogled } from "@workspace/api-client-react";
@@ -345,8 +346,8 @@ export function TelefonNarociloDialog({ open, onOpenChange, onCreated, onBlockAu
                 <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md bg-background px-3 py-2 text-sm text-muted-foreground" data-testid="telefon-naselje-podatki">
                   <span>
                     Dostavna storitev: {dostavaPredogled.storitevIme} · {dostavaPredogled.cenaNaselja > 0
-                      ? `fiksna cena naselja ${dostavaPredogled.cenaNaselja.toFixed(2)} €`
-                      : `${dostavaPredogled.oddaljenostKm} km × ${dostavaPredogled.cenaNaKm.toFixed(2)} € = ${dostavaPredogled.cenaDostave.toFixed(2)} €`}
+                      ? `fiksna cena naselja ${formatEur(dostavaPredogled.cenaNaselja)}`
+                      : `${dostavaPredogled.oddaljenostKm} km × ${formatEur(dostavaPredogled.cenaNaKm)} = ${formatEur(dostavaPredogled.cenaDostave)}`}
                   </span>
                   <span className="flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />{dostavaPredogled.casDostaveMin} min vožnje</span>
                 </div>

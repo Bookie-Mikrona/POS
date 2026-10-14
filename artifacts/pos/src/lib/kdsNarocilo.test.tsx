@@ -43,6 +43,12 @@ describe("KDS telefonska naročila", () => {
     expect(getKdsTypeLabel(dostava)).toBe("Dostava");
   });
 
+  it("ne podvoji predpone Miza na kartici KDS", () => {
+    expect(getKdsTypeLabel({ ...miza, mizaIme: "Miza 7" })).toBe("Miza 7");
+    expect(getKdsTypeLabel({ ...miza, mizaIme: "miza 7" })).toBe("miza 7");
+    expect(getKdsTypeLabel({ ...miza, mizaIme: null, mizaStevilka: 7 })).toBe("Miza 7");
+  });
+
   it("za vse vrste naročil izbere čas priprave kot ciljni čas", () => {
     expect(getKdsTarget(prevzem)).toEqual({ iso: prevzem.predvidenPrevzem, label: "Dostava ob" });
     expect(getKdsTarget(dostava)).toEqual({ iso: dostava.predvidenPrevzem, label: "Dostava ob" });

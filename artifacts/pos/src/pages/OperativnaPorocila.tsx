@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { OperativnaPorocilaQrFeedback } from "./OperativnaPorocilaQrFeedback";
 
 function fmt(n: number) {
-  return n.toFixed(2) + " €";
+  return formatEur(n);
 }
 
 function formatDateTime(iso: string) {

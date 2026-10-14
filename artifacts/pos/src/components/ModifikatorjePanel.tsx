@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, Settings2, X } from "lucide-react";
@@ -356,7 +357,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                                   <span className="text-xs font-medium text-foreground">{m.ime}</span>
                                   {m.cenaDodatek !== 0 && (
                                     <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
-                                      {m.cenaDodatek > 0 ? "+" : ""}{m.cenaDodatek.toFixed(2)} €
+                                      {m.cenaDodatek > 0 ? "+" : ""}{formatEur(m.cenaDodatek)}
                                     </span>
                                   )}
                                   {m.privzet && (

@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useRef, useState } from "react";
 import {
   getListFursAttemptsQueryKey,
@@ -144,7 +145,7 @@ export function ReliabilityPanels() {
           </div>
           {cards.isLoading ? <p className="py-8 text-center text-sm text-muted-foreground">Nalaganje poskusov plačil…</p> : cards.data?.items.length ? <div className="overflow-x-auto border rounded-md"><table className="w-full text-left text-xs">
             <thead className="bg-muted text-muted-foreground"><tr><th className="p-2">Ponudnik / status</th><th>Znesek</th><th>Naročilo / račun</th><th>Referenca</th><th>Akter / naprava</th><th>Čas</th><th>Poskusi / napaka</th></tr></thead>
-            <tbody>{cards.data.items.map(item => <tr key={item.id} className="border-t align-top" data-testid={`card-attempt-row-${item.id}`}><td className="p-2 font-medium">{item.provider}<br /><Badge variant="outline">{item.status}</Badge>{item.providerRawStatus && <div className="mt-1 text-muted-foreground">raw: {item.providerRawStatus}</div>}</td><td>{Number(item.znesek).toFixed(2)} €</td><td>{item.narociloId ? `Naročilo #${item.narociloId}` : "—"}<br />{item.receiptId ? `Račun #${item.receiptId}` : "—"}</td><td className="font-mono break-all">{item.providerReferenca ?? "—"}</td><td>{item.actor ?? "—"}<br />{item.deviceKey ?? "—"}</td><td>{date(item.ustvarjeno)}<br />posodobljeno: {date(item.posodobljeno)}</td><td>{item.retryCount ?? 0}{item.napaka && <div className="mt-1 text-red-700">{item.napaka}</div>}</td></tr>)}</tbody>
+            <tbody>{cards.data.items.map(item => <tr key={item.id} className="border-t align-top" data-testid={`card-attempt-row-${item.id}`}><td className="p-2 font-medium">{item.provider}<br /><Badge variant="outline">{item.status}</Badge>{item.providerRawStatus && <div className="mt-1 text-muted-foreground">raw: {item.providerRawStatus}</div>}</td><td>{formatEur(Number(item.znesek))}</td><td>{item.narociloId ? `Naročilo #${item.narociloId}` : "—"}<br />{item.receiptId ? `Račun #${item.receiptId}` : "—"}</td><td className="font-mono break-all">{item.providerReferenca ?? "—"}</td><td>{item.actor ?? "—"}<br />{item.deviceKey ?? "—"}</td><td>{date(item.ustvarjeno)}<br />posodobljeno: {date(item.posodobljeno)}</td><td>{item.retryCount ?? 0}{item.napaka && <div className="mt-1 text-red-700">{item.napaka}</div>}</td></tr>)}</tbody>
           </table></div> : <p className="py-8 text-center text-sm text-muted-foreground">Za izbrane filtre ni kartičnih poskusov.</p>}
         </DialogContent>
       </Dialog>

@@ -1,3 +1,4 @@
+import { formatEur } from '@/lib/format';
 import { ChevronDown, Loader2, LockKeyhole, ReceiptText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useUpdatePublicOrderTip, type PublicExistingOrder } from '@/hooks/use-public-api';
@@ -118,7 +119,7 @@ export function ExistingOrder({ narocilo, token, qrNapravaId }: ExistingOrderPro
                   </p>
                 )}
               </div>
-              <span className="shrink-0 text-sm sm:text-base font-semibold">{postavka.skupaj.toFixed(2)} €</span>
+              <span className="shrink-0 text-sm sm:text-base font-semibold">{formatEur(postavka.skupaj)}</span>
             </div>
           </div>
         ))}
@@ -163,7 +164,7 @@ export function ExistingOrder({ narocilo, token, qrNapravaId }: ExistingOrderPro
         <div className="flex items-center justify-between border-t border-border/70 pt-1.5">
           <span className="font-medium">Skupaj</span>
           <span className="font-display text-sm sm:text-base font-bold">
-            {(narocilo.skupaj + shownTip).toFixed(2)} €
+            {formatEur(narocilo.skupaj + shownTip)}
           </span>
         </div>
       </div>

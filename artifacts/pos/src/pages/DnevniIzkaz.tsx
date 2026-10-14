@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +49,7 @@ function danes(): string {
 }
 
 function fmt(n: number): string {
-  return n.toFixed(2) + " €";
+  return formatEur(n);
 }
 
 function datumSlo(iso: string): string {

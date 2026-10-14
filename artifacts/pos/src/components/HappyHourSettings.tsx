@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useEffect, useMemo, useState } from "react";
 import {
   getGetNastavitveQueryKey,
@@ -359,11 +360,11 @@ export function HappyHourSettings() {
                         <span className="shrink-0 text-right text-xs font-semibold text-amber-800">
                           {artikel.jePica
                             ? [
-                                artikel.happyHourCenaMala != null ? `M ${Number(artikel.happyHourCenaMala).toFixed(2)} €` : null,
-                                artikel.happyHourCena != null ? `N ${Number(artikel.happyHourCena).toFixed(2)} €` : null,
-                                artikel.happyHourCenaDruzinska != null ? `D ${Number(artikel.happyHourCenaDruzinska).toFixed(2)} €` : null,
+                                artikel.happyHourCenaMala != null ? `M ${formatEur(Number(artikel.happyHourCenaMala))}` : null,
+                                artikel.happyHourCena != null ? `N ${formatEur(Number(artikel.happyHourCena))}` : null,
+                                artikel.happyHourCenaDruzinska != null ? `D ${formatEur(Number(artikel.happyHourCenaDruzinska))}` : null,
                               ].filter(Boolean).join(" · ")
-                            : `${Number(artikel.happyHourCena).toFixed(2)} €`}
+                            : `${formatEur(Number(artikel.happyHourCena))}`}
                         </span>
                       </button>
                     );

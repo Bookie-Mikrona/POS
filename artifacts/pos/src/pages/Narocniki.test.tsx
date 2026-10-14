@@ -98,7 +98,7 @@ describe("Narocniki", () => {
 
     fireEvent.click(screen.getByTitle("Zgodovina naročil"));
     expect(await screen.findByText("Naročilo 12")).toBeInTheDocument();
-    expect(screen.getByText("16.40 €")).toBeInTheDocument();
+    expect(screen.getByText("16,40 €")).toBeInTheDocument();
     expect(screen.getByText("Naročilo 13")).toBeInTheDocument();
     expect(screen.getByText("Pri mizi")).toBeInTheDocument();
 

@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -508,7 +509,7 @@ export default function Narocniki() {
                     </div>
                   </div>
                   <div className="font-semibold tabular-nums text-lg text-right">
-                    {n.skupaj.toFixed(2)} €
+                    {formatEur(n.skupaj)}
                   </div>
                 </div>
               ))}

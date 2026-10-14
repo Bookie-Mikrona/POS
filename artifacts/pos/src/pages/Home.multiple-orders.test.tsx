@@ -111,7 +111,7 @@ describe("MizaCard z več odprtimi naročili", () => {
     );
 
     expect(screen.getByText("2 odprti naročili")).toBeTruthy();
-    expect(screen.getByText("20.00 €")).toBeTruthy();
+    expect(screen.getByText("20,00 €")).toBeTruthy();
     expect(screen.getByText("2 ločeni naročili · 2 artiklov")).toBeTruthy();
     expect(screen.getByText("QR gost")).toBeTruthy();
 

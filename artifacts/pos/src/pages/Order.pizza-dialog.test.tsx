@@ -695,9 +695,9 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
       fireEvent.click(picaButton);
     });
 
-    const mala = await screen.findByRole("button", { name: /Mala.*26 cm.*7\.00 €/i });
-    const normalna = screen.getByRole("button", { name: /Normalna.*32 cm.*8\.50 €/i });
-    const druzinska = screen.getByRole("button", { name: /Družinska.*40 cm.*12\.00 €/i });
+    const mala = await screen.findByRole("button", { name: /Mala.*26 cm.*7,00 €/i });
+    const normalna = screen.getByRole("button", { name: /Normalna.*32 cm.*8,50 €/i });
+    const druzinska = screen.getByRole("button", { name: /Družinska.*40 cm.*12,00 €/i });
 
     expect(mala).toHaveAttribute("aria-pressed", "false");
     expect(normalna).toHaveAttribute("aria-pressed", "true");
@@ -709,8 +709,8 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
 
     expect(druzinska).toHaveAttribute("aria-pressed", "true");
     expect(normalna).toHaveAttribute("aria-pressed", "false");
-    expect(within(druzinska).getByText("12.00 €")).toBeInTheDocument();
-    expect(screen.getByText("12.50 €")).toBeInTheDocument();
+    expect(within(druzinska).getByText("12,00 €")).toBeInTheDocument();
+    expect(screen.getByText("12,50 €")).toBeInTheDocument();
   });
 
   it("v skupino Razrez razporedi vsak aktivni modifikator z besedo razrez", async () => {
@@ -856,7 +856,7 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     });
 
     await act(async () => {
-      fireEvent.click(await screen.findByRole("button", { name: /Družinska.*40 cm.*12\.00 €/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /Družinska.*40 cm.*12,00 €/i }));
     });
 
     const potrdiButton = await screen.findByRole("button", { name: /Potrdi/i });
@@ -1038,10 +1038,10 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     await act(async () => {
       render(<Wrapper qc={qc}><Order /></Wrapper>);
     });
-    expect(screen.getByText("14.20 €")).toBeInTheDocument();
-    expect(screen.getByText("14.20 €/kos")).toBeInTheDocument();
-    expect(screen.getByText("Škatla za pico").parentElement).not.toHaveTextContent("0.70 €");
-    expect(screen.getByText("Plačljiv dodatek").parentElement).toHaveTextContent("1.20 €");
+    expect(screen.getByText("14,20 €")).toBeInTheDocument();
+    expect(screen.getByText("14,20 €/kos")).toBeInTheDocument();
+    expect(screen.getByText("Škatla za pico").parentElement).not.toHaveTextContent("0,70 €");
+    expect(screen.getByText("Plačljiv dodatek").parentElement).toHaveTextContent("1,20 €");
   });
 
   it("pri že naročenem zrezku omogoči spremembo obvezne priloge brez izgube solate", async () => {
@@ -1194,7 +1194,7 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
       fireEvent.click(await screen.findByRole("button", { name: /Margherita/i }));
     });
     await act(async () => {
-      fireEvent.click(await screen.findByRole("button", { name: /Družinska.*40 cm.*12\.00 €/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /Družinska.*40 cm.*12,00 €/i }));
       fireEvent.click(await screen.findByRole("button", { name: /Potrdi/i }));
     });
 
@@ -1202,7 +1202,7 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
       description: "Artikel »Pražen krompir« nima dovolj razpoložljivih porcij.",
     }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Družinska.*40 cm.*12\.00 €/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Družinska.*40 cm.*12,00 €/i })).toHaveAttribute("aria-pressed", "true");
   });
 
   // ── 7. Glasovni vnos z več zadetki → razjasnitveni toast, brez addPostavka ──

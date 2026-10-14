@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useListPartnerji, getEnotaId, type Partner } from "@workspace/api-client-react";
 import { useBlagajna } from "@/contexts/BlagajnaContext";
@@ -42,7 +43,7 @@ const TYPE_LABEL: Record<PremikTip, string> = {
 };
 
 function today() { return poslovniDatumZaCas(); }
-function fmt(value: number) { return `${value.toFixed(2)} €`; }
+function fmt(value: number) { return `${formatEur(value)}`; }
 function manager(vloga?: string) { return vloga === "admin" || vloga === "admin_enote" || vloga === "superadmin"; }
 function escapeHtml(value: unknown) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]!));

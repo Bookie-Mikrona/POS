@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -164,7 +165,7 @@ export function NaseljaSettings() {
                     {!naselje.aktivno && <span className="ml-2 text-xs text-muted-foreground">neaktivno</span>}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell text-right">{naselje.oddaljenostKm == null ? "—" : `${naselje.oddaljenostKm} km`}</TableCell>
-                   <TableCell className="hidden md:table-cell text-right">{naselje.cenaDostave > 0 ? `${naselje.cenaDostave.toFixed(2)} €` : "po km"}</TableCell>
+                   <TableCell className="hidden md:table-cell text-right">{naselje.cenaDostave > 0 ? `${formatEur(naselje.cenaDostave)}` : "po km"}</TableCell>
                   <TableCell className="hidden sm:table-cell text-right">{naselje.casDostaveMin} min</TableCell>
                   <TableCell className="text-center">
                     <span className={`text-xs font-medium ${naselje.aktivno ? "text-green-700" : "text-muted-foreground"}`}>{naselje.aktivno ? "Da" : "Ne"}</span>

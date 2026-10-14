@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { shouldSkipAutoStart, clearSkipAutoStart, setSkipAutoStart } from "@/lib/autoStartGuard";
@@ -225,7 +226,7 @@ export function MizaCard({ miza, aktivnaNarocila, onSelectMiza, onCancelNarocilo
             <p className="text-xs font-medium text-muted-foreground">
               {aktivnaNarocila.length === 1 ? "Odprto naročilo" : `${aktivnaNarocila.length} odprti naročili`}
             </p>
-            <p className="text-lg md:text-2xl font-bold">{skupaj.toFixed(2)} €</p>
+            <p className="text-lg md:text-2xl font-bold">{formatEur(skupaj)}</p>
             <p className="text-xs text-muted-foreground">
               {aktivnaNarocila.length > 1 ? `${aktivnaNarocila.length} ločeni naročili · ` : ""}
               {postavke.length || 0} artiklov
@@ -250,9 +251,9 @@ export function MizaCard({ miza, aktivnaNarocila, onSelectMiza, onCancelNarocilo
                       {zaracunanoSt}/{vseSt} zaračunano
                     </span>
                     <span className="text-[10px] text-muted-foreground pl-0.5">
-                      <span className="text-amber-700 font-medium">{zaracunanoZnesek.toFixed(2)} € zaračunano</span>
+                      <span className="text-amber-700 font-medium">{formatEur(zaracunanoZnesek)} zaračunano</span>
                       {" · "}
-                      <span className="font-medium">{odprtZnesek.toFixed(2)} € odprto</span>
+                      <span className="font-medium">{formatEur(odprtZnesek)} odprto</span>
                     </span>
                   </div>
                 );
@@ -408,7 +409,7 @@ export function MizaNarocilaDialog({
                           {narocilo.vir === "qr_gost" ? "QR gost" : "Osebje"} · {steviloPostavk} artiklov
                         </span>
                       </span>
-                      <span className="shrink-0 font-bold">{narocilo.skupaj.toFixed(2)} €</span>
+                      <span className="shrink-0 font-bold">{formatEur(narocilo.skupaj)}</span>
                     </Link>
                   </Button>
                 );

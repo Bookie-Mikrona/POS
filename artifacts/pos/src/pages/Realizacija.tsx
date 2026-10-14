@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -780,7 +781,7 @@ export default function Realizacija() {
                   ].map(({ label, value, bold }) => (
                     <div key={label} className="rounded-lg border bg-card p-3">
                       <div className="text-xs text-muted-foreground">{label}</div>
-                      <div className={`text-lg ${bold ? "font-bold text-primary" : "font-semibold"}`}>{value.toFixed(2)} €</div>
+                      <div className={`text-lg ${bold ? "font-bold text-primary" : "font-semibold"}`}>{formatEur(value)}</div>
                     </div>
                   ))}
                 </div>

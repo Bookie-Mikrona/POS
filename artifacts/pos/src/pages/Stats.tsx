@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useGetStatistike } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +59,7 @@ const NACINI: NacinPlacila[] = [
 ];
 
 function fmt(n: number) {
-  return n.toFixed(2) + " €";
+  return formatEur(n);
 }
 
 export default function Stats() {
@@ -104,7 +105,7 @@ export default function Stats() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.dnevniPromet.toFixed(2)} €</div>
+            <div className="text-2xl font-bold">{formatEur(stats.dnevniPromet)}</div>
             <p className="text-xs text-muted-foreground">Skupaj z DDV</p>
           </CardContent>
         </Card>
@@ -134,7 +135,7 @@ export default function Stats() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.skupajDDV.toFixed(2)} €</div>
+            <div className="text-2xl font-bold">{formatEur(stats.skupajDDV)}</div>
             <p className="text-xs text-muted-foreground">Za današnje račune</p>
           </CardContent>
         </Card>
@@ -284,7 +285,7 @@ export default function Stats() {
                       <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip
-                        formatter={(value: number) => [`${value.toFixed(2)} €`, "Promet"]}
+                        formatter={(value: number) => [`${formatEur(value)}`, "Promet"]}
                         labelFormatter={(_, payload) => payload?.[0]?.payload?.natakarIme ?? ""}
                       />
                       <Bar dataKey="skupajZnesek" radius={[6, 6, 0, 0]}>
@@ -331,7 +332,7 @@ export default function Stats() {
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <div className="font-bold text-primary">{iz.skupajZnesek.toFixed(2)} €</div>
+                      <div className="font-bold text-primary">{formatEur(iz.skupajZnesek)}</div>
                       <div className="text-xs text-muted-foreground">{iz.steviloRacunov} računov</div>
                     </div>
                   </div>
@@ -354,7 +355,7 @@ export default function Stats() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="ura" tickFormatter={(v) => `${v}:00`} />
                 <YAxis />
-                <Tooltip formatter={(value: number) => [`${value.toFixed(2)} €`, 'Promet']} labelFormatter={(v) => `Ura: ${v}:00`} />
+                <Tooltip formatter={(value: number) => [`${formatEur(value)}`, 'Promet']} labelFormatter={(v) => `Ura: ${v}:00`} />
                 <Bar dataKey="znesek" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -372,7 +373,7 @@ export default function Stats() {
                   <div className="w-8 text-center font-bold text-muted-foreground">{idx + 1}.</div>
                   <div className="flex-1 font-medium">{artikel.ime}</div>
                   <div className="text-right">
-                    <div className="font-bold">{artikel.skupajZnesek.toFixed(2)} €</div>
+                    <div className="font-bold">{formatEur(artikel.skupajZnesek)}</div>
                     <div className="text-xs text-muted-foreground">{artikel.steviloNarocil}x prodano</div>
                   </div>
                 </div>

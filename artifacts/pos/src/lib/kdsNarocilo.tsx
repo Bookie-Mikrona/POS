@@ -1,3 +1,4 @@
+import { formatMizaLabel } from "./mizaLabel";
 import { useEffect, useState } from "react";
 import { Clock3, MapPin, Phone, Truck, UtensilsCrossed } from "lucide-react";
 import { formatPosCas } from "@/lib/posCas";
@@ -61,8 +62,8 @@ export function getKdsType(narocilo: KdsNarocilo): "miza" | "prevzem" | "dostava
 export function getKdsTypeLabel(narocilo: KdsNarocilo): string {
   if (getKdsType(narocilo) === "prevzem") return "Prevzem";
   if (getKdsType(narocilo) === "dostava") return "Dostava";
-  const naziv = narocilo.mizaIme || (narocilo.mizaStevilka != null ? String(narocilo.mizaStevilka) : "brez številke");
-  return `Miza ${naziv}`;
+  if (!narocilo.mizaIme && narocilo.mizaStevilka == null) return "Miza brez številke";
+  return formatMizaLabel(narocilo.mizaIme, narocilo.mizaStevilka);
 }
 
 export function getKdsTarget(narocilo: KdsNarocilo): KdsTarget {

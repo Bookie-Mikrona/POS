@@ -1,3 +1,4 @@
+import { formatEur, formatTableLabel } from '@/lib/format';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useParams } from 'wouter';
@@ -139,8 +140,8 @@ export default function MenuPage() {
   useEffect(() => {
     if (!selectedArtikel || !data) return;
     const current = data.artikli.find((artikel) => artikel.id === selectedArtikel.id);
-    const currentAvailable = current?.jePica && current.availableBySize
-      ? current.velikostiPic.some((size) => current.availableBySize?.[size.id] !== 0)
+    const currentAvailable = current?.jePica && current.zalogaPoVelikosti
+      ? current.velikostiPic.some((size) => current.zalogaPoVelikosti?.[size.id] !== 'ni_na_voljo')
       : current?.naVoljo;
     if (!current || !currentAvailable) {
       setDialogOpen(false);
@@ -277,7 +278,7 @@ export default function MenuPage() {
                 <div className="flex items-center gap-1 text-muted-foreground text-[11px] sm:text-sm font-medium shrink-0">
                   <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   <span data-testid="text-table-name" className="truncate">
-                    {miza.naziv || `Miza ${miza.stevilka}`}
+                    {formatTableLabel(miza.naziv, miza.stevilka)}
                     {miza.prostorNaziv ? ` · ${miza.prostorNaziv}` : ""}
                   </span>
                 </div>
@@ -379,8 +380,8 @@ export default function MenuPage() {
                   <button
                     key={artikel.id}
                     onClick={() => {
-                      const artikelNaVoljo = artikel.jePica && artikel.availableBySize
-                        ? artikel.velikostiPic.some((size) => artikel.availableBySize?.[size.id] !== 0)
+                      const artikelNaVoljo = artikel.jePica && artikel.zalogaPoVelikosti
+                        ? artikel.velikostiPic.some((size) => artikel.zalogaPoVelikosti?.[size.id] !== 'ni_na_voljo')
                         : artikel.naVoljo;
                       if (!artikelNaVoljo) return;
                       const multicourseMenu = multicourseByArticle.get(artikel.id);
@@ -393,12 +394,12 @@ export default function MenuPage() {
                       setSelectedArtikel(artikel);
                       setDialogOpen(true);
                     }}
-                    disabled={!(artikel.jePica && artikel.availableBySize
-                      ? artikel.velikostiPic.some((size) => artikel.availableBySize?.[size.id] !== 0)
+                    disabled={!(artikel.jePica && artikel.zalogaPoVelikosti
+                      ? artikel.velikostiPic.some((size) => artikel.zalogaPoVelikosti?.[size.id] !== 'ni_na_voljo')
                       : artikel.naVoljo)}
                     className={`flex min-w-0 flex-col text-left overflow-hidden rounded-xl sm:rounded-2xl border bg-card transition-all ${
-                      (artikel.jePica && artikel.availableBySize
-                        ? artikel.velikostiPic.some((size) => artikel.availableBySize?.[size.id] !== 0)
+                      (artikel.jePica && artikel.zalogaPoVelikosti
+                        ? artikel.velikostiPic.some((size) => artikel.zalogaPoVelikosti?.[size.id] !== 'ni_na_voljo')
                         : artikel.naVoljo)
                         ? "hover:border-primary/30 active:scale-[0.98] shadow-sm"
                         : "cursor-not-allowed opacity-55 grayscale"
@@ -432,27 +433,23 @@ export default function MenuPage() {
                               To Go
                             </span>
                           )}
-                          {artikel.jePica && artikel.availableBySize ? (
-                            <div className="flex flex-wrap gap-x-2 text-[10px] sm:text-xs font-semibold text-emerald-700" data-testid={`available-portions-${artikel.id}`}>
-                              {artikel.velikostiPic.map((size) => (
-                                <span key={size.id}>{size.naziv}: {artikel.availableBySize?.[size.id] == null ? '∞' : artikel.availableBySize[size.id]}</span>
-                              ))}
-                            </div>
-                          ) : artikel.mealType !== 'ala_carte' && artikel.availableQuantity != null && (
+                          {artikel.naVoljo && (artikel.jePica && artikel.zalogaPoVelikosti
+                            ? Object.values(artikel.zalogaPoVelikosti).includes('se_malo')
+                            : artikel.zaloga === 'se_malo') && (
                             <span
-                              className="inline-flex rounded-full bg-emerald-500/10 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-emerald-700"
-                              data-testid={`available-portions-${artikel.id}`}
+                              className="inline-flex rounded-full bg-amber-500/10 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-amber-700"
+                              data-testid={`low-stock-${artikel.id}`}
                             >
-                              {artikel.availableQuantity} porcij
+                              Še malo
                             </span>
                           )}
                         </div>
                         <div className="font-semibold whitespace-nowrap bg-accent px-2 sm:px-2.5 py-1 rounded-lg text-xs sm:text-sm">
-                          {artikel.cena.toFixed(2)} €
+                          {formatEur(artikel.cena)}
                         </div>
                       </div>
-                      {!(artikel.jePica && artikel.availableBySize
-                        ? artikel.velikostiPic.some((size) => artikel.availableBySize?.[size.id] !== 0)
+                      {!(artikel.jePica && artikel.zalogaPoVelikosti
+                        ? artikel.velikostiPic.some((size) => artikel.zalogaPoVelikosti?.[size.id] !== 'ni_na_voljo')
                         : artikel.naVoljo) && (
                         <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-destructive" data-testid={`sold-out-${artikel.id}`}>
                           Trenutno ni na voljo
@@ -506,7 +503,7 @@ export default function MenuPage() {
                 </div>
                 <span>Košarica</span>
               </div>
-              <span className="font-display font-semibold">{cartTotal.toFixed(2)} €</span>
+              <span className="font-display font-semibold">{formatEur(cartTotal)}</span>
             </Button>
           </div>
         )}

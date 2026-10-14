@@ -1,3 +1,4 @@
+import { formatEur } from "@/lib/formatEur";
 import { useState, useEffect, useRef } from "react";
 import {
   useListPartnerji,
@@ -1028,7 +1029,7 @@ export default function Partnerji() {
                             <span className="font-medium truncate block">{v.artikelIme}</span>
                             {v.kategorijaIme && <span className="text-muted-foreground">{v.kategorijaIme}</span>}
                           </div>
-                          <span className="text-muted-foreground line-through whitespace-nowrap">{(v.originalCena ?? 0).toFixed(2)} €</span>
+                          <span className="text-muted-foreground line-through whitespace-nowrap">{formatEur((v.originalCena ?? 0))}</span>
                           <DecimalInput
                             className="w-24 h-7 text-xs text-right"
                             defaultValue={v.cena.toFixed(2).replace(".", ",")}
@@ -1062,7 +1063,7 @@ export default function Partnerji() {
                             .filter(a => a.prodajniArtikel && !(cenikData ?? []).some((c: PartnerCenikItem) => c.artikelId === a.id))
                             .map(a => (
                               <SelectItem key={a.id} value={String(a.id)} className="text-xs">
-                                {a.ime} — {Number(a.cena).toFixed(2)} €
+                                {a.ime} — {formatEur(Number(a.cena))}
                               </SelectItem>
                             ))}
                         </SelectContent>
