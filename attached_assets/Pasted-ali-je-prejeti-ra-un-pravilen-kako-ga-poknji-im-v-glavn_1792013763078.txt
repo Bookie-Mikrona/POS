@@ -1,0 +1,38 @@
+ali je prejeti račun pravilen? kako ga poknjižim v glavno knjigo
+
+Pripravljanje strukturiranega odgovora s preverjanji in knjiženjem.
+Preverim še konte v kontnem načrtu in pravilo o obrnjeni davčni obveznosti, preden odgovorim.
+
+Searched the web
+Ali je račun pravilen? Formalno da. Gre za račun dobavitelja iz tretje države (Indija) za mesečno naročnino na programsko opremo, izdan slovenskemu davčnemu zavezancu. Brez DDV je prav: če davčni zavezanec prejme račun za storitev, ki jo je opravil tuji zavezanec, mora DDV po slovenski stopnji obračunati in plačati sam, obrnjena davčna obveznost pa izhaja iz 76. člena ZDDV-1. Kraj opravljanja storitve je po splošnem pravilu 25. člena Slovenija. 
+[data](https://data.si/blog/atipicni-davcni-zavezanci/)
+[gov](https://www.fu.gov.si/fileadmin/Internet/Davki_in_druge_dajatve/Podrocja/Davek_na_dodano_vrednost/Opis/Racuni.doc)
+
+Preverite še:
+
+Računica: 25,00 − 20 % (5,00) = 20,00 USD, torej pravilno.
+Prejemnik: Mikrona d.o.o., Zidani Most 32A, ID za DDV SI84040653. Preverite, da se ID ujema z vašim. Poštna številka je zapisana dvakrat, kar je samo kozmetika.
+Številka UUX4GE1F-0002: preverite, da je prejšnji račun (-0001) že knjižen in da računa ne knjižite dvakrat. Popust 20 % je verjetno časovno omejen, zato je lahko naslednji račun 25,00 USD.
+Dobavitelj brez davčne številke na računu: pri dobavitelju iz tretje države to ni ovira.
+Datum izdaje = datum zapadlosti (14. 10. 2026): račun je predvidoma plačan online ob izdaji.
+Knjiženje (datum 14. 10. 2026, ECB referenčni tečaj USD na ta dan; tečaja ne poznam, zato formula):
+
+osnova_EUR = 20,00 / tečaj in DDV = 22 % × osnova_EUR
+
+#	Debet	Kredit	Znesek
+1	41xx strošek storitev (naročnina na programsko opremo)	221 Kratkoročne obveznosti do dobaviteljev v tujini	osnova_EUR
+2	160 Terjatve za vstopni DDV	260 Obveznosti za obračunani DDV	DDV
+3 (ob plačilu)	221	110 transakcijski račun (ali konto obveznosti za kartico)	znesek iz izpiska v EUR 
+[bsi](https://www.bsi.si/storage/uploads/79cfe683-25a9-475f-a9a7-6f1beb1b2d8f/Skupaj-priloge-od-1-do-11.pdf)
+[bsi](https://www.bsi.si/storage/uploads/79cfe683-25a9-475f-a9a7-6f1beb1b2d8f/Skupaj-priloge-od-1-do-11.pdf)
+Razlika med knjiženo obveznostjo in zneskom plačila (tečajna razlika) gre med finančne prihodke oziroma odhodke. Morebitni bančni stroški kartice se knjižijo ločeno.
+
+Primer z izmišljenim tečajem 1,1600: osnova 17,24 €, DDV 3,79 €.
+
+Opombe
+
+Konto 41xx: točnega podkonta ne navajam, ker je odvisen od vašega kontnega načrta.
+Konta 160 nisem preveril v viru, 221 in 260 pa sta potrjena. Preverite jih v svojem kontnem načrtu.
+DDV-O: osnovo in obračunani DDV izkažete kot prejemnik storitve tujega zavezanca, enak znesek pa uveljavite kot odbitek v istem obdobju (če imate polno pravico do odbitka). Polja preverite v veljavnem obrazcu.
+RP-O ni potreben, ker dobavitelj ni iz EU.
+Za Bookie bi bila smiselna davčna koda za storitve tujih zavezancev, ki samodejno ustvari knjižbi 1 in 2: osnova = znesek v EUR po ECB tečaju, stopnja 22 %, konta 160/260. Če želite, pripravim SQL shemo in knjižbeno pravilo za to.
