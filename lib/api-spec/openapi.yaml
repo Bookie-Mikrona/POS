@@ -20483,6 +20483,9 @@ components:
           type: boolean
         vrstniRed:
           type: integer
+        privzet:
+          type: boolean
+          description: Ali je izbira ob odprtju izbirnega okna že obkljukana.
     ModSkupinaInput:
       type: object
       required:
@@ -20513,6 +20516,8 @@ components:
           type: boolean
         vrstniRed:
           type: integer
+        privzet:
+          type: boolean
     ModNormativItem:
       type: object
       required:

@@ -40,8 +40,13 @@ interface NormativVrstica {
   kolicina: string;
 }
 
+function napakaSporocilo(err: unknown): string | undefined {
+  const data = (err as { data?: { error?: unknown } } | null)?.data;
+  return typeof data?.error === "string" ? data.error : undefined;
+}
+
 const EMPTY_GROUP_FORM = { ime: "", obvezna: false, minIzbir: 0, maxIzbir: 0 };
-const EMPTY_MOD_FORM = { ime: "", cenaDodatek: "0", aktiven: true };
+const EMPTY_MOD_FORM = { ime: "", cenaDodatek: "0", aktiven: true, privzet: false };
 
 export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   const qc = useQueryClient();
@@ -178,7 +183,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
     setModMode("uredi");
     setEditingMod(m);
     setModSkupinaId(m.skupinaId);
-    setModForm({ ime: m.ime, cenaDodatek: String(m.cenaDodatek), aktiven: m.aktiven });
+    setModForm({ ime: m.ime, cenaDodatek: String(m.cenaDodatek), aktiven: m.aktiven, privzet: m.privzet === true });
     setModNormativi([]);
     setModDialogOpen(true);
   };
@@ -202,6 +207,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
       ime: modForm.ime,
       cenaDodatek: parseDecimal(modForm.cenaDodatek) || 0,
       aktiven: modForm.aktiven,
+      privzet: modForm.privzet,
     };
     if (modMode === "uredi" && editingMod) {
       updateMod.mutate({ id: editingMod.id, data }, {
@@ -213,7 +219,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
             toast({ title: "Modifikator posodobljen" });
           });
         },
-        onError: () => toast({ title: "Napaka", variant: "destructive" }),
+        onError: (err) => toast({ title: "Napaka", description: napakaSporocilo(err), variant: "destructive" }),
       });
     } else if (modSkupinaId) {
       addMod.mutate({ id: modSkupinaId, data }, {
@@ -225,7 +231,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
             toast({ title: "Modifikator dodan" });
           });
         },
-        onError: () => toast({ title: "Napaka", variant: "destructive" }),
+        onError: (err) => toast({ title: "Napaka", description: napakaSporocilo(err), variant: "destructive" }),
       });
     }
   };
@@ -332,6 +338,15 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                           <p className="text-xs text-muted-foreground">Ni modifikatorjev.</p>
                         ) : (
                           <div className="space-y-1">
+                            {s.obvezna && (() => {
+                              const potrebno = Math.max(1, s.minIzbir);
+                              const privzetih = expandedSkupina.modifikatorji.filter(x => x.aktiven && x.privzet).length;
+                              return privzetih === potrebno ? null : (
+                                <p className="text-[11px] text-amber-700">
+                                  Obvezna skupina zahteva {potrebno} privzeto izbiro (določeno: {privzetih}). Uredite modifikator in obkljukajte »Privzeto obkljukan ob odprtju izbire«.
+                                </p>
+                              );
+                            })()}
                             {expandedSkupina.modifikatorji.map(m => (
                               <div
                                 key={m.id}
@@ -343,6 +358,9 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                                     <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
                                       {m.cenaDodatek > 0 ? "+" : ""}{m.cenaDodatek.toFixed(2)} €
                                     </span>
+                                  )}
+                                  {m.privzet && (
+                                    <Badge className="bg-green-100 text-green-800 border-green-200 text-[9px] px-1 py-0 h-3.5 leading-none">Privzeto</Badge>
                                   )}
                                   {!m.aktiven && (
                                     <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5 leading-none">Neaktiven</Badge>
@@ -470,6 +488,16 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                 className="w-4 h-4 accent-primary"
               />
               <Label htmlFor="modAktiven" className="cursor-pointer">Modifikator je aktiven</Label>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border p-3">
+              <input
+                type="checkbox"
+                id="modPrivzet"
+                checked={modForm.privzet}
+                onChange={e => setModForm(f => ({ ...f, privzet: e.target.checked }))}
+                className="w-4 h-4 accent-primary"
+              />
+              <Label htmlFor="modPrivzet" className="cursor-pointer">Privzeto obkljukan ob odprtju izbire</Label>
             </div>
 
             {/* ── Normativ ── */}

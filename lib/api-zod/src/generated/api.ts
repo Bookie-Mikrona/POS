@@ -1797,7 +1797,8 @@ export const ListArtikliResponseItem = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 }))
 })).optional().describe('Modifikatorske skupine prirejene artiklu')
 })
@@ -1995,7 +1996,8 @@ export const CreateArtikelResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 }))
 })).optional().describe('Modifikatorske skupine prirejene artiklu')
 })
@@ -2210,7 +2212,8 @@ export const GenerateArtikelImageResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 }))
 })).optional().describe('Modifikatorske skupine prirejene artiklu')
 })
@@ -2321,7 +2324,8 @@ export const UploadArtikelImageResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 }))
 })).optional().describe('Modifikatorske skupine prirejene artiklu')
 })
@@ -2425,7 +2429,8 @@ export const GetArtikelResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 }))
 })).optional().describe('Modifikatorske skupine prirejene artiklu')
 })
@@ -2627,7 +2632,8 @@ export const UpdateArtikelResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 }))
 })).optional().describe('Modifikatorske skupine prirejene artiklu')
 })
@@ -2863,7 +2869,8 @@ export const GetModSkupinaResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 }))
 })
 
@@ -2920,7 +2927,8 @@ export const AddModifikatorBody = zod.object({
   "ime": zod.string().min(1),
   "cenaDodatek": zod.number().optional(),
   "aktiven": zod.boolean().optional(),
-  "vrstniRed": zod.number().optional()
+  "vrstniRed": zod.number().optional(),
+  "privzet": zod.boolean().optional()
 })
 
 export const AddModifikatorResponse = zod.object({
@@ -2929,7 +2937,8 @@ export const AddModifikatorResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 })
 
 
@@ -2947,7 +2956,8 @@ export const UpdateModifikatorBody = zod.object({
   "ime": zod.string().min(1),
   "cenaDodatek": zod.number().optional(),
   "aktiven": zod.boolean().optional(),
-  "vrstniRed": zod.number().optional()
+  "vrstniRed": zod.number().optional(),
+  "privzet": zod.boolean().optional()
 })
 
 export const UpdateModifikatorResponse = zod.object({
@@ -2956,7 +2966,8 @@ export const UpdateModifikatorResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 })
 
 
@@ -3023,7 +3034,8 @@ export const GetArtikelModSkupineResponseItem = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
-  "vrstniRed": zod.number()
+  "vrstniRed": zod.number(),
+  "privzet": zod.boolean().optional().describe('Ali je izbira ob odprtju izbirnega okna že obkljukana.')
 }))
 })
 export const GetArtikelModSkupineResponse = zod.array(GetArtikelModSkupineResponseItem)

@@ -274,7 +274,7 @@ function mapRow(r: Record<string, unknown>) {
     vNormativih: Boolean(r.vNormativih),
     modSkupine: [] as Array<{
       id: number; ime: string; obvezna: boolean; minIzbir: number; maxIzbir: number; vrstniRed: number;
-      modifikatorji: Array<{ id: number; skupinaId: number; ime: string; cenaDodatek: number; aktiven: boolean; vrstniRed: number }>;
+      modifikatorji: Array<{ id: number; skupinaId: number; ime: string; cenaDodatek: number; aktiven: boolean; vrstniRed: number; privzet: boolean }>;
     }>};
 }
 
@@ -353,7 +353,8 @@ async function fetchModSkupineForArtikli(artikelIds: number[]) {
       modIme: modifikatorjiTable.ime,
       modCenaDodatek: modifikatorjiTable.cenaDodatek,
       modAktiven: modifikatorjiTable.aktiven,
-      modVrstniRed: modifikatorjiTable.vrstniRed})
+      modVrstniRed: modifikatorjiTable.vrstniRed,
+      modPrivzet: modifikatorjiTable.privzet})
     .from(artModSkupineTable)
     .innerJoin(modSkupineTable, eq(artModSkupineTable.skupinaId, modSkupineTable.id))
     .leftJoin(modifikatorjiTable, eq(modifikatorjiTable.skupinaId, modSkupineTable.id))
@@ -382,7 +383,8 @@ async function fetchModSkupineForArtikli(artikelIds: number[]) {
         ime: r.modIme as string,
         cenaDodatek: Number(r.modCenaDodatek),
         aktiven: r.modAktiven as boolean,
-        vrstniRed: r.modVrstniRed as number});
+        vrstniRed: r.modVrstniRed as number,
+        privzet: r.modPrivzet as boolean});
     }
   }
 
@@ -731,7 +733,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
   if (prodajniArtikel) {
     try {
       const [kat] = row.kategorijaId == null ? [] : await db.select({ ime: kategorijeTable.ime }).from(kategorijeTable).where(eq(kategorijeTable.id, row.kategorijaId));
-      await uporabiSamodejneSkupine(tenotaId, row.id, row.ime, kat?.ime);
+      await uporabiSamodejneSkupine(tenotaId, row.id, row.ime, kat?.ime, db, row.jePica === true);
     } catch (error) {
       req.log.warn({ err: error, artikelId: row.id }, "Samodejne obvezne izbire niso bile dodane");
     }

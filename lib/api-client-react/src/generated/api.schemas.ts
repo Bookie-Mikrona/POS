@@ -2321,6 +2321,8 @@ export interface Modifikator {
   cenaDodatek: number;
   aktiven: boolean;
   vrstniRed: number;
+  /** Ali je izbira ob odprtju izbirnega okna že obkljukana. */
+  privzet?: boolean;
 }
 
 export interface ModSkupinaFull {
@@ -8827,6 +8829,7 @@ export interface ModifikatorInput {
   cenaDodatek?: number;
   aktiven?: boolean;
   vrstniRed?: number;
+  privzet?: boolean;
 }
 
 export interface ModNormativItem {

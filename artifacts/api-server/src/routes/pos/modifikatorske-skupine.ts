@@ -32,7 +32,20 @@ async function fetchSkupinaFull(skupinaId: number) {
       ime: m.ime,
       cenaDodatek: Number(m.cenaDodatek),
       aktiven: m.aktiven,
-      vrstniRed: m.vrstniRed}))};
+      vrstniRed: m.vrstniRed,
+      privzet: m.privzet}))};
+}
+
+/** Število obveznih izbir skupine; neomejena skupina (max 0) zahteva vsaj eno. */
+function zahtevanoPrivzetih(skupina: { obvezna: boolean; minIzbir: number }): number {
+  return skupina.obvezna ? Math.max(1, skupina.minIzbir) : 0;
+}
+
+/** Skupina ne sme imeti več privzetih izbir od največjega dovoljenega števila. */
+async function stPrivzetih(skupinaId: number, razenId?: number): Promise<number> {
+  const rows = await db.select({ id: modifikatorjiTable.id }).from(modifikatorjiTable)
+    .where(and(eq(modifikatorjiTable.skupinaId, skupinaId), eq(modifikatorjiTable.privzet, true), eq(modifikatorjiTable.aktiven, true)));
+  return rows.filter((r) => r.id !== razenId).length;
 }
 
 router.get("/modifikatorske-skupine", async (req, res): Promise<void> => {
@@ -158,6 +171,18 @@ router.patch(
     if (parsed.data.maxIzbir !== undefined) updates.maxIzbir = parsed.data.maxIzbir;
     if (parsed.data.vrstniRed !== undefined) updates.vrstniRed = parsed.data.vrstniRed;
 
+    const naslednja = { ...existing, ...updates };
+    const potrebno = zahtevanoPrivzetih(naslednja);
+    if (potrebno > 0 && (updates.obvezna !== undefined || updates.minIzbir !== undefined || updates.maxIzbir !== undefined)) {
+      const [{ vseh }] = await db.select({ vseh: sql<number>`count(*)::int` }).from(modifikatorjiTable)
+        .where(and(eq(modifikatorjiTable.skupinaId, existing.id), eq(modifikatorjiTable.aktiven, true)));
+      const privzetih = await stPrivzetih(existing.id);
+      if (vseh > 0 && privzetih !== potrebno) {
+        res.status(400).json({ error: `Obvezna skupina zahteva točno ${potrebno} privzetih izbir; trenutno jih je ${privzetih}. Najprej določite privzete modifikatorje.` });
+        return;
+      }
+    }
+
     const [updated] = await db
       .update(modSkupineTable)
       .set(updates)
@@ -239,15 +264,27 @@ router.post(
       return;
     }
 
-    const [inserted] = await db
-      .insert(modifikatorjiTable)
-      .values({
-        skupinaId: params.data.id,
-        ime: parsed.data.ime,
-        cenaDodatek: String(parsed.data.cenaDodatek ?? 0),
-        aktiven: parsed.data.aktiven ?? true,
-        vrstniRed: parsed.data.vrstniRed ?? 0})
-      .returning();
+    const privzet = parsed.data.privzet === true;
+    if (privzet && skupina.maxIzbir > 1 && await stPrivzetih(skupina.id) >= skupina.maxIzbir) {
+      res.status(400).json({ error: `Skupina dovoljuje največ ${skupina.maxIzbir} privzetih izbir.` });
+      return;
+    }
+    const inserted = await db.transaction(async (tx) => {
+      if (privzet && skupina.maxIzbir === 1) {
+        await tx.update(modifikatorjiTable).set({ privzet: false }).where(eq(modifikatorjiTable.skupinaId, skupina.id));
+      }
+      const [row] = await tx
+        .insert(modifikatorjiTable)
+        .values({
+          skupinaId: params.data.id,
+          ime: parsed.data.ime,
+          cenaDodatek: String(parsed.data.cenaDodatek ?? 0),
+          aktiven: parsed.data.aktiven ?? true,
+          vrstniRed: parsed.data.vrstniRed ?? 0,
+          privzet})
+        .returning();
+      return row;
+    });
 
     res.status(201).json({
       id: inserted.id,
@@ -255,7 +292,8 @@ router.post(
       ime: inserted.ime,
       cenaDodatek: Number(inserted.cenaDodatek),
       aktiven: inserted.aktiven,
-      vrstniRed: inserted.vrstniRed});
+      vrstniRed: inserted.vrstniRed,
+      privzet: inserted.privzet});
   }
 );
 
@@ -279,7 +317,8 @@ router.patch(
       .select({
         id: modifikatorjiTable.id,
         skupinaId: modifikatorjiTable.skupinaId,
-        enotaId: modSkupineTable.enotaId})
+        enotaId: modSkupineTable.enotaId,
+        maxIzbir: modSkupineTable.maxIzbir})
       .from(modifikatorjiTable)
       .innerJoin(modSkupineTable, eq(modifikatorjiTable.skupinaId, modSkupineTable.id))
       .where(
@@ -299,12 +338,23 @@ router.patch(
     if (parsed.data.cenaDodatek !== undefined) updates.cenaDodatek = String(parsed.data.cenaDodatek);
     if (parsed.data.aktiven !== undefined) updates.aktiven = parsed.data.aktiven;
     if (parsed.data.vrstniRed !== undefined) updates.vrstniRed = parsed.data.vrstniRed;
+    if (parsed.data.privzet !== undefined) updates.privzet = parsed.data.privzet === true;
+    if (updates.privzet && existing.maxIzbir > 1 && await stPrivzetih(existing.skupinaId, existing.id) >= existing.maxIzbir) {
+      res.status(400).json({ error: `Skupina dovoljuje največ ${existing.maxIzbir} privzetih izbir.` });
+      return;
+    }
 
-    const [updated] = await db
-      .update(modifikatorjiTable)
-      .set(updates)
-      .where(eq(modifikatorjiTable.id, params.data.id))
-      .returning();
+    const updated = await db.transaction(async (tx) => {
+      if (updates.privzet && existing.maxIzbir === 1) {
+        await tx.update(modifikatorjiTable).set({ privzet: false }).where(eq(modifikatorjiTable.skupinaId, existing.skupinaId));
+      }
+      const [row] = await tx
+        .update(modifikatorjiTable)
+        .set(updates)
+        .where(eq(modifikatorjiTable.id, params.data.id))
+        .returning();
+      return row;
+    });
 
     res.json({
       id: updated.id,
@@ -312,7 +362,8 @@ router.patch(
       ime: updated.ime,
       cenaDodatek: Number(updated.cenaDodatek),
       aktiven: updated.aktiven,
-      vrstniRed: updated.vrstniRed});
+      vrstniRed: updated.vrstniRed,
+      privzet: updated.privzet});
   }
 );
 

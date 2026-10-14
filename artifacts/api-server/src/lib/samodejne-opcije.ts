@@ -6,7 +6,7 @@ import { artModSkupineTable, db, modSkupineTable, modifikatorjiTable } from "@wo
  * Vsaka skupina odpre okno ob vsakem dodajanju artikla, zato neobvezne skupine
  * dobijo le artikli brez drugih skupin. Vse izbire so brez doplačila.
  */
-export type SamodejnaSkupina = { ime: string; izbire: string[]; obvezna?: boolean; maxIzbir?: number };
+export type SamodejnaSkupina = { ime: string; izbire: string[]; obvezna?: boolean; maxIzbir?: number; privzeto?: string[] };
 
 function normaliziraj(ime: string): string {
   return ime.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -16,11 +16,20 @@ const PECENOST: SamodejnaSkupina = {
   ime: "Pečenost",
   obvezna: true,
   izbire: ["Rare (krvavo)", "Medium rare", "Medium", "Medium well", "Well done (prepečeno)"],
+  privzeto: ["Medium"],
 };
 const JAJCA: SamodejnaSkupina = {
   ime: "Priprava jajc",
   obvezna: true,
   izbire: ["Na oko", "Umešana", "Trdo kuhana", "Mehko kuhana"],
+  privzeto: ["Na oko"],
+};
+/** Razrez je obvezen pri vseh picah; privzeto je izbrano »Brez razreza«. */
+export const RAZREZ_PICE: SamodejnaSkupina = {
+  ime: "Razrez",
+  obvezna: true,
+  izbire: ["Brez razreza", "Trikotni razrez (New York style)", "Kvadratni razrez (Party cut)", "Razrez na polovico", "Razrez na četrtino"],
+  privzeto: ["Brez razreza"],
 };
 
 const MLEKO: SamodejnaSkupina = { ime: "Mleko", izbire: ["Brez mleka", "Hladno mleko", "Toplo mleko", "Sojino mleko", "Ovseno mleko", "Brez laktoze"] };
@@ -64,11 +73,13 @@ export async function uporabiSamodejneSkupine(
   ime: string,
   kategorija?: string | null,
   dbOrTx: typeof db = db,
+  jePica = false,
 ): Promise<string[]> {
   const dodane: string[] = [];
   const obstojece = await dbOrTx.select({ s: artModSkupineTable.skupinaId }).from(artModSkupineTable)
     .where(eq(artModSkupineTable.artikelId, artikelId));
   const skupine = [
+    ...(jePica ? [RAZREZ_PICE] : []),
     ...samodejneSkupineZaArtikel(ime),
     ...(obstojece.length === 0 ? neobveznoSkupineZaArtikel(ime, kategorija) : []),
   ];
@@ -81,7 +92,7 @@ export async function uporabiSamodejneSkupine(
         minIzbir: def.obvezna ? 1 : 0, maxIzbir: def.obvezna ? 1 : def.maxIzbir ?? 1, vrstniRed: 0,
       }).returning({ id: modSkupineTable.id });
       await dbOrTx.insert(modifikatorjiTable).values(
-        def.izbire.map((izbira, i) => ({ skupinaId: skupina.id, ime: izbira, cenaDodatek: "0", vrstniRed: i })),
+        def.izbire.map((izbira, i) => ({ skupinaId: skupina.id, ime: izbira, cenaDodatek: "0", vrstniRed: i, privzet: def.privzeto?.includes(izbira) ?? false })),
       );
     }
     const [povezava] = await dbOrTx.select({ s: artModSkupineTable.skupinaId }).from(artModSkupineTable)

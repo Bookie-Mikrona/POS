@@ -44,6 +44,7 @@ import {
   useGetKdsNastavitve,
   getGetKdsNastavitveQueryKey,
 } from "@workspace/api-client-react";
+
 import {
   DndContext,
   closestCenter,
@@ -102,6 +103,18 @@ import { DailyLunchOrderFlow } from "@/components/DailyLunchOrderFlow";
 import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
 import { onlyActiveArticles } from "@/lib/activeArticles";
 import { GatewayConflictError, localOrderRoute, parseLocalOrderRoute, type GatewayOrderSnapshot } from "@/lib/gatewayClient";
+
+/** Privzete izbire artikla: lastne izbire artikla, nato privzete izbire skupin, kjer artikel nima lastne. */
+function efektivniPrivzetiModifikatorji(artikel: { privzetiModifikatorji?: number[] } | undefined): number[] {
+  const own = artikel?.privzetiModifikatorji ?? [];
+  const skupine = (artikel as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? [];
+  const iz_skupin = skupine.flatMap(sk =>
+    sk.modifikatorji.some(m => own.includes(m.id))
+      ? []
+      : sk.modifikatorji.filter(m => m.aktiven && m.privzet).map(m => m.id),
+  );
+  return [...own, ...iz_skupin];
+}
 
 export function selectOrderKdsNalogi<T extends { narociloId: unknown }>(
   nalogi: T[], gatewayMode: boolean, gatewayOrderId: string | null, id: number | undefined,
@@ -417,7 +430,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
   const bg = artikel.barva ?? undefined;
   const hasColor = !!artikel.barva;
 
-  const privzetiModArr = artikel.privzetiModifikatorji ?? [];
+  const privzetiModArr = efektivniPrivzetiModifikatorji(artikel);
   const artModSkupineArr = (artikel as { modSkupine?: ModSkupinaFull[] }).modSkupine ?? [];
   // Prikaži privzete modifikatorje iz skupin (novi sistem)
   const privzetiNovImena = artModSkupineArr.flatMap(sk =>
@@ -672,7 +685,7 @@ function GrupaGumbStaro({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa
         <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">{grupa.baseIme}</p>
         <div className="grid grid-cols-2 gap-1.5">
           {grupa.children.map(a => {
-            const privzetiModArr = a.privzetiModifikatorji ?? [];
+            const privzetiModArr = efektivniPrivzetiModifikatorji(a);
             const aModSkupineArr = (a as { modSkupine?: ModSkupinaFull[] }).modSkupine ?? [];
             const privzetiNovImenaA = aModSkupineArr.flatMap(sk =>
               sk.modifikatorji.filter((m: ModSkupinaFull["modifikatorji"][number]) => privzetiModArr.includes(m.id)).map((m: ModSkupinaFull["modifikatorji"][number]) => m.ime)
@@ -815,7 +828,7 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
           {varianteZLabeli.map(a => {
             const aBg = a.barva ?? undefined;
             const aHasColor = !!a.barva;
-            const privzetiModArr = a.privzetiModifikatorji ?? [];
+            const privzetiModArr = efektivniPrivzetiModifikatorji(a);
             const aModSkupineArrD = (a as { modSkupine?: ModSkupinaFull[] }).modSkupine ?? [];
             const privzetiNovImenaD = aModSkupineArrD.flatMap(sk =>
               sk.modifikatorji.filter((m: ModSkupinaFull["modifikatorji"][number]) => privzetiModArr.includes(m.id)).map((m: ModSkupinaFull["modifikatorji"][number]) => m.ime)
@@ -2297,7 +2310,7 @@ export default function Order() {
       setTimeout(() => setFlashingId(null), 300);
       setModDialogArtikelId(artikelId);
       // Prednastavi privzete modifikatorje iz privzetiModifikatorji polja na artiklu
-      const artPrivzeti: number[] = artInfo?.privzetiModifikatorji ?? [];
+      const artPrivzeti: number[] = efektivniPrivzetiModifikatorji(artInfo);
       const privzetiSelected = artPrivzeti.flatMap(modId => {
         // 1. Novi sistem: iskanje po modifier ID
         for (const sk of artModSkupine) {
@@ -2363,7 +2376,7 @@ export default function Order() {
     playTapSound();
     setTimeout(() => setFlashingId(null), 300);
     // Prednastavi privzete + iskani modifikator
-    const artPrivzeti: number[] = artInfo?.privzetiModifikatorji ?? [];
+    const artPrivzeti: number[] = efektivniPrivzetiModifikatorji(artInfo);
     const privzetiSelected = artPrivzeti.flatMap(modId => {
       for (const sk of artModSkupine) {
         if (sk.modifikatorji.some(m => m.id === modId)) return [{ skupinaId: sk.id, modifikatorId: modId }];
