@@ -423,3 +423,41 @@ describe.sequential("received EU fixed-asset invoice posting", () => {
     expect(response.body.error).toContain("nima potrjene DDV-kode");
   });
 });
+
+describe.sequential("received third-country service invoice posting", () => {
+  it("self-assesses 22% VAT for a service from India and rejects an EU supplier", async () => {
+    const [supplier] = await db.insert(counterpartiesTable).values({
+      companyId, type: "supplier", name: `Indian supplier ${runId}`, country: "IN", kodaDrzave: "IN",
+    }).returning({ id: counterpartiesTable.id });
+    const [expense] = await db.insert(accountsTable).values({
+      companyId, code: "4130000", name: "Software services", type: "expense",
+    }).returning({ id: accountsTable.id });
+    const [ts22] = await db.select({ id: vatCodeTable.id }).from(vatCodeTable)
+      .where(and(eq(vatCodeTable.code, "TS22"), eq(vatCodeTable.direction, "IN"))).limit(1);
+    if (!ts22) throw new Error("TS22 IN VAT code is missing from the test database");
+    const [companyTs22] = await db.insert(vatCodesTable).values({
+      companyId, code: "TS22", name: "Third-country service 22%", rate: "22.00", behavior: "reverse_charge",
+      accountInputId: inputVatAccountId, accountOutputId: outputVatAccountId, fursCodeId: ts22.id, validFrom: "2025-07-01",
+    }).returning({ id: vatCodesTable.id });
+    const prepare = async (suffix: string, supplierId: string) => {
+      const { invoiceId } = await createInvoice({ suffix, supplierId, assetType: "NONE", vatCodeId: companyTs22.id, vatRate: "0.00" });
+      await db.update(invoiceLinesTable).set({ accountId: expense.id }).where(eq(invoiceLinesTable.invoiceId, invoiceId));
+      return invoiceId;
+    };
+    const okId = await prepare("TS-OK", supplier.id);
+    const ok = await request(app()).post(`/companies/${companyId}/invoices/${okId}/post`);
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200);
+    const lines = await db.select({ accountId: journalEntryLinesTable.accountId, side: journalEntryLinesTable.side, amount: journalEntryLinesTable.amount })
+      .from(journalEntryLinesTable).where(eq(journalEntryLinesTable.entryId, ok.body.linkedEntryId));
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ accountId: expense.id, side: "debit", amount: "100.00" }),
+      expect.objectContaining({ accountId: inputVatAccountId, side: "debit", amount: "22.00" }),
+      expect.objectContaining({ accountId: outputVatAccountId, side: "credit", amount: "22.00" }),
+      expect.objectContaining({ accountId: payableAccountId, side: "credit", amount: "100.00" }),
+    ]));
+
+    const badId = await prepare("TS-EU", supplierId);
+    const bad = await request(app()).post(`/companies/${companyId}/invoices/${badId}/post`).expect(400);
+    expect(bad.body.error).toContain("tretje države");
+  });
+});

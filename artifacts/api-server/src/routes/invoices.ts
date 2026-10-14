@@ -2384,8 +2384,11 @@ router.post(
       });
       return;
     }
-    const euAcquisitionLines = lines.filter((line) =>
-      line.vatCodeId && selectedVatCodeById.get(line.vatCodeId)?.code.startsWith("EUB"));
+    const isSelfAssessedServiceCode = (code?: string) => /^(TS|EUS)\d/.test(code ?? "");
+    const euAcquisitionLines = lines.filter((line) => {
+      const code = line.vatCodeId ? selectedVatCodeById.get(line.vatCodeId)?.code : undefined;
+      return Boolean(code?.startsWith("EUB") || isSelfAssessedServiceCode(code));
+    });
     if (lines.some((line) => line.assetType !== "NONE" && !line.vatCodeId)) {
       res.status(400).json({ error: "Postavka osnovnega sredstva nima potrjene DDV-kode; račun ostane osnutek." });
       return;
@@ -2396,8 +2399,9 @@ router.post(
       return;
     }
     if (lines.some((line) => line.vatCodeId && selectedVatCodeById.get(line.vatCodeId)?.isReverseCharge
-        && !selectedVatCodeById.get(line.vatCodeId)?.code.startsWith("EUB"))) {
-      res.status(400).json({ error: "Ta način knjiženja prejetega računa podpira samo pridobitev blaga iz EU; druge samoobdavčitve zahtevajo ločeno obravnavo." });
+        && !selectedVatCodeById.get(line.vatCodeId)?.code.startsWith("EUB")
+        && !isSelfAssessedServiceCode(selectedVatCodeById.get(line.vatCodeId)?.code))) {
+      res.status(400).json({ error: "Ta način knjiženja prejetega računa podpira samo pridobitev blaga iz EU ter storitve iz EU in tretjih držav; druge samoobdavčitve zahtevajo ločeno obravnavo." });
       return;
     }
     if (euAcquisitionLines.length > 0) {
@@ -2414,8 +2418,14 @@ router.post(
         .limit(1);
       const country = (supplier?.countryCode || supplier?.country || "").trim().toUpperCase();
       const euCountries = new Set(["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "ES", "SE"]);
-      if (!euCountries.has(country) || !supplier?.vatId?.trim().toUpperCase().startsWith(country)) {
-        res.status(400).json({ error: "Za pridobitev OS iz EU mora imeti dobavitelj usklajeno državo EU in ID za DDV z oznako te države." });
+      const needsEuSupplier = lines.some((line) => !/^TS\d/.test(selectedVatCodeById.get(line.vatCodeId!)?.code ?? ""));
+      const hasThirdCountryService = lines.some((line) => /^TS\d/.test(selectedVatCodeById.get(line.vatCodeId!)?.code ?? ""));
+      if (needsEuSupplier && (!euCountries.has(country) || !supplier?.vatId?.trim().toUpperCase().startsWith(country))) {
+        res.status(400).json({ error: "Za pridobitev iz EU mora imeti dobavitelj usklajeno državo EU in ID za DDV z oznako te države." });
+        return;
+      }
+      if (hasThirdCountryService && (!country || country === "SI" || euCountries.has(country))) {
+        res.status(400).json({ error: "Za storitev iz tretje države mora imeti dobavitelj izpolnjeno državo zunaj EU in Slovenije." });
         return;
       }
       const [payableAccount] = await db.select({ code: accountsTable.code, active: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
@@ -2430,8 +2440,14 @@ router.post(
       for (const line of lines) {
         const code = selectedVatCodeById.get(line.vatCodeId!)!;
         const account = assetAccountMap.get(line.accountId);
+        const isService = isSelfAssessedServiceCode(code.code);
         const assetPrefix = line.assetType === "REALESTATE" ? /^(02|03)/ : /^04/;
-        if (line.assetType === "NONE" || !account?.active || !account.allowsPosting || !assetPrefix.test(account.code)) {
+        if (isService) {
+          if (line.assetType !== "NONE" || !account?.active || !account.allowsPosting || !/^[4-7]/.test(account.code)) {
+            res.status(400).json({ error: "Storitev iz tujine knjižite na aktiven knjižljiv stroškovni konto (razred 4 do 7), brez oznake osnovnega sredstva." });
+            return;
+          }
+        } else if (line.assetType === "NONE" || !account?.active || !account.allowsPosting || !assetPrefix.test(account.code)) {
           res.status(400).json({ error: "Vsaka postavka pridobitve OS iz EU potrebuje potrjeno vrsto osnovnega sredstva in knjižljivi konto 02/03 oziroma 04." });
           return;
         }
@@ -2457,7 +2473,7 @@ router.post(
     try {
       lineCalcs = lines.map((l) => {
         const selectedVatCode = l.vatCodeId ? selectedVatCodeById.get(l.vatCodeId) : undefined;
-        const isEuAcquisition = Boolean(selectedVatCode?.code.startsWith("EUB"));
+        const isEuAcquisition = Boolean(selectedVatCode?.code.startsWith("EUB") || isSelfAssessedServiceCode(selectedVatCode?.code));
         // Reverse-charge supplier documents may show 0% VAT even though the
         // FURS acquisition code specifies the domestic accounting rate.
         const vatR = isEuAcquisition && selectedVatCode
@@ -2823,8 +2839,8 @@ router.post(
         });
       }
       journalLines.push(
-        { accountId: inputAccount, side: "debit", amount: money(totalTax), description: "Vstopni DDV od pridobitve OS iz EU" },
-        { accountId: outputAccount, side: "credit", amount: money(totalTax), description: "Obračunani DDV od pridobitve OS iz EU" },
+        { accountId: inputAccount, side: "debit", amount: money(totalTax), description: "Vstopni DDV od samoobdavčitve (tujina)" },
+        { accountId: outputAccount, side: "credit", amount: money(totalTax), description: "Obračunani DDV od samoobdavčitve (tujina)" },
         { accountId: invoice.arApAccountId, side: "credit", amount: money(totalBase), description: entryDescription, partnerId: invoice.counterpartyId },
       );
     } else if (isAiDocumentGrossExpense(invoice.sourceType)) {
