@@ -456,6 +456,22 @@ describe.sequential("received third-country service invoice posting", () => {
       expect.objectContaining({ accountId: payableAccountId, side: "credit", amount: "100.00" }),
     ]));
 
+    const fxId = await prepare("TS-FX", supplier.id);
+    await db.update(invoicesTable).set({ sourceType: "ai-document-fx" }).where(eq(invoicesTable.id, fxId));
+    await db.update(invoiceLinesTable)
+      .set({ unitPrice: "20.0000", vatRate: "0.00", vatBase: "17.24", vatAmount: "0.00" })
+      .where(eq(invoiceLinesTable.invoiceId, fxId));
+    const fx = await request(app()).post(`/companies/${companyId}/invoices/${fxId}/post`);
+    expect(fx.status, JSON.stringify(fx.body)).toBe(200);
+    const fxLines = await db.select({ accountId: journalEntryLinesTable.accountId, side: journalEntryLinesTable.side, amount: journalEntryLinesTable.amount })
+      .from(journalEntryLinesTable).where(eq(journalEntryLinesTable.entryId, fx.body.linkedEntryId));
+    expect(fxLines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ accountId: expense.id, side: "debit", amount: "17.24" }),
+      expect.objectContaining({ accountId: inputVatAccountId, side: "debit", amount: "3.79" }),
+      expect.objectContaining({ accountId: outputVatAccountId, side: "credit", amount: "3.79" }),
+      expect.objectContaining({ accountId: payableAccountId, side: "credit", amount: "17.24" }),
+    ]));
+
     const badId = await prepare("TS-EU", supplierId);
     const bad = await request(app()).post(`/companies/${companyId}/invoices/${badId}/post`).expect(400);
     expect(bad.body.error).toContain("tretje države");
