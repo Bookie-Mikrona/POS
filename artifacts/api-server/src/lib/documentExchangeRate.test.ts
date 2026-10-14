@@ -5,6 +5,7 @@ import {
   clearEcbUsdEurQuoteCacheForTests,
   convertDocumentAmounts,
   DocumentExchangeRateError,
+  getEcbQuote,
   getEcbUsdEurQuote,
   sloveniaDateString,
 } from "./documentExchangeRate";
@@ -336,5 +337,22 @@ describe("ECB USD/EUR quote provider", () => {
       now: new Date("2026-01-12T00:00:00Z"),
       fetcher: wrongPair as typeof fetch,
     })).rejects.toMatchObject({ code: "ECB_WRONG_SERIES", status: 502 });
+  });
+});
+
+describe("ECB quotes for other currencies", () => {
+  it("fetches the requested currency series and rejects unsupported currencies", async () => {
+    const fetcher = vi.fn(async () => new Response(
+      "KEY,FREQ,CURRENCY,CURRENCY_DENOM,TIME_PERIOD,OBS_VALUE\nEXR.D.GBP.EUR.SP00.A,D,GBP,EUR,2026-01-09,0.8700\n",
+      { status: 200 },
+    ));
+    const quote = await getEcbQuote("GBP", "2026-01-11", {
+      now: new Date("2026-01-12T00:00:00Z"),
+      fetcher: fetcher as typeof fetch,
+    });
+    expect(quote).toMatchObject({ rateDate: "2026-01-09", unitsPerEur: 0.87 });
+    expect(quote.sourceUrl).toContain("/D.GBP.EUR.SP00.A");
+    await expect(getEcbQuote("XYZ", "2026-01-11", { now: new Date("2026-01-12T00:00:00Z") }))
+      .rejects.toMatchObject({ code: "UNSUPPORTED_CURRENCY" });
   });
 });

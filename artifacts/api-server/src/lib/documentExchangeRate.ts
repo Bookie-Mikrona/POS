@@ -1,6 +1,15 @@
-export const ECB_USD_EUR_SOURCE_URL =
-  "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A";
-const ECB_USD_EUR_SERIES_KEY = "EXR.D.USD.EUR.SP00.A";
+const ECB_EXR_BASE_URL = "https://data-api.ecb.europa.eu/service/data/EXR";
+export const ECB_USD_EUR_SOURCE_URL = `${ECB_EXR_BASE_URL}/D.USD.EUR.SP00.A`;
+
+/** Valute, za katere ECB objavlja dnevni referenčni tečaj proti EUR. */
+export const ECB_SUPPORTED_CURRENCIES: ReadonlySet<string> = new Set([
+  "USD", "JPY", "BGN", "CZK", "DKK", "GBP", "HUF", "PLN", "RON", "SEK", "CHF", "ISK", "NOK", "TRY",
+  "AUD", "BRL", "CAD", "CNY", "HKD", "IDR", "ILS", "INR", "KRW", "MXN", "MYR", "NZD", "PHP", "SGD", "THB", "ZAR",
+]);
+
+export function isEcbSupportedCurrency(currency: unknown): currency is string {
+  return typeof currency === "string" && ECB_SUPPORTED_CURRENCIES.has(currency);
+}
 
 const ECB_CACHE_TTL_MS = 5 * 60 * 1000;
 const ECB_MAX_RESPONSE_BYTES = 64 * 1024;
@@ -150,7 +159,7 @@ function parseCsvRecords(csv: string): string[][] {
   return records;
 }
 
-function parseEcbCsv(csv: string, startDate: string, requestedDate: string): EcbUsdEurQuote | null {
+function parseEcbCsv(csv: string, startDate: string, requestedDate: string, quoteCurrency: string): EcbUsdEurQuote | null {
   const records = parseCsvRecords(csv);
   if (records.length < 2) return null;
   const headers = records[0].map((cell) => cell.trim().toUpperCase());
@@ -173,12 +182,12 @@ function parseEcbCsv(csv: string, startDate: string, requestedDate: string): Ecb
     const rawValue = cells[valueIndex] ?? "";
     if (!rawKey && !currency && !denominator && !rawDate && !rawValue) continue;
     if (
-      rawKey !== ECB_USD_EUR_SERIES_KEY
+      rawKey !== `EXR.D.${quoteCurrency}.EUR.SP00.A`
       || cells[frequencyIndex] !== "D"
-      || currency !== "USD"
+      || currency !== quoteCurrency
       || denominator !== "EUR"
     ) {
-      throw new DocumentExchangeRateError("ECB_WRONG_SERIES", "ECB je vrnil drug valutni par ali časovno vrsto namesto USD/EUR dnevnega tečaja.", 502);
+      throw new DocumentExchangeRateError("ECB_WRONG_SERIES", `ECB je vrnil drug valutni par ali časovno vrsto namesto ${quoteCurrency}/EUR dnevnega tečaja.`, 502);
     }
     if (!isCanonicalIsoDate(rawDate) || rawDate < startDate || rawDate > requestedDate) {
       throw new DocumentExchangeRateError("ECB_INVALID_RESPONSE", "ECB je vrnil neveljaven ali izven dovoljenega obdobja datiran tečaj.", 502);
@@ -238,15 +247,27 @@ export async function getEcbUsdEurQuote(
   requestedDate: string,
   options: { fetcher?: typeof fetch; now?: Date } = {},
 ): Promise<EcbUsdEurQuote> {
+  return getEcbQuote("USD", requestedDate, options);
+}
+
+export async function getEcbQuote(
+  currency: string,
+  requestedDate: string,
+  options: { fetcher?: typeof fetch; now?: Date } = {},
+): Promise<EcbUsdEurQuote> {
+  if (!isEcbSupportedCurrency(currency)) {
+    throw new DocumentExchangeRateError("UNSUPPORTED_CURRENCY", `ECB ne objavlja dnevnega tečaja za valuto ${currency}. Uporabite ročni tečaj.`, 422);
+  }
   const today = sloveniaDateString(options.now ?? new Date());
   assertRequestedInvoiceDate(requestedDate, today);
   const fetcher = options.fetcher ?? fetch;
   const cacheable = fetcher === fetch;
-  const cached = cacheable ? ecbQuoteCache.get(requestedDate) : undefined;
+  const cacheKey = `${currency}:${requestedDate}`;
+  const cached = cacheable ? ecbQuoteCache.get(cacheKey) : undefined;
   if (cached && cached.expiresAt > Date.now()) return cached.quote;
 
   const startDate = addUtcDays(requestedDate, -ECB_LOOKBACK_DAYS);
-  const url = new URL(ECB_USD_EUR_SOURCE_URL);
+  const url = new URL(`${ECB_EXR_BASE_URL}/D.${currency}.EUR.SP00.A`);
   url.searchParams.set("startPeriod", startDate);
   url.searchParams.set("endPeriod", requestedDate);
   url.searchParams.set("format", "csvdata");
@@ -283,7 +304,7 @@ export async function getEcbUsdEurQuote(
     clearTimeout(timer);
   }
 
-  const quote = parseEcbCsv(body, startDate, requestedDate);
+  const quote = parseEcbCsv(body, startDate, requestedDate, currency);
   if (!quote) {
     throw new DocumentExchangeRateError(
       "ECB_RATE_NOT_AVAILABLE",
@@ -299,11 +320,11 @@ export async function getEcbUsdEurQuote(
     for (const [date, entry] of ecbQuoteCache) {
       if (entry.expiresAt <= now) ecbQuoteCache.delete(date);
     }
-    if (ecbQuoteCache.size >= 100 && !ecbQuoteCache.has(requestedDate)) {
+    if (ecbQuoteCache.size >= 100 && !ecbQuoteCache.has(cacheKey)) {
       const oldestKey = ecbQuoteCache.keys().next().value;
       if (oldestKey) ecbQuoteCache.delete(oldestKey);
     }
-    ecbQuoteCache.set(requestedDate, { quote, expiresAt: now + ECB_CACHE_TTL_MS });
+    ecbQuoteCache.set(cacheKey, { quote, expiresAt: now + ECB_CACHE_TTL_MS });
   }
   return quote;
 }

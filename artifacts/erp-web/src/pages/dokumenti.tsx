@@ -380,6 +380,12 @@ const STATUS_CONFIG: Record<string, { label: string, variant: "default" | "secon
   error: { label: "Napaka", variant: "destructive" }
 };
 
+/** Valute z dnevnim referenčnim tečajem ECB; usklajeno s strežnikom. */
+const ECB_FX_CURRENCIES: ReadonlySet<string> = new Set([
+  "USD", "JPY", "BGN", "CZK", "DKK", "GBP", "HUF", "PLN", "RON", "SEK", "CHF", "ISK", "NOK", "TRY",
+  "AUD", "BRL", "CAD", "CNY", "HKD", "IDR", "ILS", "INR", "KRW", "MXN", "MYR", "NZD", "PHP", "SGD", "THB", "ZAR",
+]);
+
 export default function Dokumenti() {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
@@ -1132,7 +1138,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const ocr = doc.ocrResult;
   const sourceCurrency = ocr?.currency?.trim().toUpperCase() || "EUR";
   const isForeignCurrency = sourceCurrency !== "EUR";
-  const isSupportedFxCurrency = sourceCurrency === "USD";
+  const isSupportedFxCurrency = ECB_FX_CURRENCIES.has(sourceCurrency);
   const isViewer = activeCompany?.role === "viewer";
 
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
@@ -1277,7 +1283,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     && !exchangeRateQuery.isFetching
     && !exchangeRateQuery.isError
     && !exchangeRateQuery.isPlaceholderData
-    && fetchedExchangeRate.currency === "USD"
+    && fetchedExchangeRate.currency === sourceCurrency
     && fetchedExchangeRate.targetCurrency === "EUR"
     && fetchedExchangeRate.mode === exchangeRateMode
     && fetchedVatTreatment === effectiveVatTreatment
@@ -1485,7 +1491,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     ? ocr.totalGross
     : grossSourceLineAmount;
   const grossSourceAdjustmentAmount = grossSourceAmount - grossSourceLineAmount;
-  const grossSourceRoundingDifference = (sourceCurrency === "EUR" || sourceCurrency === "USD")
+  const grossSourceRoundingDifference = (sourceCurrency === "EUR" || isSupportedFxCurrency)
     && Number.isFinite(grossSourceAdjustmentAmount)
     && Math.abs(grossSourceAdjustmentAmount) >= 0.005
     ? formatSourceRoundingDifference(grossSourceLineAmount, grossSourceAmount, grossSourceAdjustmentAmount, sourceCurrency)
@@ -1765,9 +1771,9 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                     <CardContent className="p-4 sm:p-5 space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="min-w-0">
-                          <h4 className="font-semibold">Pregled pretvorbe USD v EUR</h4>
+                          <h4 className="font-semibold">Pregled pretvorbe {sourceCurrency} v EUR</h4>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Izvorni USD zneski ostanejo nespremenjeni. Strežnik bo ob potrditvi ponovno izračunal EUR iz poslanih izvornih vrstic.
+                            Izvorni {sourceCurrency} zneski ostanejo nespremenjeni. Strežnik bo ob potrditvi ponovno izračunal EUR iz poslanih izvornih vrstic.
                           </p>
                         </div>
                         <div className="w-full sm:w-48 shrink-0 space-y-1">
@@ -1796,7 +1802,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                       {exchangeRateMode === "manual" && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <Label htmlFor="manual-units-per-eur" className="text-xs">1 EUR = koliko USD?</Label>
+                            <Label htmlFor="manual-units-per-eur" className="text-xs">1 EUR = koliko {sourceCurrency}?</Label>
                             <Input
                               id="manual-units-per-eur"
                               inputMode="decimal"
@@ -1889,10 +1895,10 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                         <div className="space-y-4">
                           <div className="rounded-lg border bg-muted/20 p-3 sm:p-4 space-y-2">
                             <p className="font-medium text-sm">
-                              1 EUR = {exchangeRatePreview.unitsPerEur.toLocaleString("sl-SI")} USD
+                              1 EUR = {exchangeRatePreview.unitsPerEur.toLocaleString("sl-SI")} {sourceCurrency}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Tečaj je izražen v USD za 1 EUR; preračun v EUR deli izvorni znesek USD s tem tečajem.
+                              Tečaj je izražen v {sourceCurrency} za 1 EUR; preračun v EUR deli izvorni znesek {sourceCurrency} s tem tečajem.
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Tečaj {exchangeRatePreview.source === "ECB" ? "ECB" : "ročni"} · veljaven {exchangeRatePreview.rateDate}
@@ -2398,7 +2404,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                       <div className="text-xs text-muted-foreground">
                         Izvorni račun ({sourceCurrency}): neto {formatCurrencyAmount(ocr?.totalNet, sourceCurrency)} · DDV {formatCurrencyAmount(ocr?.totalVat, sourceCurrency)} · bruto {formatCurrencyAmount(ocr?.totalGross, sourceCurrency)}
                       </div>
-                      {sourceCurrency === "USD" ? (
+                      {isSupportedFxCurrency ? (
                         exchangeRatePreview && exchangeRatePreviewTreatment === GROSS_EXPENSE_VAT_TREATMENT ? (
                           <>
                             <div className="space-y-1">

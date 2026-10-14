@@ -64,7 +64,8 @@ import {
   assertValidRateDate,
   convertDocumentAmounts,
   DocumentExchangeRateError,
-  getEcbUsdEurQuote,
+  getEcbQuote,
+  isEcbSupportedCurrency,
   type DocumentTotals,
   type ExchangeRateMode,
   type DocumentVatTreatment,
@@ -1096,10 +1097,10 @@ router.get(
 
       const ocr = doc.ocrResult as OcrReviewResult | null;
       const currency = typeof ocr?.currency === "string" ? ocr.currency.trim().toUpperCase() : "EUR";
-      if (currency !== "USD") {
+      if (currency !== "EUR" && !isEcbSupportedCurrency(currency)) {
         throw new DocumentExchangeRateError(
           "UNSUPPORTED_CURRENCY",
-          `Pretvorba dokumentov iz valute ${currency} v EUR trenutno ni podprta. Podprt je USD.`,
+          `Pretvorba dokumentov iz valute ${currency} v EUR ni podprta, ker ECB zanjo ne objavlja tečaja.`,
           422,
         );
       }
@@ -1123,7 +1124,7 @@ router.get(
         source = "manual";
         sourceUrl = null;
       } else {
-        const quote = await getEcbUsdEurQuote(requestedDate);
+        const quote = await getEcbQuote(currency, requestedDate);
         rateDate = quote.rateDate;
         unitsPerEur = quote.unitsPerEur;
         source = quote.source;
@@ -1264,7 +1265,7 @@ router.post(
         });
         return;
       }
-      if (sourceCurrency !== "EUR" && sourceCurrency !== "USD") {
+      if (sourceCurrency !== "EUR" && !isEcbSupportedCurrency(sourceCurrency)) {
         res.status(400).json({
           error: `Bruto odhodki iz valute ${sourceCurrency} v EUR niso podprti.`,
           code: "UNSUPPORTED_CURRENCY",
@@ -1547,7 +1548,7 @@ router.post(
     let sourceRoundingAdjustment: SourceGrossRoundingAdjustment | undefined;
     let expenseEurRoundingAdjustment: ExpenseEurRoundingAdjustment | undefined;
     if (createInvoice && sourceCurrency !== "EUR") {
-      if (sourceCurrency !== "USD") {
+      if (!isEcbSupportedCurrency(sourceCurrency)) {
         res.status(400).json({
           error: `Pretvorba iz valute ${sourceCurrency} v EUR ni podprta; račun ni bil ustvarjen in dokument ostaja nespremenjen.`,
           code: "UNSUPPORTED_CURRENCY",
@@ -1611,7 +1612,7 @@ router.post(
           exchangeSource = "manual";
           exchangeSourceUrl = null;
         } else {
-          const quote = await getEcbUsdEurQuote(invoiceDate);
+          const quote = await getEcbQuote(sourceCurrency, invoiceDate);
           if (
             exchangeRate.rateDate !== quote.rateDate
             || typeof exchangeRate.unitsPerEur !== "number"
