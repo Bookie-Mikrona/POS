@@ -1,0 +1,47 @@
+gostinski normativ Pečena rebrca na kg
+
+Gostinski normativ za pečena prašičja (svinjska) rebrca na 1 kg gotove pečenke se obračunava na podlagi iztržka po pečenju, saj rebrca med obdelavo (čiščenje, toplotna obdelava, kosti, količina maščobe in izparevanje vode) utrpijo znatne izgube (kalo).
+
+1. Iztržek in izguba teže (Kalo) pri pečenju rebrc
+Kalo pri pečenju svinjskih rebrc: znaša med 35 % in 45 % (odvisno od vsebnosti kosti, maščobe in načina pečenja).
+
+Faktor surovine: Za 1,0 kg gotove pečenke morate v surovem stanju uporabiti približno 1,55 kg do 1,65 kg surovih rebrc.
+
+2. Normativ surovin za 1 kg gotove jedi (Pečena rebrca)
+Za pripravo 1,0 kg pečene pečenke (gotove jedi za strežbo ali toplovodno vitrino) se v gostinsko recepturo / materialno knjigovodstvo vnašajo naslednji normativi:
+
+Surovina	Bruto količina (surovo)	Neto količina (po pečenju)	Opombe / specifikacija
+Svinjska rebrca (surova, s kostjo)	1.550 g – 1.650 g	1.000 g	Surova svinjska rebrca s kožo ali brez.
+Rastlinsko olje / svinjska mast	30 g – 50 g	20 g	Za mazanje in začetno pečenje.
+Sol	18 g – 20 g	18 g – 20 g	Cca 12–13 g soli na kg surovega mesa.
+Česen (svež ali v prahu)	10 g	10 g	Po recepturi obrata.
+Mleta rdeča paprika	5 g	5 g	Za barvo in aromo.
+Poper, kumina, majaron	cca 3–5 g	cca 3–5 g	Klasična gostinska mešanica začimb.
+Pivo ali jušna osnova (za zalivanje)	100 ml (0,10 l)	/	Odpari med pečenjem in ustvari pečenkin sok.
+3. Normativ po porcijah (Gostinska strežba)
+Pri prašičjih rebrcih je treba upoštevati, da kosti predstavljajo približno 25–30 % teže gotove pečenke. Zato je standardna gostinska porcija teže večja kot pri mesu brez kosti:
+
+Standardna gostinska porcija (z kostjo): 300 g – 350 g gotove pečenke (kar pomeni cca 200–230 g čistega mesa + kosti).
+
+Iz 1 kg gotove pečenke dobite približno 3 standardne porcije po 330 g.
+
+Normativ za 1 porcijo (330 g gotove pečenke z kostjo):
+Surova svinjska rebrca (bruto): ~520 g – 550 g
+
+Začimbe in olje: ustrezni delež (sol ~6 g, olje ~10 g)
+
+(Poleg se obvezno postreže pečenkin sok ter priloga – npr. pražen krompir ali pečen krompir 200 g).
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Pri vnosu v gostinski program (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.):
+
+Kot polizdelek / Pečenka (na 1 kg ali na kos pekača):
+
+Rebrca se pečejo v celih kosih/pekačih (npr. pekač z 10 kg surovih rebrc, iz katerega dobite cca 6,2 kg pečenke). V sistem vnesete recepturo polizdelka Pečena svinjska rebrca na 1 kg.
+
+Obračunavanje prodaje na blagajni:
+
+Po porcijah: Pri prodaji Porcija pečenih rebrc (330 g) sistem razdolži 0,33 kg polizdelka (kar ustreza cca 0,53 kg surovega mesa).
+
+Po dejanski teži (na kg): V obratih s prehrano po teži (topla vitrina, kmečki turizmi) se artikel proda po dejanski teži (npr. gost vzame 0,42 kg pečenke 
+→ program razdolži natanko 0,42 kg polizdelka).
