@@ -1,0 +1,35 @@
+Gostinski normativ za puranja tortilja na kg
+
+Gostinski normativ za puranjo tortiljo (topla ali hladna gostinska tortilja, polnjena s puranjim mesom, svežo zelenjavo in omako), preračunan točno na 1 kg (1000 g) gotove jedi (zvitek pripravljen za rezanje na porcije ali neposredno izdajo), se v gostinski praksi uporablja kot standardni polizdelek za hitro prehrano, malice ali hladno-tople bivete.
+
+Ker tortilje vsebujejo ovoj (pšenično tortiljo), mesni nadev in zelenjavo, je razmerje sestavin prilagojeno tako, da je izdelek sočen in strukturno stabilen.
+
+1. Normativ surovin za 1 kg gotovih puranjih tortilj
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Pšenične tortilje (velike, premer cca 25–30 cm)	300 g	300 g	Standardne gostinske tortilje (cca 5–6 kosov oziroma ustrezna gramatura zvitkov).
+Puranji file (meso)	350 g	300 g	Narezan na tanke trakove (kalo pri prašenju/pečenju cca 15 %).
+Rastlinsko olje (za praženje purana)	25 g	25 g	Za hitro popekanje puranjih trakov.
+Mešana zelenjava (zelena salata, paradižnik, koruza, rdeča paprika)	200 g	170 g	Sveže narezana zelenjava za hrustljavost in svežino (kalo pri čiščenju cca 15 %).
+Majoneza, jogurtova ali česnova omaka (preliv)	100 g	100 g	Gostinska omaka za povezavo nadeva in sočnost.
+Sir (nariban Edamec ali Cheddar)	50 g	50 g	Za vezavo in opcijsko gratiniranje (če se tortilja servira topla).
+Začimbe (sol, poper, česen v prahu, mex mešanica začimb)	10 g	10 g	Za okus puranjega mesa.
+Opomba: Zgornje surovine po termični obdelavi mesa, sestavljanju in zvijanju dajo natanko 1,0 kg gotovih puranjih tortilj.
+
+2. Normativ za 1 standardno gostinsko porcijo
+V gostinski ponudbi se puranja tortilja običajno streže kot 1 velik zvit or 2 manjša zvitka na krožniku (pogosto ob prilogi pomfrija ali solate):
+
+Teža 1 porcije gotove tortilje: 250 g – 300 g (ustreza cca 1/3 do 1/4 celotnega kg polizdelka).
+
+Normativ za 1 porcijo (280 g):
+Pšenična tortilja: ~85 g
+
+Puranje meso: ~100 g (pečenega)
+
+Zelenjava in omaka: ~75 g
+
+Sir: ~20 g
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / gotove jedi: V POS sistemu se vnese artikel Polizdelek / Glavna jed: Puranja tortilja z enoto mere 1 kg (če se dela v večjih serijah) ali pa se receptura vnese direktno na normativ posamezne porcije.
+
+Razdolževanje ob prodaji: Ob izdaji porcije (npr. Puranja tortilja s pomfrijem) sistem iz skladišča samodejno odpiše točno 0,28 kg polizdelka tortilj ter pripadajočo gramaturo priloge.
