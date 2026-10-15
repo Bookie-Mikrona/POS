@@ -1,0 +1,45 @@
+Prikaži gostinski normativ za naravni svinjski zrezek na kg.
+
+Gostinski normativ za naravni svinjski zrezek v naravni omaki, preračunan točno na 1 kg (1000 g) gotove jedi (meso skupaj z omako), se v gostinski kuhinji uporablja kot osrednji polizdelek za pripravo večjih serij malic ali kosil.
+
+1. Normativ surovin za 1 kg gotovega naravnega svinjskega zrezka v omaki
+Razmerje med mesom in naravno omako v posodi (gastronorm posodi) je standardno okoli 60 % mesa in 40 % omake.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Svinjsko stegno ali hrbet (brez kosti)	1.250 g	1.200 g	Čisto meso brez kosti (kalo pri čiščenju, obrezovanju in dušenju je cca 25–30 %).
+Čebula (sveža)	150 g	130 g	Drobno sesekljana za osnovo omake in naravno zgoščevanje.
+Česen (svež)	15 g	12 g	Drobno sesekljan ali strt.
+Rastlinsko olje ali svinjska mast	60 g	60 g	Za popekanje zrezkov in praženje čebule.
+Pšenična moka (za prašenje zrezkov/podmet)	35 g	35 g	Za nežno zgoščevanje naravne omake in sočnost mesa.
+Jušna osnova ali voda	450 ml (0,45 l)	450 ml	Za zalivanje in dušenje (del tekočine med dušenjem izpari).
+Maslo	30 g	30 g	Dodano ob koncu za žametno teksturo in sijaj omake.
+Začimbe (sol, mleti poper, lovorov list, sesekljan peteršilj)	15 g	15 g	Klasična gostinska mešanica začimb.
+Opomba: Surovo meso in sestavine z zgoraj navedenimi količinami po toplotni obdelavi in dušenju dajo natanko 1,0 kg gotove jedi (meso z omako).
+
+2. Normativ za večje količine (Npr. 5 kg ali 10 kg posoda za kuhinjo)
+Če kuhinja pripravlja večjo serijo za redno linijo malic (npr. 10 kg gotove jedi), se vsi normativi preprosto pomnožijo z 10:
+
+Svinjsko stegno/hrbet (bruto): 12,50 kg (daje cca 6 kg pečenega mesa in 4 kg omake)
+
+Čebula: 1,50 kg
+
+Olje / mast: 0,60 kg (600 g)
+
+Moka: 0,35 kg (350 g)
+
+Jušna osnova / voda: 4,50 litrov
+
+Maslo: 0,30 kg (300 g)
+
+Začimbe: 0,15 kg (150 g)
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek: Naravni svinjski zrezek v omaki z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ko natakar na blagajni odtipka porcijo (npr. Naravni svinjski zrezek z rižem), kjer je normativ mesa z omako določen na 0,25 kg, sistem iz skladišča samodejno odpiše točno 0,25 kg tega polizdelka (ter posebej prilogo, npr. dušeni riž).
+
+
+Svinjski zrezki v naravni omaki🥩
+YouTube
+ · 
+Lidl Slovenija
