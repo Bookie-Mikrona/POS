@@ -1,0 +1,62 @@
+gostinski normativ ocvreti sir, pomfri porcija
+
+Gostinski normativ za obrok Ocvrti sir s pomfrijem in tatarsko omako se v gostinstvu obračunava ločeno po komponentah, saj gre za tri samostojne artikle/sestavine, ki sestavljajo končno porcijo.
+
+1. Normativi po posameznih komponentah porcije
+A) Ocvrti sir (1 porcija)
+Za ocvrti sir se v gostinstvu najpogosteje uporablja Edamec, Gavda ali specializirani Sir za cvrtje (lahko sveže paniran v kuhinji ali kupljen predpaniran zmrznjen).
+
+Standardni normativ porcije: 150 g – 180 g gotovega ocvrtega sira (običajno 2 kosa po 75–90 g ali 1 večji kos).
+
+Kalo / Količinski priračun pri paniranju (če se panira v kuhinji):
+
+Sir (bruto/neto reza): 130 g – 150 g
+
+Pšenična moka: 15 g
+
+Jajca: 1/2 kosa (cca 25 g)
+
+Drobtine: 25 g
+
+Olje za cvrtje (vlak/vstop): cca 15 g (vskrkano olje med cvrtjem)
+
+B) Pomfri / Ocvrte krompirjeve paličice (1 porcija)
+V gostinstvu se skoraj izključno uporablja predpripravljen zamrznjen pomfri za friteze.
+
+Standardni normativ porcije (kot priloga): 200 g – 250 g (surovega zamrznjenega pomfrija).
+
+Kalo pri cvrtju: Zamrznjen pomfri med cvrtjem v fritezi izgubi cca 15–20 % teže (zaradi izparevanja vode), vskrka pa cca 8–10 % olja.
+
+Gotova teža na krožniku: cca 170 g – 200 g.
+
+Olje za cvrtje (poraba): cca 15–20 g na porcijo.
+
+Sol: 2 g – 3 g.
+
+C) Tatarska omaka (1 porcija)
+Ocvrti sir se v slovenski gostinski praksi skoraj obvezno streže s tatarsko omako ali majonezo.
+
+Standardni normativ porcije: 50 g (0,05 kg).
+
+Sestava (če se dela v kuhinji): Majoneza (35 g), kisle kumarice (10 g), kapre, gorčica, kisla smetana in začimbe (5 g).
+
+2. Zbirni normativ za 1 celotno porcijo (Krožnik: Ocvrti sir + Pomfri)
+Sestavina / Artikel	Normativ (Vhodna / Surova količina)	Gotova teža na krožniku
+Ocvrti sir (predpaniran ali svež)	150 g – 180 g (1 ali 2 kosa)	~160 g – 190 g
+Pomfri (zamrznjen)	200 g – 250 g	~170 g – 200 g
+Tatarska omaka	50 g	50 g
+Limona (rezina za ukras/stisk)	1/8 limone (cca 15 g)	15 g
+Olje za cvrtje (vskrkano - skupaj)	30 g – 35 g	/
+Sol	3 g	/
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se ta jed običajno vnaša na enega od dveh načinov:
+
+Sestavljeni artikel (Glavna jed z vključeno prilogo):
+
+Artikel PLU 650 – Ocvrti sir s pomfrijem ima neposredno vezane vse zgornje normative (sir, pomfri, tatarska omaka, olje, limona).
+
+Ločena priloga (Modularni vnos):
+
+PLU 651 – Ocvrti sir porcija (veže sir, paniranje, olje, limono in tatarsko omako)
+
+PLU 910 – Pomfri priloga (veže 200–250 g zamrznjenega pomfrija, olje in sol)
