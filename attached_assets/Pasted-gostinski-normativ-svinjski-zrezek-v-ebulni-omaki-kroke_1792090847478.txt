@@ -1,0 +1,54 @@
+gostinski normativ svinjski zrezek v čebulni omaki, kroketi na kg
+
+Gostinski normativ za svinjski zrezek v čebulni omaki s krompirjevimi kroketi se v gostinstvu obračunava ločeno po dveh osnovnih polizdelkih: meso z omako (na 1 kg) ter krompirjevi kroketi (na 1 kg), kar omogoča natančno materialno vodenje v POS sistemu.
+
+1. Normativ surovin za 1 kg gotovega svinjskega zrezka v čebulni omaki (Meso + Omaka)
+Razmerje v posodi/gastronorm posodi je standardno: cca 500 g kuhanega/dušenega svinjskega mesa in cca 500 g goste čebulne omake.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Svinjsko stegno ali hrbet (brez kosti)	650 g – 700 g	650 g	Narezano na zrezke (kalo pri čiščenju in dušenju je cca 25 %).
+Čebula (sveža)	350 g	300 g	Veliko čebule za naravno gostoto in sladkobo omake.
+Česen (svež)	15 g	12 g	Drobno sesekljan.
+Jušna osnova ali voda	400 ml (0,40 l)	400 ml	Za zalivanje in dušenje (del tekočine izpari).
+Belo ali rdeče vino	50 ml (0,05 l)	/	Za deglaziranje in aromo (alkohol izpari).
+Rastlinsko olje ali svinjska mast	40 g	40 g	Za popekanje zrezkov in praženje čebule.
+Pšenična moka (za prašenje zrezkov/podmet)	25 g	25 g	Za zgoščevanje omake in sočnost meso.
+Paradižnikova mezga ali gorčica	20 g	20 g	Za globino okusa in lepo barvo omake.
+Začimbe (sol, poper, majaron, lovorov list)	12 g	12 g	Osnovna gostinska mešanica začimb.
+2. Normativ za 1 kg zamrznjenih / ocvritih krompirjevih kroketov
+Za krokete se v gostinstvu najpogosteje uporabljajo predpripravljeni zamrznjeni krompirjevi kroketi za cvrtje v fritezi:
+
+Surovina	Bruto količina	Neto / Gotova količina	Opombe / Specifikacija
+Krompirjevi kroketi (zamrznjeni)	1.050 g	1.000 g	Izguba vlage pri cvrtju v fritezi je cca 5–8 %.
+Olje za cvrtje (vskrkano)	80 g	80 g	Vskrkano olje med cvrtjem v fritezi.
+Sol	5 g	5 g	Za posip po cvrtju.
+3. Normativ za 1 celotno gostinsko porcijo (Krožnik)
+Standardna gostinska porcija te jedi kot glavne tople jedi (npr. pri kosilih ali malicah) obsega:
+
+Svinjski zrezek v čebulni omaki: 250 g gotove jedi (1 zrezek ~120 g + ~130 g čebulne omake)
+
+Krompirjevi kroketi: 180 g – 200 g (cca 8–10 kosov kroketov)
+
+Sestavina / Artikel	Vhodna surova količina (Bruto/Neto)	Gotova teža na krožniku
+Svinjski zrezek (surov)	160 g – 170 g	~120 g (pečen zrezek)
+Čebulna omaka (gotova)	130 g	130 g
+Krompirjevi kroketi (zamrznjeni)	200 g	~180 g – 190 g
+Olje za cvrtje (vskrkano)	15 g	/
+Skupna teža gotove porcije na krožniku: cca 430 g – 450 g.
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Pri vnosu v gostinski program (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.):
+
+Definicija dveh polizdelkov:
+
+Polizdelek A: Svinjski zrezek v čebulni omaki (enota mere: 1 kg)
+
+Polizdelek B: Krompirjevi kroketi ocvrti (enota mere: 1 kg)
+
+Razdolževanje ob prodaji na blagajni:
+
+Ko na blagajni odtipkate naročilo PLU 715 – Svinjski zrezek v čebulni omaki s kroketi, sistem iz skladišča samodejno odpiše:
+
+0,25 kg polizdelka A (Svinjski zrezek v čebulni omaki)
+
+0,20 kg polizdelka B (Krompirjevi kroketi)
