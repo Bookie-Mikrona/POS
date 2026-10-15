@@ -1,0 +1,55 @@
+gostinski normativ goveja mesno zelenjavna enolončnica na kg
+
+Gostinski normativ za govejo mesno-zelenjavno enolončnico (klasična goveja enolončnica z mesom, korenasto zelenjavo in krompirjem ali zakuho) se v gostinstvu obračunava točno na 1 kg (1000 g) gotove jedi na žlico.
+
+1. Normativ surovin za 1 kg gotove goveje enolončnice
+Za pripravo 1,0 kg (1000 g) gotove jedi se v materialno knjigovodstvo POS sistema vnašajo naslednje količine surovin:
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Goveje meso (bočnik, pleče ali vrat)	220 g	200 g	Narezano na manjše kocke (kalo pri čiščenju in dušenju cca 15–20 %).
+Goveja jušna osnova ali voda	550 ml (0,55 l)	550 ml	Osnova za enolončnico (del tekočine med kuhanjem izpari).
+Krompir (svež)	180 g	150 g	Narezan na kocke (kalo pri lupljenju cca 15–20 %).
+Mešana korenasta zelenjava (korenček, zelena, kolag, por)*	150 g	120 g	Narezano na kocke ali kolesca.
+Čebula (sveža)	80 g	70 g	Drobno sesekljana za praženje in gostoto.
+Česen (svež)	10 g	8 g	Drobno sesekljan.
+Rastlinsko olje ali svinjska mast	20 g	20 g	Za praženje čebule in mesa.
+Paradižnikova mezga / pasiran paradižnik	30 g	30 g	Za okus, kislost in lepo barvo.
+Pšenična moka (za blago zgoščevanje)	15 g	15 g	Podmet ali prežganje po recepturi obrata.
+Začimbe (sol, poper, lovorov list, majaron, mleta rdeča paprika, peteršilj)	10 g	10 g	Klasična gostinska mešanica začimb.
+Opomba: Zaradi dolgotrajnega kuhanja in delnega izparevanja vode celotna teža surovih sestavin da natanko 1,0 kg gotove enolončnice.
+
+2. Normativ po porcijah (Gostinska strežba)
+Enolončnice se v gostinstvu strežejo v globokih krožnikih ali jušnih skodelicah kot samostojna jed (pogosto ob kruhu):
+
+Standardna gostinska porcija: 400 g – 450 g (izdatna porcija na žlico).
+
+Iz 1 kg gotove jedi dobite približno 2,3 do 2,5 porcije.
+
+Normativ za 1 porcijo (400 g gotove enolončnice):
+Goveje meso (surovo): ~90 g (daje cca 60–70 g kuhanega mesa v porciji)
+
+Zelenjava in krompir: ~110 g
+
+Gosta jušna osnova / omaka: ~200 g
+
+(Poleg se obvezno obračuna še kruh – normativ 1–2 rezini / 50–80 g).
+
+3. Normativ za večje količine (Npr. 10 kg posoda za malice)
+V gostinski kuhinji se enolončnice kuhajo v večjih kotlih/posodah. Za 10 kg gotove enolončnice (cca 25 porcij) se vsi normativi pomnožijo z 10:
+
+Goveje meso (bruto): 2,20 kg
+
+Goveja jušna osnova / voda: 5,50 litrov
+
+Krompir (bruto): 1,80 kg
+
+Zelenjava (bruto): 1,50 kg
+
+Čebula: 0,80 kg
+
+Mast / olje, moka, paradižnikova mezga, začimbe: sorazmerno več.
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka: V sistemu se ustvari Polizdelek: Goveja mesno zelenjavna enolončnica z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ko na blagajni odtipkate naročilo (PLU 420 – Goveja enolončnica), sistem iz skladišča samodejno odpiše nastavljeni normativ enolončnice (npr. 0,40 kg tega polizdelka na porcijo) ter 0,06 kg kruha.
