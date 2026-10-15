@@ -1,0 +1,41 @@
+gostinski normativ špageti bolognez porcija
+
+Gostinski normativ za špagete Bolognese (bolognez) se v gostinstvu prav tako deli na dva glavna dela: pripravo mesne omake (ragù) kot polizdelka ter samo kuhanje in sestavo končne porcije ob naročilu.
+
+1. Normativ surovin za 1 kg gotove mesne omake Bolognese (Ragù)
+Za pripravo 1,0 kg gotove paradižnikovo-mesne omake se v gostinsko recepturo vnašajo naslednje količine surovin:
+
+Surovina	Bruto količina	Neto količina	Opombe
+Mleto mešano meso (govedina/svinjina)	350 g	350 g	Osnova omake.
+Paradižnikova mezga / Pelati (pasirani)	350 g	350 g	Za sočnost in rdečo barvo.
+Čebula, korenček, stebelna zelena (sofrito)	150 g	120 g	Klasika za bolognese (drobno sesekljano).
+Rdeče ali belo vino	50 ml (0,05 l)	/	Odpari med dušenjem za aromo.
+Jušna osnova ali voda	100 ml	100 ml	Za dolivanje in dušenje.
+Olje ali maslo	30 g	30 g	Za praženje zelenjave in mesa.
+Začimbe (sol, poper, česen, origano, bazilika)	cca 10 g	cca 10 g	Po okusu in recepturi lokala.
+2. Normativ za 1 celotno gostinsko porcijo (Špageti Bolognese)
+Končna porcija na krožniku poleg omake vključuje še surove špagete (ki med kuhanjem nabreknejo) ter nariban sir.
+
+Sestavina / Artikel	Normativ (Vhodna količina)	Gotova teža na krožniku	Opombe
+Špageti (suhe testenine)	100 g – 120 g	~250 g – 300 g	Surove testenine med kuhanjem v vodi absorbirajo vodo in potrojijo težo.
+Mesna omaka Bolognese	180 g – 200 g	~180 g – 200 g	Gotova omaka iz lonca.
+Sir (nariban - ementalec / parmezan)	15 g – 20 g	15 g – 20 g	Postreže se na vrhu ali v posodici ob strani.
+Olje ali maslo (za zabelo testenin)	5 g	/	Da se špageti ne zlepijo po kuhanju.
+Skupna teža gotove porcije na krožniku: cca 450 g – 500 g (izdatna glavna jed).
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+Pri vnosu v gostinski program (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.):
+
+Kot polizdelek (Omaka Bolognese na 1 kg ali večjo posodo):
+
+Kuhinja skuha večjo količino omake (npr. 5 kg ali 10 kg) kot polizdelek.
+
+Razdolževanje ob prodaji:
+
+Ko gost natipka PLU za Špagete Bolognese, program samodejno razdolži:
+
+0,11 kg surovih špagetov
+
+0,19 kg polizdelka Omaka Bolognese
+
+0,02 kg sira
