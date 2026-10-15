@@ -124,6 +124,29 @@ const paymentDisplayStatus = sql<"draft" | "posted" | "void">`CASE
      AND j.company_id = ${paymentsTable.companyId}), ${paymentsTable.status}::text)
   ELSE ${paymentsTable.status}::text END`;
 
+// Read immutable evidence, not updatedAt or the accounting date of the payment.
+// Correlated subqueries keep list rows unique and enforce company boundaries.
+const paymentReversalFields = {
+  voidedAt: sql<string | null>`CASE WHEN (${paymentDisplayStatus}) = 'void' THEN COALESCE(
+    (SELECT a.changed_at FROM audit_log a
+     WHERE a.company_id = ${paymentsTable.companyId}
+       AND a.entity_type = 'payment' AND a.entity_id = ${paymentsTable.id}
+       AND a.action = 'void' ORDER BY a.changed_at, a.id LIMIT 1),
+    (SELECT r.created_at FROM journal_entries r
+     WHERE r.company_id = ${paymentsTable.companyId}
+       AND r.reversal_of = ${paymentsTable.linkedEntryId}
+       AND r.status IN ('posted', 'reversed')
+     ORDER BY r.created_at, r.id LIMIT 1)
+  )::text ELSE NULL END`.mapWith((value: string) => new Date(value).toISOString()),
+  reversalEntryId: sql<string | null>`CASE WHEN (${paymentDisplayStatus}) = 'void' THEN
+    (SELECT r.id FROM journal_entries r
+     WHERE r.company_id = ${paymentsTable.companyId}
+       AND r.reversal_of = ${paymentsTable.linkedEntryId}
+       AND r.status IN ('posted', 'reversed')
+     ORDER BY r.created_at, r.id LIMIT 1)
+    ELSE NULL END`,
+};
+
 async function resolveAccess(
   clerkUserId: string,
   companyId: string,
@@ -189,6 +212,7 @@ async function fetchPaymentWithAllocations(paymentId: string) {
       arApAccountId: paymentsTable.arApAccountId,
       status: paymentDisplayStatus,
       linkedEntryId: paymentsTable.linkedEntryId,
+      ...paymentReversalFields,
       notes: paymentsTable.notes,
       createdBy: paymentsTable.createdBy,
       createdAt: paymentsTable.createdAt,
@@ -355,6 +379,7 @@ router.get(
         arApAccountId: paymentsTable.arApAccountId,
         status: paymentDisplayStatus,
         linkedEntryId: paymentsTable.linkedEntryId,
+        ...paymentReversalFields,
         notes: paymentsTable.notes,
         createdBy: paymentsTable.createdBy,
         createdAt: paymentsTable.createdAt,

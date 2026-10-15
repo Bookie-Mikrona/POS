@@ -5,10 +5,8 @@
 - [ERP company header](erp-company-header.md) — ERP poročila morajo aktivno podjetje vedno poslati eksplicitno, ne zanašati se na legacy localStorage fallback.
 - [QR meni slike in ETA pijač](qr-meni-slike-eta-pijac.md) — široke slike so 3 : 1; čista naročila pijač uporabljajo ločeno barsko vrsto.
 - [QR meni uporabniški izrazi](qr-meni-uporabniski-izrazi.md) — glava kaže mizo in prostor; kategorije so vse vidne; artikel se doda v košarico, naročilo se odda pozneje.
-- [Cene in poraba pic](pizza-cene-po-velikostih.md) — cena sledi velikosti; plačljiv dodatek pri porabi vedno uporablja cel normativ s faktorjem 1.
-- [Hlebčki za pico po velikosti](pizza-hlebcki-po-velikosti.md) — ena pica porabi natanko en pripravljen hlebček svoje velikosti; surovine se porabijo pri pripravi, ne še pri prodaji.
+- [Pice: velikosti in poraba](pizza-guides.md) — povezana pravila cen, hlebčkov in razlike med postajo pica ter operativnim tipom.
 - [Pitna voda v receptih](tap-water-recipe-policy.md) — voda iz pipe ostane v navodilih priprave, nikoli kot nabavni artikel ali zalogovna sestavina.
-- [Operativna vrsta pice](pizza-operativni-tip.md) — postaja »pica« ne pomeni »ala_carte«; ohrani »composite« za izračun razpoložljivosti po velikostih.
 - [POS izbira podjetja](pos-izbira-podjetja.md) — več aktivnih POS vlog je dvoumnih; zahtevaj X-Company-Id, en sam vnos se lahko razreši samodejno
 - [POS kartične reference](pos-karticne-reference.md) — SumUp/Viva referenco je treba atomsko globalno rezervirati pred FURS klicem v vseh računskih tokovih
 - [QR To Go artikli](qr-to-go-artikli.md) — javni QR meni možnost To Go pokaže le pri artiklu, ki jo ima omogočeno; strežnik izbiro vedno preveri.
@@ -33,10 +31,7 @@
 - [Native file picker v dialogu](native-file-picker-dialog.md) — Radix dialog lahko interpretira fokus sistemskega izbirnika datotek kot zapiranje; med izbiro prepreči outside close.
 - [UBL InvoiceLine AllowanceCharge](ubl-linijski-rabat.md) — parser-eslog ni bral InvoiceLine/AllowanceCharge (samo Price/AllowanceCharge); POS007 validacija zdaj primerja min(bruto, neto) razliko
 - [bizBox Faza B](bizbox-faza-b.md) — ročna oddaja e-SLOG prek ZZI; modul bizbox.ts; JSZip STORE; eDDress iz davčne; env poverilnice; UBL≠EDIFACT opozorilo
-- [OS amortizacija pravilo](os-amortizacija-pravilo.md) — 022 migracija; naslednji_dan|naslednji_mesec; usklajenost izpis/pregled (023 vhodni_podpis); 3b stornacija POST /storno
-- [OS datum odtujitve](os-datum-odtujitve.md) — SRS/ZDDPO-2 pravilo: mesec odtujitve se NE šteje; glava.datumOdtujitve override > per-doknjizba datumIzpisa; register filtrira dispYear < leto
-- [OS negativna NV korekcija](os-negativna-nv.md) — uvožene korekcijske doknjižbe imajo negativno NV; engine mora vrniti 0 (ne negativno AM); opomba "negativna_osnova"
-- [OS oslabitev — nova letna AM](os-oslabitev-nova-letna-am.md) — SRS 1.35+: nova AM = nova_knjižna/preostala_doba; fiksirana v DB; odpisanaVrednost se ne posodablja
+- [Amortizacija osnovnih sredstev](os-amortizacija-guides.md) — pravila začetka, odtujitve, negativnih korekcij in oslabitve.
 - [Zgodovinski obračun ur](obracun-ur-zgodovinski-snapshot.md) — izmene morajo hraniti nespremenljivo kodo in naziv stroškovnega mesta ob odprtju.
 - [Obračun ur nočnih izmen](obracun-ur-nocne-izmene.md) — izmeno razdeli po lokalnih dnevih Europe/Ljubljana; DST uporablja dejanski pretečeni čas.
 - [Telefonski naročniki](telefonski-narocniki.md) — vsak telefonski prevzem ali dostava trajno razreši naročnika po normaliziranem telefonu znotraj enote

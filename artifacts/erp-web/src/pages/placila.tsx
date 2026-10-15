@@ -32,6 +32,7 @@ import {
   useGetOpenItems,
   useGetBankBalance,
   getListPaymentsQueryKey,
+  getGetPaymentQueryKey,
   type PaymentRecord,
   type PaymentWithAllocations,
   type PaymentAllocationRecord
@@ -52,6 +53,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from "@/components/ui/checkbox";
 import { PaymentBatchesPanel } from "@/components/payment-batches-panel";
 import { BankAccountMetadataDialog } from "@/components/bank-account-metadata-dialog";
+import { PaymentStatus, PaymentReversalLink } from "@/components/payment-status";
 import {
   allocationIdentity,
   buildPaymentAllocationPayload,
@@ -66,18 +68,6 @@ import {
   groupPaymentBatchAllocations,
   type MixedAllocation,
 } from "@/lib/openItems";
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Osnutek",
-  posted: "Knjiženo",
-  void: "Razveljavljeno"
-};
-
-const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  draft: "outline",
-  posted: "default",
-  void: "secondary"
-};
 
 const isHistoricalPayment = (payment: PaymentRecord) => payment.createdBy === "bookie-old-payment-import";
 
@@ -302,12 +292,7 @@ export default function Placila() {
                   <TableCell className="text-right font-medium">{isHistoricalPayment(pay) ? "—" : parseFloat(pay.unallocatedAmount).toFixed(2)}</TableCell>
                   <TableCell className="text-muted-foreground">{pay.reference || "-"}</TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={STATUS_VARIANTS[pay.status]} 
-                      className={pay.status === 'posted' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
-                    >
-                      {STATUS_LABELS[pay.status]}
-                    </Badge>
+                    <PaymentStatus payment={pay} />
                     {isHistoricalPayment(pay) && <Badge variant="outline" className="ml-1">Stara knjiga</Badge>}
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -1030,16 +1015,17 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
 // DETAIL PAYMENT SHEET
 // ---------------------------------------------------------------------------
 
-function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boolean, onOpenChange: (open: boolean) => void, payment: PaymentRecord, onVoid: () => void }) {
+function DetailPaymentSheet({ open, onOpenChange, payment: initialPayment, onVoid }: { open: boolean, onOpenChange: (open: boolean) => void, payment: PaymentRecord, onVoid: () => void }) {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
 
   const { data: fullPayment, isLoading } = useGetPayment(
     activeCompany?.id ?? "",
-    payment.id,
+    initialPayment.id,
     { query: { enabled: !!activeCompany?.id && open } as any }
   );
 
+  const payment = fullPayment ?? initialPayment;
   const allocations = fullPayment?.allocations ?? [];
   const historical = isHistoricalPayment(payment);
   const statementId = historical ? payment.notes?.match(/;statement:([0-9a-f-]{36})\]/)?.[1] : null;
@@ -1067,9 +1053,7 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
               <SheetTitle>Plačilo</SheetTitle>
               <SheetDescription>{payment.direction === 'inbound' ? 'Prejeto plačilo' : 'Izplačilo'}</SheetDescription>
             </div>
-            <Badge variant={STATUS_VARIANTS[payment.status]} className={payment.status === 'posted' ? 'bg-green-600 text-white' : ''}>
-              {STATUS_LABELS[payment.status]}
-            </Badge>
+            <PaymentStatus payment={payment} />
           </div>
         </SheetHeader>
 
@@ -1109,6 +1093,7 @@ function DetailPaymentSheet({ open, onOpenChange, payment, onVoid }: { open: boo
                 </div>
               </div>
             )}
+            <PaymentReversalLink payment={payment} />
           </div>
 
           <div className="space-y-3">
@@ -1227,6 +1212,7 @@ function VoidPaymentDialog({ open, onOpenChange, paymentId }: { open: boolean, o
     }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
+        queryClient.invalidateQueries({ queryKey: getGetPaymentQueryKey(activeCompany.id, paymentId) });
         onOpenChange(false);
       }
     });

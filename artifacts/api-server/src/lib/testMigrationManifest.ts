@@ -537,6 +537,10 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "integrity",
     dependsOn: ["248-payment-ledger-allocations.sql"],
   },
+  {
+    file: "257-modifikator-privzet-schema.sql",
+    classification: "schema",
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

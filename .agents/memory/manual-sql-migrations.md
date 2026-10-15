@@ -26,3 +26,9 @@ Vsaka migracija v klasificiranem testnem obdobju potrebuje usklajeno klasifikaci
 **Why:** Samo glava brez manifesta ustavi validacijo, ne-idempotentni `CREATE TYPE` pa ustavi replay. Legacy backfill je posebej nevaren, ker ob ponovitvi ne sme spreminjati novih poslovnih zapisov.
 
 **How to apply:** Klasifikacijo v SQL in manifestu ohrani enako ter navedi odvisnost od prejšnje migracije. Enum ustvari z varno obravnavo `duplicate_object`; stolpec dodaj pogojno, začetni backfill pa izvedi samo v isti veji, ko stolpec še ni obstajal.
+
+Testni bootstrap ne sme ponovno nastavljati obstoječih poslovnih POS izbir ali obveznosti skupin modifikatorjev. Potrebno shemo loči od takega poslovnega backfilla.
+
+**Why:** Uporabnik je izrecno dovolil odpravo migracijske ovire samo brez spreminjanja obstoječih POS nastavitev. Idempotentnost SQL ni dovolj: ponovljivi UPDATE lahko še vedno prepiše poznejšo uporabnikovo odločitev.
+
+**How to apply:** Poslovni backfill izključi iz testnega runnerja z izrecnim razlogom; manjkajoče stolpce zagotovi z ločeno registrirano schema-only migracijo. Ne oslabi validacije migracijskega inventarja.

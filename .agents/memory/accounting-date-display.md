@@ -9,6 +9,12 @@ V računovodskem delu se datumi prikazujejo in vnašajo v obliki dd.mm.yyyy, z v
 
 **How to apply:** Poenoti tudi filtre, podrobnosti, opozorila in naslove obdobij. Loči dokumentni datum od dejanskega časovnega žiga; slednji potrebuje lokalni čas Europe/Ljubljana. Menjava prikaza ne sme spreminjati API pogodbe, dogodkov vnosnega polja ali obstoječih poslovnih validacij.
 
+Pri razveljavljenih plačilih računovodja potrebuje datum same operacije razveljavitve, ne datuma plačila ali računovodskega datuma storna.
+
+**Why:** Uporabnik želi iz seznama razbrati, da je plačilo razveljavljeno in kdaj, ter iz podrobnosti odpreti pripadajočo storno temeljnico. Ti datumi imajo različne poslovne pomene.
+
+**How to apply:** Zgodovinsko manjkajočega dokaza ne nadomesti z ugibanjem iz zadnje posodobitve. Jasno loči neznan datum od znane razveljavitve.
+
 Skladen, a glede na min/max nedovoljen datum mora ostati na voljo poslovni validaciji, kot pri nativnem datumskem polju. Sintaktično neveljavnega vnosa pa ne sme nadomestiti prejšnji veljavni datum.
 
 **Why:** Če vnos datum zunaj dovoljene meje pretvori v prazno vrednost, obrazec izgubi natančno poslovno opozorilo, denimo da tečaj ne sme veljati po datumu računa.

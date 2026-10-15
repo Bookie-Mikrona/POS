@@ -10455,6 +10455,16 @@ export interface PaymentRecord {
   status: PaymentRecordStatus;
   /** @nullable */
   linkedEntryId?: string | null;
+  /**
+     * Time of void operation from payment audit, falling back to reversal creation. Null if not void or no evidence exists.
+     * @nullable
+     */
+  voidedAt?: string | null;
+  /**
+     * Same-company journal entry whose reversalOf points to the payment linkedEntryId.
+     * @nullable
+     */
+  reversalEntryId?: string | null;
   /** @nullable */
   notes?: string | null;
   /** Sum of all allocations */

@@ -1,3 +1,5 @@
+-- test-bootstrap: excluded
+-- test-bootstrap-reason: Poslovni backfill spreminja obstoječe POS izbire in skupine; testni runner uporablja samo shemo iz 257-modifikator-privzet-schema.sql.
 -- Privzeta izbira modifikatorja in obvezen razrez pri vseh picah.
 ALTER TABLE modifikatorji ADD COLUMN IF NOT EXISTS privzet boolean NOT NULL DEFAULT false;
 

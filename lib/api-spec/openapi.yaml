@@ -22744,6 +22744,13 @@ components:
           type:
             - string
             - "null"
+        voidedAt:
+          type: [string, "null"]
+          format: date-time
+          description: Time of void operation from payment audit, falling back to reversal creation. Null if not void or no evidence exists.
+        reversalEntryId:
+          type: [string, "null"]
+          description: Same-company journal entry whose reversalOf points to the payment linkedEntryId.
         notes:
           type:
             - string
