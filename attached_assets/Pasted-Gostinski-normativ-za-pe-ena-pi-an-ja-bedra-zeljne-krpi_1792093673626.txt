@@ -1,0 +1,59 @@
+Gostinski normativ za pečena piščančja bedra, zeljne krpice na porcijo (ali kg)
+
+Gostinski normativ za pečena piščančja bedra in zeljne krpice se v gostinski praksi obračunava ločeno na dva osnovna polizdelka (ali končni porciji): pečena piščančja bedra in zeljne krpice.
+
+Tukaj je celovit normativ, pripravljen za vnos v POS sistem in kuhinjsko materialno knjigovodstvo.
+
+1. Normativ surovin za pečena piščančja bedra (na 1 kg gotove jedi)
+V gostinstvu se za pečena bedra najpogosteje uporabljajo celotna piščančja bedra (stegno + podstegno) ali pa zgoraj/spodaj ločena bedra. Spodnji normativ velja za 1 kg gotovih pečenih beder (brez kosti ali s kostjo – standardno s kostjo in hrustljavo kožo).
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Piščančja bedra (sveža, s kostjo)	1.350 g	1.300 g	Kalo pri pečenju (izparevanje vode in maščobe) je cca 25–30 %.
+Rastlinsko olje ali svinjska mast	40 g	40 g	Za premaz in pekač.
+Česen (svež)	10 g	8 g	Strt ali v kosih za aromo pri peki.
+Začimbe (sol, mleti poper, rdeča paprika, majaron, timijan)	15 g	15 g	Klasična mesna mešanica za pečenega piščanca.
+Iz 1,35 kg surovih beder dobite točno 1,0 kg pečenih beder.
+
+2. Normativ surovin za zeljne krpice (na 1 kg gotove jedi)
+Zeljne krpice so tradicionalna priloga/jed iz svežega zelja, testenin (krpic) in karamelizirane čebule ter ocvirkov ali maščobe.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Sveže belo zelje	600 g	500 g	Očiščeno, naribano ali narezano na tanke rezance (kalo pri čiščenju cca 15 %).
+Suhe testenine (krpice)	350 g	350 g	Kvašene ali navadne testenine v obliki krpic (med kuhanjem absorbirajo vodo).
+Čebula (sveža)	150 g	130 g	Drobno sesekljana za praženje in karamelizacijo.
+Svinjska mast ali olje	50 g	50 g	Tradicionalna maščoba za praženje zelja in čebule.
+Sladkor (za karamelizacijo zelja)	10 g	10 g	Po želji za rahlo karamelno noto.
+Jušna osnova ali voda	200 ml (0,20 l)	200 ml	Za dušenje zelja, da se zmehča.
+Začimbe (sol, mleti črni poper, kumina v zrnu)	10 g	10 g	Kumina je obvezna k zelju.
+Surove sestavine po praženju, dušenju in mešanju s kuhanimi krpicami dajo natanko 1,0 kg gotovih zeljnih krpic.
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Običajna gostinska porcija pri malicah ali kosilih obsega:
+
+Pečena piščančja bedra: 250 g – 280 g (običajno 1 večje celotno bedro ali 2 manjša kosa).
+
+Zeljne krpice (priloga): 220 g – 250 g.
+
+Skupna teža gotove porcije na krožniku: cca 470 g – 530 g.
+
+Normativ za 1 porcijo (izračun iz zgornjih normativov):
+Surova piščančja bedra: ~350 g (dajejo ~260 g pečenega mesa)
+
+Surovo zelje in testenine (krpice): ~200 g skupnih vhodnih surovin za prilogo
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se jed nastavi preko dveh osnovnih polizdelkov ali direktno na porcijo:
+
+Definicija polizdelkov:
+
+Polizdelek A: Pečena piščančja bedra (enota mere: 1 kg)
+
+Polizdelek B: Zeljne krpice (enota mere: 1 kg)
+
+Razdolževanje ob prodaji (PLU koda za porcijo):
+
+Ob izpisu porcije Pečena piščančja bedra z zelnimi krpicami sistem iz skladišča samodejno odpiše:
+
+0,27 kg polizdelka A (Pečena piščančja bedra)
+
+0,23 kg polizdelka B (Zeljne krpice)
