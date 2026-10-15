@@ -1,0 +1,42 @@
+Gostinski normativ za makaronovo meso na kg
+
+Videoposnetki prikazujejo tradicionalno pripravo makaronovega mesa (testenine sšninitim ali govejim mletim mesom), kar služi kot vizualna in praktična osnova za normiranje v gostinski kuhinji.
+
+Gostinski normativ za makaronovo meso (klasične testenine z mletim mesom, zabeljene in dušene v bogati mesni omaki), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinski praksi uporablja kot standardni polizdelek ali samostojna glavna jed na liniji malic in kosil.
+
+1. Normativ surovin za 1 kg gotovega makaronovega mesa
+V gostinskem razmerju jed vsebuje približno 40 % testenin (makaronov ali svedrkov) in 60 % mesne omake z mletim mesom, ki se med dušenjem dobro prepojijo.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Suhe testenine (makaroni ali svedri)	380 g	380 g	Med kuhanjem v slani vodi absorbirajo vodo in dosežejo cca 750 g kuhanih testenin (od tega se za 1 kg končne jedi uporabi ustrezen delež, cca 400 g kuhanih testenin).
+Mlano mešano meso (govedina/svinjina) ali govedina	400 g	380 g	Kakovostno mlano meso za ragu (kalo pri prašenju cca 10–15 %).
+Čebula (sveža)	200 g	175 g	Drobno sesekljana za bogato osnovo mesne omake.
+Česen (svež)	10 g	8 g	Drobno sesekljan.
+Rastlinsko olje ali svinjska mast	40 g	40 g	Za praženje čebule in mletega mesa.
+Paradižnikova mezga / pasiran paradižnik	100 g	100 g	Za sočnost, kislost in lepo rdečo barvo omake.
+Jušna osnova ali voda	250 ml (0,25 l)	250 ml	Za dušenje mesa in omake (del tekočine med dušenjem izpari).
+Pšenična moka (za blago zgoščevanje)	15 g	15 g	Podmet ali praženje z moko (po želji obrata).
+Začimbe (sol, mleti poper, lovorov list, rdeča paprika, majaron, svež peteršilj)	12 g	12 g	Klasična mešanica začimb za mesne raguje.
+Opomba: Kuhane testenine in mesni ragu se na koncu premešajo in rahlo podušijo, da skupna teža končnih sestavin znese natanko 1,0 kg gotove jedi.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Če kuhinja pripravlja večjo serijo za linijo malic (npr. 10 kg gotove jedi), se vsi normativi preprosto pomnožijo z 10:
+
+Suhe testenine (makaroni): 3,80 kg (dajejo cca 7,5 kg kuhanih testenin)
+
+Mlano mešano meso (bruto): 4,00 kg
+
+Čebula: 2,00 kg
+
+Olje / mast: 0,40 kg (400 g)
+
+Paradižnikova mezga: 1,00 kg
+
+Jušna osnova / voda: 2,50 litrov
+
+Moka in začimbe: sorazmerno več.
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Makaronovo meso z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ko natakar na blagajni odtipka porcijo (npr. Makaronovo meso), kjer je standardna gostinska porcija določena na 0,40 kg – 0,45 kg, sistem iz skladišča samodejno odpiše točno ustrezno količino tega polizdelka (ter zraven po potrebi pripne rdečo peso ali zeleno solato kot prilogo).
