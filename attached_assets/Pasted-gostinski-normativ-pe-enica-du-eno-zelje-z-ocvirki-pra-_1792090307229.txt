@@ -1,0 +1,304 @@
+gostinski normativ pečenica, dušeno zelje z ocvirki, pražen krompir porcija
+
+Gostinski normativ za klasično slovensko kmečko/zimsko kosilo ali malico — Pečenica z dušenim kislim zeljem, ocvirki in praženim krompirjem — se v gostinstvu obračunava po treh osnovnih komponentah.
+
+1. Normativi po posameznih komponentah obroka (Za 1 porcijo)
+A) Pečenica (1 porcija)
+Sveža ali blago prekajena pečenica se v gostinstvu nabavlja na kos ali na težo.
+
+Standardni normativ porcije (surova pečenica): 180 g – 220 g (običajno 1 večji par ali 1 daljši kos).
+
+Kalo pri pečenju/kuhanju: Pečenica med toplotno obdelavo (kuhanje v vodi in hitro popekanje na tavi/žaru ali v pečici) izgubi cca 15–20 % teže (zaradi izparevanja vode in iztekanja maščobe).
+
+Pečena teža na krožniku: cca 150 g – 180 g.
+
+Olje ali svinjska mast: 10 g (za pečenje na tavi).
+
+B) Dušeno kislo zelje z ocvirki (1 porcija)
+Kislo zelje se običajno pripravlja kot polizdelek v večji posodi (dušeno z začimbami), ocvirki pa se dodajo ob postrežbi ali pri zabeli.
+
+Surovo kislo zelje (bruto/neto): 200 g – 220 g
+
+Svinjska mast / ocvirki: 20 g – 30 g (zabeljeno s topljenimi ocvirki ali mastjo)
+
+Čebula (sveža): 20 g
+
+Začimbe (česen, lovorov list, poper v zrnu, kumina): cca 3–5 g
+
+Pšenična moka ali podmet (če se zgoščuje): 10 g
+
+Gotova teža na krožniku: cca 180 g – 200 g
+
+C) Pražen krompir (1 porcija)
+Pražen krompir se dela iz predkuhanega neolupljenega krompirja (krompir v srajčki).
+
+Krompir (bruto neolupljen): 230 g – 250 g
+
+Krompir (neto kuhan in olupljen): 190 g – 200 g
+
+Čebula (sveža): 30 g – 40 g (pražena čebula za osnovo)
+
+Svinjska mast ali olje: 15 g – 20 g
+
+Sol in poper: 3 g
+
+Gotova teža na krožniku: cca 200 g
+
+2. Zbirni normativ za 1 celotno porcijo na krožniku
+Sestavina / Artikel	Vhodna surova količina (Bruto/Neto)	Gotova teža na krožniku
+Pečenica (sveža)	180 g – 220 g (1 kos)	~150 g – 180 g
+Dušeno kislo zelje	200 g – 220 g	~180 g – 200 g
+Pražen krompir	230 g (krompir) + 35 g (čebula)	~200 g
+Ocvirki (zabela)	20 g – 30 g	20 g
+Svinjska mast / olje (skupaj)	30 g – 40 g	/
+Skupna teža gotovega krožnika: cca 550 g – 600 g (obilen tradicionalni kmečki krožnik).
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+Pri vnosu v gostinski program (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.):
+
+Kot polizdelki v kuhinji:
+
+Polizdelek 1: Dušeno kislo zelje (normativ na 5 kg ali 10 kg)
+
+Polizdelek 2: Pražen krompir (normativ na 5 kg ali 10 kg)
+
+Razdolževanje ob prodaji na blagajni:
+
+Ko na blagajni odtipkate PLU za Pečenico s prilogo, program iz skladišča samodejno razdolži:
+
+1 kos / 0,20 kg surove pečenice
+
+0,20 kg polizdelka Dušeno kislo zelje
+
+0,20 kg polizdelka Pražen krompir
+
+0,025 kg ocvirkov
+
+
+Preprosto z Urško: Praženo kislo zelje s klobaso
+YouTube
+ · 
+Lidl Slovenija
+
+Preprosto z Urško: Bujta repa s pečenicami
+YouTube
+ · 
+Lidl Slovenija
+
+Pečenice s kislim zeljem 👌
+YouTube
+ · 
+Alenka J
+Want me to show the normativ for pečenica with kisla repa and žganci instead?
+
+Da
+izdelaj normativ za dušeno kislo zelje z ocvirki na kg
+
+Gostinski normativ za dušeno kislo zelje z ocvirki, preračunan točno na 1 kg (1000 g) gotove jedi, je namenjen pripravi večjih količin v gostinski kuhinji (kot polizdelek za kasnejšo strežbo v menijih in pri malicah).
+
+1. Normativ surovin za 1 kg gotovega dušenega kislega zelja z ocvirki
+Za pripravo 1,0 kg (1000 g) gotove jedi se v materialno knjigovodstvo POS sistema vnašajo naslednje količine:
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Kislo zelje (ribano)	1.100 g	1.000 g	Rahlo ožeto (odvečna tekočina se odlije, a se ga ne pere, da ohrani kislost).
+Svinjska mast ali olje	50 g	50 g	Za praženje čebule in maščobno osnovo zelja.
+Ocvirki (suhi ali topljeni)	80 g	80 g	Dajo značilen kmečki okus in zabelo.
+Čebula (sveža)	80 g	70 g	Drobno sesekljana za začetno praženje.
+Pšenična moka (za prežganje/zgoščevanje)	20 g	20 g	Po želji / odvisno od gostote, ki jo zahteva kuhinja.
+Mleta rdeča paprika	5 g	5 g	Za lepo barvo in aromo.
+Začimbe (sol, poper v zrnu, lovorov list, kumina)	10 g	10 g	Kumina je obvezna za prebavljivost in okus zelja.
+Jušna osnova ali voda	150 ml (0,15 l)	150 ml	Za dolivanje med dolgotrajnim dušenjem.
+Opomba: Zaradi dolgotrajnega dušenja in izparevanja vode se celotna teža surovih sestavin zreducira in da natanko 1,0 kg končnega dušenega zelja.
+
+2. Priprava za večje količine (Npr. normativ za 10 kg posodo)
+V praksi gostinske kuhinje se kislo zelje redko kuha na 1 kg. Če kuhar pripravlja večjo posodo za malice (npr. 10 kg gotove jedi), se zgornje količine preprosto pomnožijo z 10:
+
+Kislo zelje: 11,00 kg (neto 10,00 kg)
+
+Svinjska mast: 0,50 kg (500 g)
+
+Ocvirki: 0,80 kg (800 g)
+
+Čebula: 0,80 kg (800 g)
+
+Moka: 0,20 kg (200 g)
+
+Začimbe in voda: sorazmerno več.
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+V bazi se definira polizdelek: Polizdelek: Dušeno kislo zelje z ocvirki z enoto mere 1 kg.
+
+Ko natakar proda 1x Porcija pečenica s kislim zeljem (kjer je normativ zelja na porcijo npr. 0,20 kg), sistem iz skladišča samodejno odpiše točno 0,20 kg tega polizdelka (in s tem sorazmeren delež zelja, ocvirkov, masti in čebule).
+
+Want me to show the normativ for kisla repa instead?
+
+Da
+prikaži tudi za dušeno kislo repo z ocvirki
+
+Gostinski normativ za dušeno kislo repo z ocvirki, preračunan točno na 1 kg (1000 g) gotove jedi, se pripravlja po zelo podobnem postopku kot kislo zelje, vendar z nekaterimi specifikami pri začimbah in kislosti (repa pogosto zahteva nekoliko več čebule ali blage podloge, da se uravnoteži njena specifična ostrina).
+
+1. Normativ surovin za 1 kg gotove dušene kisle repe z ocvirki
+Za pripravo 1,0 kg (1000 g) gotove dušene repe se v materialno knjigovodstvo POS sistema vnašajo naslednje količine:
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Kisla repa (naribana)	1.100 g	1.000 g	Rahlo ožeta (ne spira se z vodo, razen če je izjemno močna/kisla).
+Svinjska mast ali olje	50 g	50 g	Za praženje čebule in maščobno osnovo.
+Ocvirki (suhi ali topljeni)	80 g	80 g	Dajo značilen kmečki okus in zabelo ob koncu dušenja.
+Čebula (sveža)	90 g	80 g	Drobno sesekljana (za repo se dela nekoliko bogatejša čebulna osnova).
+Česen (svež)	15 g	12 g	Drobno sesekljan (česen se odlično poda k kisli repi).
+Pšenična moka (za zgoščevanje)	20 g	20 g	Za blago zgoščevanje/prežganje ali podmet.
+Mleta rdeča paprika	5 g	5 g	Za barvo in aromo.
+Začimbe (sol, poper v zrnu, lovorov list, mleta kumina)	10 g	10 g	Kumina in lovorov list sta ključna za okus in prebavljivost.
+Jušna osnova ali voda	150 ml (0,15 l)	150 ml	Za dolivanje med dušenjem.
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Če kuhinja pripravlja večjo količino kot polizdelek za strežbo malic in kosil (npr. 10 kg gotove jedi), se normativ preprosto pomnoži z 10:
+
+Kisla repa: 11,00 kg (neto 10,00 kg)
+
+Svinjska mast: 0,50 kg (500 g)
+
+Ocvirki: 0,80 kg (800 g)
+
+Čebula: 0,90 kg (900 g)
+
+Česen: 0,15 kg (150 g)
+
+Moka: 0,20 kg (200 g)
+
+Začimbe in voda: sorazmerno več.
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka: V sistemu se ustvari Polizdelek: Dušena kisla repa z ocvirki z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ko na blagajni odtipkate naročilo (npr. Krvavica s kislo repo in ajdovimi žganci), sistem iz skladišča samodejno odpiše nastavljeni normativ repe (običajno 0,20 kg polizdelka na porcijo).
+
+
+Kisla repa
+YouTube
+ · 
+Kuhaj z Mamo
+
+Preprosto z Urško: Bujta repa s pečenicami
+YouTube
+ · 
+Lidl Slovenija
+
+Jota 😍 Preprost in hiter recept za domačo joto
+YouTube
+ · 
+SKETA.si
+Want me to show the normativ for ajdovi žganci instead?
+
+Da
+Prikaži gostinski normativ za ajdove žgance z ocvirki na 1 kg gotove jedi.
+
+Gostinski normativ za tradicionalne ajdove žgance z ocvirki, preračunan točno na 1 kg (1000 g) gotove jedi, temelji na razmerju med suho ajdovo moko, vodo ter maščobo z ocvirki, ki se dodajo ob zaključku in oblikovanju (zabeli).
+
+1. Normativ surovin za 1 kg gotovih ajdovih žgancev z ocvirki
+Za pripravo 1,0 kg (1000 g) gotovih žgancev se v materialno knjigovodstvo POS sistema vnašajo naslednje količine:
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Ajdova moka (groba ali polgroba)	450 g	450 g	Osnova za žgance (med kuhanjem vpije vso vodo).
+Voda	700 ml (0,70 l)	700 ml	Količina vode za kuhanje (del izpari, preostanek se vpije v moko).
+Sol	12 g	12 g	Soli se voda, preden se vanjo vsype moka.
+Ocvirki (suhi ali topljeni z mastjo)	120 g	120 g	Tradicionalna zabela in preliv za žgance.
+Svinjska mast ali olje	30 g	30 g	Dodatna mast za praženje/zabelo v posodi (da se žganci lepo povežejo).
+Opomba: Surova ajdova moka (450 g) skupaj z vodo in zabelo da po kuhanju in praženju natanko 1,0 kg gotove jedi.
+
+2. Normativ za večje količine (Npr. 5 kg ali 10 kg posoda za kuhinjo)
+V gostinski kuhinji se žganci vedno kuhajo v večjih količinah za redno ponudbo malic in kosil. Za pripravo 10 kg gotovih žgancev se zgornje količine pomnožijo z 10:
+
+Ajdova moka: 4,50 kg
+
+Voda: 7,00 litrov
+
+Sol: 0,12 kg (120 g)
+
+Ocvirki: 1,20 kg (1200 g)
+
+Svinjska mast: 0,30 kg (300 g)
+
+3. Normativ po porcijah (Gostinska strežba)
+Standardna gostinska porcija ajdovih žgancev kot priloge ali samostojne jedi (npr. ob pečenici, krvavici ali kislem zelju) znaša 200 g – 250 g.
+
+Iz 1 kg gotovih žgancev dobite:
+
+4 do 5 standardnih porcij po 200 g – 220 g.
+
+Normativ za 1 posamično porcijo (200 g gotovih žgancev):
+Ajdova moka: ~90 g
+
+Voda in sol: ustrezni delež
+
+Ocvirki z mastjo: ~30 g
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka: V sistemu se ustvari Polizdelek: Ajdovi žganci z ocvirki z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ko na blagajni odtipkate naročilo (npr. Krvavica z žganci in kislim zeljem), sistem iz skladišča samodejno odpiše nastavljeni normativ žgancev (običajno 0,20 kg tega polizdelka na porcijo).
+
+
+Ajdovi žganci z ocvirki in mlekom #zganci #recept #ajda #mleko
+YouTube
+ · 
+AninaKuhinja
+
+Najbolj enostavni ajdovi žganci iz naše sveže ajdove moke 😍😍😍
+YouTube
+ · 
+Trgovina Mokca
+
+Ajdovi žganci (Slovenian Buckwheat Porridge)
+YouTube
+ · 
+Jernej Kitchen
+Want me to show the normativ for krvavica instead?
+
+Da
+prikaži za celotni kmečki krožnik (pečenica, krvavica pečena rebra, dušeno kislo zelje z ocvirki, pražen krompir)
+
+Gostinski normativ za bogat Slovenski kmečki krožnik (ki vključuje kombinacijo treh vrst mesa: pečenico, krvavico in pečena svinjska rebrca, ter dve klasični prilogi: dušeno kislo zelje z ocvirki in pražen krompir) je namenjen izdatni glavni jedi za 1 osebo ali kot osnova za deljene plošče.
+
+1. Normativ po posameznih komponentah (Za 1 porcijo kmečkega krožnika)
+Zaradi pestre sestave se pri vsaki vrsti mesa uporabi manjšo individualno porcijo (polovični oziroma prilagojeni kos), da skupna teža obroka ostane v okvirih gostinske ponudbe za enega gosta.
+
+Sestavina / Artikel	Vhodna surova količina (Bruto/Neto)	Gotova teža na krožniku	Opombe / Specifikacija
+Pečenica (sveža)	100 g (1/2 kosa)	~80 g	Pečena/kuhana pečenica.
+Krvavica (sveža)	120 g (1/2 kosa)	~95 g	Pečena v pečici (kalo cca 20 %).
+Pečena svinjska rebrca	180 g (surova s kostjo)	~110 g	Pečenka s kostjo (kalo pečenja ~40 %).
+Dušeno kislo zelje z ocvirki	150 g	~150 g	Gotov polizdelek z ocvirki.
+Pražen krompir	180 g (bruto krompir + čebula)	~150 g	Gotov pražen krompir z maso/mastjo.
+Pečenkin sok / Mast	20 g	20 g	Preliv za sočnost mesa in krompirja.
+Skupna teža gotovega krožnika: cca 605 g – 625 g (zelo izdatna, bogata glavna jed).
+
+2. Normativ surovin za 10 porcij (Za pripravljalno kuhinjo / Malice in plošče)
+Če kuhinja pripravlja večjo količino kmečkih krožnikov (npr. za nedeljska kosila ali naročene skupine za 10 oseb):
+
+Pečenice: 1,00 kg surovih (cca 5 celih parov)
+
+Krvavice: 1,20 kg surovih (cca 5 celih krvavic)
+
+Svinjska rebrca: 1,80 kg surovih rebrc s kostjo
+
+Dušeno kislo zelje z ocvirki (polizdelek): 1,50 kg gotovega zelja
+
+Pražen krompir (polizdelek): 1,50 kg gotovega krompirja
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se Kmečki krožnik vodi kot sestavljeni artikel:
+
+PLU koda: 750 (ali v razponu 700–799 za glavne mesne jedi)
+
+Naziv: Kmečki krožnik (pečenica, krvavica, rebrca, zelje, krompir)
+
+Receptura / Odpis ob prodaji 1 porcije:
+
+0,10 kg surove pečenice
+
+0,12 kg surove krvavice
+
+0,18 kg surovih svinjskih rebrc
+
+0,15 kg polizdelka Dušeno kislo zelje z ocvirki
+
+0,15 kg polizdelka Pražen krompir
