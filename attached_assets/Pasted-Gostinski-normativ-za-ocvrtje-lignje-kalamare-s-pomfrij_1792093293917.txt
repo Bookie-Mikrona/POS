@@ -1,0 +1,60 @@
+Gostinski normativ za ocvrtje lignje (kalamare) s pomfrijem in tatarsko omako (tatarsko omako izdelajo v obratu) na 1 standardno porcijo
+
+Videoposnetek prikazuje pripravo klasične domače tatarske omake iz majoneze, kaparjev, kumaric in zelišč, kar se uporablja kot standardni hišni polizdelek v gostinskem obratu.
+
+Gostinski normativ za ocvrtje lignje (kalamare) s pomfrijem in domačo tatarsko omako (kjer se tatarska omaka proizvaja kot hišni polizdelek v kuhinji) na 1 standardno porcijo vključuje natančno razčlenitev vseh surovin za lignje, pomfri in lastno tatarsko omako.
+
+1. Normativ surovin za 1 porcijo (Ocvrti lignji s pomfrijem in domačo tatarsko omako)
+Sestavina / Artikel	Bruto količina (Surova)	Neto količina (Gotova teža)	Opombe / Specifikacija
+Očiščeni lignji (kalamari - zamrznjeni ali sveži)	250 g – 280 g	200 g – 210 g	Kolobarji ali trakovi (kalo pri odmrzovanju/cvrtju cca 20–25 %).
+Pšenična moka (za paniranje)	25 g	25 g	Ostra ali navadna moka za rahlo pomokanje.
+Olje za cvrtje lignjev	35 g (vskrkano)	/	Maščoba, ki jo lignji vskrknejo med cvrtjem v fritezi.
+Pomfri (zamrznjen)	200 g – 220 g	170 g – 190 g	Zamrznjene krompirjeve paličice za fritezo.
+Olje za cvrtje pomfrija	15 g (vskrkano)	/	Maščoba, ki jo pomfri vpije v fritezi.
+Hišna tatarska omaka (polizdelek)	50 g	50 g	Domača tatarska omaka, pripravljena v kuhinji.
+Limona (za dekoracijo)	1/6 limone (cca 20 g)	20 g	Obvezna sveža priloga.
+Sol	3 g	3 g	Za soljenje po cvrtju.
+2. Normativ za hišno tatarsko omako (Polizdelek na 1 kg)
+Ker se tatarska omaka izdeluje v obratu, se jo v materialno knjigovodstvo vnese kot Polizdelek: Hišna tatarska omaka z enoto mere 1 kg.
+
+Surovina za tatarsko omako	Količina za 1 kg gotove omake	Opombe
+Majoneza (osnova)	700 g	Industrijska ali domača kuhinjska majoneza.
+Kisle kumarice (sesekljane)	120 g	Drobno narezane / sesekljane.
+Kaparji (sesekljani)	40 g	Dajo značilno kislost in aromo.
+Svež peteršilj in česen	30 g	Drobno sesekljano zelje in česen.
+Gorčica	50 g	Za ostrejšo noto in stabilnost omake.
+Limonin sok / kis	30 ml (0,03 l)	Za uravnoteženje okusa.
+Sol in beli poper	30 g	Po okusu.
+Opomba za porcijo: Iz 1 kg hišne tatarske omake dobite 20 standardnih porcij po 50 g. Za 1 porcijo lignjev se iz skladišča odpiše 0,05 kg tega polizdelka.
+
+3. Sestava gotovega krožnika (Na mizi)
+Ocvrti lignji (kalamari): cca 200 g
+
+Ocvrti pomfri: cca 180 g
+
+Hišna tatarska omaka: 50 g
+
+Rezina limone: 20 g
+
+Skupna teža gotove porcije na krožniku: cca 450 g – 470 g.
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se jed nastavi kot sestavljeni artikel:
+
+PLU koda: npr. 812 (ribje jedi in morski sadeži)
+
+Naziv: Ocvrti lignji s pomfrijem in hišno tatarsko omako
+
+Receptura / Odpis ob prodaji 1 porcije:
+
+0,27 kg očiščenih lignjev
+
+0,025 kg moke
+
+0,035 kg olja za cvrtje lignjev
+
+0,21 kg zamrznjenega pomfrija in 0,015 kg olja za fritezo
+
+0,05 kg polizdelka Hišna tatarska omaka
+
+0,02 kg limone
