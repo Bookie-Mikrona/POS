@@ -1,0 +1,41 @@
+gostinski normativ krompirjev pire na kg
+
+Gostinski normativ za krompirjev pire, izražen na 1 kg pripravljene (gotove) jedi, se obračunava na podlagi normativov surovin (bruto in neto tež) ter iztržka po kuhanju in tlačenju.
+
+1. Normativ surovin za 1 kg gotovega krompirjevega pireja
+Za pripravo 1 kg (1000 g) gotovega krompirjevega pireja se v gostinstvu uporablja naslednji standardni normativ:
+
+Surovina	Bruto količina (neostružen)	Neto količina (pripravljeno)	Opombe / specifikacija
+Krompir (svež)	1.050 g – 1.150 g	850 g – 900 g	Odpad pri guljenju in obrezovanju je cca 15–20 %.
+Mleko (toplo, 3,5 % m.m.)	150 ml (0,15 l)	150 ml (0,15 l)	Mleko mora biti vroče, da pire ostane puhast.
+Maslo (82 % m.m.)	50 g – 80 g	50 g – 80 g	Za bogatejši/restavracijski pire do 100 g.
+Sol	10 g – 12 g	10 g – 12 g	Del soli gre v vodo za kuhanje.
+Muškatni orešček	0,5 g (ščepec)	0,5 g	Po želji / po recepturi obrata.
+Opomba: Skupna teža vseh vhodnih neto sestavin (kuhan krompir + mleko + maslo) po odparevanju vode med kuhanjem da natanko 1,0 kg gotovega pireja.
+
+2. Normativ po porcijah (Gostinska strežba)
+Standardna gostinska porcija krompirjevega pireja kot priloge k glavni jedi znaša 200 g (v nekaterih obratih ali pri otroških menijih 150 g).
+
+Iz 1 kg gotovega krompirjevega pireja dobite:
+
+5 standardnih porcij po 200 g (ali 6,6 porcije po 150 g).
+
+Normativ za 1 porcijo priloge (200 g gotovega pireja):
+Svež krompir (bruto): ~220 g – 230 g
+
+Mleko: 30 ml
+
+Maslo: 10 g – 15 g
+
+Sol: 2 g
+
+3. Vnos v gostinski POS / materialno knjigovodstvo
+Pri vnosu recepture (sestavnice) v gostinski program (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se normativ običajno vnaša na enega od dveh načinov:
+
+Receptura na 1 kg (Polizdelek):
+
+V sistem vnesete normativ za 1 kg gotovega pireja (kot polizdelek). Ko na blagajni prodate 1x Porcija pireja (200 g), program samodejno razdolži 0,20 kg tega polizdelka (oziroma proporcionalni del krompirja, mleka in masla).
+
+Receptura neposredno na 1 porcijo (200 g):
+
+Normativ vnesete neposredno na artikel Krompirjev pire priloga, kjer je količina krompirja bruto 0,22 kg, mleka 0,03 l in masla 0,01 kg.
