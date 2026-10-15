@@ -5,6 +5,7 @@
  * 1. GET /open-items pokaže povečan preostali znesek po void plačila
  * 2. GET /aged-analysis vrne pravilne buckete po void
  * 3. Robni primer: delno poravnan račun → void → preverba preostalega zneska
+ * 4. Dve plačili za isti račun → void enega ali obeh → status in odprti znesek
  *
  * Auth: requireAuth middleware je zamenjana z testno verzijo, ki injicira
  * testni userId brez Clerk seje.
@@ -551,5 +552,94 @@ describe("robni primer: delno poravnan račun → void → preostali znesek", ()
       .where(eq(paymentAllocationsTable.paymentId, partialPaymentId));
     // Poravnave fizično ostanejo; odprti-postavke jih filtrirajo prek status='posted'
     expect(allocs.length).toBeGreaterThan(0);
+  });
+});
+
+describe("račun poravnan z dvema plačiloma → razveljavitev", () => {
+  async function createFullySettledInvoice(label: string) {
+    const counterpartyId = await createCounterparty(companyId, `Kupec – dve plačili ${label}`);
+    const invoiceId = await createPostedInvoice({
+      companyId,
+      counterpartyId,
+      periodId,
+      arApAccountId: arAccountId,
+      revenueAccountId,
+      invoiceNumber: `2026-TWO-${label}`,
+      invoiceDate: "2026-02-01",
+      dueDate: "2026-03-01",
+      grossAmount: 1000,
+    });
+    const paymentOptions = {
+      companyId,
+      counterpartyId,
+      periodId,
+      bankAccountId,
+      arApAccountId: arAccountId,
+    };
+    const paymentA = await createPostedPayment({
+      ...paymentOptions,
+      amount: 600,
+      paymentDate: "2026-02-10",
+      allocations: [{ invoiceId, allocatedAmount: 600 }],
+    });
+    const paymentB = await createPostedPayment({
+      ...paymentOptions,
+      amount: 400,
+      paymentDate: "2026-02-20",
+      allocations: [{ invoiceId, allocatedAmount: 400 }],
+    });
+    // Enak začetni status kot po knjiženju obeh plačil.
+    await db.update(invoicesTable).set({ status: "paid" }).where(eq(invoicesTable.id, invoiceId));
+
+    const [invoice] = await db.select({ status: invoicesTable.status })
+      .from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+    expect(invoice.status).toBe("paid");
+    const res = await supertest(app).get(`/companies/${companyId}/open-items`).expect(200);
+    expect(res.body.items.find((item: any) => item.invoiceId === invoiceId)).toBeUndefined();
+    return { invoiceId, paymentA, paymentB };
+  }
+
+  async function voidPayment(paymentId: string) {
+    const res = await supertest(app)
+      .post(`/companies/${companyId}/payments/${paymentId}/void`)
+      .send({ reason: "Test razveljavitve enega od dveh plačil" })
+      .expect(200);
+    expect(res.body.status).toBe("void");
+  }
+
+  async function expectOpenInvoice(invoiceId: string, allocatedAmount: string, remainingAmount: string) {
+    const [invoice] = await db.select({ status: invoicesTable.status })
+      .from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+    expect(invoice.status).toBe("posted");
+    const res = await supertest(app).get(`/companies/${companyId}/open-items`).expect(200);
+    const item = res.body.items.find((item: any) => item.invoiceId === invoiceId);
+    expect(item).toBeDefined();
+    expect(item.allocatedAmount).toBe(allocatedAmount);
+    expect(item.remainingAmount).toBe(remainingAmount);
+  }
+
+  it("1000 € = 600 € + 400 €: void B vrne račun na posted, A ostane knjižen in odprtih je 400 €", async () => {
+    const { invoiceId, paymentA, paymentB } = await createFullySettledInvoice("ONE");
+
+    await voidPayment(paymentB);
+
+    await expectOpenInvoice(invoiceId, "600.00", "400.00");
+    const [payment] = await db.select({ status: paymentsTable.status })
+      .from(paymentsTable).where(eq(paymentsTable.id, paymentA));
+    expect(payment.status).toBe("posted");
+  });
+
+  it("1000 € = 600 € + 400 €: void obeh ohrani posted in ponovno odpre celih 1000 €", async () => {
+    const { invoiceId, paymentA, paymentB } = await createFullySettledInvoice("BOTH");
+
+    await voidPayment(paymentB);
+    await expectOpenInvoice(invoiceId, "600.00", "400.00");
+    await voidPayment(paymentA);
+
+    await expectOpenInvoice(invoiceId, "0.00", "1000.00");
+    const payments = await db.select({ status: paymentsTable.status })
+      .from(paymentsTable).where(inArray(paymentsTable.id, [paymentA, paymentB]));
+    expect(payments).toHaveLength(2);
+    expect(payments.every(payment => payment.status === "void")).toBe(true);
   });
 });
