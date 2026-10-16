@@ -1,0 +1,61 @@
+Gostinski normativ za pasulj s klobaso na kg
+
+Gostinski normativ za pasulj s kranjsko ali kajžarsko klobaso (tradicionalno fižolovo enolončnico s suhim mesom in klobaso), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot osrednji polizdelek za pripravo malic in jedi na žlico.
+
+1. Normativ surovin za 1 kg gotovega pasulja s klobaso
+V gostinskem razmerju pasulj vsebuje približno 20 % klobase, 35 % kuhanega fižola in suhega mesa ter 45 % goste fižolove omake/juhe.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Kranjska ali kajžarska klobasa	220 g	200 g	Narezana na kolobarje ali kuhana v kosih (kalo pri kuhanju cca 8–10 %).
+Beli ali gradiščan fižol (suh)	180 g	400 g (kuhan)	Suh fižol med namakanjem in kuhanjem naraste za več kot dvakrat. Del fižola se pasira za zgoščevanje.
+Prekajena svinjska rebra / meso	80 g	60 g	Za značilno dimljeno aromo in globino okusa pasulja.
+Čebula (sveža)	180 g	150 g	Drobno sesekljana za bogato osnovo in gosto strukturo.
+Česen (svež)	12 g	10 g	Drobno sesekljan ali strt.
+Svinjska mast ali olje	40 g	40 g	Za praženje čebule in pripravo prežganja/zažveka.
+Pšenična moka (za prežganje)	25 g	25 g	Za klasično gostinsko gostoto pasulja.
+Mleta rdeča paprika (sladka)	15 g	15 g	Daje prepoznavno barvo in okus.
+Paradižnikova mezga	30 g	30 g	Za rahlo kislost in barvno podlago.
+Jušna osnova ali voda	500 ml (0,50 l)	500 ml	Za kuhanje fižola (del tekočine med dolgotrajnim vretjem izpari).
+Začimbe (sol, poper v zrnu/mleti, lovorov list, mleta kumina, suhi feferon/pekoča paprika po želji)	12 g	12 g	Lovorov list je obvezen.
+Opomba: Surove sestavine in suh fižol po namakanju, dolgotrajnem kuhanju, pasiranju dela fižola ter redukciji dajo natanko 1,0 kg gotovega pasulja s klobaso.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotovega pasulja za linijo malic se vsi normativi preprosto pomnožijo z 10:
+
+Kranjska / kajžarska klobasa: 2,20 kg
+
+Beli fižol (suh): 1,80 kg (daje cca 4,0 kg kuhanega fižola)
+
+Prekajena svinjska rebra: 0,80 kg
+
+Čebula: 1,80 kg
+
+Svinjska mast / olje: 0,40 kg (400 g)
+
+Moka: 0,25 kg (250 g)
+
+Mleta rdeča paprika: 0,15 kg (150 g)
+
+Paradižnikova mezga: 0,30 kg (300 g)
+
+Jušna osnova / voda: 5,00 litrov
+
+Začimbe: 0,12 kg (120 g)
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Enolončnica se v gostinstvu streže v globokih krožnikih ali skodelicah ob rezinah kruha:
+
+Standardna porcija pasulja s klobaso: 400 g – 450 g
+
+Vsebnost klobase na porcijo: cca 80 g – 90 g (kolobarji ali polovička kranjske klobase)
+
+Kruh (priloga): 50 g – 80 g (1–2 rezini)
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Pasulj s klobaso z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU 425 – Pasulj s klobaso) sistem iz skladišča samodejno odpiše:
+
+0,42 kg polizdelka Pasulj s klobaso
+
+0,06 kg kruha (če je vštet v normativ porcije)
