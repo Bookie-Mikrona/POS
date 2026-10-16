@@ -1,0 +1,60 @@
+Gostinski normativ za jota s klobaso na kg
+
+Gostinski normativ za joto s kranjsko ali kajžarsko klobaso (tradicionalno enolončnico iz kislega zelja ali kisle repe, fižola, krompirja in klobase), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot osrednji polizdelek za pripravo malic in enolončnic na žlico.
+
+1. Normativ surovin za 1 kg gotove jote s klobaso
+V gostinskem razmerju jota vsebuje približno 20 % klobase, 30 % kislega zelja/repe, 20 % fižola in krompirja ter 30 % goste jušne osnove.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Kranjska ali kajžarsko klobasa	220 g	200 g	Narezana na kolobarje ali kuhana v kosu (kalo pri kuhanju cca 8–10 %).
+Kislo zelje ali kisla repa	350 g	320 g	Ožeto (kalo pri ožemanju cca 10 %).
+Rdeči ali rjavi fižol (suh / kuhan)	70 g (suh) / 160 g (kuhan)	160 g	Polovica fižola se pasira za zgoščevanje jote.
+Krompir (svež)	120 g	100 g	Narezan na kocke in skuhan ločeno ali dodan proti koncu.
+Prekajena svinjska rebra / kožice	60 g	45 g	Za značilno dimljeno aromo.
+Čebula (sveža)	120 g	100 g	Drobno sesekljana za praženje in osnovo.
+Česen (svež)	10 g	8 g	Drobno sesekljan ali strt.
+Svinjska mast ali olje	35 g	35 g	Za praženje čebule in zažvek (prežganje).
+Pšenična moka (za prežganje / podmet)	20 g	20 g	Za tradicionalno gosto strukturo.
+Mleta rdeča paprika (sladka)	10 g	10 g	Za barvo in aromo.
+Jušna osnova ali voda	450 ml (0,45 l)	450 ml	Za kuhanje (del tekočine med dušenjem izpari).
+Začimbe (sol, poper v zrnu, lovorov list, mleta kumina)	12 g	12 g	Lovorov list in kumina sta obvezna.
+Opomba: Surove sestavine se med kuhanjem prepojijo in zgostijo ter dajo natanko 1,0 kg gotove jote s klobaso.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotove jote za linijo malic se vsi normativi preprosto pomnožijo z 10:
+
+Kranjska / kajžarska klobasa: 2,20 kg
+
+Kislo zelje ali repa: 3,50 kg
+
+Fižol (kuhan): 1,60 kg
+
+Krompir (bruto): 1,20 kg
+
+Prekajena rebra / kožice: 0,60 kg
+
+Čebula: 1,20 kg
+
+Svinjska mast / olje: 0,35 kg (350 g)
+
+Moka in začimbe: sorazmerno več.
+
+Jušna osnova / voda: 4,50 litrov
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Enolončnica se v gostinstvu streže v globokih krožnikih ali skodelicah ob rezinah kruha:
+
+Standardna porcija jote s klobaso: 400 g – 450 g
+
+Vsebnost klobase na porcijo: cca 80 g – 90 g (kolobarji ali polovička kranjske klobase)
+
+Kruh (priloga): 50 g – 80 g (1–2 rezini)
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Jota s klobaso z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU 430 – Jota s klobaso) sistem iz skladišča samodejno odpiše:
+
+0,42 kg polizdelka Jota s klobaso
+
+0,06 kg kruha (če je vštet v normativ porcije)
