@@ -1,0 +1,59 @@
+Prikaži gostinski normativ za mleta pečenka na 1 kg gotove jedi.
+
+Gostinski normativ za mleto pečenko (tudi štruca iz mletega mesa / faširana pečenka), preračunan točno na 1 kg (1000 g) gotove pečene jedi, se v gostinstvu uporablja kot standardni polizdelek za pripravo malic, kosil in hladno-toplih narezkov.
+
+1. Normativ surovin za 1 kg gotove mlete pečenke
+V gostinskem razmerju se za mleto pečenko uporablja kombinacija mletega mesa, kruha ali drobtin za sočnost, jajc ter čebulno-začimbe osnove. Kalo pri peki (izparevanje vode in izcejanje maščobe) znaša približno 20–25 %.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Mleto meso (mešano goveje in svinjsko)	1.050 g	1.000 g	Optimalno razmerje 50 % govedine in 50 % svinjskega pleča/pogrezu za sočnost.
+Beli kruh (namočen v mleku ali vodi) ali drobtine	120 g	120 g	Za rahlost in vezavo mase (kruh se predhodno ožame).
+Mleko (za namakanje kruha)	80 ml (0,08 l)	80 ml	Se vpije v kruh/mesno zmes.
+Čebula (sveža)	120 g	100 g	Drobno sesekljana in prepražena na maščobi (daje slatkast okus in sočnost).
+Česen (svež)	12 g	10 g	Drobno sesekljan ali strt.
+Jajca (sveža kokošja)	100 g (2 kosa)	100 g	Za čvrsto vezavo mesne štruce med peko.
+Rastlinsko olje ali svinjska mast (za premaz in pekač)	35 g	35 g	Za premaz štruce in maščobo v pekaču med pečenjem.
+Svež peteršilj	15 g	10 g	Drobno sesekljan za aromo.
+Začimbe (sol, mleti črni poper, mleta rdeča paprika, majaron, ščepec timijana)	15 g	15 g	Majaron je ključen za klasičen okus mlete pečenke.
+Opomba: Surova mesna masa, oblikovana v štruco in pečena v pečici/konvektomatu, po peki in rahlem ohlajanju da natanko 1,0 kg gotove mlete pečenke.
+
+2. Normativ za večje količine (Npr. 5 kg ali 10 kg za kuhinjo)
+Če kuhinja peče večjo serijo za linijo malic (npr. 10 kg gotove mlete pečenke), se vsi normativi preprosto pomnožijo z 10:
+
+Mleto meso (mešano): 10,50 kg
+
+Beli kruh / drobtine: 1,20 kg
+
+Mleko: 0,80 litra
+
+Čebula: 1,20 kg
+
+Česen: 0,12 kg (120 g)
+
+Jajca: 1,00 kg (cca 20 kosov)
+
+Olje / mast: 0,35 kg (350 g)
+
+Svež peteršilj: 0,15 kg (150 g)
+
+Začimbe: 0,15 kg (150 g)
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Standardna gostinska porcija mlete pečenke obsega:
+
+Mleta pečenka (debelejša rezina): 180 g – 220 g (običajno 1 do 2 kosa rezine, odvisno od debeline).
+
+Priloga (npr. pire krompir, pražen krompir ali dušen riž): 180 g – 200 g.
+
+Omaka (opcijsko, naravna omaka od peke): 50 g.
+
+Skupna teža gotove porcije na krožniku: cca 420 g – 450 g.
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / gotove jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Mleta pečenka (štruca) z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU – Mleta pečenka s pire krompirjem) sistem iz skladišča samodejno odpiše:
+
+0,20 kg polizdelka Mleta pečenka
+
+0,18 kg izbrane priloge (npr. pire krompirja)
