@@ -376,7 +376,12 @@ BEGIN
     ALTER TABLE malica_article_assignments ADD CONSTRAINT malica_article_assignments_role_group_check
       CHECK ((role = 'main' AND group_id IS NOT NULL) OR (role <> 'main' AND group_id IS NULL)) NOT VALID;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'malica_article_assignments_unit_article_uq') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'malica_article_assignments'
+      AND column_name = 'velikost_pice'
+  ) AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'malica_article_assignments_unit_article_uq') THEN
     ALTER TABLE malica_article_assignments ADD CONSTRAINT malica_article_assignments_unit_article_uq
       UNIQUE (enota_id, artikel_id);
   END IF;

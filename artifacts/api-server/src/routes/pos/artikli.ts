@@ -466,6 +466,7 @@ router.get("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Pro
   const [settings] = await db.select({
     normalDoughArticleId: pizzaDoughSettingsTable.normalDoughArticleId,
     smallDoughArticleId: pizzaDoughSettingsTable.smallDoughArticleId,
+    familyDoughArticleId: pizzaDoughSettingsTable.familyDoughArticleId,
   }).from(pizzaDoughSettingsTable)
     .where(eq(pizzaDoughSettingsTable.enotaId, tenotaId));
   if (!settings) {
@@ -473,7 +474,7 @@ router.get("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Pro
     return;
   }
 
-  const doughIds = [settings.normalDoughArticleId, settings.smallDoughArticleId];
+  const doughIds = [settings.normalDoughArticleId, settings.smallDoughArticleId, settings.familyDoughArticleId];
   const doughArticles = await db.select({ id: artikliTable.id, ime: artikliTable.ime })
     .from(artikliTable)
     .where(and(eq(artikliTable.enotaId, tenotaId), inArray(artikliTable.id, doughIds)));
@@ -485,14 +486,17 @@ router.get("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Pro
   res.json([
     { size: "normalna", ingredient: { id: settings.normalDoughArticleId, name: articlesById.get(settings.normalDoughArticleId)!.ime }, quantity: 1 },
     { size: "mala", ingredient: { id: settings.smallDoughArticleId, name: articlesById.get(settings.smallDoughArticleId)!.ime }, quantity: 1 },
+    { size: "druzinska", ingredient: { id: settings.familyDoughArticleId, name: articlesById.get(settings.familyDoughArticleId)!.ime }, quantity: 1 },
   ]);
 });
 
 const UpdatePizzaDoughNormsBody = z.object({
   normalDoughArticleId: z.number().int().positive(),
   smallDoughArticleId: z.number().int().positive(),
+  familyDoughArticleId: z.number().int().positive(),
   expectedNormalDoughArticleId: z.number().int().positive(),
   expectedSmallDoughArticleId: z.number().int().positive(),
+  expectedFamilyDoughArticleId: z.number().int().positive(),
 }).strict();
 
 router.put("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Promise<void> => {
@@ -501,10 +505,13 @@ router.put("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Pro
   const id = Number(req.params.id);
   const parsed = UpdatePizzaDoughNormsBody.safeParse(req.body);
   if (!Number.isInteger(id) || id < 1 || !parsed.success) {
-    res.status(400).json({ error: "Izberite oba hlebčka in preverite podatke normativa." });
+    res.status(400).json({ error: "Izberite vse tri hlebčke in preverite podatke normativa." });
     return;
   }
-  const { normalDoughArticleId, smallDoughArticleId, expectedNormalDoughArticleId, expectedSmallDoughArticleId } = parsed.data;
+  const {
+    normalDoughArticleId, smallDoughArticleId, familyDoughArticleId,
+    expectedNormalDoughArticleId, expectedSmallDoughArticleId, expectedFamilyDoughArticleId,
+  } = parsed.data;
   if (normalDoughArticleId === smallDoughArticleId) {
     res.status(422).json({ error: "Za malo in normalno pico izberite različna hlebčka." });
     return;
@@ -517,10 +524,12 @@ router.put("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Pro
     const [settings] = await tx.select({
       normalDoughArticleId: pizzaDoughSettingsTable.normalDoughArticleId,
       smallDoughArticleId: pizzaDoughSettingsTable.smallDoughArticleId,
+      familyDoughArticleId: pizzaDoughSettingsTable.familyDoughArticleId,
     }).from(pizzaDoughSettingsTable).where(eq(pizzaDoughSettingsTable.enotaId, enotaId)).for("update");
     if (!settings) return { status: 409, error: "Enota nima nastavljenih hlebčkov; osvežite normativ." };
     if (settings.normalDoughArticleId !== expectedNormalDoughArticleId
-      || settings.smallDoughArticleId !== expectedSmallDoughArticleId) {
+      || settings.smallDoughArticleId !== expectedSmallDoughArticleId
+      || settings.familyDoughArticleId !== expectedFamilyDoughArticleId) {
       return { status: 409, error: "Izbira hlebčkov se je medtem spremenila. Osvežite normativ." };
     }
     const selected = await tx.select({
@@ -531,16 +540,16 @@ router.put("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Pro
       active: artikliTable.aktiven,
     }).from(artikliTable).where(and(
       eq(artikliTable.enotaId, enotaId),
-      inArray(artikliTable.id, [normalDoughArticleId, smallDoughArticleId]),
+      inArray(artikliTable.id, [...new Set([normalDoughArticleId, smallDoughArticleId, familyDoughArticleId])]),
     ));
-    if (selected.length !== 2 || selected.some(article =>
+    if (selected.length !== new Set([normalDoughArticleId, smallDoughArticleId, familyDoughArticleId]).size || selected.some(article =>
       article.mealType !== "prepared" || article.sales || !article.active
       || toUneceUnitCode(article.unit) !== "H87")) {
-      return { status: 422, error: "Hlebčka morata biti aktivna neprodajna pripravljena artikla v kosih iste enote." };
+      return { status: 422, error: "Vsi hlebčki morajo biti aktivni neprodajni pripravljeni artikli v kosih iste enote." };
     }
-    await tx.update(pizzaDoughSettingsTable).set({ normalDoughArticleId, smallDoughArticleId })
+    await tx.update(pizzaDoughSettingsTable).set({ normalDoughArticleId, smallDoughArticleId, familyDoughArticleId })
       .where(eq(pizzaDoughSettingsTable.enotaId, enotaId));
-    return { status: 200, normalDoughArticleId, smallDoughArticleId };
+    return { status: 200, normalDoughArticleId, smallDoughArticleId, familyDoughArticleId };
   });
   if (outcome.status === 200) broadcastToUnit(enotaId, "update", { type: "artikli" });
   res.status(outcome.status).json(outcome);
@@ -2023,6 +2032,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
               SELECT 1 FROM pizza_dough_settings
               WHERE normal_dough_article_id = ${params.data.id}
                 OR small_dough_article_id = ${params.data.id}
+                OR family_dough_article_id = ${params.data.id}
             )
             OR EXISTS (SELECT 1 FROM postavke WHERE artikel_id = ${params.data.id})
             OR EXISTS (

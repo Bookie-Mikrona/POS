@@ -28,15 +28,19 @@ let pizzaId = 0;
 let secondPizzaId = 0;
 let normalId = 0;
 let smallId = 0;
+let familyId = 0;
 let replacementId = 0;
+let replacementFamilyId = 0;
 let foreignId = 0;
 let salesId = 0;
 const headers = () => ({ "x-enota-id": String(unitId), "x-test-enota": String(unitId), "x-test-role": "admin_enote" });
-const change = (normalDoughArticleId: number, smallDoughArticleId: number) => ({
+const change = (normalDoughArticleId: number, smallDoughArticleId: number, familyDoughArticleId = familyId) => ({
   normalDoughArticleId,
   smallDoughArticleId,
+  familyDoughArticleId,
   expectedNormalDoughArticleId: normalId,
   expectedSmallDoughArticleId: smallId,
+  expectedFamilyDoughArticleId: familyId,
 });
 
 describe("editing size-specific pizza dough in the normative editor", () => {
@@ -53,12 +57,14 @@ describe("editing size-specific pizza dough in the normative editor", () => {
       { enotaId: unitId, ime: `${run}-pizza-2`, cena: "10", jePica: true, prodajniArtikel: true },
       { enotaId: unitId, ime: `${run}-normal`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
       { enotaId: unitId, ime: `${run}-small`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
+      { enotaId: unitId, ime: `${run}-family`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
       { enotaId: unitId, ime: `${run}-replacement`, cena: "0", enotaMere: "H87", mealType: "prepared", prodajniArtikel: false },
+      { enotaId: unitId, ime: `${run}-family-replacement`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
       { enotaId: otherUnitId, ime: `${run}-foreign`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
       { enotaId: unitId, ime: `${run}-sale`, cena: "1", enotaMere: "kos", mealType: "prepared", prodajniArtikel: true },
     ]).returning({ id: artikliTable.id });
-    [pizzaId, secondPizzaId, normalId, smallId, replacementId, foreignId, salesId] = articles.map(article => article.id);
-    await db.insert(pizzaDoughSettingsTable).values({ enotaId: unitId, normalDoughArticleId: normalId, smallDoughArticleId: smallId });
+    [pizzaId, secondPizzaId, normalId, smallId, familyId, replacementId, replacementFamilyId, foreignId, salesId] = articles.map(article => article.id);
+    await db.insert(pizzaDoughSettingsTable).values({ enotaId: unitId, normalDoughArticleId: normalId, smallDoughArticleId: smallId, familyDoughArticleId: familyId });
   });
   afterAll(async () => {
     if (companyId) await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
@@ -72,13 +78,14 @@ describe("editing size-specific pizza dough in the normative editor", () => {
     expect((await supertest(app).put(path).set(headers()).send(change(salesId, smallId))).status).toBe(422);
     expect((await supertest(app).put(path).set(headers()).send(change(smallId, smallId))).status).toBe(422);
 
-    const updated = await supertest(app).put(path).set(headers()).send(change(replacementId, smallId));
+    const updated = await supertest(app).put(path).set(headers()).send(change(replacementId, smallId, replacementFamilyId));
     expect(updated.status, JSON.stringify(updated.body)).toBe(200);
     const otherPizza = await supertest(app).get(`/artikli/${secondPizzaId}/pizza-dough-norms`).set(headers());
     expect(otherPizza.status).toBe(200);
     expect(otherPizza.body).toEqual([
       expect.objectContaining({ size: "normalna", ingredient: expect.objectContaining({ id: replacementId }), quantity: 1 }),
       expect.objectContaining({ size: "mala", ingredient: expect.objectContaining({ id: smallId }), quantity: 1 }),
+      expect.objectContaining({ size: "druzinska", ingredient: expect.objectContaining({ id: replacementFamilyId }), quantity: 1 }),
     ]);
     expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, pizzaId))).toEqual([]);
     expect((await supertest(app).put(path).set(headers()).send(change(normalId, smallId))).status).toBe(409);

@@ -199,16 +199,16 @@ export function resolveConfiguredPizzaDoughArticleId(
   mapping: {
     normal_dough_article_id: number | string | null;
     small_dough_article_id: number | string | null;
+    family_dough_article_id: number | string | null;
   } | null,
   velikost: PizzaVelikostId,
 ): number | null {
   if (!mapping) return null;
-  if (velikost === "druzinska") {
-    throw new Error("Za družinsko pico ni nastavljen ustrezen artikel testa.");
-  }
   const articleId = Number(velikost === "mala"
     ? mapping.small_dough_article_id
-    : mapping.normal_dough_article_id);
+    : velikost === "druzinska"
+      ? mapping.family_dough_article_id
+      : mapping.normal_dough_article_id);
   if (!Number.isInteger(articleId) || articleId <= 0) {
     throw new Error("Za izbrano velikost pice ni nastavljen ustrezen artikel testa.");
   }
@@ -221,7 +221,7 @@ async function loadPizzaDoughArticleId(
   velikost: PizzaVelikostId,
 ): Promise<number | null> {
   const result = await tx.execute(sql`
-    SELECT normal_dough_article_id, small_dough_article_id
+    SELECT normal_dough_article_id, small_dough_article_id, family_dough_article_id
     FROM pizza_dough_settings
     WHERE enota_id = ${enotaId}
     LIMIT 1
@@ -229,6 +229,7 @@ async function loadPizzaDoughArticleId(
   const mapping = result.rows[0] as {
     normal_dough_article_id: number | string | null;
     small_dough_article_id: number | string | null;
+    family_dough_article_id: number | string | null;
   } | undefined;
   // No settings row means the dough family is not enabled for this unit.
   let articleId: number | null;

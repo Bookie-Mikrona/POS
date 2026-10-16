@@ -21,6 +21,12 @@ Zgodovinska migracija v ponovno izvajanem post-merge nizu mora sprejeti tudi vre
 
 **How to apply:** Pri replayanih enumskih `CHECK` omejitvah uporabi naprej združljiv nabor trenutno dovoljenih vrednosti ali drugače zagotovi, da nobena vmesna migracija začasno ne zoži končne sheme.
 
+Stara unikatna omejitev brez velikostnega ključa se pri ponovnem zagonu preskoči, ko je bila dodana poznejša kolona, ki omogoča velikostne različice.
+
+**Why:** Testni predkorak ponovno izvede tudi stare migracije; prvotna omejitev (en artikel na enoto) lahko po uvedbi velikostnih različic zavrne pravilne podvojene povezave.
+
+**How to apply:** Zgodovinsko omejitev pogojno dodaj samo, če novejša velikostna kolona še ne obstaja; poznejša migracija nato poskrbi za ustrezne delne unikatne indekse.
+
 Vsaka migracija v klasificiranem testnem obdobju potrebuje usklajeno klasifikacijsko glavo in vpis v testni manifest; vse operacije morajo prenesti ponovni zagon nad že posodobljeno bazo.
 
 **Why:** Samo glava brez manifesta ustavi validacijo, ne-idempotentni `CREATE TYPE` pa ustavi replay. Legacy backfill je posebej nevaren, ker ob ponovitvi ne sme spreminjati novih poslovnih zapisov.

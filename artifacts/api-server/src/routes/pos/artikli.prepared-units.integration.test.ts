@@ -119,6 +119,7 @@ describe("prepared kg/l article rules", () => {
     await db.delete(preparedFoodStocksTable).where(eq(preparedFoodStocksTable.artikelId, bulkArticleId));
     await db.insert(pizzaDoughSettingsTable).values({
       enotaId, normalDoughArticleId: bulkArticleId, smallDoughArticleId: bulkArticleId,
+      familyDoughArticleId: bulkArticleId,
     });
     const doughReference = await supertest(app).put(`/artikli/${bulkArticleId}`).send({
       ime: "Polizdelek golaž kg", enotaMere: "H87",

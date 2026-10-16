@@ -174,6 +174,7 @@ import type {
   GetPartnerTurnover200,
   GetPartnerTurnoverParams,
   GetPartnerTurnoverPdfParams,
+  GetPizzaDoughNorms200Item,
   GetPlateWasteOverviewParams,
   GetPosContractSummaryPreviewParams,
   GetPreparedFoodConsumptionParams,
@@ -525,6 +526,8 @@ import type {
   UpdateMalicaBeneficiaryBody,
   UpdateNormativRequest,
   UpdatePeriodBody,
+  UpdatePizzaDoughNorms200,
+  UpdatePizzaDoughNormsBody,
   UpdatePublicOrderTipInput,
   UpdatePublicOrderTipResponse,
   UpdateVatCodeBody,
@@ -4730,6 +4733,143 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteArtikelMutationOptions(options));
+    }
+
+export const getGetPizzaDoughNormsUrl = (id: number,) => {
+
+
+
+
+  return `/api/artikli/${id}/pizza-dough-norms`
+}
+
+export const getPizzaDoughNorms = async (id: number, options?: RequestInit): Promise<GetPizzaDoughNorms200Item[]> => {
+
+  return customFetch<GetPizzaDoughNorms200Item[]>(getGetPizzaDoughNormsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPizzaDoughNormsQueryKey = (id: number,) => {
+    return [
+    `/api/artikli/${id}/pizza-dough-norms`
+    ] as const;
+    }
+
+
+export const getGetPizzaDoughNormsQueryOptions = <TData = Awaited<ReturnType<typeof getPizzaDoughNorms>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPizzaDoughNorms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPizzaDoughNormsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPizzaDoughNorms>>> = ({ signal }) => getPizzaDoughNorms(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPizzaDoughNorms>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPizzaDoughNormsQueryResult = NonNullable<Awaited<ReturnType<typeof getPizzaDoughNorms>>>
+export type GetPizzaDoughNormsQueryError = ErrorType<void>
+
+
+
+export function useGetPizzaDoughNorms<TData = Awaited<ReturnType<typeof getPizzaDoughNorms>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPizzaDoughNorms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPizzaDoughNormsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePizzaDoughNormsUrl = (id: number,) => {
+
+
+
+
+  return `/api/artikli/${id}/pizza-dough-norms`
+}
+
+export const updatePizzaDoughNorms = async (id: number,
+    updatePizzaDoughNormsBody: UpdatePizzaDoughNormsBody, options?: RequestInit): Promise<UpdatePizzaDoughNorms200> => {
+
+  return customFetch<UpdatePizzaDoughNorms200>(getUpdatePizzaDoughNormsUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updatePizzaDoughNormsBody)
+  }
+);}
+
+
+
+
+
+export const getUpdatePizzaDoughNormsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePizzaDoughNorms>>, TError,{id: number;data: BodyType<UpdatePizzaDoughNormsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePizzaDoughNorms>>, TError,{id: number;data: BodyType<UpdatePizzaDoughNormsBody>}, TContext> => {
+
+const mutationKey = ['updatePizzaDoughNorms'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePizzaDoughNorms>>, {id: number;data: BodyType<UpdatePizzaDoughNormsBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePizzaDoughNorms(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePizzaDoughNormsMutationResult = NonNullable<Awaited<ReturnType<typeof updatePizzaDoughNorms>>>
+    export type UpdatePizzaDoughNormsMutationBody = BodyType<UpdatePizzaDoughNormsBody>
+    export type UpdatePizzaDoughNormsMutationError = ErrorType<void>
+
+    export const useUpdatePizzaDoughNorms = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePizzaDoughNorms>>, TError,{id: number;data: BodyType<UpdatePizzaDoughNormsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePizzaDoughNorms>>,
+        TError,
+        {id: number;data: BodyType<UpdatePizzaDoughNormsBody>},
+        TContext
+      > => {
+      return useMutation(getUpdatePizzaDoughNormsMutationOptions(options));
     }
 
 export const getGetArtikelVNormativiUrl = (id: number,) => {

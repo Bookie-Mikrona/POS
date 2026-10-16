@@ -12,6 +12,7 @@ export const pizzaDoughSettingsTable = pgTable("pizza_dough_settings", {
     .references(() => enoteTable.id, { onDelete: "cascade" }),
   normalDoughArticleId: integer("normal_dough_article_id").notNull(),
   smallDoughArticleId: integer("small_dough_article_id").notNull(),
+  familyDoughArticleId: integer("family_dough_article_id").notNull(),
 }, (t) => [
   foreignKey({
     columns: [t.normalDoughArticleId, t.enotaId],
@@ -22,6 +23,11 @@ export const pizzaDoughSettingsTable = pgTable("pizza_dough_settings", {
     columns: [t.smallDoughArticleId, t.enotaId],
     foreignColumns: [artikliTable.id, artikliTable.enotaId],
     name: "pizza_dough_settings_small_article_unit_fk",
+  }).onDelete("restrict"),
+  foreignKey({
+    columns: [t.familyDoughArticleId, t.enotaId],
+    foreignColumns: [artikliTable.id, artikliTable.enotaId],
+    name: "pizza_dough_settings_family_article_unit_fk",
   }).onDelete("restrict"),
 ]);
 

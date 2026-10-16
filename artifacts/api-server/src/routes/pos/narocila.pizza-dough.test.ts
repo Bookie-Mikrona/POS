@@ -5,13 +5,13 @@ describe("pizza dough article selection", () => {
   const mapping = {
     normal_dough_article_id: 410,
     small_dough_article_id: 411,
+    family_dough_article_id: 412,
   };
 
   it("selects the size-specific dough article", () => {
     expect(resolveConfiguredPizzaDoughArticleId(mapping, "mala")).toBe(411);
     expect(resolveConfiguredPizzaDoughArticleId(mapping, "normalna")).toBe(410);
-    expect(() => resolveConfiguredPizzaDoughArticleId(mapping, "druzinska"))
-      .toThrow("Za družinsko pico ni nastavljen ustrezen artikel testa.");
+    expect(resolveConfiguredPizzaDoughArticleId(mapping, "druzinska")).toBe(412);
   });
 
   it("does not enable dough consumption for units without a mapping", () => {
@@ -22,6 +22,7 @@ describe("pizza dough article selection", () => {
     expect(() => resolveConfiguredPizzaDoughArticleId({
       normal_dough_article_id: 410,
       small_dough_article_id: null,
+      family_dough_article_id: 412,
     }, "mala")).toThrow("Za izbrano velikost pice ni nastavljen ustrezen artikel testa.");
   });
 });

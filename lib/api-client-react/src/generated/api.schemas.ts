@@ -13345,6 +13345,48 @@ export type DeleteArtikel409 = {
   vpNormativi: DeleteArtikel409VpNormativiItem[];
 };
 
+export type GetPizzaDoughNorms200ItemSize = typeof GetPizzaDoughNorms200ItemSize[keyof typeof GetPizzaDoughNorms200ItemSize];
+
+
+export const GetPizzaDoughNorms200ItemSize = {
+  normalna: 'normalna',
+  mala: 'mala',
+  druzinska: 'druzinska',
+} as const;
+
+export type GetPizzaDoughNorms200ItemIngredient = {
+  id: number;
+  name: string;
+};
+
+export type GetPizzaDoughNorms200Item = {
+  size: GetPizzaDoughNorms200ItemSize;
+  ingredient: GetPizzaDoughNorms200ItemIngredient;
+  quantity: 1;
+};
+
+export type UpdatePizzaDoughNormsBody = {
+  /** @minimum 1 */
+  normalDoughArticleId: number;
+  /** @minimum 1 */
+  smallDoughArticleId: number;
+  /** @minimum 1 */
+  familyDoughArticleId: number;
+  /** @minimum 1 */
+  expectedNormalDoughArticleId: number;
+  /** @minimum 1 */
+  expectedSmallDoughArticleId: number;
+  /** @minimum 1 */
+  expectedFamilyDoughArticleId: number;
+};
+
+export type UpdatePizzaDoughNorms200 = {
+  status: 200;
+  normalDoughArticleId: number;
+  smallDoughArticleId: number;
+  familyDoughArticleId: number;
+};
+
 export type GetArtikelVNormativi200Item = {
   id: number;
   ime: string;

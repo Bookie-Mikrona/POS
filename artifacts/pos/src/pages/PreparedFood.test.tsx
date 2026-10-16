@@ -4,6 +4,8 @@ import PreparedFoodPage from "./PreparedFood";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Mocks
+const { mockPosFetch } = vi.hoisted(() => ({ mockPosFetch: vi.fn() }));
+vi.mock("@/lib/pos-auth-headers", () => ({ posFetch: mockPosFetch }));
 const mockSave = vi.fn();
 const mockClose = vi.fn();
 const mockSaveStocks = vi.fn();
@@ -13,32 +15,45 @@ let mockClosedAt: string | null = null;
 let mockFrozenQuantity = 20;
 let mockUnitOfMeasure = "porcija";
 const testDate = "2026-08-28";
+const makeDailyRow = (artikelId: number, articleName: string, thawedQuantity = 0) => ({
+  id: artikelId,
+  enotaId: 1,
+  businessDate: testDate,
+  artikelId,
+  thawedQuantity,
+  preparedQuantity: 0,
+  preparationBatches: null,
+  normativeBatchPieces: null,
+  defaultRecipeBatchPieces: null,
+  correctionQuantity: 0,
+  soldQuantity: 0,
+  frozenAtEndQuantity: 0,
+  wasteQuantity: 0,
+  wasteDeliveredQuantity: 0,
+  wasteValue: null,
+  closedAt: null,
+  articleName,
+  unitOfMeasure: mockUnitOfMeasure,
+  editable: mockEditable,
+});
+let mockDailyRows: any[] = [];
+let mockMalicaOffers: any[] = [];
+let mockPizzaArticle: any = null;
+let mockAdditionalStocks: any[] = [];
 
 vi.mock("@workspace/api-client-react", async () => {
   const actual = await vi.importActual("@workspace/api-client-react");
   return {
     ...actual as any,
     useListPreparedFoodDaily: () => ({
-      data: [
-        {
-          id: 1,
-          artikelId: 10,
-          thawedQuantity: 10,
-          preparedQuantity: 5,
-          correctionQuantity: 0,
-          soldQuantity: 12,
-          frozenAtEndQuantity: 2,
-          wasteQuantity: 1, // 10 + 5 + 0 - 12 - 2 = 1
-          wasteValue: 2.50,
-          businessDate: testDate,
-          articleName: "Goveja juha",
-          unitOfMeasure: mockUnitOfMeasure,
-          closedAt: mockClosedAt,
-          editable: mockEditable,
-        }
-      ],
+      data: mockDailyRows.map(row => ({
+        ...row,
+        closedAt: mockClosedAt ?? row.closedAt,
+        editable: mockEditable,
+      })),
       isLoading: false
     }),
+    useListMalicaDailyOffers: () => ({ data: mockMalicaOffers, isLoading: false }),
     useListPreparedFoodStocks: (year: number) => ({
       data: [{
         id: 5,
@@ -50,13 +65,13 @@ vi.mock("@workspace/api-client-react", async () => {
         openingCostPerPortion: 1.5,
         frozenQuantity: mockFrozenQuantity,
         frozenCostPerPortion: 1.75,
-          unitOfMeasure: mockUnitOfMeasure,
-      }],
+        unitOfMeasure: mockUnitOfMeasure,
+      }, ...mockAdditionalStocks],
       isLoading: false,
     }),
     useListArtikli: () => ({
-      data: [{ id: 10, ime: "Goveja juha" }],
-      isLoading: false
+      data: [{ id: 10, ime: "Goveja juha" }, ...(mockPizzaArticle ? [mockPizzaArticle] : [])],
+      isLoading: false,
     }),
     useListPreparedFoodDailyHistory: () => ({
       data: [{
@@ -102,12 +117,33 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     mockClosedAt = null;
     mockFrozenQuantity = 20;
     mockUnitOfMeasure = "porcija";
+    mockPizzaArticle = null;
+    mockAdditionalStocks = [];
+    mockPosFetch.mockReset();
+    mockPosFetch.mockResolvedValue({ ok: true, json: async () => [] });
+    mockDailyRows = [{
+      id: 1,
+      artikelId: 10,
+      thawedQuantity: 10,
+      preparedQuantity: 5,
+      correctionQuantity: 0,
+      soldQuantity: 12,
+      frozenAtEndQuantity: 2,
+      wasteQuantity: 1,
+      wasteValue: 2.50,
+      businessDate: testDate,
+      articleName: "Goveja juha",
+      unitOfMeasure: mockUnitOfMeasure,
+      closedAt: mockClosedAt,
+      editable: mockEditable,
+    }];
+    mockMalicaOffers = [];
     mockSave.mockResolvedValue({});
     mockClose.mockResolvedValue({});
   });
 
   async function openTestDate() {
-    fireEvent.click(await screen.findByText("28. avgust 2026"));
+    fireEvent.click(await screen.findByText("28.08.2026"));
     await screen.findByText("Goveja juha");
   }
 
@@ -159,7 +195,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("28. avgust 2026")).not.toBeNull();
+    expect(await screen.findByText("28.08.2026")).not.toBeNull();
     expect(screen.queryByText("Goveja juha")).toBeNull();
 
     await openTestDate();
@@ -167,9 +203,92 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     expect(screen.getByText("12")).not.toBeNull();
     expect(screen.getByText("Na voljo za odtajanje: 20 porcija")).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /28. avgust 2026/i }));
-    expect(await screen.findByText("28. avgust 2026")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /28.08.2026/i }));
+    expect(await screen.findByText("28.08.2026")).not.toBeNull();
     expect(screen.queryByText("Goveja juha")).toBeNull();
+  });
+
+  it("z zvezdico postavi objavljene malice na vrh, nato odtajljive in preostale jedi po abecedi", async () => {
+    mockDailyRows = [
+      makeDailyRow(10, "Goveja juha", 1),
+      makeDailyRow(11, "Zrezek"),
+      makeDailyRow(12, "Puding"),
+      makeDailyRow(13, "Bograč"),
+      makeDailyRow(14, "Rižota"),
+    ];
+    mockAdditionalStocks = [{
+      id: 6,
+      enotaId: 1,
+      artikelId: 13,
+      articleName: "Bograč",
+      year: Number(testDate.slice(0, 4)),
+      openingQuantity: 2,
+      openingCostPerPortion: 1,
+      frozenQuantity: 2,
+      frozenCostPerPortion: 1,
+      unitOfMeasure: mockUnitOfMeasure,
+    }];
+    mockMalicaOffers = [{
+      businessDate: testDate,
+      status: "published",
+      mainItems: [{ artikelId: 11, enabled: true }],
+      includedCourses: [{ artikelId: 12, enabled: true }],
+    }];
+    render(<QueryClientProvider client={queryClient}><PreparedFoodPage /></QueryClientProvider>);
+    await openTestDate();
+
+    const table = screen.getByRole("table", { name: "Dnevna evidenca pripravljene hrane" });
+    const rowNames = Array.from(table.querySelectorAll("tbody tr"))
+      .map(row => row.querySelector("td")?.textContent ?? "");
+    expect(rowNames).toEqual([
+      expect.stringContaining("Puding"),
+      expect.stringContaining("Zrezek"),
+      expect.stringContaining("Bograč"),
+      expect.stringContaining("Goveja juha"),
+      expect.stringContaining("Rižota"),
+    ]);
+    expect(screen.getAllByLabelText("Objavljeno v malicah")).toHaveLength(2);
+  });
+
+  it("takoj za objavljeno malico razvrsti hlebčke po velikosti, tudi družinskega", async () => {
+    mockPizzaArticle = { id: 99, ime: "Pica", jePica: true };
+    mockDailyRows = [
+      makeDailyRow(11, "Malica pica"),
+      makeDailyRow(21, "Testo normalno"),
+      makeDailyRow(22, "Testo malo"),
+      makeDailyRow(23, "Testo družinsko"),
+      makeDailyRow(10, "Goveja juha", 1),
+    ];
+    mockMalicaOffers = [{
+      businessDate: testDate,
+      status: "published",
+      mainItems: [{ artikelId: 11, enabled: true }],
+      includedCourses: [],
+    }];
+    mockPosFetch.mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { size: "normalna", ingredient: { id: 21, name: "Testo normalno" }, quantity: 1 },
+        { size: "mala", ingredient: { id: 22, name: "Testo malo" }, quantity: 1 },
+        { size: "druzinska", ingredient: { id: 23, name: "Testo družinsko" }, quantity: 1 },
+      ],
+    });
+    render(<QueryClientProvider client={queryClient}><PreparedFoodPage /></QueryClientProvider>);
+    await openTestDate();
+
+    const table = screen.getByRole("table", { name: "Dnevna evidenca pripravljene hrane" });
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+    const rowNames = rows.map(row => row.querySelector("td")?.textContent ?? "");
+    expect(rowNames).toEqual([
+      expect.stringContaining("Malica pica"),
+      expect.stringContaining("Testo normalno"),
+      expect.stringContaining("Testo malo"),
+      expect.stringContaining("Testo družinsko"),
+      expect.stringContaining("Goveja juha"),
+    ]);
+    expect(rowNames[1]).toContain("Hlebček za pico: normalno");
+    expect(rowNames[2]).toContain("Hlebček za pico: malo");
+    expect(rowNames[3]).toContain("Hlebček za pico: družinsko");
   });
 
   it("shrani vse spremembe z enim skupnim gumbom", async () => {
@@ -361,7 +480,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     const closeBtn = screen.getByRole("button", { name: "Zaključi vse" });
     fireEvent.click(closeBtn);
 
-    expect(await screen.findByText(/Zaključi evidenco za 28. avgust 2026/i)).not.toBeNull();
+    expect(await screen.findByText(/Zaključi evidenco za 28\.08\.2026/i)).not.toBeNull();
     
     const confirmBtn = screen.getByRole("button", { name: "Potrdi in zaključi vse" });
     fireEvent.click(confirmBtn);

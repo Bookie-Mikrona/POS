@@ -1103,6 +1103,75 @@ paths:
                           type: integer
                         ime:
                           type: string
+  /artikli/{id}/pizza-dough-norms:
+    get:
+      operationId: getPizzaDoughNorms
+      tags: [artikli]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: Nastavljeni pripravljeni hlebčki po velikosti pice
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [size, ingredient, quantity]
+                  properties:
+                    size: { type: string, enum: [normalna, mala, druzinska] }
+                    ingredient:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                    quantity: { type: number, const: 1 }
+        "404": { description: Artikel ni najden }
+    put:
+      operationId: updatePizzaDoughNorms
+      tags: [artikli]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - normalDoughArticleId
+                - smallDoughArticleId
+                - familyDoughArticleId
+                - expectedNormalDoughArticleId
+                - expectedSmallDoughArticleId
+                - expectedFamilyDoughArticleId
+              properties:
+                normalDoughArticleId: { type: integer, minimum: 1 }
+                smallDoughArticleId: { type: integer, minimum: 1 }
+                familyDoughArticleId: { type: integer, minimum: 1 }
+                expectedNormalDoughArticleId: { type: integer, minimum: 1 }
+                expectedSmallDoughArticleId: { type: integer, minimum: 1 }
+                expectedFamilyDoughArticleId: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Shranjene velikostne nastavitve testa
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, normalDoughArticleId, smallDoughArticleId, familyDoughArticleId]
+                properties:
+                  status: { type: integer, const: 200 }
+                  normalDoughArticleId: { type: integer }
+                  smallDoughArticleId: { type: integer }
+                  familyDoughArticleId: { type: integer }
+        "400": { description: Neveljavni podatki }
+        "403": { description: Urejanje ni dovoljeno }
+        "404": { description: Pica ni najdena }
+        "409": { description: Nastavitve so bile medtem spremenjene }
+        "422": { description: Hlebčki niso veljavni pripravljeni artikli }
   /artikli/{id}/v-normativi:
     get:
       operationId: getArtikelVNormativi

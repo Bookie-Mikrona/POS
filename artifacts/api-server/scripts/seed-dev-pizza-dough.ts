@@ -153,19 +153,24 @@ try {
     }
   }
 
-  const settings = await client.query<{ normal_dough_article_id: number; small_dough_article_id: number }>(
-    "SELECT normal_dough_article_id, small_dough_article_id FROM pizza_dough_settings WHERE enota_id = $1 FOR UPDATE",
+  const settings = await client.query<{
+    normal_dough_article_id: number;
+    small_dough_article_id: number;
+    family_dough_article_id: number;
+  }>(
+    "SELECT normal_dough_article_id, small_dough_article_id, family_dough_article_id FROM pizza_dough_settings WHERE enota_id = $1 FOR UPDATE",
     [UNIT_ID],
   );
   if (settings.rows.length === 0) {
     await client.query(
-      `INSERT INTO pizza_dough_settings (enota_id, normal_dough_article_id, small_dough_article_id)
-       VALUES ($1, $2, $3)`,
-      [UNIT_ID, doughArticles[0]!.id, doughArticles[1]!.id],
+      `INSERT INTO pizza_dough_settings (enota_id, normal_dough_article_id, small_dough_article_id, family_dough_article_id)
+       VALUES ($1, $2, $3, $4)`,
+      [UNIT_ID, doughArticles[0]!.id, doughArticles[1]!.id, doughArticles[0]!.id],
     );
   } else if (
     settings.rows[0]!.normal_dough_article_id !== doughArticles[0]!.id ||
-    settings.rows[0]!.small_dough_article_id !== doughArticles[1]!.id
+    settings.rows[0]!.small_dough_article_id !== doughArticles[1]!.id ||
+    settings.rows[0]!.family_dough_article_id !== doughArticles[0]!.id
   ) {
     throw new Error("Nastavitve testa za enoto že obstajajo z drugimi artikli; niso bile prepisane.");
   }

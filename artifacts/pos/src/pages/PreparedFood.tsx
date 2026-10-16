@@ -5,6 +5,8 @@ import {
   useListPreparedFoodDaily, 
   getListPreparedFoodDailyQueryKey, 
   getListPreparedFoodDailyHistoryQueryKey,
+  getListMalicaDailyOffersQueryKey,
+  useListMalicaDailyOffers,
   useSavePreparedFoodDaily, 
   useClosePreparedFoodDaily,
   useListPreparedFoodDailyHistory,
@@ -13,7 +15,7 @@ import {
   useUpdatePreparedFoodStocks,
   useListArtikli,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,12 +25,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Snowflake, Calendar as CalendarIcon, PackageOpen, CheckCircle2, Save, ClipboardList, ArrowLeft } from "lucide-react";
+import { Snowflake, Calendar as CalendarIcon, PackageOpen, CheckCircle2, Save, ClipboardList, ArrowLeft, Star } from "lucide-react";
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WasteRecordsPanel } from "@/pages/prepared-food/WasteRecordsPanel";
 import { PreparationConsumptionDialog } from "@/pages/prepared-food/PreparationConsumptionDialog";
 import { PreparationBatchEditor } from "@/pages/prepared-food/PreparationBatchEditor";
+import { posFetch } from "@/lib/pos-auth-headers";
 import type { PreparationBatch } from "@workspace/api-client-react";
 import {
   formatPreparedFoodQuantity,
@@ -122,6 +125,31 @@ function TouchQuantityInput({
 function DailyDateDetail({ date, year, onBack }: { date: string, year: number, onBack: () => void }) {
   const { data, isLoading } = useListPreparedFoodDaily(date);
   const { data: stocks, isLoading: loadingStocks } = useListPreparedFoodStocks(year);
+  const { data: articles } = useListArtikli();
+  const { data: malicaOffers = [], isLoading: loadingMalica } = useListMalicaDailyOffers({ from: date, to: date });
+  const pizzaArticleId = articles?.find(article => article.jePica)?.id;
+  const pizzaDoughQuery = useQuery({
+    queryKey: ["prepared-food-pizza-dough-norms", pizzaArticleId],
+    enabled: Boolean(pizzaArticleId),
+    queryFn: async () => {
+      if (!pizzaArticleId) return [];
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(`${base}/api/artikli/${pizzaArticleId}/pizza-dough-norms`);
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = body && typeof body === "object" && "error" in body && typeof body.error === "string"
+          ? body.error
+          : "Hlebčkov za pico ni bilo mogoče naložiti.";
+        throw new Error(message);
+      }
+      if (!Array.isArray(body)) throw new Error("Strežnik je vrnil neveljavne nastavitve hlebčkov.");
+      return body as Array<{
+        size: "normalna" | "mala" | "druzinska";
+        ingredient: { id: number; name: string };
+        quantity: number;
+      }>;
+    },
+  });
   
   const saveMutation = useSavePreparedFoodDaily();
   const closeMutation = useClosePreparedFoodDaily();
@@ -162,6 +190,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
     intervalRef.current = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: getListPreparedFoodDailyQueryKey(date) });
       queryClient.invalidateQueries({ queryKey: getListPreparedFoodStocksQueryKey(year) });
+      queryClient.invalidateQueries({ queryKey: getListMalicaDailyOffersQueryKey({ from: date, to: date }) });
     }, 15000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [date, year, queryClient]);
@@ -222,6 +251,52 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
       };
     });
   }, [data, edits, stocks]);
+
+  const featuredArticleIds = useMemo(() => {
+    const offer = malicaOffers.find(item => item.businessDate === date
+      && (item.status === "published" || item.status === "closed"));
+    const ids = new Set<number>();
+    for (const item of offer?.mainItems ?? []) if (item.enabled) ids.add(item.artikelId);
+    for (const item of offer?.includedCourses ?? []) if (item.enabled) ids.add(item.artikelId);
+    return ids;
+  }, [date, malicaOffers]);
+
+  const pizzaDoughArticles = useMemo(() => {
+    const result = new Map<number, Array<"normalna" | "mala" | "druzinska">>();
+    const bySize = new Map((pizzaDoughQuery.data ?? []).map(item => [item.size, item.ingredient]));
+    for (const size of ["normalna", "mala", "druzinska"] as const) {
+      const article = bySize.get(size);
+      if (!article || !rowsWithCalculations.some(row => row.artikelId === article.id)) continue;
+      result.set(article.id, [...(result.get(article.id) ?? []), size]);
+    }
+    return result;
+  }, [pizzaDoughQuery.data, rowsWithCalculations]);
+
+  const orderedRows = useMemo(() => {
+    const collator = new Intl.Collator("sl", { sensitivity: "base", numeric: true });
+    const byName = (a: typeof rowsWithCalculations[number], b: typeof rowsWithCalculations[number]) =>
+      collator.compare(a.articleName ?? "", b.articleName ?? "");
+    const featured = rowsWithCalculations.filter(row => featuredArticleIds.has(row.artikelId)).sort(byName);
+    const featuredIds = new Set(featured.map(row => row.artikelId));
+    const dough = [...pizzaDoughArticles.keys()]
+      .filter(articleId => !featuredIds.has(articleId))
+      .map(articleId => rowsWithCalculations.find(row => row.artikelId === articleId))
+      .filter((row): row is typeof rowsWithCalculations[number] => Boolean(row));
+    const placedIds = new Set([...featuredIds, ...dough.map(row => row.artikelId)]);
+    const remaining = rowsWithCalculations.filter(row => !placedIds.has(row.artikelId));
+    const thawAvailable = remaining
+      .filter(row => Number(stocks?.find(stock => stock.artikelId === row.artikelId)?.frozenQuantity ?? 0) > 0
+        || parseQuantity(row.edit.thawed) > 0)
+      .sort(byName);
+    const thawAvailableIds = new Set(thawAvailable.map(row => row.artikelId));
+    const prepareAsNeeded = remaining.filter(row => !thawAvailableIds.has(row.artikelId)).sort(byName);
+    return [
+      ...featured,
+      ...dough,
+      ...thawAvailable,
+      ...prepareAsNeeded,
+    ];
+  }, [featuredArticleIds, pizzaDoughArticles, rowsWithCalculations, stocks]);
 
   const hasAnyInvalidWaste = useMemo(() => rowsWithCalculations.some(r => r.hasInvalidWaste), [rowsWithCalculations]);
   const hasAnyInvalidThaw = rowsWithCalculations.some(r => r.hasInvalidThaw);
@@ -341,7 +416,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading || loadingStocks ? (
+        {isLoading || loadingStocks || loadingMalica || pizzaDoughQuery.isLoading ? (
           <div className="py-8 text-center text-muted-foreground">Nalagam...</div>
         ) : rowsWithCalculations.length === 0 ? (
           <div className="py-8 text-center text-muted-foreground">Ni artiklov z operativnim načinom "Pripravljena hrana".</div>
@@ -362,14 +437,30 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                 </TableRow>
               </TableHeader>
                <TableBody className="block lg:table-row-group">
-                {rowsWithCalculations.map((row) => {
+                 {orderedRows.map((row) => {
                    const stock = stocks?.find(s => s.artikelId === row.artikelId);
+                    const isMalicaFeatured = featuredArticleIds.has(row.artikelId);
+                    const doughSizes = pizzaDoughArticles.get(row.artikelId) ?? [];
+                    const doughSizeNames = doughSizes.map(size => ({
+                      normalna: "normalno",
+                      mala: "malo",
+                      druzinska: "družinsko",
+                    }[size])).join(", ");
                   const availableToFreeze = Math.max(0, Math.round((row.totalQuantity - Number(row.soldQuantity)) * 10_000) / 10_000);
                   return (
                      <TableRow key={row.id} className={`mb-3 block overflow-hidden rounded-md ring-1 ring-border last:mb-0 lg:mb-0 lg:table-row lg:overflow-visible lg:rounded-none lg:ring-0 ${row.isClosed ? "bg-muted/30" : ""}`}>
                        <TableCell className={`${mobileCell} break-words font-medium ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
-                         <span>{row.articleName || `Artikel #${row.artikelId}`}</span>
+                          {isMalicaFeatured && <Star className="mr-1 inline h-3.5 w-3.5 fill-amber-400 text-amber-500" aria-label="Objavljeno v malicah" />}
+                          <span>{row.articleName || `Artikel #${row.artikelId}`}</span>
                          <span className="ml-1 whitespace-nowrap text-xs font-normal text-muted-foreground">({preparedFoodUnitLabel(row.unitOfMeasure)})</span>
+                          {doughSizes.length > 0 && <span className="block text-xs font-normal text-muted-foreground">Hlebček za pico: {doughSizeNames}</span>}
+                          {!isMalicaFeatured && doughSizes.length === 0 && (
+                            <span className="block text-xs font-normal text-muted-foreground">
+                              {Number(stock?.frozenQuantity ?? 0) > 0 || parseQuantity(row.edit.thawed) > 0
+                                ? "Na voljo za odtajanje ali že odtajano"
+                                : "Priprava po potrebi"}
+                            </span>
+                          )}
                        </TableCell>
                        <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                         <span className={mobileLabel}>Odtajano</span>

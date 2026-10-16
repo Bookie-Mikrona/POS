@@ -164,14 +164,15 @@ describe("resolvePreparedFoodAvailability", () => {
       { id: 20, name: "Preliv", mealType: "prepared" },
       { id: 21, name: "Malo testo", mealType: "prepared" },
       { id: 22, name: "Običajno testo", mealType: "prepared" },
+      { id: 24, name: "Družinsko testo", mealType: "prepared" },
       { id: 23, name: "Pica", mealType: "composite", isPizza: true },
     ];
     const state = resolvePreparedFoodAvailability({
       articles: pizzaArticles,
       norms: [{ articleId: 23, ingredientId: 20, quantity: 2 }],
-      frozenByPreparedArticle: new Map([[20, 20], [21, 4], [22, 8]]),
+      frozenByPreparedArticle: new Map([[20, 20], [21, 4], [22, 8], [24, 6]]),
       preparedTodayByArticle: new Map(),
-      pizzaDoughSettings: { normalDoughArticleId: 22, smallDoughArticleId: 21 },
+      pizzaDoughSettings: { normalDoughArticleId: 22, smallDoughArticleId: 21, familyDoughArticleId: 24 },
       pizzaSizeFactors: { mala: 0.5, normalna: 1, druzinska: 1.5 },
       sales: [
         // Older sales debit toppings only; they have no dough snapshot.
@@ -196,7 +197,7 @@ describe("resolvePreparedFoodAvailability", () => {
     expect(state.items.find((item) => item.articleId === 23)?.availableBySize).toEqual({
       mala: 4,
       normalna: 6,
-      druzinska: 0,
+      druzinska: 4,
     });
   });
 

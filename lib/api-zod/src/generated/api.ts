@@ -2654,6 +2654,56 @@ export const DeleteArtikelParams = zod.object({
 export const DeleteArtikelResponse = zod.void()
 
 
+
+
+
+export const GetPizzaDoughNormsParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const GetPizzaDoughNormsResponseItem = zod.object({
+  "size": zod.enum(['normalna', 'mala', 'druzinska']),
+  "ingredient": zod.object({
+  "id": zod.number(),
+  "name": zod.string()
+}),
+  "quantity": zod.number()
+})
+export const GetPizzaDoughNormsResponse = zod.array(GetPizzaDoughNormsResponseItem)
+
+
+
+
+
+export const UpdatePizzaDoughNormsParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+
+
+
+
+
+
+
+
+export const UpdatePizzaDoughNormsBody = zod.object({
+  "normalDoughArticleId": zod.number().min(1),
+  "smallDoughArticleId": zod.number().min(1),
+  "familyDoughArticleId": zod.number().min(1),
+  "expectedNormalDoughArticleId": zod.number().min(1),
+  "expectedSmallDoughArticleId": zod.number().min(1),
+  "expectedFamilyDoughArticleId": zod.number().min(1)
+})
+
+export const UpdatePizzaDoughNormsResponse = zod.object({
+  "status": zod.number(),
+  "normalDoughArticleId": zod.number(),
+  "smallDoughArticleId": zod.number(),
+  "familyDoughArticleId": zod.number()
+})
+
+
 /**
  * @summary Kateri artikli vsebujejo ta artikel kot sestavino v normativu
  */

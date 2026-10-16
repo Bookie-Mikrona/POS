@@ -77,6 +77,7 @@ type AvailabilityInput = {
   pizzaDoughSettings?: {
     normalDoughArticleId: number | null;
     smallDoughArticleId: number | null;
+    familyDoughArticleId: number | null;
   };
   pizzaSizeFactors?: Partial<Record<PizzaSize, number>>;
 };
@@ -104,7 +105,7 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
   const pizzaDoughForSize = (size: PizzaSize): number | null => {
     if (size === "mala") return input.pizzaDoughSettings?.smallDoughArticleId ?? null;
     if (size === "normalna") return input.pizzaDoughSettings?.normalDoughArticleId ?? null;
-    return null;
+    return input.pizzaDoughSettings?.familyDoughArticleId ?? null;
   };
   const addPizzaDough = (requirements: Map<number, number>, article: AvailabilityArticle, size: PizzaSize) => {
     if (!article.isPizza) return;
@@ -228,12 +229,6 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
       for (const size of ["mala", "normalna", "druzinska"] as const) {
         const factor = input.pizzaSizeFactors?.[size];
         if (!Number.isFinite(factor) || (factor ?? 0) <= 0) continue;
-        // Ta enota nima družinskega hlebčka. Ne prikazuj družinske pice kot
-        // razpoložljive, če jo naročilni poti pravilno zavrneta.
-        if (size === "druzinska" && input.pizzaDoughSettings) {
-          availableBySize[size] = 0;
-          continue;
-        }
         const sizeFactor = factor!;
         const sizeRequirements = new Map<number, number>();
         const norms = normsByArticle.get(article.id) ?? [];
@@ -290,7 +285,7 @@ export async function loadPreparedFoodAvailability(
     WHERE enota_id = ${enotaId}
   `);
   const doughSettingsResult = await executor.execute(sql`
-    SELECT normal_dough_article_id, small_dough_article_id
+    SELECT normal_dough_article_id, small_dough_article_id, family_dough_article_id
     FROM pizza_dough_settings
     WHERE enota_id = ${enotaId}
     LIMIT 1
@@ -455,6 +450,9 @@ export async function loadPreparedFoodAvailability(
       smallDoughArticleId: doughSettingsRow.small_dough_article_id == null
         ? null
         : Number(doughSettingsRow.small_dough_article_id),
+      familyDoughArticleId: doughSettingsRow.family_dough_article_id == null
+        ? null
+        : Number(doughSettingsRow.family_dough_article_id),
     }
     : undefined;
   const rawSizeSettings: Record<string, string> = {};
