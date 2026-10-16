@@ -1,0 +1,66 @@
+Gostinski normativ za ocvrt oslič s krompirjevo solato na kg
+
+Gostinski normativ za ocvrt oslič (file osliča v panadi ali pivskem testu) s krompirjevo solato se v gostinstvu obračunava ločeno po dveh osnovnih polizdelkih: ocvrt file osliča (na 1 kg) in domača krompirjeva solata (na 1 kg).
+
+Tukaj je celovita razčlenitev surovin za oba polizdelka ter izračun za 1 standardno porcijo.
+
+1. Normativ surovin za 1 kg ocvrtih filejev osliča
+Za peko/cvrtje se uporabljajo zamrznjeni ali sveži očiščeni fileji osliča (brez kosti in kože). Klasika je trojna panada (moka, jajce, drobtine) ali pa paniranje v moki in jajcu (po pariško).
+
+Surovina	Bruto količina	Neto / Gotova količina	Opombe / Specifikacija
+File osliča (brez kosti, zamrznjen ali svež)	1.150 g	1.000 g	Kalo pri odtajaju in cvrtju je cca 20–25 %.
+Pšenična moka (za paniranje)	40 g	40 g	Prva stopnja panade.
+Jajca (sveža kokošja)	80 g (cca 1,5 kosa)	80 g	Druga stopnja panade.
+Drobtine (bele drobtine)	80 g	80 g	Tretja stopnja panade.
+Olje za cvrtje	80 g (vskrkano)	/	Maščoba, ki jo panada vskrka med cvrtjem v fritezi/ponvi.
+Sol	10 g	10 g	Za začinjanje ribjih filejev.
+Surovi fileji z maso paniranja in vskrkanega olja dajo po cvrtju natanko 1,0 kg ocvrtih filejev osliča.
+
+2. Normativ surovin za 1 kg domače krompirjeve solate (Polizdelek)
+Krompirjeva solata se pripravlja kot hladen polizdelek z oljem, kisom in čebulo (klasični gostinski preliv).
+
+Surovina	Bruto količina	Neto / Gotova količina	Opombe / Specifikacija
+Krompir (svež, za solato / rumen)	1.100 g	900 g	Kuhan v olupku, olupljen in narezen na lističe (kalo pri lupljenju cca 15–20 %).
+Čebula (sveža)	120 g	100 g	Narezana na tanke lističe ali drobne kocke.
+Rastlinsko ali bučno olje	50 g	50 g	Za zabelo in mehkobo.
+Kis (jabolčni ali kis za solato)	40 ml (0,04 l)	40 ml	Za kislost in ravnovesje okusa.
+Jušna osnova ali topla voda	80 ml (0,08 l)	80 ml	Dodana topla tekočina, da krompir vpije preliv in postane sočen.
+Začimbe (sol, mleti beli/črni poper)	10 g	10 g	Osnovno začinjanje.
+Sestavine po kuhanju, rezanju in prelitju dajo natanko 1,0 kg pripravljene krompirjeve solate.
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Standardna gostinska porcija obsega:
+
+Ocvrt file osliča: 180 g – 200 g (običajno 2 kosa fileja).
+
+Krompirjeva solata: 220 g – 250 g.
+
+Limona (rezina za stisk): 20 g (1/6 limone).
+
+Skupna teža gotove porcije na krožniku: cca 420 g – 470 g.
+
+Potrebne vhodne količine polizdelkov za 1 porcijo:
+Ocvrt oslič: 0,20 kg
+
+Krompirjeva solata: 0,23 kg
+
+Limona: 0,02 kg
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se jed nastavi preko dveh osnovnih polizdelkov:
+
+Definicija polizdelkov:
+
+Polizdelek A: Ocvrt file osliča (enota mere: 1 kg)
+
+Polizdelek B: Domača krompirjeva solata (enota mere: 1 kg)
+
+Razdolževanje ob prodaji (PLU koda za porcijo):
+
+Ob odtipkanju naročila PLU 815 – Ocvrt oslič s krompirjevo solato sistem iz skladišča samodejno odpiše:
+
+0,20 kg polizdelka A (Ocvrt oslič)
+
+0,23 kg polizdelka B (Krompirjeva solata)
+
+0,02 kg limone
