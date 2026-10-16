@@ -1,0 +1,47 @@
+Prikaži gostinski normativ za mešano meso na žaru na porcijo.
+
+Gostinski normativ za mešano meso na žaru na 1 standardno porcijo se v gostinskem POS sistemu in kuhinjski evidenci uporablja kot sestavljena glavna jed. Vsebuje izbor klasičnih mesnin z žara, prilogo in oblogo.
+
+Ker gre za kombinacijo več vrst mesa, je normativ prilagojen standardni gostinski porciji (skupno cca 300 g surovega mesa na krožniku).
+
+1. Normativ surovin za 1 standardno porcijo mešanega mesa z žara
+Surovina / Komponenta	Bruto količina	Neto / Gotova količina	Opombe / Specifikacija
+Čevapčiči	100 g (cca 3–4 kosi)	90 g	Mleto meso (kalo pri peki cca 10 %).
+Pleskavica	100 g (1 manjši kos)	90 g	Mleto meso z žara (kalo pri peki cca 10 %).
+Svinjski kotlet ali vratovina (brez kosti)	100 g	80 g	Mariniran svinjski kos (kalo pri peki cca 20 %).
+Piščančji zrezek ali puranji file	80 g	65 g	Pusto perutninsko meso z žara (kalo pri peki cca 18 %).
+Pivska klobasa ali hrenovka	80 g	75 g	Kratek kos klobase za žar.
+Rastlinsko olje ali mast (za peko na žaru)	20 g	/	Za premaz rešetke in sočnost mesa.
+Pomfri ali pražen krompir (priloga)	200 g	150 g	Standardna priloga ob mesu z žara.
+Ajvar ali kajmak	40 g	40 g	Hladna priloga / namaz.
+Sveža čebula	40 g	35 g	Narezana na kolobarje.
+Vložen feferon ali kisle kumarice	30 g	30 g	Žar obloga.
+Lepinja ali kruh	1 kos (100 g)	100 g	Obvezen dodatek k mesu z žara.
+Skupna teža gotovega obroka na krožniku znaša cca 750 g – 800 g.
+
+2. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu se jed vnese kot sestavljeni artikel (normativ), da se zaloge posameznih vrst mesa in prilog sproti natančno razdolžujejo:
+
+Glavni PLU artikel na blagajni: Mešano meso na žara (čevapi, pleskavica, kotlet, piščanec, klobasa) s pomfrijem (enota mere: 1 porcija).
+
+Podrejena struktura materialov (izpis iz skladišča ob 1 prodani porciji):
+
+Surovi čevapčiči: 0,10 kg
+
+Surova pleskavica: 0,10 kg
+
+Svinjski kotlet / vratovina: 0,10 kg
+
+Piščančji / puranji file: 0,08 kg
+
+Pivska klobasa: 0,08 kg
+
+Zamrznjeni pomfri: 0,20 kg
+
+Ajvar / kajmak: 0,04 kg
+
+Sveža čebula in feferoni: 0,07 kg
+
+Lepinja: 1 kos (0,10 kg)
+
+Olje za peko: 0,02 kg
