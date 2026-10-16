@@ -1,0 +1,52 @@
+Gostinski normativ za svinjski zrezek z gobicami na kg
+
+Gostinski normativ za svinjski zrezek v gobovi omaki, preračunan točno na 1 kg (1000 g) gotove jedi (meso skupaj z bogato omako iz svežih ali zamrznjenih gob), se v gostinski praksi uporablja kot standardni polizdelek za pripravo malic in kosil.
+
+1. Normativ surovin za 1 kg gotovega svinjskega zrezka z gobicami
+Razmerje v posodi (gastronorm posodi) je določeno tako, da vsebuje približno 55 % mesa in 45 % gobove omake.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Svinjsko stegno ali hrbet (brez kosti)	1.200 g	1.150 g	Čisto meso (kalo pri čiščenju in dušenju je cca 25 %).
+Gobe (šampinjoni, jurčki ali mešane gobe)	300 g	270 g	Sveže ali zamrznjene, narezane na lističe (kalo pri čiščenju/dušenju cca 10–15 %).
+Čebula (sveža)	150 g	130 g	Drobno sesekljana za osnovo.
+Česen (svež)	10 g	8 g	Drobno sesekljan ali strt.
+Rastlinsko olje ali svinjska mast	50 g	50 g	Za popekanje zrezkov in praženje gob.
+Pšenična moka (za prašenje / podmet)	25 g	25 g	Za gostoto omake in sočnost zrezkov.
+Kisna ali sladka smetana (20–30 % m.m.)	80 g	80 g	Za žametno teksturo in polnost okusa gobove omake.
+Jušna osnova ali voda	350 ml (0,35 l)	350 ml	Za zalivanje med dušenjem (del tekočine izpari).
+Belo vino (suho)	30 ml (0,03 l)	30 ml	Za deglaziranje in kislost omake (alkohol med kuhanjem izpari).
+Začimbe (sol, mleti beli/črni poper, majaron, svež peteršilj)	12 g	12 g	Peteršilj se doda ob koncu kuhanja.
+Opomba: Surove sestavine po praženju, dušenju in redukciji dajo natanko 1,0 kg gotove jedi.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Če kuhinja pripravlja večjo serijo za linijo malic (npr. 10 kg gotove jedi), se vsi normativi preprosto pomnožijo z 10:
+
+Svinjsko stegno/hrbet (bruto): 12,00 kg
+
+Gobe (šampinjoni/jurčki): 3,00 kg
+
+Čebula: 1,50 kg
+
+Olje / mast: 0,50 kg (500 g)
+
+Moka: 0,25 kg (250 g)
+
+Smetana: 0,80 kg (800 g)
+
+Jušna osnova / voda: 3,50 litrov
+
+Belo vino: 0,30 litra
+
+Začimbe in peteršilj: 0,12 kg (120 g)
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Standardna porcija mesa z omako obsega:
+
+Svinjski zrezek z gobovo omako: 250 g (1 ali 2 zrezka z omako)
+
+Priloga (npr. kruhovi cmoki, široki rezanci ali pire krompir): 180 g – 200 g
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek: Svinjski zrezek z gobicami z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob odtipkanju porcije (npr. Svinjski zrezek z gobicami in kruhovimi cmoki) sistem iz skladišča samodejno odpiše točno 0,25 kg polizdelka zrezka z gobami ter ustrezno količino izbrane priloge.
