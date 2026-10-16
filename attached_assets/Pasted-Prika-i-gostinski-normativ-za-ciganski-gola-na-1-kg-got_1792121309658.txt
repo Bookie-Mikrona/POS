@@ -1,0 +1,64 @@
+Prikaži gostinski normativ za ciganski golaž na 1 kg gotove jedi.
+
+Gostinski normativ za ciganski golaž (bogato, rahlo pekočo mesno jed iz svinjskega in govejega mesa, sveže paprike, čebule ter paradižnika), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot standardni polizdelek za pripravo malic in kosil.
+
+Za razliko od klasičnega govejega golaža ciganski golaž vsebuje kombinacijo dveh vrst mesa ter opazno večji delež sveže paprike in paradižnika, kar mu daje prepoznavno sočnost in pikantnost.
+
+1. Normativ surovin za 1 kg gotovega ciganskega golaža
+V gostinskem razmerju jed vsebuje približno 40 % mesa ter 60 % goste zelenjavno-mesne omake.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Svinjsko pleče ali stegno	220 g	200 g	Narezano na kocke (kalo pri dušenju cca 20 %).
+Goveje stegno ali bočnik	220 g	200 g	Narezano na kocke (kalo pri čiščenju/dušenju cca 25 %).
+Čebula (sveža)	300 g	250 g	Drobno sesekljana za gostoto omake.
+Sveža rdeča in zelena paprika	180 g	150 g	Narezana na trakove ali kocke (kalo pri čiščenju cca 15–20 %).
+Paradižnik (svež ali pelati)	120 g	100 g	Narezan na kocke ali pasiran.
+Česen (svež)	12 g	10 g	Drobno sesekljan ali strt.
+Svinjska mast ali rastlinsko olje	45 g	45 g	Za praženje čebule in mesa.
+Paradižnikova mezga	30 g	30 g	Za globino barve in okusa.
+Pšenična moka (za blago zgoščevanje)	15 g	15 g	Podmet ali praženje z moko (po želji obrata).
+Rdeče vino (suho)	30 ml (0,03 l)	30 ml	Za deglaziranje in aromo.
+Jušna osnova ali voda	350 ml (0,35 l)	350 ml	Za zalivanje med postopnim dušenjem.
+Začimbe (sol, poper, mleta sladka in pekoča rdeča paprika, feferon, lovorov list, majaron)	15 g	15 g	Pekoča paprika ali suhi feferon daje značilno pikantnost.
+Opomba: Surove sestavine po postopnem dušenju mesa in redukciji tekočine dajo natanko 1,0 kg gotovega ciganskega golaža.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotovega ciganskega golaža za linijo malic se vsi normativi preprosto pomnožijo z 10:
+
+Svinjsko meso: 2,20 kg
+
+Goveje meso: 2,20 kg
+
+Čebula: 3,00 kg
+
+Sveža paprika: 1,80 kg
+
+Paradižnik / pelati: 1,20 kg
+
+Svinjska mast / olje: 0,45 kg (450 g)
+
+Paradižnikova mezga: 0,30 kg (300 g)
+
+Pšenična moka: 0,15 kg (150 g)
+
+Rdeče vino: 0,30 litra
+
+Jušna osnova / voda: 3,50 litra
+
+Začimbe: 0,15 kg (150 g)
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Standardna gostinska porcija ciganskega golaža z izbrano prilogo (npr. polenta, testenine, pražen krompir ali kruhovi cmoki) obsega:
+
+Ciganski golaž: 250 g – 280 g
+
+Priloga (npr. kuhan krompir, polenta ali široki rezanci): 180 g – 200 g
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Ciganski golaž z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU 440 – Ciganski golaž s polento) sistem iz skladišča samodejno odpiše:
+
+0,27 kg polizdelka Ciganski golaž
+
+0,18 kg izbrane priloge (npr. polente)
