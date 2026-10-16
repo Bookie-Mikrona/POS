@@ -1,0 +1,66 @@
+Gostinski normativ za bograč na kg
+
+Gostinski normativ za tradicionalni prekmurski bograč (bogato mesno enolončnico iz treh vrst mesa: govedine, svinjine in divjačine ter krompirja, čebule in rdeče paprike), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot osrednji polizdelek za pripravo malic, kosil in jedi na žlico.
+
+1. Normativ surovin za 1 kg gotovega bograča
+V gostinskem razmerju pravi bograč vsebuje visoko delež mesa (skupaj cca 350 g surovega mesa) in enakomerno razmerje med mesom, krompirjem ter čebulno osnovo.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Goveje stegno ali bočnik	120 g	110 g	Narezano na manjše kocke (kalo pri čiščenju in dušenju cca 25 %).
+Svinjsko stegno ali pleče	120 g	110 g	Narezano na kocke (kalo pri dušenju cca 20 %).
+Divjačinsko meso (srnjad ali divji prašič)	120 g	110 g	Narezano na kocke (kalo pri dušenju cca 20 %).
+Krompir (svež)	280 g	230 g	Narezan na kocke (kalo pri lupljenju cca 15–20 %).
+Čebula (sveža)	300 g	250 g	Drobno sesekljana. Tradicionalno se uporabi enaka količina čebule glede na meso.
+Česen (svež)	15 g	12 g	Drobno sesekljan ali strt.
+Svinjska mast ali olje	45 g	45 g	Svinjska mast daje tradicionalen okus.
+Sveža rdeča in zelena paprika	80 g	70 g	Narezana na drobne kocke ali trakove.
+Paradižnikova mezga / pasiran paradižnik	40 g	40 g	Za kislost, barvo in gostoto omake.
+Rdeče vino (suho, npr. modra frankinja ali refošk)	40 ml (0,04 l)	40 ml	Dodano na koncu kuhanja za aromo (alkohol izpari).
+Jušna osnova ali voda	400 ml (0,40 l)	400 ml	Za zalivanje med postopnim dodajanjem mesa.
+Začimbe (sol, poper v zrnu/mleti, mleta sladka rdeča paprika, feferon, lovorov list, mleta kumina, majaron)	15 g	15 g	Mleta paprika in lovorov list sta ključna.
+Opomba: Surove sestavine se z dolgotrajnim postopnim dušenjem mesa (najprej govedina in divjačina, nato svinjina in krompir) ter razpustitvijo čebule zgostijo v gostih 1,0 kg gotovega bograča.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotovega bograča (cca 22–25 porcij) se vsi normativi preprosto pomnožijo z 10:
+
+Goveje meso: 1,20 kg
+
+Svinjsko meso: 1,20 kg
+
+Divjačinsko meso: 1,20 kg
+
+Krompir (bruto): 2,80 kg
+
+Čebula: 3,00 kg
+
+Česen: 0,15 kg (150 g)
+
+Svinjska mast / olje: 0,45 kg (450 g)
+
+Sveža paprika: 0,80 kg
+
+Paradižnikova mezga: 0,40 kg
+
+Rdeče vino: 0,40 litra
+
+Jušna osnova / voda: 4,00 litri
+
+Začimbe: 0,15 kg (150 g)
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Bograč se v gostinstvu streže v globokih krožnikih ali kotličkih ob rženem ali belemu kruhu:
+
+Standardna porcija bograča: 400 g – 450 g
+
+Vsebnost gotovega mesa na porcijo: cca 130 g – 150 g
+
+Domači kruh (priloga): 60 g – 80 g (2 rezini)
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Prekmurski bograč z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU 435 – Bograč) sistem iz skladišča samodejno odpiše:
+
+0,42 kg polizdelka Prekmurski bograč
+
+0,07 kg kruha (če je vštet v normativ porcije)
