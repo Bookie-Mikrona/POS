@@ -1,0 +1,38 @@
+Prikaži gostinski normativ za čevapčiči na porcijo.
+
+Gostinski normativ za čevapčiče na porcijo (klasična mesna jed z žara, pripravljena iz mletega mesa brez svinjine ali v mešanici) se v gostinskem POS sistemu in kuhinjski evidenci uporablja kot standardna sestavljena jed (meso z oblogo in prilogo).
+
+Ker se čevapčiči vedno obračunavajo na število kosov oziroma gramaturo porcije na krožniku, je spodaj podana specifikacija za standardno gostinsko porcijo (10 kosov čevapčičev oziroma 250 g mesa).
+
+1. Normativ surovin za 1 standardno porcijo čevapčičev
+Surovina / Komponenta	Bruto količina	Neto / Gotova količina	Opombe / Specifikacija
+Mleto meso za čevapčiče (govedina / jagnjetina ali mešano goveje-prašičje)	280 g	250 g	Kalo pri pečenju na žaru (izparevanje maščobe in vode) je cca 10–12 %. Standardna porcija obsega 10 kosov (posamezen čevapčič ima v surovem stanju cca 28 g).
+Rastlinsko olje ali mast (za premaz žara)	15 g	/	Za premaz rešetke žara, da se meso lepo zapeče.
+Sveža čebula (narezana na drobne kocke)	40 g	35 g	Klasična obloga k čevapčičem (kalo pri čiščenju cca 15 %).
+Ajvar ali kajmak	40 g	40 g	Priljubljena priloga/namaz ob čevapčičih.
+Lepinja ali somun (opcijsko, če je všteta v porcijo)	1 kos (cca 120 g)	120 g	Tradicionalna lepinja, pečena ali rahlo poparjena na žaru.
+Skupna teža gotove porcije na krožniku (čevapčiči, čebula, ajvar/kajmak in lepinja) znaša cca 450 g – 480 g.
+
+2. Normativ za večjo serijo / maso mesa (Npr. 1 kg surove mase čevapčičev)
+Če kuhinja pripravlja večjo maso mase za čevapčiče (npr. 1 kg surove mase, iz katere se oblikuje cca 35 kosov čevapčičev):
+
+Mleto meso: 1,00 kg (daje cca 0,88 kg pečeni čevapčičev)
+
+Začimbe (sol, soda bikarbona, česen v sledovih): cca 18 g – 20 g
+
+3. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se jed vnese kot sestavljeni artikel (normativ), da se zaloge surovin sproti točno odpisujejo:
+
+Glavni PLU artikel na blagajni: Čevapčiči (10 kom) z lepinjo, čebulo in ajvarjem (enota mere: 1 kos / porcija).
+
+Podrejena struktura materialov (izpis iz skladišča ob 1 prodani porciji):
+
+Surovi čevapčiči (mesna masa): 0,28 kg (10 kosov)
+
+Lepinja: 1 kos (0,12 kg)
+
+Sveža čebula: 0,04 kg
+
+Ajvar ali kajmak: 0,04 kg
+
+Olje za peko: 0,02 kg
