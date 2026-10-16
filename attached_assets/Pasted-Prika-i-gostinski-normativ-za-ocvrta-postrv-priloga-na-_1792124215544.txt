@@ -1,0 +1,36 @@
+Prikaži gostinski normativ za ocvrta postrv, priloga na porcijo.
+
+Gostinski normativ za ocvrto postrv s prilogo (tradicionalno panirano in ocvrto celotno postrv ali file postrvi, postreženo s klasično prilogo, kot sta krompirjeva solata ali blitva s krompirjem), preračunan točno na 1 standardno porcijo, se v gostinskem POS sistemu in kuhinjski evidenci uporablja kot sestavljena jed (ribe, panada, maščoba za cvrtje in izbrana priloga).
+
+Spodnji normativ velja za celotno postrv v dunajski panadi (moka, jajce, drobtine) z obvezno prilogo in limono.
+
+1. Normativ surovin za 1 standardno porcijo ocvrte postrvi s prilogo
+Surovina / Komponenta	Bruto količina	Neto / Gotova količina	Opombe / Specifikacija
+Sveža postrv (očiščena, z glavo ali brez)	320 g	250 g	Sveža rečna postrv (kalo pri čiščenju, odstranjevanju glave/kosti in cvrtju je cca 20–25 %). Standardna porcija ribe na krožniku znaša cca 220–250 g.
+Pšenična moka (za paniranje)	25 g	/	Prva faza paniranja (moka).
+Jajca (sveža kokošja)	40 g (cca 0,8 kosa)	/	Druga faza paniranja (razžvrkljano jajce).
+Kulinarične drobtine (za paniranje)	35 g	/	Tretja faza paniranja (hrustljava skorjica).
+Olje za cvrtje (rastlinsko olje)	60 g	/	Maščoba, ki jo panada in riba delno absorbirata med cvrtjem v fritezi ali ponvi.
+Krompirjeva solata z bučnim oljem in čebulo (priloga)	250 g	220 g	Klasična in najbolj priljubljena ribja priloga v gostinstvu (kalo pri lupljenju krompirja cca 15 %).
+Limona (sveža)	40 g (1 krhlji / polovica)	35 g	Obvezen dodatek ob ocvrti ribi.
+Tržaška omaka (olivno olje, česen, peteršilj)	20 g	20 g	Za premaz ribe ali priloge (opcijsko).
+Skupna teža gotovega ribjega obroka na krožniku znaša cca 550 g – 600 g.
+
+2. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se jed vnese kot sestavljeni artikel (normativ), da se zaloge rib, živil za panado in prilog sproti natančno razdolžujejo:
+
+Glavni PLU artikel na blagajni: Ocvrta postrv s krompirjevo solato in limono (enota mere: 1 porcija).
+
+Podrejena struktura materialov (izpis iz skladišča ob 1 prodani porciji):
+
+Sveža postrv (očiščena): 0,32 kg (bruto)
+
+Moka, jajca in drobtine (panada): 0,10 kg (skupaj)
+
+Olje za cvrtje (vskrkano/porabljeno): 0,06 kg
+
+Surovi krompir (za solato): 0,25 kg (bruto)
+
+Čebula, bučno olje in kis (za solato): 0,04 kg
+
+Limona in tržaška omaka: 0,06 kg
