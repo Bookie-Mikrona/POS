@@ -236,6 +236,12 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
   const groups: MalicaGroup[] = bootstrap?.groups ?? [];
   const assignments: MalicaArticleAssignment[] = bootstrap?.assignments ?? [];
   const { data: artikli } = useListArtikli();
+  const jedi = (artikli || []).filter(a =>
+    a.aktiven
+    && a.prodajniArtikel
+    && a.taxCategory === "food"
+    && ["Glavne jedi", "Juhe", "Otroški meni", "Sezonske jedi", "Zajtrki", "Sladice", "Solate", "Pice"].includes(a.kategorijaIme ?? ""),
+  );
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const assignMutation = useAssignMalicaArticle();
@@ -380,7 +386,7 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
                 disabled={editId !== null}
               >
                 <option value="">Izberite artikel...</option>
-                {(artikli || []).map(a => (
+                {[...jedi, ...(editId === null ? [] : (artikli || []).filter(a => a.id === editId && !jedi.some(j => j.id === a.id)))].map(a => (
                   <option key={a.id} value={a.id}>{a.ime}</option>
                 ))}
               </select>

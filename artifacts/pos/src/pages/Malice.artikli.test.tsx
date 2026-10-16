@@ -12,6 +12,10 @@ const priceRows = vi.hoisted(() => ({ current: [] as Array<{ groupId: number; pr
 const articles = vi.hoisted(() => Array.from({ length: 35 }, (_, index) => ({
   id: index + 1,
   ime: `Artikel ${index + 1}`,
+  aktiven: true,
+  prodajniArtikel: true,
+  taxCategory: "food",
+  kategorijaIme: index < 2 ? null : "Glavne jedi",
 })));
 
 vi.mock("@workspace/api-client-react", async (importOriginal) => ({
@@ -41,7 +45,9 @@ describe("Malice — povezava artiklov", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dodaj povezavo" }));
     const dialog = screen.getByRole("dialog");
     const select = within(dialog).getByRole("combobox", { name: "Artikel" }) as HTMLSelectElement;
-    expect(select.querySelectorAll("option")).toHaveLength(36);
+    expect(select.querySelectorAll("option")).toHaveLength(34);
+    expect(within(select).queryByRole("option", { name: "Artikel 1" })).not.toBeInTheDocument();
+    expect(within(select).queryByRole("option", { name: "Artikel 2" })).not.toBeInTheDocument();
     fireEvent.change(select, { target: { value: "35" } });
     expect(select.value).toBe("35");
     fireEvent.click(within(dialog).getByRole("button", { name: "Shrani" }));
