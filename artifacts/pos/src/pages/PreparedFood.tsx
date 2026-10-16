@@ -378,7 +378,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                         ) : (
                           <div className="flex flex-col items-end gap-1">
                               <TouchQuantityInput label={row.unitOfMeasure === "porcija" ? "Odtajano" : `Odtajano (${row.unitOfMeasure})`} unit={row.unitOfMeasure} value={row.edit.thawed} maxQuantity={row.maxThaw} onChange={(value) => updateEdit(row.artikelId, "thawed", value)} />
-                             <div className={`text-right text-[10px] ${row.hasInvalidThaw ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+                             <div className={`text-right text-xs font-bold ${row.hasInvalidThaw ? "text-destructive" : "text-foreground"}`}>
                                 Na voljo za odtajanje: {formatPreparedFoodQuantity(stock?.frozenQuantity ?? 0)} {preparedFoodUnitLabel(row.unitOfMeasure)}
                                {row.hasInvalidThaw && <span className="block">Vnesite od 0 do {row.maxThaw}.</span>}
                              </div>
