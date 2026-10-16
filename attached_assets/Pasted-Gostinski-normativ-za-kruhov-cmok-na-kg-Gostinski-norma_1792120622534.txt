@@ -1,0 +1,48 @@
+Gostinski normativ za kruhov cmok na kg
+
+Gostinski normativ za kruhove cmoke, preračunan točno na 1 kg (1000 g) gotovih kuhanih cmokov, se v gostinski praksi uporablja kot standardni prilogovalni polizdelek za mesne jedi z omako (golaž, pečenke, divjačino ipd.).
+
+1. Normativ surovin za 1 kg gotovih kuhanih kruhovih cmokov
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Kruhovi kocki / suh bel kruh	450 g	450 g	Posušene kruhove kocke (iz belega ali mešanega kruha).
+Mleko (pasterizirano / polnomastno)	300 ml (0,30 l)	300 ml	Za namakanje suhih kruhovih kock.
+Jajca (sveža kokošja)	100 g (2 kosa)	100 g	Za vezavo mase za cmoke.
+Čebula (sveža)	80 g	70 g	Drobno sesekljana in prepražena na maslu/olju.
+Maslo ali rastlinsko olje	30 g	30 g	Za praženje čebule in aromo mase.
+Pšenična moka (po potrebi)	40 g	40 g	Za dodatek masi (če je premokra) in oblikovanje cmokov.
+Svež peteršilj	15 g	10 g	Drobno sesekljan za barvo in aromo.
+Začimbe (sol, mleti črni poper, muškatni orešček)	10 g	10 g	Muškatni orešček je ključen za klasičen okus.
+Opomba: Suh kruh med namakanjem v mleku, jajcih ter kuhanju v slani vodi absorbira tekočino. Skupna vhodna masa surovin po oblikovanju in kuhanju da natanko 1,0 kg kuhanih kruhovih cmokov.
+
+2. Normativ za večje količine (Npr. 5 kg ali 10 kg posoda za kuhinjo)
+Če kuhinja pripravlja večjo serijo cmokov za zalogo ali dnevno linijo malic (npr. 10 kg kuhanih cmokov), se vsi normativi preprosto pomnožijo z 10:
+
+Kruhove kocke: 4,50 kg
+
+Mleko: 3,00 litri
+
+Jajca: 1,00 kg (cca 20 kosov)
+
+Čebula: 0,80 kg
+
+Maslo / olje: 0,30 kg (300 g)
+
+Pšenična moka: 0,40 kg (400 g)
+
+Svež peteršilj: 0,15 kg (150 g)
+
+Začimbe: 0,10 kg (100 g)
+
+3. Sestava 1 standardne gostinske porcije (Priloga)
+Teža 1 kuhanega cmoka: cca 70 g – 80 g
+
+Standardna gostinska porcija (priloga uz meso/omako): 2 kosa = 150 g – 160 g
+
+Samostojna porcija ali večja priloga: 3 kosi = 210 g – 240 g
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se jed nastavi kot polizdelek:
+
+Definicija polizdelka: Artikel Polizdelek: Kruhovi cmoki (kuhani) z enoto mere 1 kg ali kos (pri čemer je 1 kos = 0,08 kg).
+
+Razdolževanje ob prodaji: Ko na blagajni odtipkate porcijo (npr. Goveji golaž s kruhovimi cmoki), kje je priloga določena na 2 cmoka, sistem iz skladišča samodejno odpiše 0,16 kg polizdelka Kruhovi cmoki.
