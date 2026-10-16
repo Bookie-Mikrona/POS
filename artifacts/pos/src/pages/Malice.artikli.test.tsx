@@ -9,15 +9,30 @@ const assignArticle = vi.hoisted(() => vi.fn().mockResolvedValue({}));
 const schedulePrice = vi.hoisted(() => vi.fn().mockResolvedValue({}));
 const toast = vi.hoisted(() => vi.fn());
 const priceRows = vi.hoisted(() => ({ current: [] as Array<{ groupId: number; priceCents: number; validFrom: string; status: string }> }));
-const articles = vi.hoisted(() => Array.from({ length: 35 }, (_, index) => ({
-  id: index + 1,
-  ime: `Artikel ${index + 1}`,
-  cena: index + 1,
-  aktiven: true,
-  prodajniArtikel: true,
-  taxCategory: "food",
-  kategorijaIme: index < 2 ? null : "Glavne jedi",
-})));
+const articles = vi.hoisted(() => [
+  ...Array.from({ length: 35 }, (_, index) => ({
+    id: index + 1,
+    ime: `Artikel ${index + 1}`,
+    cena: index + 1,
+    aktiven: true,
+    prodajniArtikel: true,
+    jePica: false,
+    taxCategory: "food",
+    kategorijaIme: index < 2 ? null : "Glavne jedi",
+  })),
+  {
+    id: 36,
+    ime: "Pica",
+    cena: 9,
+    cenaMala: 7,
+    cenaDruzinska: 13,
+    aktiven: true,
+    prodajniArtikel: true,
+    jePica: true,
+    taxCategory: "food",
+    kategorijaIme: "Pice",
+  },
+]);
 
 vi.mock("@workspace/api-client-react", async (importOriginal) => ({
   ...await importOriginal<typeof import("@workspace/api-client-react")>(),
@@ -46,7 +61,7 @@ describe("Malice — povezava artiklov", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dodaj povezavo" }));
     const dialog = screen.getByRole("dialog");
     const select = within(dialog).getByRole("combobox", { name: "Artikel" }) as HTMLSelectElement;
-    expect(select.querySelectorAll("option")).toHaveLength(34);
+    expect(select.querySelectorAll("option")).toHaveLength(35);
     expect(within(select).queryByRole("option", { name: "Artikel 1" })).not.toBeInTheDocument();
     expect(within(select).queryByRole("option", { name: "Artikel 2" })).not.toBeInTheDocument();
     fireEvent.change(select, { target: { value: "35" } });
@@ -76,6 +91,35 @@ describe("Malice — povezava artiklov", () => {
     await waitFor(() => expect(assignArticle).toHaveBeenCalledWith({
       articleId: 35,
       data: { role: "main", groupId: null, autoSyncPrice: false, malicaPriceCents: 3500 },
+    }));
+  });
+
+  it("pri povezovanju pice omogoči velikost in shrani izbrano varianto", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={queryClient}><MalicePage /></QueryClientProvider>);
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Artikli" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj povezavo" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Artikel" }), { target: { value: "36" } });
+
+    fireEvent.click(within(dialog).getByLabelText("Skupina malic (Katera skupina je to?)"));
+    fireEvent.click(screen.getByRole("option", { name: "Malica 1 (M1)" }));
+    fireEvent.click(within(dialog).getByLabelText("Velikost pice"));
+    fireEvent.click(screen.getByRole("option", { name: "Mala" }));
+    fireEvent.click(within(dialog).getByLabelText("Samodejno usklajuj ceno s skupino"));
+    expect(within(dialog).getByLabelText("Ročna cena (€)")).toHaveValue("7,00");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Shrani" }));
+
+    await waitFor(() => expect(assignArticle).toHaveBeenCalledWith({
+      articleId: 36,
+      data: {
+        role: "main",
+        groupId: 1,
+        velikostPice: "mala",
+        autoSyncPrice: false,
+        malicaPriceCents: 700,
+      },
     }));
   });
 

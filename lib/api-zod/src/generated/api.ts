@@ -5567,6 +5567,7 @@ export const GetMalicaBootstrapResponse = zod.object({
   "id": zod.number(),
   "enotaId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "groupId": zod.number().nullable(),
   "role": zod.enum(['none', 'main', 'soup', 'dessert']),
   "malicaPriceCents": zod.number().nullable(),
@@ -5626,6 +5627,7 @@ export const assignMalicaArticleBodyMalicaPriceCentsMin = 0;
 export const AssignMalicaArticleBody = zod.object({
   "role": zod.enum(['none', 'main', 'soup', 'dessert']),
   "groupId": zod.number().nullish(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "autoSyncPrice": zod.boolean().default(assignMalicaArticleBodyAutoSyncPriceDefault),
   "malicaPriceCents": zod.number().min(assignMalicaArticleBodyMalicaPriceCentsMin).nullish()
 })
@@ -5634,6 +5636,7 @@ export const AssignMalicaArticleResponse = zod.object({
   "id": zod.number(),
   "enotaId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "groupId": zod.number().nullable(),
   "role": zod.enum(['none', 'main', 'soup', 'dessert']),
   "malicaPriceCents": zod.number().nullable(),
@@ -5651,6 +5654,7 @@ export const ListMalicaEligibleArticlesResponseItem = zod.object({
   "id": zod.number(),
   "enotaId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "groupId": zod.number().nullable(),
   "role": zod.enum(['none', 'main', 'soup', 'dessert']),
   "malicaPriceCents": zod.number().nullable(),
@@ -5673,6 +5677,7 @@ export const CreateMalicaDailyOfferBody = zod.object({
   "mainItems": zod.array(zod.object({
   "groupId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "position": zod.number().default(createMalicaDailyOfferBodyMainItemsItemPositionDefault),
   "enabled": zod.boolean().default(createMalicaDailyOfferBodyMainItemsItemEnabledDefault),
   "availableQuantity": zod.number().min(createMalicaDailyOfferBodyMainItemsItemAvailableQuantityMin).nullish()
@@ -5702,6 +5707,7 @@ export const CreateMalicaDailyOfferResponse = zod.object({
   "mainItems": zod.array(zod.object({
   "groupId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "position": zod.number().default(createMalicaDailyOfferResponseMainItemsItemOnePositionDefault),
   "enabled": zod.boolean().default(createMalicaDailyOfferResponseMainItemsItemOneEnabledDefault),
   "availableQuantity": zod.number().min(createMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin).nullish()
@@ -5750,6 +5756,7 @@ export const ListMalicaDailyOffersResponseItem = zod.object({
   "mainItems": zod.array(zod.object({
   "groupId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "position": zod.number().default(listMalicaDailyOffersResponseMainItemsItemOnePositionDefault),
   "enabled": zod.boolean().default(listMalicaDailyOffersResponseMainItemsItemOneEnabledDefault),
   "availableQuantity": zod.number().min(listMalicaDailyOffersResponseMainItemsItemOneAvailableQuantityMin).nullish()
@@ -5793,6 +5800,7 @@ export const UpdateMalicaDailyOfferBody = zod.object({
   "mainItems": zod.array(zod.object({
   "groupId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "position": zod.number().default(updateMalicaDailyOfferBodyMainItemsItemPositionDefault),
   "enabled": zod.boolean().default(updateMalicaDailyOfferBodyMainItemsItemEnabledDefault),
   "availableQuantity": zod.number().min(updateMalicaDailyOfferBodyMainItemsItemAvailableQuantityMin).nullish()
@@ -5822,6 +5830,7 @@ export const UpdateMalicaDailyOfferResponse = zod.object({
   "mainItems": zod.array(zod.object({
   "groupId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "position": zod.number().default(updateMalicaDailyOfferResponseMainItemsItemOnePositionDefault),
   "enabled": zod.boolean().default(updateMalicaDailyOfferResponseMainItemsItemOneEnabledDefault),
   "availableQuantity": zod.number().min(updateMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin).nullish()
@@ -5869,6 +5878,7 @@ export const PublishMalicaDailyOfferResponse = zod.object({
   "mainItems": zod.array(zod.object({
   "groupId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "position": zod.number().default(publishMalicaDailyOfferResponseMainItemsItemOnePositionDefault),
   "enabled": zod.boolean().default(publishMalicaDailyOfferResponseMainItemsItemOneEnabledDefault),
   "availableQuantity": zod.number().min(publishMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin).nullish()
@@ -5916,6 +5926,7 @@ export const CloseMalicaDailyOfferResponse = zod.object({
   "mainItems": zod.array(zod.object({
   "groupId": zod.number(),
   "artikelId": zod.number(),
+  "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional(),
   "position": zod.number().default(closeMalicaDailyOfferResponseMainItemsItemOnePositionDefault),
   "enabled": zod.boolean().default(closeMalicaDailyOfferResponseMainItemsItemOneEnabledDefault),
   "availableQuantity": zod.number().min(closeMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin).nullish()

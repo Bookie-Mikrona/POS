@@ -10,6 +10,8 @@ const updateOffer = vi.hoisted(() => vi.fn().mockResolvedValue({}));
 const offers = vi.hoisted(() => ({ current: [] as any[] }));
 const assignments = vi.hoisted(() => [
   ...[101, 102].map(artikelId => ({ id: artikelId, artikelId, groupId: 1, role: "main", active: true })),
+  { id: 1031, artikelId: 103, groupId: 1, role: "main", active: true, velikostPice: "mala" },
+  { id: 1032, artikelId: 103, groupId: 1, role: "main", active: true, velikostPice: "druzinska" },
   ...[201, 202].map(artikelId => ({ id: artikelId, artikelId, groupId: null, role: "soup", active: true })),
   ...[301, 302].map(artikelId => ({ id: artikelId, artikelId, groupId: null, role: "dessert", active: true })),
 ]);
@@ -62,6 +64,24 @@ describe("Dnevne malice — več izbir", () => {
           { courseType: "dessert", artikelId: 301, quantity: 1, enabled: true },
           { courseType: "dessert", artikelId: 302, quantity: 1, enabled: true },
         ],
+      },
+    }));
+  });
+
+  it("v dnevni ponudbi shrani isto pico kot ločeni velikosti", async () => {
+    showPage();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Jed 103 (Mala)" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Jed 103 (Družinska)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Shrani osnutek" }));
+
+    await waitFor(() => expect(createOffer).toHaveBeenCalledWith({
+      data: {
+        businessDate: format(new Date(), "yyyy-MM-dd"),
+        mainItems: [
+          { groupId: 1, artikelId: 103, position: 0, enabled: true, velikostPice: "mala" },
+          { groupId: 1, artikelId: 103, position: 1, enabled: true, velikostPice: "druzinska" },
+        ],
+        includedCourses: [],
       },
     }));
   });

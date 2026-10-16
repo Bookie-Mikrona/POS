@@ -4224,6 +4224,15 @@ export interface MalicaGroupPriceInput {
   reason?: string | null;
 }
 
+export type MalicaPizzaSize = typeof MalicaPizzaSize[keyof typeof MalicaPizzaSize];
+
+
+export const MalicaPizzaSize = {
+  mala: 'mala',
+  normalna: 'normalna',
+  druzinska: 'druzinska',
+} as const;
+
 export type MalicaArticleAssignmentRole = typeof MalicaArticleAssignmentRole[keyof typeof MalicaArticleAssignmentRole];
 
 
@@ -4238,6 +4247,7 @@ export interface MalicaArticleAssignment {
   id: number;
   enotaId: number;
   artikelId: number;
+  velikostPice?: MalicaPizzaSize;
   /** @nullable */
   groupId: number | null;
   role: MalicaArticleAssignmentRole;
@@ -4261,6 +4271,7 @@ export interface MalicaArticleAssignmentInput {
   role: MalicaArticleAssignmentInputRole;
   /** @nullable */
   groupId?: number | null;
+  velikostPice?: MalicaPizzaSize;
   autoSyncPrice?: boolean;
   /**
      * @minimum 0
@@ -4272,6 +4283,7 @@ export interface MalicaArticleAssignmentInput {
 export interface MalicaDailyMainItemInput {
   groupId: number;
   artikelId: number;
+  velikostPice?: MalicaPizzaSize;
   position?: number;
   enabled?: boolean;
   /**

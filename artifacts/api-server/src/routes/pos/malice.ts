@@ -45,7 +45,12 @@ function mapPrice(row: typeof malicaGroupPricesTable.$inferSelect, currentDate?:
   return { id: row.id, groupId: row.groupId, enotaId: row.enotaId, priceCents: row.priceCents, validFrom: row.validFrom, validTo: row.validTo, status };
 }
 function mapAssignment(row: typeof malicaArticleAssignmentsTable.$inferSelect) {
-  return { id: row.id, enotaId: row.enotaId, artikelId: row.artikelId, groupId: row.groupId, role: row.role, malicaPriceCents: row.malicaPriceCents, autoSyncPrice: row.autoSyncPrice, active: row.active };
+  return {
+    id: row.id, enotaId: row.enotaId, artikelId: row.artikelId,
+    ...(row.velikostPice ? { velikostPice: row.velikostPice } : {}),
+    groupId: row.groupId, role: row.role, malicaPriceCents: row.malicaPriceCents,
+    autoSyncPrice: row.autoSyncPrice, active: row.active,
+  };
 }
 function mapPartnerPrice(row: typeof malicaPartnerGroupPricesTable.$inferSelect, currentDate: string) {
   const status = row.validFrom > currentDate ? "scheduled" : row.validTo && row.validTo < currentDate ? "past" : "active";
@@ -56,7 +61,13 @@ function mapOffer(row: typeof malicaDailyOffersTable.$inferSelect, mainItems: un
 }
 function mapMainItem(row: typeof malicaDailyMainItemsTable.$inferSelect, sold = 0) {
   const configured = row.availableQuantity == null ? null : Number(row.availableQuantity);
-  return { id: row.id, offerId: row.offerId, groupId: row.groupId, artikelId: row.artikelId, position: row.position, enabled: row.enabled, articleNameSnapshot: row.articleNameSnapshot, priceCentsSnapshot: row.priceCentsSnapshot, availableQuantity: configured, remainingQuantity: remainingQuantity(configured, sold) };
+  return {
+    id: row.id, offerId: row.offerId, groupId: row.groupId, artikelId: row.artikelId,
+    ...(row.velikostPice ? { velikostPice: row.velikostPice } : {}),
+    position: row.position, enabled: row.enabled, articleNameSnapshot: row.articleNameSnapshot,
+    priceCentsSnapshot: row.priceCentsSnapshot, availableQuantity: configured,
+    remainingQuantity: remainingQuantity(configured, sold),
+  };
 }
 function mapCourse(row: typeof malicaDailyIncludedCoursesTable.$inferSelect, sold = 0) {
   const configured = Number(row.quantity);
@@ -106,6 +117,39 @@ async function effectiveGroupPrice(executor: any, enotaId: number, groupId: numb
     .where(and(eq(malicaGroupPricesTable.enotaId, enotaId), eq(malicaGroupPricesTable.groupId, groupId), lte(malicaGroupPricesTable.validFrom, businessDate), or(sql`${malicaGroupPricesTable.validTo} IS NULL`, gte(malicaGroupPricesTable.validTo, businessDate))))
     .orderBy(sql`${malicaGroupPricesTable.validFrom} DESC`).limit(1);
   return price?.priceCents ?? 0;
+}
+
+const PIZZA_SIZES = new Set(["mala", "normalna", "druzinska"]);
+
+async function resolveMainItem(executor: any, enotaId: number, item: any) {
+  const artikelId = Number(item?.artikelId);
+  const requestedSize = item?.velikostPice ?? null;
+  if (!Number.isInteger(artikelId) || (requestedSize !== null && !PIZZA_SIZES.has(requestedSize))) {
+    throw new Error("Glavna jed ali velikost pice ni veljavna.");
+  }
+  const [assignment] = await executor.select().from(malicaArticleAssignmentsTable).where(and(
+    eq(malicaArticleAssignmentsTable.enotaId, enotaId),
+    eq(malicaArticleAssignmentsTable.artikelId, artikelId),
+    eq(malicaArticleAssignmentsTable.role, "main"),
+    requestedSize === null
+      ? isNull(malicaArticleAssignmentsTable.velikostPice)
+      : eq(malicaArticleAssignmentsTable.velikostPice, requestedSize),
+  ));
+  const [article] = await executor.select({
+    ime: artikliTable.ime,
+    jePica: artikliTable.jePica,
+  }).from(artikliTable).where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  if (!article || !assignment?.groupId
+    || (article.jePica ? requestedSize === null : requestedSize !== null)
+    || Number(item.groupId ?? assignment.groupId) !== assignment.groupId) {
+    throw new Error("Glavna jed ni veljavno povezana s skupino ali velikostjo.");
+  }
+  return {
+    artikelId,
+    groupId: assignment.groupId,
+    article,
+    velikostPice: requestedSize as "mala" | "normalna" | "druzinska" | null,
+  };
 }
 
 router.get("/malice/bootstrap", async (req, res): Promise<void> => {
@@ -193,14 +237,29 @@ router.put("/malice/articles/:articleId/assignment", async (req, res): Promise<v
   const artikelId = id(req.params.articleId);
   const role = req.body?.role;
   const groupId = req.body?.groupId == null ? null : Number(req.body.groupId);
+  const velikostPice = req.body?.velikostPice ?? null;
   if (!Number.isInteger(artikelId) || !["none", "main", "soup", "dessert"].includes(role)
     || (role === "main" && !Number.isInteger(groupId))
-    || (role !== "main" && groupId !== null)) {
+    || (role !== "main" && groupId !== null)
+    || (velikostPice !== null && !PIZZA_SIZES.has(velikostPice))) {
     res.status(400).json({ error: "Vloga in skupina artikla nista veljavni." }); return;
   }
-  const [article] = await db.select({ id: artikliTable.id }).from(artikliTable)
+  const [article] = await db.select({
+    id: artikliTable.id,
+    jePica: artikliTable.jePica,
+    cenaMala: artikliTable.cenaMala,
+    cenaDruzinska: artikliTable.cenaDruzinska,
+  }).from(artikliTable)
     .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
   if (!article) { res.status(404).json({ error: "Artikel ne obstaja v izbrani enoti." }); return; }
+  if (article.jePica !== (velikostPice !== null)
+    || (velikostPice === "mala" && article.cenaMala == null)
+    || (velikostPice === "druzinska" && article.cenaDruzinska == null)) {
+    res.status(400).json({ error: article.jePica
+      ? "Izberite velikost pice, ki ima nastavljeno ceno."
+      : "Velikosti pice lahko določite samo pri artiklu, ki je pica." });
+    return;
+  }
   if (role === "main") {
     const [group] = await db.select({ id: malicaGroupsTable.id }).from(malicaGroupsTable).where(and(eq(malicaGroupsTable.id, groupId!), eq(malicaGroupsTable.enotaId, enotaId)));
     if (!group) { res.status(400).json({ error: "Skupina ne pripada izbrani enoti." }); return; }
@@ -213,13 +272,25 @@ router.put("/malice/articles/:articleId/assignment", async (req, res): Promise<v
       .orderBy(sql`${malicaGroupPricesTable.validFrom} DESC`).limit(1);
     malicaPriceCents = currentPrice?.priceCents ?? null;
   }
-  const [saved] = await db.insert(malicaArticleAssignmentsTable).values({
-    enotaId, artikelId, role, groupId, autoSyncPrice: req.body?.autoSyncPrice !== false,
+  const assignmentValues = {
+    enotaId, artikelId, velikostPice, role, groupId, autoSyncPrice: req.body?.autoSyncPrice !== false,
     malicaPriceCents,
-  }).onConflictDoUpdate({
-    target: [malicaArticleAssignmentsTable.enotaId, malicaArticleAssignmentsTable.artikelId],
-    set: { role, groupId, autoSyncPrice: req.body?.autoSyncPrice !== false, malicaPriceCents, active: true, updatedAt: new Date() },
-  }).returning();
+  };
+  const assignmentUpdate = {
+    role, groupId, autoSyncPrice: req.body?.autoSyncPrice !== false,
+    malicaPriceCents, active: true, updatedAt: new Date(),
+  };
+  const [saved] = velikostPice === null
+    ? await db.insert(malicaArticleAssignmentsTable).values(assignmentValues).onConflictDoUpdate({
+      target: [malicaArticleAssignmentsTable.enotaId, malicaArticleAssignmentsTable.artikelId],
+      targetWhere: sql`${malicaArticleAssignmentsTable.velikostPice} IS NULL`,
+      set: assignmentUpdate,
+    }).returning()
+    : await db.insert(malicaArticleAssignmentsTable).values(assignmentValues).onConflictDoUpdate({
+      target: [malicaArticleAssignmentsTable.enotaId, malicaArticleAssignmentsTable.artikelId, malicaArticleAssignmentsTable.velikostPice],
+      targetWhere: sql`${malicaArticleAssignmentsTable.velikostPice} IS NOT NULL`,
+      set: assignmentUpdate,
+    }).returning();
   await db.update(artikliTable).set({ malicaVloga: role }).where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
   res.json(mapAssignment(saved!));
 });
@@ -235,11 +306,15 @@ router.post("/malice/offers", async (req, res): Promise<void> => {
   const offer = await db.transaction(async (tx) => {
     const [row] = await tx.insert(malicaDailyOffersTable).values({ enotaId, businessDate }).returning();
     for (const item of mainItems) {
-      const [assignment] = await tx.select().from(malicaArticleAssignmentsTable).where(and(eq(malicaArticleAssignmentsTable.enotaId, enotaId), eq(malicaArticleAssignmentsTable.artikelId, Number(item.artikelId)), eq(malicaArticleAssignmentsTable.role, "main")));
-      const [article] = await tx.select({ ime: artikliTable.ime }).from(artikliTable).where(and(eq(artikliTable.id, Number(item.artikelId)), eq(artikliTable.enotaId, enotaId)));
-      if (!assignment?.groupId || !article || Number(item.groupId ?? assignment.groupId) !== assignment.groupId) throw new Error("Glavna jed ni veljavno povezana s skupino.");
-      const groupId = Number(item.groupId ?? assignment.groupId);
-      await tx.insert(malicaDailyMainItemsTable).values({ offerId: row!.id, groupId, artikelId: Number(item.artikelId), position: Number(item.position ?? 0), enabled: item.enabled !== false, articleNameSnapshot: article.ime, priceCentsSnapshot: await effectiveGroupPrice(tx, enotaId, groupId, businessDate), availableQuantity: item.availableQuantity == null ? null : String(item.availableQuantity) });
+      const resolved = await resolveMainItem(tx, enotaId, item);
+      await tx.insert(malicaDailyMainItemsTable).values({
+        offerId: row!.id, groupId: resolved.groupId, artikelId: resolved.artikelId,
+        velikostPice: resolved.velikostPice,
+        position: Number(item.position ?? 0), enabled: item.enabled !== false,
+        articleNameSnapshot: resolved.article.ime,
+        priceCentsSnapshot: await effectiveGroupPrice(tx, enotaId, resolved.groupId, businessDate),
+        availableQuantity: item.availableQuantity == null ? null : String(item.availableQuantity),
+      });
     }
     for (const item of includedCourses) {
       const type = item.courseType;
@@ -277,11 +352,15 @@ router.put("/malice/offers/:offerId", async (req, res): Promise<void> => {
     if (hasMainItems) await tx.delete(malicaDailyMainItemsTable).where(eq(malicaDailyMainItemsTable.offerId, offerId));
     if (hasIncludedCourses) await tx.delete(malicaDailyIncludedCoursesTable).where(eq(malicaDailyIncludedCoursesTable.offerId, offerId));
     for (const item of mainItems) {
-      const [assignment] = await tx.select().from(malicaArticleAssignmentsTable).where(and(eq(malicaArticleAssignmentsTable.enotaId, offer.enotaId), eq(malicaArticleAssignmentsTable.artikelId, Number(item.artikelId)), eq(malicaArticleAssignmentsTable.role, "main")));
-      const [article] = await tx.select({ ime: artikliTable.ime }).from(artikliTable).where(and(eq(artikliTable.id, Number(item.artikelId)), eq(artikliTable.enotaId, offer.enotaId)));
-      if (!assignment?.groupId || !article || Number(item.groupId ?? assignment.groupId) !== assignment.groupId) throw new Error("Glavna jed ni veljavno povezana s skupino.");
-      const groupId = Number(item.groupId ?? assignment.groupId);
-      await tx.insert(malicaDailyMainItemsTable).values({ offerId, groupId, artikelId: Number(item.artikelId), position: Number(item.position ?? 0), enabled: item.enabled !== false, articleNameSnapshot: article.ime, priceCentsSnapshot: await effectiveGroupPrice(tx, offer.enotaId, groupId, offer.businessDate), availableQuantity: item.availableQuantity == null ? null : String(item.availableQuantity) });
+      const resolved = await resolveMainItem(tx, offer.enotaId, item);
+      await tx.insert(malicaDailyMainItemsTable).values({
+        offerId, groupId: resolved.groupId, artikelId: resolved.artikelId,
+        velikostPice: resolved.velikostPice,
+        position: Number(item.position ?? 0), enabled: item.enabled !== false,
+        articleNameSnapshot: resolved.article.ime,
+        priceCentsSnapshot: await effectiveGroupPrice(tx, offer.enotaId, resolved.groupId, offer.businessDate),
+        availableQuantity: item.availableQuantity == null ? null : String(item.availableQuantity),
+      });
     }
     for (const item of includedCourses) {
       if (!["soup", "dessert"].includes(item.courseType)) throw new Error("Neveljaven tip vključenega hoda.");

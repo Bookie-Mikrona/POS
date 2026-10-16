@@ -10,8 +10,10 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { artikliTable } from "./artikli";
 import { enoteTable } from "./enote";
 import { counterpartiesTable } from "../counterparties";
@@ -52,6 +54,7 @@ export const malicaArticleAssignmentsTable = pgTable("malica_article_assignments
   id: serial("id").primaryKey(),
   enotaId: integer("enota_id").notNull().references(() => enoteTable.id, { onDelete: "cascade" }),
   artikelId: integer("artikel_id").notNull().references(() => artikliTable.id, { onDelete: "cascade" }),
+  velikostPice: text("velikost_pice", { enum: ["mala", "normalna", "druzinska"] }),
   groupId: integer("group_id").references(() => malicaGroupsTable.id, { onDelete: "cascade" }),
   role: text("role", { enum: ["none", "main", "soup", "dessert"] }).notNull(),
   malicaPriceCents: integer("malica_price_cents"),
@@ -62,7 +65,12 @@ export const malicaArticleAssignmentsTable = pgTable("malica_article_assignments
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  unique("malica_article_assignments_unit_article_uq").on(t.enotaId, t.artikelId),
+  uniqueIndex("malica_article_assignments_unit_article_without_size_uq")
+    .on(t.enotaId, t.artikelId)
+    .where(sql`${t.velikostPice} IS NULL`),
+  uniqueIndex("malica_article_assignments_unit_article_size_uq")
+    .on(t.enotaId, t.artikelId, t.velikostPice)
+    .where(sql`${t.velikostPice} IS NOT NULL`),
   index("ix_malica_article_assignments_role").on(t.enotaId, t.role, t.groupId),
 ]);
 
@@ -86,13 +94,19 @@ export const malicaDailyMainItemsTable = pgTable("malica_daily_main_items", {
   offerId: integer("offer_id").notNull().references(() => malicaDailyOffersTable.id, { onDelete: "cascade" }),
   groupId: integer("group_id").notNull().references(() => malicaGroupsTable.id, { onDelete: "restrict" }),
   artikelId: integer("artikel_id").notNull().references(() => artikliTable.id, { onDelete: "restrict" }),
+  velikostPice: text("velikost_pice", { enum: ["mala", "normalna", "druzinska"] }),
   position: integer("position").notNull().default(0),
   enabled: boolean("enabled").notNull().default(true),
   articleNameSnapshot: text("article_name_snapshot").notNull(),
   priceCentsSnapshot: integer("price_cents_snapshot").notNull(),
   availableQuantity: numeric("available_quantity", { precision: 14, scale: 4 }),
 }, (t) => [
-  unique("malica_daily_main_items_offer_article_uq").on(t.offerId, t.artikelId),
+  uniqueIndex("malica_daily_main_items_offer_article_without_size_uq")
+    .on(t.offerId, t.artikelId)
+    .where(sql`${t.velikostPice} IS NULL`),
+  uniqueIndex("malica_daily_main_items_offer_article_size_uq")
+    .on(t.offerId, t.artikelId, t.velikostPice)
+    .where(sql`${t.velikostPice} IS NOT NULL`),
   index("ix_malica_daily_main_items_offer_group").on(t.offerId, t.groupId),
 ]);
 

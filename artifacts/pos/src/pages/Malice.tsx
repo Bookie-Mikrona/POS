@@ -20,7 +20,8 @@ import {
   type MalicaDailyOffer,
   type MalicaDailyMainItemInput,
   type MalicaDailyCourseInput,
-  type MalicaArticleAssignmentRole
+  type MalicaArticleAssignmentRole,
+  type MalicaPizzaSize
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -82,6 +83,25 @@ export default function MalicePage() {
 function formatMoney(cents: number | null | undefined) {
   if (cents == null) return "—";
   return formatEur(cents / 100);
+}
+
+const PIZZA_SIZE_LABELS: Record<MalicaPizzaSize, string> = {
+  mala: "Mala",
+  normalna: "Normalna",
+  druzinska: "Družinska",
+};
+
+function priceForMalicaArticleSize(
+  article: { cena: number; cenaMala?: number | null; cenaDruzinska?: number | null } | undefined,
+  size: MalicaPizzaSize | null,
+) {
+  if (!article) return "";
+  const price = size === "mala"
+    ? article.cenaMala
+    : size === "druzinska"
+      ? article.cenaDruzinska
+      : article.cena;
+  return price == null || !Number.isFinite(Number(price)) ? "" : Number(price).toFixed(2);
 }
 
 function SkupineTab({ bootstrap }: { bootstrap: any }) {
@@ -253,6 +273,7 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
   const [artikelId, setArtikelId] = useState("");
   const [role, setRole] = useState<MalicaArticleAssignmentRole | "none">("none");
   const [groupId, setGroupId] = useState<string>("none");
+  const [pizzaSize, setPizzaSize] = useState<MalicaPizzaSize | null>(null);
   const [autoSyncPrice, setAutoSyncPrice] = useState(true);
   const [manualPrice, setManualPrice] = useState("");
 
@@ -262,6 +283,7 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
       setArtikelId(String(ass.artikelId));
       setRole(ass.role);
       setGroupId(ass.groupId ? String(ass.groupId) : "none");
+      setPizzaSize(ass.velikostPice ?? null);
       setAutoSyncPrice(ass.autoSyncPrice);
       setManualPrice(ass.malicaPriceCents != null ? (ass.malicaPriceCents / 100).toFixed(2) : "");
     } else {
@@ -269,6 +291,7 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
       setArtikelId("");
       setRole("main");
       setGroupId("none");
+      setPizzaSize(null);
       setAutoSyncPrice(true);
       setManualPrice("");
     }
@@ -279,6 +302,11 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
     const aId = parseInt(artikelId, 10);
     if (isNaN(aId)) {
       toast({ title: "Izberite artikel", variant: "destructive" });
+      return;
+    }
+    const selectedArticle = artikli?.find(article => article.id === aId);
+    if (selectedArticle?.jePica && !pizzaSize) {
+      toast({ title: "Izberite velikost pice", variant: "destructive" });
       return;
     }
     let mPrice: number | null = null;
@@ -294,7 +322,8 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
         articleId: aId,
         data: {
           role: role as MalicaArticleAssignmentRole,
-          groupId: groupId !== "none" ? parseInt(groupId, 10) : null,
+          groupId: role === "main" && groupId !== "none" ? parseInt(groupId, 10) : null,
+          velikostPice: selectedArticle?.jePica ? pizzaSize ?? undefined : undefined,
           autoSyncPrice,
           malicaPriceCents: mPrice
         }
@@ -342,7 +371,10 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
                 const g = groups.find(x => x.id === a.groupId);
                 return (
                   <tr key={a.id} className="border-t hover:bg-muted/30">
-                    <td className="px-4 py-3 font-medium">{art?.ime || `Artikel #${a.artikelId}`}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {art?.ime || `Artikel #${a.artikelId}`}
+                      {a.velikostPice && <span className="ml-2 text-xs text-muted-foreground"> ({PIZZA_SIZE_LABELS[a.velikostPice]})</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="outline">{roleLabels[a.role] || a.role}</Badge>
                     </td>
@@ -386,11 +418,9 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
                   const nextArtikelId = event.target.value;
                   setArtikelId(nextArtikelId);
                   const selectedArticle = artikli?.find(a => a.id === Number(nextArtikelId));
-                  setManualPrice(
-                    selectedArticle && Number.isFinite(Number(selectedArticle.cena))
-                      ? Number(selectedArticle.cena).toFixed(2)
-                      : "",
-                  );
+                  const nextSize = selectedArticle?.jePica ? "normalna" : null;
+                  setPizzaSize(nextSize);
+                  setManualPrice(priceForMalicaArticleSize(selectedArticle, nextSize));
                 }}
                 disabled={editId !== null}
               >
@@ -400,10 +430,38 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
                 ))}
               </select>
             </div>
+            {artikli?.find(article => article.id === Number(artikelId))?.jePica && (
+              <div className="grid gap-2">
+                <Label htmlFor="malica-velikost-pice">Velikost pice</Label>
+                <Select
+                  value={pizzaSize ?? ""}
+                  onValueChange={(value: MalicaPizzaSize) => {
+                    setPizzaSize(value);
+                    setManualPrice(priceForMalicaArticleSize(
+                      artikli?.find(article => article.id === Number(artikelId)),
+                      value,
+                    ));
+                  }}
+                  disabled={editId !== null}
+                >
+                  <SelectTrigger id="malica-velikost-pice"><SelectValue placeholder="Izberite velikost" /></SelectTrigger>
+                  <SelectContent>
+                    {([
+                      { value: "mala" as const, price: artikli?.find(article => article.id === Number(artikelId))?.cenaMala },
+                      { value: "normalna" as const, price: artikli?.find(article => article.id === Number(artikelId))?.cena },
+                      { value: "druzinska" as const, price: artikli?.find(article => article.id === Number(artikelId))?.cenaDruzinska },
+                    ]).filter(option => option.price != null).map(option => (
+                      <SelectItem key={option.value} value={option.value}>{PIZZA_SIZE_LABELS[option.value]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {editId !== null && <p className="text-xs text-muted-foreground">Za povezavo iste pice z drugo velikostjo uporabite »Dodaj povezavo«.</p>}
+              </div>
+            )}
             <div className="grid gap-2">
-              <Label>Vloga</Label>
+              <Label htmlFor="malica-vloga">Vloga</Label>
               <Select value={role} onValueChange={(v: any) => setRole(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="malica-vloga"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="main">Glavna jed</SelectItem>
                   <SelectItem value="soup">Juha</SelectItem>
@@ -414,9 +472,9 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
             </div>
             {role === "main" && (
               <div className="grid gap-2">
-                <Label>Skupina malic (Katera skupina je to?)</Label>
+                <Label htmlFor="malica-skupina">Skupina malic (Katera skupina je to?)</Label>
                 <Select value={groupId} onValueChange={setGroupId}>
-                  <SelectTrigger><SelectValue placeholder="Brez skupine" /></SelectTrigger>
+                  <SelectTrigger id="malica-skupina"><SelectValue placeholder="Brez skupine" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Brez skupine</SelectItem>
                     {groups.map(g => (
@@ -550,15 +608,22 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
     }
   };
 
-  const toggleMainItem = (groupId: number, artikelId: number) => {
+  const toggleMainItem = (groupId: number, artikelId: number, velikostPice: MalicaPizzaSize | null) => {
     setFormData(prev => {
       if (!prev) return prev;
-      const exists = prev.mainItems.some(m => m.groupId === groupId && m.artikelId === artikelId);
+      const exists = prev.mainItems.some(m =>
+        m.groupId === groupId && m.artikelId === artikelId && (m.velikostPice ?? null) === velikostPice,
+      );
       return {
         ...prev,
         mainItems: exists
-          ? prev.mainItems.filter(m => !(m.groupId === groupId && m.artikelId === artikelId))
-          : [...prev.mainItems, { groupId, artikelId, position: prev.mainItems.length, enabled: true }]
+          ? prev.mainItems.filter(m =>
+            !(m.groupId === groupId && m.artikelId === artikelId && (m.velikostPice ?? null) === velikostPice),
+          )
+          : [...prev.mainItems, {
+            groupId, artikelId, position: prev.mainItems.length, enabled: true,
+            ...(velikostPice ? { velikostPice } : {}),
+          }]
       };
     });
   };
@@ -651,17 +716,22 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
                       <h4 className="font-medium text-primary">{g.name} ({g.code})</h4>
                       {allowedArticles.map(a => {
                         const art = artikli?.find(x => x.id === a.artikelId);
-                        const checkboxId = `main-${g.id}-${a.artikelId}`;
+                        const checkboxId = `main-${g.id}-${a.id}`;
+                        const size = a.velikostPice ?? null;
                         return (
-                          <div key={a.artikelId} className="flex items-center gap-2">
+                          <div key={a.id} className="flex items-center gap-2">
                             <Checkbox
                               id={checkboxId}
-                              checked={formData.mainItems.some(m => m.groupId === g.id && m.artikelId === a.artikelId)}
-                              onCheckedChange={() => toggleMainItem(g.id, a.artikelId)}
+                              aria-label={size ? `${art?.ime || `Art #${a.artikelId}`} (${PIZZA_SIZE_LABELS[size]})` : undefined}
+                              checked={formData.mainItems.some(m =>
+                                m.groupId === g.id && m.artikelId === a.artikelId && (m.velikostPice ?? null) === size,
+                              )}
+                              onCheckedChange={() => toggleMainItem(g.id, a.artikelId, size)}
                               disabled={!!offer && offer.status !== "draft"}
                             />
                             <Label htmlFor={checkboxId} className="font-normal cursor-pointer leading-tight">
                               {art?.ime || `Art #${a.artikelId}`}
+                              {size && <span className="ml-1 text-muted-foreground"> ({PIZZA_SIZE_LABELS[size]})</span>}
                             </Label>
                           </div>
                         );

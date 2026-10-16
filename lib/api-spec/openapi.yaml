@@ -15147,6 +15147,9 @@ components:
         priceCents: { type: integer, minimum: 0 }
         validFrom: { type: string, format: date }
         reason: { type: [string, "null"] }
+    MalicaPizzaSize:
+      type: string
+      enum: [mala, normalna, druzinska]
     MalicaArticleAssignment:
       type: object
       required: [id, enotaId, artikelId, role, groupId, malicaPriceCents, autoSyncPrice, active]
@@ -15154,6 +15157,7 @@ components:
         id: { type: integer }
         enotaId: { type: integer }
         artikelId: { type: integer }
+        velikostPice: { $ref: "#/components/schemas/MalicaPizzaSize" }
         groupId: { type: [integer, "null"] }
         role: { type: string, enum: [none, main, soup, dessert] }
         malicaPriceCents: { type: [integer, "null"] }
@@ -15165,6 +15169,7 @@ components:
       properties:
         role: { type: string, enum: [none, main, soup, dessert] }
         groupId: { type: [integer, "null"] }
+        velikostPice: { $ref: "#/components/schemas/MalicaPizzaSize" }
         autoSyncPrice: { type: boolean, default: true }
         malicaPriceCents: { type: [integer, "null"], minimum: 0 }
     MalicaDailyMainItemInput:
@@ -15173,6 +15178,7 @@ components:
       properties:
         groupId: { type: integer }
         artikelId: { type: integer }
+        velikostPice: { $ref: "#/components/schemas/MalicaPizzaSize" }
         position: { type: integer, default: 0 }
         enabled: { type: boolean, default: true }
         availableQuantity: { type: [number, "null"], minimum: 0 }

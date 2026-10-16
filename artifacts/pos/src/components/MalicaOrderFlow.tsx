@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, ShoppingBag, ShieldAlert, Check } from "lucide-react";
 import { useAddMalicaToOrder, useQuoteMalicaOrder, useListMalicaPartnerGroupPrices, useListPartnerji, useResolveMalicaBeneficiary } from "@workspace/api-client-react";
 import type { MalicaDailyOffer, MalicaBootstrap, Artikel } from "@workspace/api-client-react";
+import type { MalicaPizzaSize } from "@workspace/api-client-react";
 import { isMalicaChoiceUnavailable } from "@/lib/malicaHelpers";
 import { formatQuoteCents, formatLimitCents, isCourseIncluded, mapLimitErrorToMessage } from "@/lib/malicaQuoteHelpers";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,6 +13,12 @@ import { getGetNarociloQueryKey, getListAktivnaNarocilaQueryKey, getListNarocila
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const PIZZA_SIZE_LABELS: Record<MalicaPizzaSize, string> = {
+  mala: "Mala",
+  normalna: "Normalna",
+  druzinska: "Družinska",
+};
 
 export function MalicaOrderFlow({
   narociloId,
@@ -234,7 +241,10 @@ export function MalicaOrderFlow({
                         </span>
                       )}
                     </div>
-                    <div className="font-medium text-base truncate">{art.ime}</div>
+                    <div className="font-medium text-base truncate">
+                      {art.ime}
+                      {m.velikostPice && <span className="ml-1 text-muted-foreground"> ({PIZZA_SIZE_LABELS[m.velikostPice]})</span>}
+                    </div>
                     {m.remainingQuantity != null && !isExhausted && (
                       <div className="text-xs font-semibold text-amber-700 mt-1">Na voljo še: {m.remainingQuantity}</div>
                     )}
