@@ -1,0 +1,63 @@
+Prikaži gostinski normativ za boranjo na 1 kg.
+
+Gostinski normativ za boranjo (tradicionalno enolončnico iz stročjega fižola in mesa, najpogosteje svinjskega ali piščančjega), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot standardni polizdelek za pripravo malic in enolončnic na žlico.
+
+Spodnji normativ velja za boranjo s svinjskim mesom in stročjim fižolom (klasična gostinska izvedba z bogato zelenjavno-mesno omako).
+
+1. Normativ surovin za 1 kg gotove boranje
+V gostinskem razmerju jed vsebuje približno 35 % mesa, 40 % stročjega fižola ter 25 % goste čebulno-paradižnikove osnove.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Svinjsko pleče ali stegno (brez kosti)	450 g	400 g	Narezano na kocke (kalo pri dušenju cca 10–15 %).
+Stročji fižol (zeleni ali rumeni, svež ali zamrznjen)	450 g	400 g	Očiščen in narezan na kosičke (kalo pri čiščenju svežega stročjega fižola je cca 10–15 %).
+Čebula (sveža)	180 g	150 g	Drobno sesekljana za bogato osnovo in naravno gostoto.
+Korenček (svež)	80 g	70 g	Narezan na kolobarje ali kocke (za barvo in sladkobo).
+Česen (svež)	10 g	8 g	Drobno sesekljan ali strt.
+Svinjska mast ali rastlinsko olje	40 g	40 g	Za praženje čebule in mesa.
+Paradižnikova mezga ali pelati	40 g	40 g	Za rahlo kislost in globino okusa.
+Pšenična moka (za podmet / zgoščevanje)	20 g	20 g	Za klasično gostinsko teksturo omake (po želji obrata).
+Mleta rdeča paprika (sladka)	10 g	10 g	Za značilno barvo in aromo enolončnice.
+Jušna osnova ali voda	350 ml (0,35 l)	350 ml	Za zalivanje med dušenjem mesa in stročjega fižola.
+Začimbe (sol, mleti črni poper, lovorov list, svež peteršilj)	12 g	12 g	Lovorov list se doda med dušenjem.
+Opomba: Surove sestavine po postopnem dušenju mesa, praženju zelenjave in skupnem kuhanju dajo natanko 1,0 kg gotove boranje.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotove boranje za linijo malic se vsi normativi preprosto pomnožijo z 10:
+
+Svinjsko meso (bruto): 4,50 kg
+
+Stročji fižol: 4,50 kg
+
+Čebula: 1,80 kg
+
+Korenček: 0,80 kg
+
+Svinjska mast / olje: 0,40 kg (400 g)
+
+Paradižnikova mezga: 0,40 kg (400 g)
+
+Pšenična moka: 0,20 kg (200 g)
+
+Mleta rdeča paprika: 0,10 kg (100 g)
+
+Jušna osnova / voda: 3,50 litra
+
+Začimbe in peteršilj: 0,12 kg (120 g)
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Enolončnica se v gostinstvu streže v globokih krožnikih ali skodelicah ob rezinah domačega kruha:
+
+Standardna porcija boranje: 400 g – 450 g
+
+Vsebnost mesa in stročjega fižola na porcijo: cca 300 g – 350 g
+
+Domači kruh (priloga): 50 g – 80 g (1–2 rezini)
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Boranja s svinjskim mesom z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU 450 – Boranja s svinjino in kruhom) sistem iz skladišča samodejno odpiše:
+
+0,42 kg polizdelka Boranja
+
+0,06 kg kruha (če je vštet v normativ porcije)
