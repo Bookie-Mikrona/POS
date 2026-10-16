@@ -1,0 +1,60 @@
+Gostinski normativ za pašta fižol s klobaso na kg
+
+Gostinski normativ za pašta fižol s kranjsko ali kajžarsko klobaso (tradicionalno enolončnico iz fižola, testenin in klobasa), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot osrednji polizdelek za pripravo malic in enolončnic na žlico.
+
+1. Normativ surovin za 1 kg gotovega pašta fižola s klobaso
+V gostinskem razmerju jed vsebuje približno 20 % klobase, 25 % testenin in fižola ter 55 % gosta fižolovo-zelenjavne omake/juhe.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Kranjska ali kajžarska klobasa	220 g	200 g	Narezana na kolobarje ali kuhana v kosih (kalo pri kuhanju cca 8–10 %).
+Rdeči/rjavi fižol (suh ali iz konzerv)	100 g (suh) / 220 g (kuhan)	220 g	Polovica fižola se pasira za naravno gostoto omake, polovica ostane v zrnju.
+Suhe testenine (pužki, svedri ali paštice)	80 g	80 g	Med kuhanjem absorbirajo tekočino in narastejo na cca 180 g kuhanih testenin.
+Čebula (sveža)	120 g	100 g	Drobno sesekljana za praženje in gostoto omake.
+Korenček in zelena (sveža)	80 g	70 g	Drobno sesekljana ali naribana korenasta zelenjava.
+Česen (svež)	10 g	8 g	Drobno sesekljan ali strt.
+Svinjska mast ali olje	35 g	35 g	Za praženje čebule, zelenjave in zažveka.
+Paradižnikova mezga / pasiran paradižnik	40 g	40 g	Za barvo in kislost.
+Pšenična moka (za prežganje / podmet)	20 g	20 g	Za zgoščevanje (po želji obrata).
+Prekajena svinjska rebra / kožice (za aromo)	40 g	35 g	Za značilen dimljen okus.
+Jušna osnova ali voda	450 ml (0,45 l)	450 ml	Za kuisanje in prilagajanje gostote (del tekočine izpari/se vpije).
+Začimbe (sol, poper, lovorov list, majaron, mleta rdeča paprika, peteršilj)	12 g	12 g	Klasična gostinska mešanica za pašta fižol.
+Opomba: Pasiran fižol in testenine med kuhanjem zgostijo enolončnico, da skupna masa končnih sestavin dade natanko 1,0 kg gotovega pašta fižola s klobaso.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotovega pašta fižola za linijo malic se vsi normativi preprosto pomnožijo z 10:
+
+Kranjska / kajžarska klobasa: 2,20 kg
+
+Fižol (suh / kuhan): 1,00 kg suhega ali 2,20 kg kuhanega
+
+Suhe testenine: 0,80 kg (800 g)
+
+Čebula: 1,20 kg
+
+Korenček in zelena: 0,80 kg
+
+Svinjska mast / olje: 0,35 kg (350 g)
+
+Paradižnikova mezga: 0,40 kg (400 g)
+
+Moka in začimbe: sorazmerno več.
+
+Jušna osnova / voda: 4,50 litrov
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Enolončnica se v gostinstvu streže v globokih krožnikih ali skodelicah:
+
+Standardna porcija pašta fižola s klobaso: 400 g – 450 g
+
+Vsebnost klobase na porcijo: cca 80 g – 90 g (kolobarji ali polovička kranjske klobase)
+
+Kruh (priloga): 50 g – 80 g (1–2 rezini)
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Pašta fižol s klobaso z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU 420 – Pašta fižol s klobaso) sistem iz skladišča samodejno odpiše:
+
+0,42 kg polizdelka Pašta fižol s klobaso
+
+0,06 kg kruha (če je vštet v normativ porcije)
