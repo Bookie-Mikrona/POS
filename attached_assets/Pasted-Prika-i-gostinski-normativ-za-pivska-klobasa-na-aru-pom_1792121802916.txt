@@ -1,0 +1,38 @@
+Prikaži gostinski normativ za pivska klobasa na žaru, pomfri, žar obloga na 1 porcijo.
+
+Gostinski normativ za pivsko klobaso na žaru s pomfrijem in klasično žar oblogo (čebula, ajvar, feferon), preračunano točno na 1 standardno gostinsko porcijo, se v gostinskem POS sistemu in kuhinjski evidenci uporablja kot sestavljena jed (kombinacija glavne mesne jedi, priloge in hladne obloge).
+
+Ker gre za naročilo na porcijo, je spodaj podana specifikacija za natanko 1 gotov krožnik.
+
+1. Normativ surovin za 1 standardno porcijo
+Surovina / Komponenta	Bruto količina	Neto / Gotova količina	Opombe / Specifikacija
+Pivska klobasa (sveža ali polsuha)	220 g	200 g	Kalo pri pečenju na žaru (izparevanje maščobe in vode) je cca 8–10 %. Običajno se postreže 1 večji kos (200 g) ali 2 manjša kosa.
+Rastlinsko olje ali mast (za peko klobase)	15 g	/	Za premaz žara/ponve, da se klobasa lepo zapeče in ne posuši.
+Zamrznjeni pomfri (kocke / rezinice)	200 g	150 g	Kalo pri cvrtju v fritezi (izparevanje vlage in vpijanje olja) je cca 25 %.
+Olje za cvrtje pomfrija (vskrkano)	25 g	/	Maščoba, ki jo pomfri vskrka med cvrtjem.
+Ajvar (gostinski)	40 g	40 g	Hladna priloga / omaka na krožniku.
+Sveža čebula (narezana na kolobarje / kocke)	40 g	30 g	Klasičen hladni dodatek k žaru (kalo pri čiščenju cca 15 %).
+Feferon (vložen feferon ali kisle kumarice)	30 g	30 g	Za osvežitev in okus (žar obloga).
+Gorčica (opcijsko)	20 g	20 g	Postrežena ob klobasi.
+Skupna teža gotove hrane in obloge na krožniku znaša cca 470 g – 500 g.
+
+2. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se tovrstne jedi z žara najlažje vnesejo kot sestavljeni artikel (normativ s podrejenimi artikli), da se zaloge surovin sproti točno odpisujejo:
+
+Glavni PLU artikel na blagajni: Pivska klobasa na žaru s pomfrijem in žar oblogo (enota mere: 1 kos / porcija).
+
+Podrejena struktura materialov (izpis iz skladišča ob 1 prodani porciji):
+
+Pivska klobasa: 0,22 kg (bruto surova klobasa)
+
+Zamrznjeni pomfri: 0,20 kg
+
+Ajvar: 0,04 kg
+
+Sveža čebula: 0,04 kg
+
+Vložen feferon: 0,03 kg
+
+Gorčica: 0,02 kg
+
+Olje za peko in cvrtje: 0,04 kg
