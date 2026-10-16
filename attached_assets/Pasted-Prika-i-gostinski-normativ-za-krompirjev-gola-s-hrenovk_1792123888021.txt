@@ -1,0 +1,58 @@
+Prikaži gostinski normativ za krompirjev golaž s hrenovko na 1 kg.
+
+Gostinski normativ za krompirjev golaž s hrenovko (tradicionalno enolončnico iz krompirja, čebule in narezanih hrenovk ali klobas), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot standardni polizdelek za hitro pripravo malic na žlico.
+
+1. Normativ surovin za 1 kg gotovega krompirjevega golaža s hrenovko
+V gostinskem razmerju jed vsebuje približno 20 % hrenovk, 50 % krompirja ter 30 % goste čebulno-paprične osnove.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Hrenovke (goveje ali navadne)	220 g	200 g	Narezane na kolobarje (kalo pri kuhanju cca 8–10 %).
+Krompir (svež, rumen za kuhanje)	650 g	530 g	Narezan na kocke (kalo pri lupljenju cca 15–20 %). Del krompirja se razpusti za naravno gostoto omake.
+Čebula (sveža)	250 g	210 g	Drobno sesekljana za bogato čebulno osnovo.
+Česen (svež)	10 g	8 g	Drobno sesekljan ali strt.
+Svinjska mast ali rastlinsko olje	40 g	40 g	Za praženje čebule.
+Pšenična moka (za prežganje / podmet)	20 g	20 g	Za gostoto omake (opcijsko, glede na prakso obrata).
+Mleta rdeča paprika (sladka)	15 g	15 g	Ključna za barvo in značilen okus golaža.
+Paradižnikova mezga	30 g	30 g	Za rahlo kislost in globino omake.
+Jušna osnova ali voda	450 ml (0,45 l)	450 ml	Za zalivanje in kuhanje krompirja.
+Začimbe (sol, mleti črni poper, lovorov list, majaron, svež peteršilj)	12 g	12 g	Majaron in lovorov list se dodata med kuhanjem.
+Opomba: Surove sestavine po kuhanju, delnem pasiranju krompirja za zgostitev in redukciji tekočine dajo natanko 1,0 kg gotovega krompirjevega golaža s hrenovko.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotovega krompirjevega golaža za linijo malic se vsi normativi preprosto pomnožijo z 10:
+
+Hrenovke: 2,20 kg
+
+Krompir (bruto): 6,50 kg
+
+Čebula: 2,50 kg
+
+Svinjska mast / olje: 0,40 kg (400 g)
+
+Mleta rdeča paprika: 0,15 kg (150 g)
+
+Paradižnikova mezga: 0,30 kg (300 g)
+
+Jušna osnova / voda: 4,50 litrov
+
+Začimbe: 0,12 kg (120 g)
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Enolončnica se v gostinstvu streže v globokih krožnikih ali skodelicah ob rezinah belega ali rženega kruha:
+
+Standardna porcija krompirjevega golaža s hrenovko: 400 g – 450 g
+
+Vsebnost hrenovk na porcijo: cca 80 g – 90 g (kolobarji)
+
+Kruh (priloga): 50 g – 80 g (1–2 rezini)
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Krompirjev golaž s hrenovko z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU 455 – Krompirjev golaž s hrenovko in kruhom) sistem iz skladišča samodejno odpiše:
+
+0,42 kg polizdelka Krompirjev golaž s hrenovko
+
+0,06 kg kruha (če je vštet v normativ porcije)
+
+To take this further:
