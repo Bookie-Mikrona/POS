@@ -1,0 +1,53 @@
+Prikaži gostinski normativ za piščanec s sirom na 1 kg gotove jedi.
+
+Gostinski normativ za piščanec s sirom (piščančji fileji v sočni krotki ali smetanovi omaki z naribanim in stopljenim sirom ali panirani piščančji zrezki, gratinirani s sirom), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot standardni polizdelek za pripravo malic in kosil.
+
+Spodnji normativ velja za gratiniran piščančji file v blagi smetanovo-sirni omaki (najpogostejša gostinska različica za tople linije in posode).
+
+1. Normativ surovin za 1 kg gotovega piščanca s sirom
+V gostinskem razmerju jed vsebuje približno 55 % piščančjega mesa, 20 % sira ter 25 % smetanove omake in začimb.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Piščančji file (prsa)	650 g	600 g	Narezan na zrezke ali trake (kalo pri čiščenju in peki cca 15–20 %).
+Sir (Edamec, Gavda ali Mozzarella)	220 g	200 g	Nariban ali narezan na rezine za topljenje in gratiniranje.
+Smetana za kuhanje / sladka smetana (30 % m.m.)	200 g	200 g	Za sočno osnovo omake.
+Rastlinsko olje ali maslo	35 g	35 g	Za hitro popekanje piščančjih zrezkov.
+Čebula (sveža) ali por	60 g	50 g	Drobno sesekljana za blago aromo omake (opcijsko).
+Česen (svež)	8 g	6 g	Strt ali drobno sesekljan.
+Pšenična moka (za rahlo prašenje)	15 g	15 g	Za lažje popekanje zrezkov in rahlo gostoto omake.
+Jušna osnova ali voda	100 ml (0,10 l)	100 ml	Za razredčitev smetane in dušenje.
+Začimbe (sol, beli mleti poper, muškatni orešček, sesekljan peteršilj)	10 g	10 g	Muškatni orešček lepo dopolnjuje sir in smetano.
+Opomba: Surove sestavine po popekanju mesa, dodajanju smetane in gratiniranju sira v pečici/konvektomatu dajo natanko 1,0 kg gotove jedi.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotovega piščanca s sirom za linijo malic se vsi normativi preprosto pomnožijo z 10:
+
+Piščančji file (bruto): 6,50 kg
+
+Sir (Edamec/Gavda): 2,20 kg
+
+Smetana za kuhanje: 2,00 kg
+
+Olje / maslo: 0,35 kg (350 g)
+
+Čebula / por: 0,60 kg
+
+Moka in začimbe: sorazmerno več.
+
+Jušna osnova: 1,00 liter
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Standardna gostinska porcija obsega:
+
+Piščanec s sirom (zrezek z omako): 220 g – 250 g
+
+Priloga (npr. riž, pečen krompir, njoki ali testenine): 180 g – 200 g
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Piščanec s sirom z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU – Piščanec s sirom in rižem) sistem iz skladišča samodejno odpiše:
+
+0,24 kg polizdelka Piščanec s sirom
+
+0,18 kg izbrane priloge (npr. kuhanega riža)
