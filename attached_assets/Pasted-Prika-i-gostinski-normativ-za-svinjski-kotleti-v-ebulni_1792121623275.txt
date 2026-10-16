@@ -1,0 +1,73 @@
+Prikaži gostinski normativ za svinjski kotleti v čebulni omaki, krompirjevi svaljki na 1 kg gotove jedi.
+
+Gostinski normativ za svinjske kotlete v čebulni omaki in krompirjeve svaljke se v gostinski praksi obračunava ločeno na dva osnovna polizdelka: svinjski kotleti v čebulni omaki (na 1 kg) in kuhani krompirjevi svaljki (na 1 kg).
+
+Tukaj je celovita razčlenitev surovin za oba polizdelka ter normativ za 1 standardno gostinsko porcijo.
+
+1. Normativ surovin za 1 kg svinjskih kotletov v čebulni omaki (Polizdelek A)
+Razmerje v gastronorm posodi je določeno tako, da vsebuje približno 60 % mesa in 40 % bogate čebulne omake.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Svinjski kotleti (s kostjo ali karedi brez kosti)	1.250 g	1.150 g	Sveži kotleti (kalo pri čiščenju, pečenju in dušenju cca 25 %).
+Čebula (sveža)	350 g	300 g	Drobno sesekljana ali narezana na tanke lističe za razpustitev v omaki.
+Česen (svež)	12 g	10 g	Drobno sesekljan ali strt.
+Rastlinsko olje ali svinjska mast	50 g	50 g	Za popekanje kotletov in praženje čebule.
+Pšenična moka (za prašenje)	25 g	25 g	Za prašenje meso pred peko in rahlo zgoščevanje omake.
+Belo ali rdeče vino (suho)	40 ml (0,04 l)	40 ml	Za deglaziranje ponve in kislost omake (alkohol izpari).
+Jušna osnova ali voda	350 ml (0,35 l)	350 ml	Za zalivanje med dušenjem (del tekočine izpari).
+Paradižnikova mezga / gorčica	20 g	20 g	Za globino okusa in barvo omake.
+Začimbe (sol, mleti črni poper, majaron, lovorov list, svež peteršilj)	12 g	12 g	Majaron in lovorov list se dodata med dušenjem.
+Opomba: Surove sestavine po popekanju, dušenju in redukciji dajo natanko 1,0 kg gotovih svinjskih kotletov v čebulni omaki.
+
+2. Normativ surovin za 1 kg kuhanih krompirjevih svaljkov (Polizdelek B)
+Svaljki (svaljki / njoki iz krompirjevega testa) se pripravljajo ali kupijo kot zamrznjeni polizdelek ter skuhajo v slani vodi.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Krompir (za testo / rumen) ali pripravljeni svaljki	650 g	550 g	Kuhan, olupljen in pasiran krompir (ali zamrznjeni svaljki).
+Pšenična moka (ostra / gladka)	180 g	180 g	Za zamesitev krompirjevega testa.
+Pšenični zdrob	40 g	40 g	Za boljšo strukturo svaljkov.
+Jajca (sveža kokošja)	50 g (1 kos)	50 g	Za vezavo testa.
+Maslo ali olje	25 g	25 g	Za premaz kuhanih svaljkov, da se ne sprimnejo.
+Začimbe (sol, muškatni orešček)	8 g	8 g	Muškatni orešček za okus krompirjevega testa.
+Opomba: Suh krompir in moka med kuhanjem v slani vodi absorbirata tekočino, kar po odcejanju in premazu z maslom da natanko 1,0 kg kuhanih krompirjevih svaljkov.
+
+3. Normativ za večje količine (Npr. 10 kg serija za kuhinjo)
+Če kuhinja pripravlja večjo serijo za linijo malic (10 kg kotletov z omako in 10 kg svaljkov):
+
+Svinjski kotleti (bruto): 12,50 kg
+
+Čebula: 3,50 kg
+
+Olje / mast: 0,50 kg
+
+Jušna osnova / voda: 3,50 litra
+
+Krompir za svaljke (ali zamrznjeni svaljki): 6,50 kg (daje 10,0 kg kuhanih svaljkov)
+
+Moka za svaljke: 1,80 kg
+
+4. Sestava 1 standardne gostinske porcije (Na krožniku)
+Standardna gostinska porcija obsega:
+
+Svinjski kotlet v čebulni omaki: 250 g – 280 g (1 večji kotlet ali 2 manjša z omako).
+
+Krompirjevi svaljki (priloga): 180 g – 200 g (cca 6–8 kuhanih svaljkov).
+
+Skupna teža gotove porcije na krožniku: cca 430 g – 480 g.
+
+5. Vnos v gostinski POS (Materialno knjigovodstvo)
+V gostinskem programu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se jed nastavi preko dveh osnovnih polizdelkov:
+
+Definicija polizdelkove strukture:
+
+Polizdelek A: Svinjski kotleti v čebulni omaki (enota mere: 1 kg)
+
+Polizdelek B: Krompirjevi svaljki (kuhani) (enota mere: 1 kg)
+
+Razdolževanje ob prodaji (PLU koda za porcijo):
+
+Ob izpisu naročila na blagajni (npr. PLU – Svinjski kotlet v čebulni omaki s svaljki) sistem iz skladišča samodejno odpiše:
+
+0,26 kg polizdelka A (Svinjski kotleti v čebulni omaki)
+
+0,19 kg polizdelka B (Krompirjevi svaljki)
