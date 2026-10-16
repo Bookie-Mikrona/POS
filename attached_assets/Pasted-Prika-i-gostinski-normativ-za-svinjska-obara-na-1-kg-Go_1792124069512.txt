@@ -1,0 +1,55 @@
+Prikaži gostinski normativ za svinjska obara na 1 kg.
+
+Gostinski normativ za svinjsko obaro (tradicionalno svetlo mesno enolončnico iz svinjskega mesa, korenaste zelenjave in krompirja ali zakuhamo z žličniki), preračunan točno na 1 kg (1000 g) gotove jedi, se v gostinstvu uporablja kot standardni polizdelek za pripravo toplih malic in jedi na žlico.
+
+1. Normativ surovin za 1 kg gotove svinjske obare
+V gostinskem razmerju jed vsebuje približno 35 % svinjskega mesa, 30 % zelenjave in krompirja ter 35 % goste jušne osnove.
+
+Surovina	Bruto količina	Neto količina	Opombe / Specifikacija
+Svinjsko pleče ali stegno (brez kosti)	450 g	400 g	Narezano na manjše kocke (kalo pri dušenju cca 10–15 %).
+Korenček, grah in peteršiljeva korenina (zelenjava)	180 g	150 g	Narezano na drobne kocke ali kolobarje (kalo pri čiščenju cca 15 %).
+Krompir (svež) ali moka za žličnike	150 g (krompir) / 40 g (moka za žličnike)	130 g	Za naravno gostoto ali kot zakuha (tradicionalno z drobnimi krušnimi ali moke žličniki).
+Čebula (sveža)	120 g	100 g	Drobno sesekljana za svetlo osnovo obare.
+Česen (svež)	8 g	6 g	Strt ali drobno sesekljan.
+Rastlinsko olje ali svinjska mast	35 g	35 g	Za praženje čebule in mesa.
+Pšenična moka (za prežganje / podmet)	20 g	20 g	Za rahlo zgoščevanje svetle omake.
+Jušna osnova ali voda	500 ml (0,50 l)	500 ml	Za zalivanje in kuhanje (del tekočine med vretjem izpari).
+Začimbe (sol, mleti beli poper, lovorov list, svež peteršilj)	10 g	10 g	Veliko svežega peteršilja se doda ob koncu za značilen okus obare.
+Opomba: Surove sestavine po praženju, postopnem dušenju in kuhanju dajo natanko 1,0 kg gotove svinjske obare.
+
+2. Normativ za večje količine (Npr. 10 kg posoda za kuhinjo)
+Za pripravo 10 kg gotove svinjske obare za linijo malic se vsi normativi preprosto pomnožijo z 10:
+
+Svinjsko meso (bruto): 4,50 kg
+
+Zelenjava (korenček, grah, jušna zelenjava): 1,80 kg
+
+Krompir / zakuha: 1,50 kg
+
+Čebula: 1,20 kg
+
+Olje / mast: 0,35 kg (350 g)
+
+Pšenična moka: 0,20 kg (200 g)
+
+Jušna osnova / voda: 5,00 litrov
+
+Začimbe in peteršilj: 0,10 kg (100 g)
+
+3. Sestava 1 standardne gostinske porcije (Na krožniku)
+Enolončnica se v gostinstvu streže v globokih krožnikih ali skodelicah ob rezinah svežega kruha:
+
+Standardna porcija svinjske obare: 400 g – 450 g
+
+Vsebnost mesa in zelenjave na porcijo: cca 280 g – 320 g
+
+Domači kruh (priloga): 50 g – 80 g (1–2 rezini)
+
+4. Vnos v gostinski POS (Materialno knjigovodstvo)
+Definicija polizdelka / jedi: V POS sistemu (Pantheon, Microgramm, POS Elektronček, TRONpos ipd.) se vnese artikel Polizdelek / Glavna jed: Svinjska obara z enoto mere 1 kg.
+
+Razdolževanje ob prodaji: Ob izpisu naročila na blagajni (npr. PLU 460 – Svinjska obara s kruhom) sistem iz skladišča samodejno odpiše:
+
+0,42 kg polizdelka Svinjska obara
+
+0,06 kg kruha (če je vštet v normativ porcije)
