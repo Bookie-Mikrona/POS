@@ -12,6 +12,7 @@ const priceRows = vi.hoisted(() => ({ current: [] as Array<{ groupId: number; pr
 const articles = vi.hoisted(() => Array.from({ length: 35 }, (_, index) => ({
   id: index + 1,
   ime: `Artikel ${index + 1}`,
+  cena: index + 1,
   aktiven: true,
   prodajniArtikel: true,
   taxCategory: "food",
@@ -55,6 +56,26 @@ describe("Malice — povezava artiklov", () => {
     await waitFor(() => expect(assignArticle).toHaveBeenCalledWith({
       articleId: 35,
       data: { role: "main", groupId: null, autoSyncPrice: true, malicaPriceCents: null },
+    }));
+  });
+
+  it("ob izbiri artikla predlaga njegovo ceno iz cenika za ročni vnos", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={queryClient}><MalicePage /></QueryClientProvider>);
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Artikli" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj povezavo" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Artikel" }), { target: { value: "35" } });
+    fireEvent.click(within(dialog).getByLabelText("Samodejno usklajuj ceno s skupino"));
+
+    const manualPrice = within(dialog).getByLabelText("Ročna cena (€)");
+    expect(manualPrice).toHaveValue("35,00");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Shrani" }));
+
+    await waitFor(() => expect(assignArticle).toHaveBeenCalledWith({
+      articleId: 35,
+      data: { role: "main", groupId: null, autoSyncPrice: false, malicaPriceCents: 3500 },
     }));
   });
 

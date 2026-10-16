@@ -382,7 +382,16 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
                 id="malica-artikel"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 value={artikelId}
-                onChange={(event) => setArtikelId(event.target.value)}
+                onChange={(event) => {
+                  const nextArtikelId = event.target.value;
+                  setArtikelId(nextArtikelId);
+                  const selectedArticle = artikli?.find(a => a.id === Number(nextArtikelId));
+                  setManualPrice(
+                    selectedArticle && Number.isFinite(Number(selectedArticle.cena))
+                      ? Number(selectedArticle.cena).toFixed(2)
+                      : "",
+                  );
+                }}
                 disabled={editId !== null}
               >
                 <option value="">Izberite artikel...</option>
@@ -423,8 +432,8 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
             </div>
             {!autoSyncPrice && (
               <div className="grid gap-2 pl-6">
-                <Label>Ročna cena (€)</Label>
-                <DecimalInput value={manualPrice} onChange={(e) => setManualPrice(e.target.value)} />
+                <Label htmlFor="malica-rocna-cena">Ročna cena (€)</Label>
+                <DecimalInput id="malica-rocna-cena" value={manualPrice} onChange={(e) => setManualPrice(e.target.value)} />
               </div>
             )}
           </div>
