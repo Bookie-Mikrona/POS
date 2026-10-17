@@ -88,6 +88,34 @@ afterEach(() => {
 });
 
 describe("zaščita notranjih POS strani šifrantov", () => {
+  it.each([true, false])("POS potrdi izjemo konta samo po izrecni izbiri: %s", (confirmed) => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(confirmed);
+    const mutate = vi.fn((variables: any, options: any) => {
+      if (!variables.data.confirmTypeException) options.onError({
+        status: 422, message: "Potrdite izjemo",
+        data: { warnings: [{ message: "Konto 400: pričakovan tip Odhodek" }] },
+      });
+    });
+    mocks.createAccount.mockReturnValue({ mutate, isPending: false });
+    mocks.seedAccounts.mockReturnValue({ mutate, isPending: false });
+    try {
+      renderPage(<KontniPlanPage />);
+      fireEvent.click(screen.getByTestId("btn-seed-accounts"));
+      expect(mutate).toHaveBeenCalledTimes(confirmed ? 2 : 1);
+      mutate.mockClear();
+      fireEvent.click(screen.getByTestId("btn-add-account"));
+      fireEvent.change(screen.getByTestId("input-acc-code"), { target: { value: "400" } });
+      fireEvent.change(screen.getByTestId("input-acc-name"), { target: { value: "Test" } });
+      fireEvent.click(screen.getByTestId("btn-save-acc"));
+      expect(mutate).toHaveBeenCalledTimes(confirmed ? 2 : 1);
+      expect(mutate.mock.calls.at(-1)?.[0].data.confirmTypeException).toBe(confirmed);
+      expect(confirm).toHaveBeenCalledWith(expect.stringContaining("pričakovan tip Odhodek"));
+    } finally {
+      confirm.mockRestore();
+      mocks.createAccount.mockReturnValue({ mutate: vi.fn(), isPending: false });
+      mocks.seedAccounts.mockReturnValue({ mutate: vi.fn(), isPending: false });
+    }
+  });
   it.each(["admin_enote", "uporabnik", "superadmin"])(
     "vloga %s ne more odpreti stroškovnih mest ali kontnega plana",
     (vloga) => {

@@ -22,6 +22,7 @@ import {
 import { posljiPorociloPdf } from "../lib/erp-email";
 import { getSmtpRow } from "../lib/erp-smtp-settings";
 import erpSmtpRouter from "./erp-smtp";
+import { expectedAccountType } from "../lib/accountTypeWarning";
 
 const router: IRouter = Router();
 router.use(erpSmtpRouter);
@@ -232,15 +233,15 @@ const CLASS_LABELS: Record<string, string> = {
 // Friendly descriptors appended after the class number when known
 const CLASS_DESC: Record<string, string> = {
   "0": "Dolgoročna sredstva",
-  "1": "Zaloge",
-  "2": "Kratkoročne terjatve, naložbe in denar",
-  "3": "Kratkoročne obveznosti in PČR",
+  "1": "Kratkoročna sredstva (brez zalog)",
+  "2": "Kratkoročne obveznosti in rezervacije",
+  "3": "Proizvodnja, nedokončana proizvodnja in storitve",
   "4": "Stroški po vrstah",
-  "5": "Stroški blaga, materiala, storitev in dela",
-  "6": "Odhodki",
-  "7": "Prihodki",
-  "8": "Dolgoročne obveznosti in rezervacije",
-  "9": "Kapital",
+  "5": "Proizvajalni stroški, stroški prodaje in upravljanja",
+  "6": "Zaloge materiala, proizvodov in blaga",
+  "7": "Prihodki in odhodki",
+  "8": "Dolgoročne obveznosti, kapital in rezerve",
+  "9": "Obračun poslovnega izida in zunajbilančna evidenca",
 };
 
 function classLabel(digit: string): string {
@@ -285,27 +286,6 @@ function buildSections(accounts: AccountBalance[], historical = false): ReportSe
 
   return Array.from(sectionMap.values()).sort((a, b) => a.class.localeCompare(b.class));
 }
-
-// ── SRS type classification ───────────────────────────────────────────────────
-
-/**
- * SRS (Slovenian Accounting Standards) authoritative type per first code digit.
- * When an account's stored `type` conflicts with this mapping the SRS code digit
- * wins for report placement, so the account is never silently excluded.
- */
-const SRS_EXPECTED_TYPES: Record<string, string> = {
-  "0": "asset",
-  "1": "asset",
-  "2": "asset",
-  "3": "liability",
-  "4": "expense",
-  "5": "expense",
-  "6": "expense",
-  "7": "revenue",
-  "8": "liability",
-  "9": "equity",
-};
-
 /**
  * The five classification values that the report filter conditions recognise.
  * Any effectiveType outside this set cannot be placed in any report section and
@@ -347,8 +327,7 @@ export interface UnclassifiedAccount {
 
 /** Build a human-readable reason for an unclassifiable account. */
 function classifyUnclassifiedReason(acct: AccountBalance): string {
-  const digit = acct.code.charAt(0);
-  const srsType = SRS_EXPECTED_TYPES[digit];
+  const srsType = expectedAccountType(acct.code);
   if (!acct.type || acct.type.trim() === "") {
     return srsType
       ? "Manjka tip konta"
@@ -373,8 +352,7 @@ function classifyUnclassifiedReason(acct: AccountBalance): string {
  * Exported for unit testing.
  */
 export function resolveEffectiveType(acct: { code: string; type: string | null }): string {
-  const digit = acct.code.charAt(0);
-  const srsType = SRS_EXPECTED_TYPES[digit];
+  const srsType = expectedAccountType(acct.code);
 
   // Rule 1: numeric code prefix → SRS standard overrides wrong / missing stored type
   if (srsType !== undefined && srsType !== (acct.type ?? "")) return srsType;
@@ -567,7 +545,7 @@ router.get(
 
     const { asOf, compareAsOf } = req.query as Record<string, string | undefined>;
 
-    let current, compare = null;
+        const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
     try {
       current = await loadBalanceSheet(companyId, asOf);
       if (compareAsOf) compare = await loadBalanceSheet(companyId, compareAsOf);
@@ -600,7 +578,7 @@ router.get(
       req.query as Record<string, string | undefined>;
 
     // Income statement is period-based — only entries within [dateFrom, dateTo].
-    let current, compare = null;
+        const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
     try {
       current = await loadIncomeStatement(companyId, dateFrom, dateTo);
       if (compareDateFrom || compareDateTo) {
@@ -751,34 +729,23 @@ router.get(
 
     if (withAccountBreakdown) {
       // Single query that groups by dim + account + side
-      const rows = await db
-        .select({
-          dimId: dimTable.id,
-          dimCode: dimTable.code,
-          dimName: dimTable.name,
-          accountId: journalEntryLinesTable.accountId,
-          accountCode: accountsTable.code,
-          accountName: accountsTable.name,
-          side: journalEntryLinesTable.side,
-          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
-        })
-        .from(journalEntryLinesTable)
-        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
-        .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
-        .where(and(...allConditions))
-        .groupBy(
-          dimTable.id,
-          dimTable.code,
-          dimTable.name,
-          journalEntryLinesTable.accountId,
-          accountsTable.code,
-          accountsTable.name,
-          journalEntryLinesTable.side,
-        );
+    const rows = await db
+      .select({
+        id: reportExportsTable.id,
+        reportType: reportExportsTable.reportType,
+        params: reportExportsTable.params,
+        filename: reportExportsTable.filename,
+        exportedBy: reportExportsTable.exportedBy,
+        exportedAt: reportExportsTable.exportedAt,
+        emailSentTo: reportExportsTable.emailSentTo,
+      })
+      .from(reportExportsTable)
+      .where(eq(reportExportsTable.companyId, companyId))
+      .orderBy(desc(reportExportsTable.exportedAt))
+      .limit(200);
 
       for (const row of rows) {
-        const amount = parseFloat(row.total ?? "0");
+      const amount = parseFloat(row.amount);
 
         // Dim-level aggregate
         const dimExisting = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
@@ -802,23 +769,24 @@ router.get(
       }
     } else {
       // Standard query — group by dim + side only
-      const rows = await db
-        .select({
-          dimId: dimTable.id,
-          dimCode: dimTable.code,
-          dimName: dimTable.name,
-          side: journalEntryLinesTable.side,
-          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
-        })
-        .from(journalEntryLinesTable)
-        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
-        .where(and(...allConditions))
-        .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
+    const rows = await db
+      .select({
+        id: reportExportsTable.id,
+        reportType: reportExportsTable.reportType,
+        params: reportExportsTable.params,
+        filename: reportExportsTable.filename,
+        exportedBy: reportExportsTable.exportedBy,
+        exportedAt: reportExportsTable.exportedAt,
+        emailSentTo: reportExportsTable.emailSentTo,
+      })
+      .from(reportExportsTable)
+      .where(eq(reportExportsTable.companyId, companyId))
+      .orderBy(desc(reportExportsTable.exportedAt))
+      .limit(200);
 
       for (const row of rows) {
         const existing = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
-        const amount = parseFloat(row.total ?? "0");
+      const amount = parseFloat(row.amount);
         if (row.side === "debit") existing.debit += amount;
         else existing.credit += amount;
         dimMap.set(row.dimId, existing);
@@ -1158,7 +1126,7 @@ router.post(
           res.status(400).json({ error: "asOf je obvezen za bilanco stanja." });
           return;
         }
-        const current = await loadBalanceSheet(companyId, asOf);
+        const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
         let compare = null;
         if (compareAsOf) {
           compare = await loadBalanceSheet(companyId, compareAsOf);
@@ -1203,10 +1171,20 @@ router.post(
         }
         const report = await loadTrialBalance(companyId, dateFrom, dateTo);
         const q = (searchTerm ?? "").trim().toLocaleLowerCase("sl-SI");
-        const rows = report.rows.filter((row) =>
-          (!accountClass || row.accountCode.startsWith(accountClass)) &&
-          (!q || row.accountCode.toLocaleLowerCase("sl-SI").includes(q) ||
-            row.accountName.toLocaleLowerCase("sl-SI").includes(q)));
+    const rows = await db
+      .select({
+        id: reportExportsTable.id,
+        reportType: reportExportsTable.reportType,
+        params: reportExportsTable.params,
+        filename: reportExportsTable.filename,
+        exportedBy: reportExportsTable.exportedBy,
+        exportedAt: reportExportsTable.exportedAt,
+        emailSentTo: reportExportsTable.emailSentTo,
+      })
+      .from(reportExportsTable)
+      .where(eq(reportExportsTable.companyId, companyId))
+      .orderBy(desc(reportExportsTable.exportedAt))
+      .limit(200);
         const sumField = (field: keyof Pick<TrialBalanceRow, "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
           rows.reduce((sum, row) => sum + Number(row[field]), 0).toFixed(2);
         reportTitle = statementView === "bilanca" ? "BILANCA KONTOV"

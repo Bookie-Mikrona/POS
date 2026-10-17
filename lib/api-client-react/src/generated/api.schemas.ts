@@ -9592,6 +9592,8 @@ export const CreateAccountBodyTaxBehavior = {
 } as const;
 
 export interface CreateAccountBody {
+  /** Explicitly acknowledge the code/type warning for this save. */
+  confirmTypeException?: boolean;
   /**
      * @minLength 1
      * @maxLength 20
@@ -9617,6 +9619,7 @@ export interface CreateAccountBody {
   isOpenItem?: boolean;
 }
 
+export type UpdateAccountBodyType = typeof UpdateAccountBodyType[keyof typeof UpdateAccountBodyType];
 export type UpdateAccountBodyCostCenterPolicy = typeof UpdateAccountBodyCostCenterPolicy[keyof typeof UpdateAccountBodyCostCenterPolicy];
 
 
@@ -9637,6 +9640,9 @@ export const UpdateAccountBodyTaxBehavior = {
 } as const;
 
 export interface UpdateAccountBody {
+  type?: UpdateAccountBodyType;
+  /** Explicitly acknowledge the code/type warning for this save. */
+  confirmTypeException?: boolean;
   /**
      * @minLength 1
      * @maxLength 200
@@ -9657,6 +9663,13 @@ export interface UpdateAccountBody {
   isOpenItem?: boolean;
 }
 
+export interface AccountTypeWarning {
+  code: string;
+  name: string;
+  storedType: string;
+  expectedType: string;
+  message: string;
+}
 export interface SeedAccountsResponse {
   count: number;
 }
@@ -14903,3 +14916,19 @@ month: string;
 counterpartyId: string;
 };
 
+export interface SeedAccountsBody {
+  confirmTypeException?: boolean;
+}
+
+export interface AccountTypeWarningResponse {
+  error: string;
+  warnings: AccountTypeWarning[];
+}
+
+export const UpdateAccountBodyType = {
+  asset: 'asset',
+  liability: 'liability',
+  equity: 'equity',
+  revenue: 'revenue',
+  expense: 'expense',
+} as const;

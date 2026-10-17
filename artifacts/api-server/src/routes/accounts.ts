@@ -4,7 +4,9 @@ import {
   db,
   accountsTable,
 } from "@workspace/db";
-import { CreateAccountBody, UpdateAccountBody } from "@workspace/api-zod";
+import { CreateAccountBody, UpdateAccountBody, SeedAccountsBody } from "@workspace/api-zod";
+import { accountTypeWarning } from "../lib/accountTypeWarning";
+import { COMPANY_CHART_OF_ACCOUNTS } from "../lib/companyChartOfAccounts";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
 import { resolveSifrantAccess } from "../lib/resolveSifrantAccess";
@@ -131,6 +133,12 @@ router.post(
       return;
     }
 
+    const warning = accountTypeWarning(parsed.data);
+    if (warning && !parsed.data.confirmTypeException) {
+      res.status(422).json({ error: "Potrdite izjemo tipa konta.", warnings: [warning] });
+      return;
+    }
+
     if (parsed.data.parentId !== null && parsed.data.parentId !== undefined) {
       const parentError = await validateAccountParent(companyId, parsed.data.parentId);
       if (parentError) {
@@ -152,10 +160,11 @@ router.post(
 
     const policy = parsed.data.costCenterPolicy
       ?? defaultCostCenterPolicy(parsed.data.code, parsed.data.requiresCostCenter ?? false);
+    const { confirmTypeException: _confirmation, ...accountData } = parsed.data;
     const [account] = await db
       .insert(accountsTable)
       .values({
-        ...parsed.data,
+        ...accountData,
         costCenterPolicy: policy,
         requiresCostCenter: requiresCostCenterForPolicy(policy),
         companyId,
@@ -195,6 +204,19 @@ router.post(
       return;
     }
 
+    const parsed = SeedAccountsBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const warnings = COMPANY_CHART_OF_ACCOUNTS.flatMap(account => {
+      const warning = accountTypeWarning(account);
+      return warning ? [warning] : [];
+    });
+    if (warnings.length && !parsed.data.confirmTypeException) {
+      res.status(422).json({ error: "Pred uvozom potrdite izjeme tipov kontov.", warnings });
+      return;
+    }
     const count = await seedDefaultChartOfAccounts(companyId);
     res.status(201).json({ count });
   },
@@ -223,13 +245,19 @@ router.patch(
     }
 
     const [existing] = await db
-      .select({ id: accountsTable.id })
+      .select()
       .from(accountsTable)
       .where(and(eq(accountsTable.id, id), eq(accountsTable.companyId, companyId)))
       .limit(1);
 
     if (!existing) {
       res.status(404).json({ error: "Konto ni najden" });
+      return;
+    }
+
+    const warning = accountTypeWarning({ ...existing, type: parsed.data.type ?? existing.type });
+    if (warning && !parsed.data.confirmTypeException) {
+      res.status(422).json({ error: "Potrdite izjemo tipa konta.", warnings: [warning] });
       return;
     }
 
@@ -243,6 +271,7 @@ router.patch(
 
     // Zgradimo update objekt samo iz definiranih vrednosti
     const updateData: Partial<{
+      type: typeof accountsTable.$inferSelect.type;
       name: string;
       description: string | null;
       isActive: boolean;
@@ -256,6 +285,7 @@ router.patch(
       isCash: boolean;
       isOpenItem: boolean;
     }> = {};
+    if (parsed.data.type !== undefined) updateData.type = parsed.data.type;
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
     if ("description" in parsed.data) updateData.description = parsed.data.description ?? null;
     if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;

@@ -89,7 +89,7 @@ describe("resolveEffectiveType — pravila 1/2/3", () => {
 
   it("Pravilo 1: SRS override za numerično kodo z napačnim tipom", () => {
     expect(resolveEffectiveType(makeAccount("100", "liability"))).toBe("asset");
-    expect(resolveEffectiveType(makeAccount("300", "asset"))).toBe("liability");
+    expect(resolveEffectiveType(makeAccount("200", "asset"))).toBe("liability");
     expect(resolveEffectiveType(makeAccount("400", "asset"))).toBe("expense");
     expect(resolveEffectiveType(makeAccount("700", "expense"))).toBe("revenue");
     expect(resolveEffectiveType(makeAccount("900", "asset"))).toBe("equity");
@@ -103,16 +103,17 @@ describe("resolveEffectiveType — pravila 1/2/3", () => {
   });
 
   it("Pravilo 1: SRS override deluje za 'cost'/'income' z numerično kodo", () => {
-    // cost na kodi 4-6 → SRS override → expense
+    // Unknown legacy types follow the same rules as the approved chart.
     expect(resolveEffectiveType(makeAccount("400", "cost"))).toBe("expense");
-    expect(resolveEffectiveType(makeAccount("500", "cost"))).toBe("expense");
+    expect(resolveEffectiveType(makeAccount("500", "cost"))).toBe("liability");
     // income na kodi 7 → SRS override → revenue
     expect(resolveEffectiveType(makeAccount("700", "income"))).toBe("revenue");
   });
 
   it("Pravilo 2: veljavni tipi z ujemajočo SRS kodo se vrnejo nespremenjeni", () => {
     expect(resolveEffectiveType(makeAccount("100", "asset"))).toBe("asset");
-    expect(resolveEffectiveType(makeAccount("300", "liability"))).toBe("liability");
+    expect(resolveEffectiveType(makeAccount("200", "liability"))).toBe("liability");
+    expect(resolveEffectiveType(makeAccount("300", "asset"))).toBe("asset");
     expect(resolveEffectiveType(makeAccount("400", "expense"))).toBe("expense");
     expect(resolveEffectiveType(makeAccount("700", "revenue"))).toBe("revenue");
     expect(resolveEffectiveType(makeAccount("900", "equity"))).toBe("equity");
@@ -145,7 +146,7 @@ describe("buildBalanceSheet — tiha izguba preprečena", () => {
   it("konto z null tipom in ne-numerično kodo pristane v unclassifiedAccounts", () => {
     const accounts = [
       makeAccount("100", "asset",      1000, 0),
-      makeAccount("300", "liability",  0,    1000),
+      makeAccount("200", "liability",  0,    1000),
       makeAccount("X99", null,         500,  0),   // ← mora pristati v unclassified
     ];
     const result = buildBalanceSheet(accounts);
@@ -175,7 +176,7 @@ describe("buildBalanceSheet — tiha izguba preprečena", () => {
   it("unclassifiedAccounts je prazen, ko ni problematičnih kontov", () => {
     const accounts = [
       makeAccount("100", "asset",     500, 0),
-      makeAccount("300", "liability", 0,   500),
+      makeAccount("200", "liability", 0,   500),
     ];
     const result = buildBalanceSheet(accounts);
 

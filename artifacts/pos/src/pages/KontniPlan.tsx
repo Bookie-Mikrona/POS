@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { posFetch } from "@/lib/pos-auth-headers";
+import { confirmAccountTypeException } from "@/lib/account-type-confirmation";
 
 const TYPE_COLORS: Record<string, string> = {
   asset: "bg-blue-500/10 text-blue-600",
@@ -129,7 +130,7 @@ export default function KontniPlanPage() {
     setEditOpen(true);
   };
 
-  const handleShrani = () => {
+  const handleShrani = (confirmed = false) => {
     if (!companyId) return;
     const parentId = form.parentId === "none" ? null : form.parentId;
     
@@ -138,6 +139,8 @@ export default function KontniPlanPage() {
         companyId,
         id: editAcc.id,
         data: {
+          type: form.type as AccountRecord["type"],
+          confirmTypeException: confirmed,
           name: form.name,
           description: form.description || null,
           parentId,
@@ -156,12 +159,16 @@ export default function KontniPlanPage() {
           toast({ title: "Konto posodobljen" });
           setEditOpen(false);
         },
-        onError: () => toast({ title: "Napaka", variant: "destructive" })
+        onError: (error) => {
+          if (!confirmed && confirmAccountTypeException(error)) handleShrani(true);
+          else toast({ title: "Konto ni bil shranjen", description: error.message, variant: "destructive" });
+        }
       });
     } else {
       createMut.mutate({
         companyId,
         data: {
+          confirmTypeException: confirmed,
           code: form.code,
           name: form.name,
           type: form.type as any,
@@ -182,31 +189,40 @@ export default function KontniPlanPage() {
           toast({ title: "Konto dodan" });
           setEditOpen(false);
         },
-        onError: () => toast({ title: "Napaka", variant: "destructive" })
+        onError: (error) => {
+          if (!confirmed && confirmAccountTypeException(error)) handleShrani(true);
+          else toast({ title: "Konto ni bil shranjen", description: error.message, variant: "destructive" });
+        }
       });
     }
   };
 
-  const handleStatusToggle = (acc: AccountRecord) => {
+  const handleStatusToggle = (acc: AccountRecord, confirmed = false) => {
     if (!companyId) return;
-    if (acc.isActive && !window.confirm(`Ali res želite deaktivirati konto ${acc.code}?`)) return;
-    updateMut.mutate({ companyId, id: acc.id, data: { isActive: !acc.isActive } }, {
+    if (!confirmed && acc.isActive && !window.confirm(`Ali res želite deaktivirati konto ${acc.code}?`)) return;
+    updateMut.mutate({ companyId, id: acc.id, data: { isActive: !acc.isActive, confirmTypeException: confirmed } }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListAccountsQueryKey(companyId, { includeInactive: true }) });
         toast({ title: acc.isActive ? "Konto deaktiviran" : "Konto aktiviran" });
       },
-      onError: () => toast({ title: "Napaka", variant: "destructive" })
+      onError: (error) => {
+        if (!confirmed && confirmAccountTypeException(error)) handleStatusToggle(acc, true);
+        else toast({ title: "Status ni bil spremenjen", description: error.message, variant: "destructive" });
+      }
     });
   };
 
-  const handleSeed = () => {
+  const handleSeed = (confirmed = false) => {
     if (!companyId) return;
-    seedMut.mutate({ companyId }, {
+    seedMut.mutate({ companyId, data: { confirmTypeException: confirmed } }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListAccountsQueryKey(companyId, { includeInactive: true }) });
         toast({ title: "Kontni plan za d.o.o. uvožen" });
       },
-      onError: () => toast({ title: "Napaka", variant: "destructive" })
+      onError: (error) => {
+        if (!confirmed && confirmAccountTypeException(error)) handleSeed(true);
+        else toast({ title: "Uvoz ni bil izveden", description: error.message, variant: "destructive" });
+      }
     });
   };
 
@@ -281,7 +297,7 @@ export default function KontniPlanPage() {
             {pdfLoading ? "Pripravljam PDF …" : "Prenesi PDF"}
           </Button>
           {!isLoading && !error && accounts.length === 0 && (
-            <Button variant="outline" onClick={handleSeed} disabled={seedMut.isPending} className="gap-2" data-testid="btn-seed-accounts">
+            <Button variant="outline" onClick={() => handleSeed()} disabled={seedMut.isPending} className="gap-2" data-testid="btn-seed-accounts">
               {seedMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               Uvozi kontni plan za d.o.o.
             </Button>
@@ -418,8 +434,8 @@ export default function KontniPlanPage() {
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label>Tip {editAcc && <span className="font-normal text-muted-foreground">(pri urejanju nespremenljiv)</span>}</Label>
-                <Select value={form.type} onValueChange={v => setForm({...form, type: v})} disabled={!!editAcc}>
+                <Label>Tip</Label>
+                <Select value={form.type} onValueChange={v => setForm({...form, type: v})}>
                   <SelectTrigger data-testid="select-acc-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(TYPE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
@@ -505,7 +521,7 @@ export default function KontniPlanPage() {
           </div>
           <DialogFooter className="shrink-0 border-t pt-4" data-testid="account-edit-dialog-footer">
             <Button variant="outline" onClick={() => setEditOpen(false)}>Prekliči</Button>
-            <Button onClick={handleShrani} disabled={!form.code || !form.name || createMut.isPending || updateMut.isPending} data-testid="btn-save-acc">
+            <Button onClick={() => handleShrani()} disabled={!form.code || !form.name || createMut.isPending || updateMut.isPending} data-testid="btn-save-acc">
               {(createMut.isPending || updateMut.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Shrani
             </Button>

@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { confirmAccountTypeException } from "@/lib/account-type-confirmation";
 
 // Helpers
 function buildTree(accounts: AccountRecord[]): (AccountRecord & { _depth: number })[] {
@@ -118,9 +119,12 @@ export default function KontniPlan() {
     });
   }, [tree, showInactive, search]);
 
-  const handleSeed = () => {
+  const handleSeed = (confirmed = false) => {
     if (!activeCompany) return;
-    seedMut.mutate({ companyId: activeCompany.id }, {
+    seedMut.mutate({ companyId: activeCompany.id, data: { confirmTypeException: confirmed } }, {
+      onError: (error) => {
+        if (!confirmed && confirmAccountTypeException(error)) handleSeed(true);
+      },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey(activeCompany.id) });
       }
@@ -159,6 +163,8 @@ export default function KontniPlan() {
   };
 
   const handleOpenDialog = (acc?: AccountRecord) => {
+    createMut.reset();
+    updateMut.reset();
     if (acc) {
       setEditingAccount(acc);
       setFormData({
@@ -195,7 +201,7 @@ export default function KontniPlan() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = (confirmed = false) => {
     if (!activeCompany) return;
     const parentId = formData.parentId === "none" ? null : formData.parentId;
     
@@ -204,6 +210,8 @@ export default function KontniPlan() {
         companyId: activeCompany.id,
         id: editingAccount.id,
         data: {
+          type: formData.type as AccountRecord["type"],
+          confirmTypeException: confirmed,
           name: formData.name,
           description: formData.description || null,
           parentId,
@@ -217,6 +225,9 @@ export default function KontniPlan() {
           taxBehavior: formData.taxBehavior,
         }
       }, {
+        onError: (error) => {
+          if (!confirmed && confirmAccountTypeException(error)) handleSave(true);
+        },
         onSuccess: () => {
           setDialogOpen(false);
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey(activeCompany.id) });
@@ -226,6 +237,7 @@ export default function KontniPlan() {
       createMut.mutate({
         companyId: activeCompany.id,
         data: {
+          confirmTypeException: confirmed,
           code: formData.code,
           name: formData.name,
           type: formData.type as any,
@@ -241,6 +253,9 @@ export default function KontniPlan() {
           taxBehavior: formData.taxBehavior,
         }
       }, {
+        onError: (error) => {
+          if (!confirmed && confirmAccountTypeException(error)) handleSave(true);
+        },
         onSuccess: () => {
           setDialogOpen(false);
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey(activeCompany.id) });
@@ -249,15 +264,18 @@ export default function KontniPlan() {
     }
   };
 
-  const handleToggleStatus = (acc: AccountRecord) => {
+  const handleToggleStatus = (acc: AccountRecord, confirmed = false) => {
     if (!activeCompany) return;
-    if (acc.isActive && !window.confirm(`Ali res želite deaktivirati konto ${acc.code}?`)) return;
+    if (!confirmed && acc.isActive && !window.confirm(`Ali res želite deaktivirati konto ${acc.code}?`)) return;
 
     updateMut.mutate({
       companyId: activeCompany.id,
       id: acc.id,
-      data: { isActive: !acc.isActive }
+      data: { isActive: !acc.isActive, confirmTypeException: confirmed }
     }, {
+      onError: (error) => {
+        if (!confirmed && confirmAccountTypeException(error)) handleToggleStatus(acc, true);
+      },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey(activeCompany.id) });
       }
@@ -305,7 +323,7 @@ export default function KontniPlan() {
             {canEdit && (
               <>
                 {isEmpty && (
-                  <Button variant="outline" onClick={handleSeed} disabled={seedMut.isPending}>
+                  <Button variant="outline" onClick={() => handleSeed()} disabled={seedMut.isPending}>
                     {seedMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                     Uvozi standardni plan
                   </Button>
@@ -327,6 +345,12 @@ export default function KontniPlan() {
           <AlertDescription>{pdfError}</AlertDescription>
         </Alert>
       )}
+      {(seedMut.error || (!dialogOpen && updateMut.error)) && (
+        <Alert variant="destructive">
+          <AlertTitle>Shranjevanje ni bilo izvedeno</AlertTitle>
+          <AlertDescription>{(seedMut.error || updateMut.error)?.message}</AlertDescription>
+        </Alert>
+      )}
 
       {isEmpty ? (
         <div className="border border-dashed rounded-lg p-10 flex flex-col items-center justify-center text-center bg-card">
@@ -338,7 +362,7 @@ export default function KontniPlan() {
             Začnete lahko z ročnim dodajanjem kontov ali pa z enim klikom uvozite priporočen slovenski kontni plan (SRS).
           </p>
           {canEdit && (
-            <Button size="lg" onClick={handleSeed} disabled={seedMut.isPending}>
+            <Button size="lg" onClick={() => handleSeed()} disabled={seedMut.isPending}>
               {seedMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Download className="mr-2 h-5 w-5" />}
               Uvozi standardni slovenski kontni plan
             </Button>
@@ -413,7 +437,7 @@ export default function KontniPlan() {
                         <TableCell className="text-right">
                           {canEdit && (
                             <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(acc)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title="Uredi konto" aria-label={`Uredi konto ${acc.code}`} onClick={() => handleOpenDialog(acc)}>
                                 <Edit2 className="h-4 w-4" />
                               </Button>
                               <Button 
@@ -623,8 +647,13 @@ export default function KontniPlan() {
             </div>
           </div>
           <DialogFooter>
+            {(createMut.error || updateMut.error) && (
+              <Alert variant="destructive">
+                <AlertDescription>{(createMut.error || updateMut.error)?.message}</AlertDescription>
+              </Alert>
+            )}
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Prekliči</Button>
-            <Button onClick={handleSave} disabled={createMut.isPending || updateMut.isPending || !formData.code || !formData.name}>
+            <Button onClick={() => handleSave()} disabled={createMut.isPending || updateMut.isPending || !formData.code || !formData.name}>
               {createMut.isPending || updateMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Shrani
             </Button>

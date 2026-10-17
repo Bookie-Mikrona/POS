@@ -6610,6 +6610,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccountRecord"
+        "422":
+          description: Confirm the code/type exception before saving
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountTypeWarningResponse"
         "400":
           description: Validation error
           content:
@@ -6660,6 +6666,12 @@ paths:
       tags:
         - accounts
       summary: Import standard Slovenian chart of accounts
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeedAccountsBody"
       security:
         - bearerAuth: []
       parameters:
@@ -6675,6 +6687,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SeedAccountsResponse"
+        "422":
+          description: Confirm code/type exceptions before importing; nothing has been written
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountTypeWarningResponse"
         "400":
           description: Accounts already exist
           content:
@@ -6725,6 +6743,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccountRecord"
+        "422":
+          description: Confirm the code/type exception before saving
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountTypeWarningResponse"
         "400":
           description: Validation error
           content:
@@ -21774,6 +21798,9 @@ components:
     CreateAccountBody:
       type: object
       properties:
+        confirmTypeException:
+          type: boolean
+          description: Explicitly acknowledge the code/type warning for this save.
         code:
           type: string
           minLength: 1
@@ -21827,6 +21854,12 @@ components:
     UpdateAccountBody:
       type: object
       properties:
+        type:
+          type: string
+          enum: [asset, liability, equity, revenue, expense]
+        confirmTypeException:
+          type: boolean
+          description: Explicitly acknowledge the code/type warning for this save.
         name:
           type: string
           minLength: 1
@@ -21862,6 +21895,29 @@ components:
         isCash:
           type: boolean
         isOpenItem:
+          type: boolean
+    AccountTypeWarning:
+      type: object
+      required: [code, name, storedType, expectedType, message]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        storedType: { type: string }
+        expectedType: { type: string }
+        message: { type: string }
+    AccountTypeWarningResponse:
+      type: object
+      required: [error, warnings]
+      properties:
+        error: { type: string }
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountTypeWarning"
+    SeedAccountsBody:
+      type: object
+      properties:
+        confirmTypeException:
           type: boolean
     SeedAccountsResponse:
       type: object
