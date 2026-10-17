@@ -114,7 +114,7 @@
 - [Alergenski posnetek prejemnice](prejemnica-alergeni.md) — običajno urejanje ohrani zgodovinski posnetek; nova potrditev velja za novo vrstico ali zamenjan artikel.
 - [Katalog alergenov kot predlog](allergen-catalog-draft-policy.md) — generični PDF ni deklaracija; izrecna uskladitev vseh surovin vključuje tudi prej potrjene profile.
 - [Spletni alergeni novih surovin](automatic-ingredient-allergens.md) — vsaka nova nabavna surovina dobi samodejno spletno iskanje; rezultat ni potrjena deklaracija.
-- [Brisanje osnutkov temeljnic](journal-entry-draft-deletion.md) — osnutek je izbrisljiv z auditom; knjižene, stornirane in storno temeljnice niso.
+- [Temeljnice in glavna knjiga](journal-entry-guides.md) — brisanje osnutkov, nastavitve dimenzij med vnosom in obseg računovodskega priročnika.
 - [Celovitost POS priročnika](pos-manual-traceability.md) — izdaja je celovita šele po ločeni potrditvi izvedbe in dokumentacijske pokritosti vseh inventarnih postopkov.
 - [Upodabljanje POS priročnika](pos-manual-pdf-rendering.md) — PDF preštevilči naslove; medvrstični prelomi krepkega tiska v korakih se lahko izpišejo dobesedno.
 - [PDFKit strani in noge poročil](pdfkit-strani-in-noge.md) — absolutne noge lahko dodajo prazne strani; preveri dejanski PDF in omeji višino dolgih nazivov kontov.
@@ -146,7 +146,6 @@
 - [Kartica partnerja in zapiranja](partner-card-settlements.md) — kronološke knjižbe na vseh kontih; večkratna delna zapiranja, dokumentna sled in ročno ponovno odpiranje.
 - [Samostojne postavke GK](native-ledger-open-items.md) — odprtost in plačila brez nadomestnih računov; neznana zapadlost in ločeni strani ostanejo razvidni.
 - [Izolacija finančnih testov](financial-integration-test-isolation.md) — dejanska zapiranja preveri z zunanjo transakcijo in rollbackom, ne z brisanjem zaščitenih sledi.
-- [Priročnik za glavno knjigo](glavna-knjiga-prirocnik.md) — splošna navodila za dimenzije; davčne evidence sodijo v GK, ne v POS dokumentacijo.
 - [Razrez pripravljenih sladic](dessert-preparation-yields.md) — privzeti kosi iz normativa; kuhar izbere razrez vsake priprave, ne da bi samo razrez povečal porabo surovin.
 - [Receptne pretvorbe žličk](recipe-spoon-gram-conversions.md) — bogat ščepec soli 1 g; ½ žličke pecilnega praška 2,5 g; poravnana žlička cimeta 4 g.
 - [Obseg razvojnega okolja](development-environment-scope.md) — uporabnik dela izključno v dev; neskladje z naslovom na posnetku najprej razjasni, ne diagnosticiraj drugega okolja.

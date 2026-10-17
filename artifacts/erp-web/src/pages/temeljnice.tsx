@@ -747,10 +747,14 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
 
-  const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, {
+    query: { enabled: !!activeCompany?.id, refetchOnWindowFocus: "always" } as any,
+  });
   const costCenters = costCentersData?.costCenters ?? [];
 
-  const { data: projectsData } = useListProjects(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const { data: projectsData } = useListProjects(activeCompany?.id ?? "", {}, {
+    query: { enabled: !!activeCompany?.id, refetchOnWindowFocus: "always" } as any,
+  });
   const projects = projectsData?.projects ?? [];
 
   const { data: departmentsData } = useListDepartments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
@@ -842,7 +846,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
   const createMut = useCreateJournalEntry();
 
   const handleSave = () => {
-    if (!activeCompany) return;
+    if (!activeCompany || !canSave || createMut.isPending) return;
     const finalLines = lines.filter(l => l.accountId && parseFloat(l.amount) > 0).map(l => ({
       accountId: l.accountId,
       side: l.side,
@@ -894,9 +898,9 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
     const costCenterPolicy = acc.costCenterPolicy
       ?? (acc.requiresCostCenter ? "required" : "allowed");
     if (acc.requiresPartner && !l.partnerId) return true;
-    if (costCenterPolicy === "required" && !l.costCenterId) return true;
+    if (costCenterPolicy === "required" && !costCenters.some(cc => cc.id === l.costCenterId)) return true;
     if (costCenterPolicy === "not_allowed" && !!l.costCenterId) return true;
-    if (acc.requiresProject && !l.projectId) return true;
+    if (acc.requiresProject && !projects.some(project => project.id === l.projectId)) return true;
     return false;
   });
   const groupAccountErrors = lines.some(l => {
@@ -1179,7 +1183,14 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                                 ))}
                               </SelectContent>
                             </Select>
-                            {reqCostCenter && !line.costCenterId && (
+                            {reqCostCenter && costCentersData && costCenters.length === 0 ? (
+                              <p role="alert" className="text-xs text-destructive">
+                                Najprej dodajte stroškovno mesto v nastavitvah.{" "}
+                                <a href={`${BASE_URL}/stroskovana-mesta`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                                  Nastavitve stroškovnih mest (nov zavihek)
+                                </a>
+                              </p>
+                            ) : reqCostCenter && !line.costCenterId && (
                               <p className="text-xs text-destructive">Za ta konto je stroškovno mesto obvezno.</p>
                             )}
                           </div>
@@ -1200,7 +1211,14 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                                 ))}
                               </SelectContent>
                             </Select>
-                            {reqProject && !line.projectId && (
+                            {reqProject && projectsData && projects.length === 0 ? (
+                              <p role="alert" className="text-xs text-destructive">
+                                Najprej dodajte projekt v nastavitvah.{" "}
+                                <a href={`${BASE_URL}/dimenzije`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                                  Nastavitve projektov (nov zavihek)
+                                </a>
+                              </p>
+                            ) : reqProject && !line.projectId && (
                               <p className="text-xs text-destructive">Za ta konto je projekt obvezen.</p>
                             )}
                           </div>
