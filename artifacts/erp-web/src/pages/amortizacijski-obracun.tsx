@@ -50,6 +50,7 @@ import {
   type ObracunGlavaInfo,
 } from "@workspace/api-client-react";
 import { AmortizacijaKnjizenjDialog } from "@/components/os/AmortizacijaKnjizenjDialog";
+import { SavedAmortizationExports } from "@/components/os/SavedAmortizationExports";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -790,6 +791,7 @@ export default function AmortizacijskiObracun() {
                   try {
                     const result = await obracunMut.mutateAsync({ leto, doMeseca });
                     setObracunResult(result);
+                    void queryClient.invalidateQueries({ queryKey: ["saved-amortization-years", companyId] });
                     setObracunExpanded(true);
                     void queryClient.invalidateQueries({ queryKey: osAmortizacijaQueryKey(companyId, leto) });
                     void queryClient.invalidateQueries({ queryKey: ["osnovna-sredstva", companyId] });
@@ -844,6 +846,8 @@ export default function AmortizacijskiObracun() {
           )}
         </div>
       </div>
+
+      <SavedAmortizationExports key={companyId} companyId={companyId} />
 
       {/* Napaka pri nalaganju */}
       {isError && (
@@ -1464,6 +1468,7 @@ export default function AmortizacijskiObracun() {
                 setStornoError(null);
                 try {
                   await stornoMut.mutateAsync({ leto });
+                  void queryClient.invalidateQueries({ queryKey: ["saved-amortization-years", companyId] });
                   setStornoOpen(false);
                   setObracunResult(null); // počisti predogled — obračun je razveljavljen
                   // Invalidiraj obračun, register (medletni), nastavitve, seznam glav

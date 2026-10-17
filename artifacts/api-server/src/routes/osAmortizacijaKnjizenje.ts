@@ -21,6 +21,11 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, like, sql, lte, lt, gte, desc, gt, or, inArray } from "drizzle-orm";
 import Decimal from "decimal.js";
+import { savedAmortizationExcel, savedAmortizationPdf } from "../lib/os-amortizacija-export";
+import {
+  ExportSavedAmortizationParams, ExportSavedAmortizationQueryParams,
+  ListSavedAmortizationYearsParams, ListSavedAmortizationYearsResponse,
+} from "@workspace/api-zod";
 import {
   db,
   osAmortizacijskeSkupineTable,
@@ -146,6 +151,66 @@ function isAmortConflict(e: unknown): e is AmortConflict {
 }
 
 const router: IRouter = Router();
+
+// Arhivski izvoz ne potrebuje kontov ali ponovnega obračuna.
+router.get("/os/:companyId/amortizacija/obracun/izvozi", requireAuth, async (req, res): Promise<void> => {
+  const params = ExportSavedAmortizationParams.safeParse(req.params);
+  const parsed = ExportSavedAmortizationQueryParams.safeParse(req.query);
+  if (!params.success || !parsed.success || !Number.isInteger(parsed.data.leto)) {
+    res.status(400).json({ error: "Izberite podjetje, leto (1990–2100) in format pdf ali xlsx." }); return;
+  }
+  const { companyId } = params.data;
+  if (!(await resolveOsModuleRole((req as AuthenticatedRequest).clerkUserId, companyId, res))) return;
+  const { leto, format } = parsed.data;
+  const snapshot = await db.transaction(async (tx) => {
+    const [head] = await tx.select().from(osAmortizacijaObracunTable).where(and(
+      eq(osAmortizacijaObracunTable.companyId, companyId),
+      eq(osAmortizacijaObracunTable.leto, leto),
+    )).limit(1);
+    if (!head) return null;
+    const [company] = await tx.select({
+      naziv: companiesTable.naziv, naslov: companiesTable.naslov,
+      podjetjeDavcna: companiesTable.podjetjeDavcna,
+    }).from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
+    const rows = await tx.select({
+      inventarnaSt: osnovnaSredstvaTable.inventarnaSt,
+      naziv: osnovnaSredstvaTable.naziv,
+      osnova: osAmortizacijaObracunSredstvoTable.osnova,
+      stopnja: osAmortizacijaObracunSredstvoTable.stopnja,
+      obracunano: osAmortizacijaObracunSredstvoTable.obracunano,
+    }).from(osAmortizacijaObracunSredstvoTable).innerJoin(osnovnaSredstvaTable, and(
+      eq(osnovnaSredstvaTable.id, osAmortizacijaObracunSredstvoTable.sredstvoId),
+      eq(osnovnaSredstvaTable.companyId, companyId),
+    )).where(eq(osAmortizacijaObracunSredstvoTable.obracunId, head.id))
+      .orderBy(osnovnaSredstvaTable.inventarnaSt);
+    return { ...head, company, rows, printedAt: new Date() };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
+  if (!snapshot) {
+    res.status(404).json({ error: `Za leto ${leto} ni shranjenega obračuna.` }); return;
+  }
+  const buffer = format === "pdf" ? await savedAmortizationPdf(snapshot) : await savedAmortizationExcel(snapshot);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Type", format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="amortizacijski-obracun-${leto}.${format}"`);
+  res.send(buffer);
+});
+
+router.get("/os/:companyId/amortizacija/obracun/leta", requireAuth, async (req, res): Promise<void> => {
+  const params = ListSavedAmortizationYearsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Neveljavno podjetje." }); return;
+  }
+  const { companyId } = params.data;
+  if (!(await resolveOsModuleRole((req as AuthenticatedRequest).clerkUserId, companyId, res))) return;
+  const years = await db.select({
+    leto: osAmortizacijaObracunTable.leto,
+    doMeseca: osAmortizacijaObracunTable.doMeseca,
+    status: osAmortizacijaObracunTable.status,
+  }).from(osAmortizacijaObracunTable).where(eq(osAmortizacijaObracunTable.companyId, companyId))
+    .orderBy(desc(osAmortizacijaObracunTable.leto));
+  res.setHeader("Cache-Control", "no-store");
+  res.json(ListSavedAmortizationYearsResponse.parse(years));
+});
 
 // ─── Tipi ────────────────────────────────────────────────────────────────────
 

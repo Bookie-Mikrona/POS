@@ -8,6 +8,45 @@
 import * as zod from 'zod';
 
 
+export const listSavedAmortizationYearsPathCompanyIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const ListSavedAmortizationYearsParams = zod.object({
+  "companyId": zod.coerce.string().regex(listSavedAmortizationYearsPathCompanyIdRegExp)
+})
+
+export const listSavedAmortizationYearsResponseDoMesecaMax = 12;
+
+
+
+export const ListSavedAmortizationYearsResponseItem = zod.object({
+  "leto": zod.number(),
+  "doMeseca": zod.number().min(1).max(listSavedAmortizationYearsResponseDoMesecaMax),
+  "status": zod.string()
+})
+export const ListSavedAmortizationYearsResponse = zod.array(ListSavedAmortizationYearsResponseItem)
+
+
+export const exportSavedAmortizationPathCompanyIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const ExportSavedAmortizationParams = zod.object({
+  "companyId": zod.coerce.string().regex(exportSavedAmortizationPathCompanyIdRegExp)
+})
+
+export const exportSavedAmortizationQueryLetoMin = 1990;
+export const exportSavedAmortizationQueryLetoMax = 2100;
+
+
+
+export const ExportSavedAmortizationQueryParams = zod.object({
+  "leto": zod.coerce.number().min(exportSavedAmortizationQueryLetoMin).max(exportSavedAmortizationQueryLetoMax),
+  "format": zod.enum(['pdf', 'xlsx'])
+})
+
+export const ExportSavedAmortizationResponse = zod.unknown()
+
+
 /**
  * @summary Računovodja potrdi ročno oddajo KIR/KPR v eDavke
  */

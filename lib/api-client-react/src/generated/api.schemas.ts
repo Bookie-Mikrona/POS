@@ -5,6 +5,16 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export interface SavedAmortizationYear {
+  leto: number;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  doMeseca: number;
+  status: string;
+}
+
 export type ErpSmtpInputPort = typeof ErpSmtpInputPort[keyof typeof ErpSmtpInputPort];
 
 
@@ -13565,6 +13575,23 @@ export type ConflictResponse = ErrorResponse;
  * Not found
  */
 export type NotFoundResponse = ErrorResponse;
+
+export type ExportSavedAmortizationParams = {
+/**
+ * @minimum 1990
+ * @maximum 2100
+ */
+leto: number;
+format: ExportSavedAmortizationFormat;
+};
+
+export type ExportSavedAmortizationFormat = typeof ExportSavedAmortizationFormat[keyof typeof ExportSavedAmortizationFormat];
+
+
+export const ExportSavedAmortizationFormat = {
+  pdf: 'pdf',
+  xlsx: 'xlsx',
+} as const;
 
 export type MarkVatSubmissionSubmitted200Status = typeof MarkVatSubmissionSubmitted200Status[keyof typeof MarkVatSubmissionSubmitted200Status];
 

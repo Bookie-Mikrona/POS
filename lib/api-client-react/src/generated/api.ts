@@ -145,6 +145,7 @@ import type {
   EventTransferMovementDetail,
   ExportOperativnaPorocilaQrFeedbackParams,
   ExportPosJournalEntriesParams,
+  ExportSavedAmortizationParams,
   ExportTipsPayrollCsvParams,
   ExportZalogePdfParams,
   ForbiddenResponse,
@@ -488,6 +489,7 @@ import type {
   RezervacijaMizeInput,
   RezervacijaMizeZgodovina,
   RoleAssignment,
+  SavedAmortizationYear,
   ScannedBankDraftInput,
   ScannedBankDraftResult,
   SeedAccountsBody,
@@ -608,6 +610,160 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListSavedAmortizationYearsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/os/${companyId}/amortizacija/obracun/leta`
+}
+
+export const listSavedAmortizationYears = async (companyId: string, options?: RequestInit): Promise<SavedAmortizationYear[]> => {
+
+  return customFetch<SavedAmortizationYear[]>(getListSavedAmortizationYearsUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSavedAmortizationYearsQueryKey = (companyId: string,) => {
+    return [
+    `/api/os/${companyId}/amortizacija/obracun/leta`
+    ] as const;
+    }
+
+
+export const getListSavedAmortizationYearsQueryOptions = <TData = Awaited<ReturnType<typeof listSavedAmortizationYears>>, TError = ErrorType<void>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSavedAmortizationYears>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSavedAmortizationYearsQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSavedAmortizationYears>>> = ({ signal }) => listSavedAmortizationYears(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSavedAmortizationYears>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSavedAmortizationYearsQueryResult = NonNullable<Awaited<ReturnType<typeof listSavedAmortizationYears>>>
+export type ListSavedAmortizationYearsQueryError = ErrorType<void>
+
+
+
+export function useListSavedAmortizationYears<TData = Awaited<ReturnType<typeof listSavedAmortizationYears>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSavedAmortizationYears>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSavedAmortizationYearsQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportSavedAmortizationUrl = (companyId: string,
+    params: ExportSavedAmortizationParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/os/${companyId}/amortizacija/obracun/izvozi?${stringifiedParams}` : `/api/os/${companyId}/amortizacija/obracun/izvozi`
+}
+
+export const exportSavedAmortization = async (companyId: string,
+    params: ExportSavedAmortizationParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportSavedAmortizationUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSavedAmortizationQueryKey = (companyId: string,
+    params?: ExportSavedAmortizationParams,) => {
+    return [
+    `/api/os/${companyId}/amortizacija/obracun/izvozi`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportSavedAmortizationQueryOptions = <TData = Awaited<ReturnType<typeof exportSavedAmortization>>, TError = ErrorType<void>>(companyId: string,
+    params: ExportSavedAmortizationParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSavedAmortization>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSavedAmortizationQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSavedAmortization>>> = ({ signal }) => exportSavedAmortization(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSavedAmortization>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportSavedAmortizationQueryResult = NonNullable<Awaited<ReturnType<typeof exportSavedAmortization>>>
+export type ExportSavedAmortizationQueryError = ErrorType<void>
+
+
+
+export function useExportSavedAmortization<TData = Awaited<ReturnType<typeof exportSavedAmortization>>, TError = ErrorType<void>>(
+ companyId: string,
+    params: ExportSavedAmortizationParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSavedAmortization>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportSavedAmortizationQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getMarkVatSubmissionSubmittedUrl = (companyId: string,
     submissionId: string,) => {

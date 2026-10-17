@@ -87,6 +87,42 @@ tags:
   - name: daily-lunch
     description: Unit and business-date scoped daily lunch offers
 paths:
+  /os/{companyId}/amortizacija/obracun/leta:
+    get:
+      operationId: listSavedAmortizationYears
+      tags: [reports]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' } }
+      responses:
+        "200":
+          description: Shranjena leta obračuna
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SavedAmortizationYear" }
+        "401": { description: Prijava je obvezna }
+        "403": { description: Dostop do osnovnih sredstev ni dovoljen }
+  /os/{companyId}/amortizacija/obracun/izvozi:
+    get:
+      operationId: exportSavedAmortization
+      tags: [reports]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' } }
+        - { name: leto, in: query, required: true, schema: { type: integer, minimum: 1990, maximum: 2100 } }
+        - { name: format, in: query, required: true, schema: { type: string, enum: [pdf, xlsx] } }
+      responses:
+        "200":
+          description: Izvoz shranjenih vrednosti obračuna
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        "400": { description: Neveljavno leto ali format }
+        "401": { description: Prijava je obvezna }
+        "403": { description: Dostop do osnovnih sredstev ni dovoljen }
+        "404": { description: Shranjen obračun ne obstaja }
   /companies/{companyId}/vat-submissions/{submissionId}/mark-submitted:
     post:
       operationId: markVatSubmissionSubmitted
@@ -11930,6 +11966,13 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    SavedAmortizationYear:
+      type: object
+      required: [leto, doMeseca, status]
+      properties:
+        leto: { type: integer }
+        doMeseca: { type: integer, minimum: 1, maximum: 12 }
+        status: { type: string }
     ErpSmtpInput:
       type: object
       required: [host, port, user, from]

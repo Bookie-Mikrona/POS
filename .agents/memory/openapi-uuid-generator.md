@@ -9,6 +9,12 @@ V skupni OpenAPI specifikaciji ne uporabljaj `format: uuid`, `format: uri` ali `
 
 **How to apply:** Pri novih ali spremenjenih UUID/URL/e-poštnih poljih uporabi `type: string` (po potrebi nullable ali s preverjenim `pattern`); varnostno validacijo URL-ja izvedi v zapisovalnem toku. Po spremembi zaženi codegen in typecheck.
 
+Pri celoštevilčnih vhodih ne predpostavljaj, da jih generirani validator tudi zavrne kot decimalke.
+
+**Why:** Trenutni Orval za OpenAPI `type: integer` lahko ustvari samo `zod.coerce.number()` z mejami, brez `.int()`. Pogodba tako sama ne prepreči npr. leta z decimalnim delom.
+
+**How to apply:** Za leta, mesece in druge diskretne vrednosti preveri generirano validacijo ter po potrebi na strežniški meji izrecno zahtevaj `Number.isInteger`; dodaj regresijski primer z decimalnim vhodom.
+
 ## Sorodna opozorila
 
 - [Nepovezan drift generiranih datotek](openapi-codegen-drift.md) — po codegenu preveri generated diff; nepovezane stare pogodbene spremembe ne sodijo v trenutno nalogo.
