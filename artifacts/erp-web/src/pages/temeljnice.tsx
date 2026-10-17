@@ -8,6 +8,7 @@ import { useAuth } from "@clerk/react";
 import { getJournalEntryDeletionErrorMessage } from "@/lib/journalEntryDeletionError";
 import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
 import { AccountDimensionHint } from "@/components/account-dimension-hint";
+import { useJournalFilters } from "@/hooks/useJournalFilters";
 
 import { useCompany } from "@/contexts/CompanyContext";
 import {
@@ -117,21 +118,18 @@ export default function Temeljnice() {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
 
-  const [periodSelection, setPeriodSelection] = useState<{ companyId: string; value: string } | null>(null);
-  const setPeriodFilter = (value: string) => {
-    if (activeCompany) setPeriodSelection({ companyId: activeCompany.id, value });
-  };
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [costCenterFilter, setCostCenterFilter] = useState<string>("all");
-  const [projectFilter, setProjectFilter] = useState<string>("all");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [entryKindFilter, setEntryKindFilter] = useState<string>("all");
-
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
-  const periodFilter = periodSelection && periodSelection.companyId === activeCompany?.id
-    ? periodSelection.value
-    : defaultAccountingPeriod(periods);
+  const {
+    periodFilter, statusFilter, costCenterFilter, projectFilter, departmentFilter,
+    entryKindFilter, updateFilters, clearFilters,
+  } = useJournalFilters(activeCompany?.id, defaultAccountingPeriod(periods));
+  const setPeriodFilter = (value: string) => updateFilters({ periodFilter: value });
+  const setStatusFilter = (value: string) => updateFilters({ statusFilter: value });
+  const setCostCenterFilter = (value: string) => updateFilters({ costCenterFilter: value });
+  const setProjectFilter = (value: string) => updateFilters({ projectFilter: value });
+  const setDepartmentFilter = (value: string) => updateFilters({ departmentFilter: value });
+  const setEntryKindFilter = (value: string) => updateFilters({ entryKindFilter: value });
 
   const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
   const costCenters = costCentersData?.costCenters ?? [];
@@ -254,22 +252,15 @@ export default function Temeljnice() {
     });
   };
 
-  const clearFilters = () => {
-    setPeriodFilter("all");
-    setStatusFilter("all");
-    setCostCenterFilter("all");
-    setProjectFilter("all");
-    setDepartmentFilter("all");
-    setEntryKindFilter("all");
-  };
-
   const showPendingMonthlyEntries = () => {
-    setPeriodFilter("all");
-    setStatusFilter("draft");
-    setCostCenterFilter("all");
-    setProjectFilter("all");
-    setDepartmentFilter("all");
-    setEntryKindFilter("monthly-pos");
+    updateFilters({
+      periodFilter: "all",
+      statusFilter: "draft",
+      costCenterFilter: "all",
+      projectFilter: "all",
+      departmentFilter: "all",
+      entryKindFilter: "monthly-pos",
+    });
   };
 
   if (error) {
