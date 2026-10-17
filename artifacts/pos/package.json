@@ -9,6 +9,7 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts",
+    "test:release": "node ../../scripts/validate-pos-events-release.mjs pos",
     "test:print-browser": "node tests/supplier-order-print.browser.mjs",
     "test:print-browser:matrix": "node tests/supplier-order-print.browser-matrix.mjs"
   },
