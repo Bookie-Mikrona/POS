@@ -169,4 +169,43 @@ describe("supplier order print view", () => {
     expect(source.textContent).toContain("17.");
     expect(source.textContent).toContain("2026");
   });
+
+  it("prefills the next suggested order with the latest price for the current package size", () => {
+    const article = mocks.dashboard.articles[0];
+    const mapping = article.mappings[0];
+    const originalArticle = {
+      suggestedBaseQuantity: article.suggestedBaseQuantity,
+      suggestedPackageQuantity: article.suggestedPackageQuantity,
+    };
+    const originalMapping = {
+      packageName: mapping.packageName,
+      packageFactor: mapping.packageFactor,
+      lastPackagePrice: mapping.lastPackagePrice,
+    };
+    try {
+      article.suggestedBaseQuantity = 16;
+      article.suggestedPackageQuantity = 2;
+      mapping.packageName = "zaboj 8";
+      mapping.packageFactor = 8;
+      mapping.lastPackagePrice = 30;
+
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
+
+      expect(screen.getByText(/faktor 8/)).toBeTruthy();
+      expect((screen.getByLabelText("Količina pakiranj Mleko 3,5 %") as HTMLInputElement).value).toBe("2");
+      expect((screen.getByLabelText("Cena pakiranja Mleko 3,5 %") as HTMLInputElement).value).toBe("30");
+    } finally {
+      Object.assign(article, originalArticle);
+      Object.assign(mapping, originalMapping);
+    }
+  });
 });

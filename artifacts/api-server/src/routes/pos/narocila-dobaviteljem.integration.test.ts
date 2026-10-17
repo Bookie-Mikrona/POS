@@ -148,7 +148,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
   });
 
-  it("keeps order drafts out of stock, rounds suggestions to packs, and tracks confirmed partial receipts", async () => {
+  it("keeps order price snapshots when the supplier changes package size before receipt confirmation", async () => {
     const settings = await request(app)
       .put(`/narocila-dobaviteljem/artikli/${articleId}/nastavitve`)
       .send({ reorderPoint: 5, targetStock: 17, preferredMappingId: mappingId });
@@ -219,6 +219,17 @@ describe("POS supplier ordering and linked receipt flow", () => {
     });
 
     const lineId = created.body.lines[0].id as number;
+    await db.update(artikelDobaviteljTable)
+      .set({ enotVPaketu: "8", nazivPaketa: "zaboj 8" })
+      .where(eq(artikelDobaviteljTable.id, mappingId));
+    const orderAfterPackageChange = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
+    expect(orderAfterPackageChange.status).toBe(200);
+    expect(orderAfterPackageChange.body.lines[0]).toMatchObject({
+      packageFactor: 6,
+      packageName: "zaboj",
+      unitPrice: 20,
+    });
+
     const createReceipt = async (
       pricePerBaseUnit = 3,
       linkedSupplierOrderLineId: number | null = lineId,
@@ -285,25 +296,33 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(await getMappingPrice()).toEqual({ packagePrice: 18, unitPrice: 3 });
     const firstConfirmation = await request(app).post(`/prejemnice/${firstReceiptId}/confirm`).send({});
     expect(firstConfirmation.status, JSON.stringify(firstConfirmation.body)).toBe(200);
-    expect(await getMappingPrice()).toEqual({ packagePrice: 21, unitPrice: 3.5 });
+    expect(await getMappingPrice()).toEqual({ packagePrice: 28, unitPrice: 3.5 });
     const dashboardAfterFirstReceipt = await request(app).get("/narocila-dobaviteljem/pregled");
     const mappingAfterFirstReceipt = dashboardAfterFirstReceipt.body.articles
       .find((row: any) => row.articleId === articleId).mappings
       .find((mapping: any) => mapping.id === mappingId);
-    expect(mappingAfterFirstReceipt.lastPackagePrice).toBe(21);
+    expect(mappingAfterFirstReceipt.lastPackagePrice).toBe(28);
     expect(mappingAfterFirstReceipt.lastPriceReceipt).toEqual({
       date: "2026-10-17",
       receiptNumber: firstReceiptDetail.body.stevilka,
     });
     const firstOrderAfterPartialReceipt = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
-    expect(firstOrderAfterPartialReceipt.body.lines[0].unitPrice).toBe(20);
+    expect(firstOrderAfterPartialReceipt.body.lines[0]).toMatchObject({
+      packageFactor: 6,
+      packageName: "zaboj",
+      unitPrice: 20,
+    });
     const [firstReceiptLineSnapshot] = await db.select({
       invoiceUnitPrice: prejemnicePostavkeTable.izvCena,
       inventoryUnitPrice: prejemnicePostavkeTable.netoCena,
+      supplierOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+      stockQuantity: prejemnicePostavkeTable.kolicina,
     }).from(prejemnicePostavkeTable)
       .where(eq(prejemnicePostavkeTable.prejemnicaId, firstReceiptId));
     expect(Number(firstReceiptLineSnapshot.invoiceUnitPrice)).toBe(3.5);
     expect(Number(firstReceiptLineSnapshot.inventoryUnitPrice)).toBe(3.5);
+    expect(firstReceiptLineSnapshot.supplierOrderLineId).toBe(lineId);
+    expect(Number(firstReceiptLineSnapshot.stockQuantity)).toBe(6);
     const partial = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
     expect(partial.body).toMatchObject({
       status: "partially_received",
@@ -311,15 +330,15 @@ describe("POS supplier ordering and linked receipt flow", () => {
     });
 
     const secondReceiptId = await createReceipt(3.75);
-    expect(await getMappingPrice()).toEqual({ packagePrice: 21, unitPrice: 3.5 });
+    expect(await getMappingPrice()).toEqual({ packagePrice: 28, unitPrice: 3.5 });
     const secondConfirmation = await request(app).post(`/prejemnice/${secondReceiptId}/confirm`).send({});
     expect(secondConfirmation.status, JSON.stringify(secondConfirmation.body)).toBe(200);
-    expect(await getMappingPrice()).toEqual({ packagePrice: 22.5, unitPrice: 3.75 });
+    expect(await getMappingPrice()).toEqual({ packagePrice: 30, unitPrice: 3.75 });
     const dashboardAfterSecondReceipt = await request(app).get("/narocila-dobaviteljem/pregled");
     const mappingAfterSecondReceipt = dashboardAfterSecondReceipt.body.articles
       .find((row: any) => row.articleId === articleId).mappings
       .find((mapping: any) => mapping.id === mappingId);
-    expect(mappingAfterSecondReceipt.lastPackagePrice).toBe(22.5);
+    expect(mappingAfterSecondReceipt.lastPackagePrice).toBe(30);
     const secondReceiptDetail = await request(app).get(`/prejemnice/${secondReceiptId}`);
     expect(mappingAfterSecondReceipt.lastPriceReceipt).toEqual({
       date: "2026-10-17",
@@ -328,7 +347,14 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const completed = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
     expect(completed.body).toMatchObject({
       status: "received",
-      lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 12, openBaseQuantity: 0, unitPrice: 20 }],
+      lines: [{
+        orderedBaseQuantity: 12,
+        receivedBaseQuantity: 12,
+        openBaseQuantity: 0,
+        packageFactor: 6,
+        packageName: "zaboj",
+        unitPrice: 20,
+      }],
     });
     const [firstReceiptLineAfterSecondPrice] = await db.select({
       invoiceUnitPrice: prejemnicePostavkeTable.izvCena,
@@ -340,10 +366,45 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const [stockAfterReceipts] = await db.select().from(zalogeTable).where(eq(zalogeTable.artikelId, articleId));
     expect(Number(stockAfterReceipts.kolicina)).toBe(14);
 
+    const updatedSettings = await request(app)
+      .put(`/narocila-dobaviteljem/artikli/${articleId}/nastavitve`)
+      .send({ reorderPoint: 15, targetStock: 30, preferredMappingId: mappingId });
+    expect(updatedSettings.status, JSON.stringify(updatedSettings.body)).toBe(200);
+    const nextSuggestionResponse = await request(app).get("/narocila-dobaviteljem/pregled");
+    const nextArticleSuggestion = nextSuggestionResponse.body.articles
+      .find((row: any) => row.articleId === articleId);
+    const nextMappingSuggestion = nextArticleSuggestion.mappings
+      .find((mapping: any) => mapping.id === mappingId);
+    expect(nextArticleSuggestion).toMatchObject({
+      hasSuggestion: true,
+      suggestedPackageQuantity: 2,
+    });
+    expect(nextMappingSuggestion).toMatchObject({
+      packageFactor: 8,
+      lastPackagePrice: 30,
+    });
+    const nextSuggestedOrder = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      expectedDeliveryDate: "2026-11-06",
+      lines: [{
+        supplierMappingId: mappingId,
+        packageQuantity: nextArticleSuggestion.suggestedPackageQuantity,
+        unitPrice: nextMappingSuggestion.lastPackagePrice,
+      }],
+    });
+    expect(nextSuggestedOrder.status, JSON.stringify(nextSuggestedOrder.body)).toBe(201);
+    orderIds.push(nextSuggestedOrder.body.id);
+    expect(nextSuggestedOrder.body.lines[0]).toMatchObject({
+      packageQuantity: 2,
+      packageFactor: 8,
+      packageName: "zaboj 8",
+      unitPrice: 30,
+    });
+
     const unlinkedReceiptId = await createReceipt(5, null);
     const unlinkedConfirmation = await request(app).post(`/prejemnice/${unlinkedReceiptId}/confirm`).send({});
     expect(unlinkedConfirmation.status, JSON.stringify(unlinkedConfirmation.body)).toBe(200);
-    expect(await getMappingPrice()).toEqual({ packagePrice: 22.5, unitPrice: 3.75 });
+    expect(await getMappingPrice()).toEqual({ packagePrice: 30, unitPrice: 3.75 });
   });
 
   it("does not let a non-administrator manage purchase orders", async () => {
