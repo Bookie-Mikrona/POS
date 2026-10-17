@@ -25,6 +25,7 @@ import {
 import type {
   SupplierOrderDetail,
   SupplierOrderInput,
+  SupplierOrderSummary,
   SupplierOrderStatus,
   SupplierReorderArticle,
 } from "@workspace/api-client-react";
@@ -57,6 +58,9 @@ const statusClass: Record<SupplierOrderStatus, string> = {
   closed: "border-stone-300 bg-stone-100 text-stone-700",
   cancelled: "border-rose-300 bg-rose-50 text-rose-900",
 };
+const hasInternalNoteWithoutSupplierInstructions = (
+  order: Pick<SupplierOrderSummary, "internalNotes" | "supplierNotes">,
+) => Boolean(order.internalNotes?.trim()) && !order.supplierNotes?.trim();
 const formatQty = (value: number | null | undefined, digits = 2) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { maximumFractionDigits: digits }).format(value);
 const formatDate = (value?: string | null) =>
@@ -241,6 +245,7 @@ export default function NarocilaDobaviteljem() {
   const { data: dashboard, isLoading: dashboardLoading, isError: dashboardError, refetch: refetchDashboard } =
     useGetSupplierOrderDashboard({ query: { queryKey: dashboardKey } });
   const [statusFilter, setStatusFilter] = useState<SupplierOrderStatus | "all">("all");
+  const [missingSupplierInstructionsOnly, setMissingSupplierInstructionsOnly] = useState(false);
   const listParams = statusFilter === "all" ? undefined : { status: statusFilter };
   const { data: orderList, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } =
     useListSupplierOrders(listParams, { query: { queryKey: getListSupplierOrdersQueryKey(listParams) } });
@@ -305,7 +310,10 @@ export default function NarocilaDobaviteljem() {
     const q = search.trim().toLocaleLowerCase("sl");
     return (!q || `${article.articleName} ${article.purchaseName ?? ""}`.toLocaleLowerCase("sl").includes(q));
   });
-  const filteredOrders = orderList ?? [];
+  const ordersMissingSupplierInstructions = (orderList ?? []).filter(hasInternalNoteWithoutSupplierInstructions);
+  const filteredOrders = missingSupplierInstructionsOnly
+    ? ordersMissingSupplierInstructions
+    : orderList ?? [];
   const supplierNotesAfterCopy = orderEditor
     ? appendInternalNoteToSupplierNotes(orderEditor.internalNotes, orderEditor.supplierNotes)
     : "";
@@ -792,16 +800,38 @@ export default function NarocilaDobaviteljem() {
           </div>
         </div>}
       </section> : <section className="overflow-hidden rounded-2xl border border-[#ded6c7] bg-[#fffefa] shadow-[0_8px_28px_rgba(54,47,31,.04)]">
-        <div className="flex items-center justify-between border-b border-[#eee8dc] px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eee8dc] px-4 py-4 sm:px-5">
           <div><h2 className="text-base font-bold text-[#203d39]">Evidenca naročil</h2><p className="mt-0.5 text-xs text-[#77817b]">Stanje naročila in dejanski prevzem sta ločena procesa.</p></div>
-          <Button size="sm" variant="outline" className="orders-no-print border-[#ded6c7]" onClick={() => void refetchOrders()}><RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Osveži</Button>
+          <div className="orders-no-print flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-pressed={missingSupplierInstructionsOnly}
+              data-testid="filter-orders-missing-supplier-instructions"
+              title="Pokaži naročila z interno opombo in praznim navodilom za dobavitelja"
+              disabled={ordersLoading || ordersError}
+              onClick={() => setMissingSupplierInstructionsOnly(value => !value)}
+              className={`h-10 ${missingSupplierInstructionsOnly ? "border-amber-400 bg-amber-50 text-amber-950" : "border-[#ded6c7] bg-[#fffefa] text-[#52645d]"}`}
+            >
+              <AlertCircle className="mr-1.5 h-3.5 w-3.5" />
+              Interna opomba brez navodila
+              <span className="ml-1 rounded-full bg-[#eee9de] px-2 py-0.5 text-[11px] font-semibold">{ordersMissingSupplierInstructions.length}</span>
+            </Button>
+            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as SupplierOrderStatus | "all")} className="h-10 rounded-lg border border-[#ded6c7] bg-[#fffefa] px-3 text-sm text-[#314a44]" aria-label="Filtriraj naročila po statusu">
+              <option value="all">Vsi statusi</option>
+              {Object.entries(statusCopy).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <Button size="sm" variant="outline" className="h-10 border-[#ded6c7]" onClick={() => void refetchOrders()}><RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Osveži</Button>
+          </div>
         </div>
         {ordersError ? <div className="m-5 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
           <span>Seznama naročil ni bilo mogoče naložiti.</span><Button variant="outline" size="sm" onClick={() => void refetchOrders()}>Poskusi znova</Button>
         </div> : ordersLoading ? <div className="space-y-3 p-5">{[1, 2, 3].map(item => <div key={item} className="h-16 animate-pulse rounded-lg bg-[#f1eee6]" />)}</div> : filteredOrders.length === 0 ? <div className="px-6 py-14 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf3ed] text-[#416c5e]"><FileText className="h-6 w-6" /></div>
-          <h3 className="mt-3 font-bold text-[#28453f]">Za ta filter ni naročil</h3><p className="mt-1 text-sm text-[#748079]">Ustvarite osnutek iz predlogov ali dodajte naročilo ročno.</p>
-          <Button className="mt-4 bg-[#285d50] text-white hover:bg-[#204b41]" onClick={() => startNewOrder()}><Plus className="mr-2 h-4 w-4" /> Novo naročilo</Button>
+          <h3 className="mt-3 font-bold text-[#28453f]">{missingSupplierInstructionsOnly ? "Ni naročil z interno opombo brez navodila" : "Za ta filter ni naročil"}</h3>
+          <p className="mt-1 text-sm text-[#748079]">{missingSupplierInstructionsOnly ? "Za izbrani status ni naročil z interno opombo in praznim navodilom za dobavitelja." : "Ustvarite osnutek iz predlogov ali dodajte naročilo ročno."}</p>
+          {!missingSupplierInstructionsOnly && <Button className="mt-4 bg-[#285d50] text-white hover:bg-[#204b41]" onClick={() => startNewOrder()}><Plus className="mr-2 h-4 w-4" /> Novo naročilo</Button>}
         </div> : <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-sm">
             <thead className="bg-[#f7f4ec] text-[10px] font-bold uppercase tracking-[.13em] text-[#76817a]"><tr><th className="px-5 py-3">Številka</th><th className="px-3 py-3">Dobavitelj</th><th className="px-3 py-3">Ustvarjeno</th><th className="px-3 py-3">Predvidena dostava</th><th className="px-3 py-3 text-center">Postavke</th><th className="px-3 py-3">Status</th><th className="px-5 py-3 text-right">Odpri</th></tr></thead>

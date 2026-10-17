@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   markSent: vi.fn(),
   mutation: vi.fn(),
   navigate: vi.fn(),
+  supplierOrderSummaries: null as any[] | null,
   order: {
     id: 704,
     number: "N-2026-0704",
@@ -91,7 +92,7 @@ vi.mock("@workspace/api-client-react", async () => {
       refetch: vi.fn(),
     }),
     useListSupplierOrders: () => ({
-      data: [{
+      data: mocks.supplierOrderSummaries ?? [{
         id: mocks.order.id,
         number: mocks.order.number,
         supplierId: mocks.order.supplierId,
@@ -159,6 +160,7 @@ describe("supplier order print view", () => {
     mocks.markSent.mockReset();
     mocks.mutation.mockReset();
     mocks.navigate.mockReset();
+    mocks.supplierOrderSummaries = null;
     mocks.order.internalNotes = "INTERNAL ONLY: preveriti stanje embalaže.";
     mocks.order.supplierNotes = "Prosimo za dostavo do 10.00.\nHvala.";
     print.mockReset();
@@ -197,6 +199,69 @@ describe("supplier order print view", () => {
     expect(print).toHaveBeenCalledOnce();
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(mocks.markSent).not.toHaveBeenCalled();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("filters orders with an internal note but no supplier instructions without copying or changing them", () => {
+    const internalNote = "INTERNAL ONLY: preveriti stanje embalaže.";
+    const sharedSummary = {
+      supplierId: mocks.order.supplierId,
+      supplierName: mocks.order.supplierName,
+      status: mocks.order.status,
+      createdAt: mocks.order.createdAt,
+      expectedDeliveryDate: mocks.order.expectedDeliveryDate,
+      lineCount: mocks.order.lineCount,
+      openQuantity: mocks.order.openQuantity,
+    };
+    mocks.order.internalNotes = internalNote;
+    mocks.order.supplierNotes = "";
+    mocks.supplierOrderSummaries = [
+      {
+        ...sharedSummary,
+        id: 704,
+        number: "N-2026-0704",
+        internalNotes: internalNote,
+        supplierNotes: " \n ",
+      },
+      {
+        ...sharedSummary,
+        id: 705,
+        number: "N-2026-0705",
+        internalNotes: " \n ",
+        supplierNotes: null,
+      },
+      {
+        ...sharedSummary,
+        id: 706,
+        number: "N-2026-0706",
+        internalNotes: internalNote,
+        supplierNotes: "Prosimo, dostavite pred 10. uro.",
+      },
+    ];
+    renderSupplierOrderPage();
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+
+    expect(screen.getByTestId("row-supplier-order-704")).toBeTruthy();
+    expect(screen.getByTestId("row-supplier-order-705")).toBeTruthy();
+    expect(screen.getByTestId("row-supplier-order-706")).toBeTruthy();
+    expect(screen.queryByText(internalNote)).toBeNull();
+
+    fireEvent.click(screen.getByTestId("filter-orders-missing-supplier-instructions"));
+
+    const filterButton = screen.getByTestId("filter-orders-missing-supplier-instructions");
+    expect(filterButton.getAttribute("aria-pressed")).toBe("true");
+    expect(filterButton.textContent).toContain("1");
+    expect(screen.getByTestId("row-supplier-order-704")).toBeTruthy();
+    expect(screen.queryByTestId("row-supplier-order-705")).toBeNull();
+    expect(screen.queryByTestId("row-supplier-order-706")).toBeNull();
+    expect(screen.queryByText(internalNote)).toBeNull();
+
+    fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+    expect(screen.getByText(internalNote)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Uredi osnutek" }));
+    expect((screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement).value).toBe(internalNote);
+    expect((screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement).value).toBe("");
+    expect(mocks.order.supplierNotes).toBe("");
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
