@@ -23,6 +23,7 @@ import { posljiPorociloPdf } from "../lib/erp-email";
 import { getSmtpRow } from "../lib/erp-smtp-settings";
 import erpSmtpRouter from "./erp-smtp";
 import { expectedAccountType } from "../lib/accountTypeWarning";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 router.use(erpSmtpRouter);
@@ -1234,32 +1235,51 @@ router.post(
       if (searchTerm) exportParams.searchTerm = searchTerm;
     }
 
-    await db.insert(reportExportsTable).values({
-      companyId,
-      reportType,
-      params: exportParams,
-      filename,
-      exportedBy: authReq.clerkUserId,
-      pdfData: pdfBuffer,
-      emailSentTo: email ?? null,
-    });
-
-    // Pošlji po e-pošti ali vrni kot blob
+    // Neuspelega pošiljanja ne beleži kot uspešno poslan izvoz.
     if (email) {
-      const result = await posljiPorociloPdf({
-        companyId,
-        prejemnik: email,
-        companyName,
-        reportTitle,
-        subtitle,
-        filename,
-        pdfBuffer,
-      }, { companyName: companyRow?.naziv, companyEmail: companyRow?.email });
-      if (result.uspeh) {
-        res.json({ uspeh: true, sporocilo: `PDF poslan na ${email}` });
-      } else {
-        res.status(502).json({ error: result.napaka ?? "Pošiljanje ni uspelo." });
+      try {
+        const result = await posljiPorociloPdf({
+          companyId,
+          prejemnik: email,
+          companyName,
+          reportTitle,
+          subtitle,
+          filename,
+          pdfBuffer,
+        }, { companyName: companyRow?.naziv, companyEmail: companyRow?.email });
+        if (!result.uspeh) {
+          res.status(502).json({ error: result.napaka ?? "Pošiljanje ni uspelo." });
+          return;
+        }
+      } catch (err) {
+        logger.error({ err, companyId, reportType }, "Report email sending failed");
+        res.status(502).json({ error: "Pošiljanje ni uspelo." });
+        return;
       }
+    }
+
+    try {
+      await db.insert(reportExportsTable).values({
+        companyId,
+        reportType,
+        params: exportParams,
+        filename,
+        exportedBy: authReq.clerkUserId,
+        pdfData: pdfBuffer,
+        emailSentTo: email || null,
+      });
+    } catch (err) {
+      logger.error({ err, companyId, reportType }, "Report export history save failed");
+      res.status(500).json({
+        error: email
+          ? "PDF je bil poslan, vendar zapis v zgodovino izvozov ni uspel. Ne pošiljajte ga ponovno."
+          : "Zapis v zgodovino izvozov ni uspel. Poskusite znova.",
+      });
+      return;
+    }
+
+    if (email) {
+      res.json({ uspeh: true, sporocilo: `PDF poslan na ${email}` });
     } else {
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
