@@ -675,6 +675,33 @@ export default function NarocilaDobaviteljem() {
                           </div> : <div className="mt-1 text-xs text-[#858d87]">
                             {supplierMapping.lastPackagePrice == null ? "Zadnja cena ni zabeležena." : "Zadnja cena ni veljavna."}
                           </div>}
+                          {supplierMapping.priceHistory.length > 0
+                            ? <details className="mt-1 text-xs text-[#68756e]" data-testid={`price-history-${supplierMapping.id}`}>
+                              <summary className="cursor-pointer select-none font-medium text-[#40574f] hover:text-[#285d50]">
+                                Zgodovina potrjenih cen ({supplierMapping.priceHistory.length})
+                              </summary>
+                              <ol className="mt-1 space-y-1 border-l border-[#dce4dd] pl-2">
+                                {supplierMapping.priceHistory.map(entry => (
+                                  <li key={`${entry.receiptId}-${entry.receiptNumber}`} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+                                    <span>
+                                      {formatReceiptDate(entry.date)} · {formatUnitMoney(entry.unitPrice)} / {article.baseUnit?.trim() || "enoto (ni določena)"}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      data-testid={`price-history-receipt-${supplierMapping.id}-${entry.receiptId}`}
+                                      aria-label={`Odpri prejemnico št. ${entry.receiptNumber}`}
+                                      onClick={() => navigate(`/zaloge?prejemnica=${entry.receiptId}&nacin=ogled`)}
+                                      className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
+                                    >
+                                      Prejemnica št. {entry.receiptNumber}
+                                    </button>
+                                  </li>
+                                ))}
+                              </ol>
+                            </details>
+                            : <div className="mt-1 text-xs text-[#858d87]" data-testid={`price-history-empty-${supplierMapping.id}`}>
+                              Ni potrjenih cen s povezano prejemnico.
+                            </div>}
                         </div>;
                       })}
                     </div> : <span className="text-xs text-orange-800">Ni aktivne povezave</span>}

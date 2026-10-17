@@ -8095,6 +8095,16 @@ export const SupplierOrderStatus = {
 } as const;
 
 /**
+ * Potrjena cena iz prejemnice, izražena na osnovno enoto artikla.
+ */
+export interface SupplierPriceHistoryEntry {
+  receiptId: number;
+  date: string;
+  receiptNumber: string;
+  unitPrice: number;
+}
+
+/**
  * @nullable
  */
 export type SupplierItemMappingLastPriceReceipt = {
@@ -8120,6 +8130,8 @@ export interface SupplierItemMapping {
   lastUnitPrice: number | null;
   /** @nullable */
   lastPriceReceipt: SupplierItemMappingLastPriceReceipt;
+  /** Do pet najnovejših potrjenih prejemnic, razvrščenih po datumu padajoče. */
+  priceHistory: SupplierPriceHistoryEntry[];
   active: boolean;
 }
 

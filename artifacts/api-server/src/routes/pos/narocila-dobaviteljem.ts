@@ -16,7 +16,7 @@ import {
 } from "@workspace/db";
 import { requireEnota, type PosRequest } from "../../middlewares/pos";
 import {
-  getLatestSupplierPriceReceipts,
+  getSupplierPriceHistory,
   SupplierOrderReceiptConflict,
 } from "../../lib/pos-supplier-orders";
 
@@ -426,7 +426,7 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
         eq(counterpartiesTable.companyId, companyId),
       ))
     : [];
-  const lastPriceReceipts = await getLatestSupplierPriceReceipts(
+  const priceHistories = await getSupplierPriceHistory(
     db,
     enotaId,
     mappingRows.map(mapping => mapping.id),
@@ -467,23 +467,34 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
       suggestedPackageQuantity,
       preferredMappingId,
       hasSuggestion: needsOrder,
-      mappings: mappings.map(mapping => ({
-        id: mapping.id,
-        supplierId: mapping.supplierId,
-        supplierName: mapping.supplierName,
-        supplierItemName: mapping.supplierItemName,
-        supplierCode: mapping.supplierCode,
-        packageName: mapping.packageName,
-        packageFactor: nullableNumber(mapping.packageFactor) ?? 0,
-        lastPackagePrice: nullableNumber(mapping.lastPackagePrice),
-        lastUnitPrice: comparableLastUnitPrice(
-          mapping.lastPackagePrice,
-          mapping.packageFactor,
-          mapping.lastUnitPrice,
-        ),
-        lastPriceReceipt: lastPriceReceipts.get(mapping.id) ?? null,
-        active: mapping.active,
-      })),
+      mappings: mappings.map(mapping => {
+        const priceHistory = priceHistories.get(mapping.id) ?? [];
+        const latestPriceReceipt = priceHistory[0];
+        return {
+          id: mapping.id,
+          supplierId: mapping.supplierId,
+          supplierName: mapping.supplierName,
+          supplierItemName: mapping.supplierItemName,
+          supplierCode: mapping.supplierCode,
+          packageName: mapping.packageName,
+          packageFactor: nullableNumber(mapping.packageFactor) ?? 0,
+          lastPackagePrice: nullableNumber(mapping.lastPackagePrice),
+          lastUnitPrice: comparableLastUnitPrice(
+            mapping.lastPackagePrice,
+            mapping.packageFactor,
+            mapping.lastUnitPrice,
+          ),
+          lastPriceReceipt: latestPriceReceipt
+            ? {
+                receiptId: latestPriceReceipt.receiptId,
+                date: latestPriceReceipt.date,
+                receiptNumber: latestPriceReceipt.receiptNumber,
+              }
+            : null,
+          priceHistory,
+          active: mapping.active,
+        };
+      }),
     };
   });
   res.setHeader("Cache-Control", "no-store");

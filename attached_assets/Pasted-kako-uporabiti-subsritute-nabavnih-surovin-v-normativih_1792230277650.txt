@@ -1,0 +1,90 @@
+kako uporabiti subsritute nabavnih surovin v normativih polizelkov in prodajnih artiklih v gostinstvu
+
+Uporaba nadomestnih oziroma substitucijskih surovin (substitutov) je v gostinskih POS/ERP sistemih izjemno pomembna. Omogoča nemoteno prodajo in natančen razknjiževalni sistem zalog v primerih, ko primarne surovine zmanjka (npr. zamenjava določene znamke mleka, uporaba zamrznjene umesto sveže zelenjave ali zamenjava določenega tipa moke/olja).
+
+Spodaj je podrobno opisano, kako je sistem substitutov vgrajen v strukturo polizdelkov (polizdelčnih normativov) in končnih prodajnih artiklov.
+
+1. Razumevanje ravni v normativih
+V gostinstvu poznamo tronivojsko strukturo normativov:
+
+Nabavne surovine (Osnovni artikli): npr. Sveže mleko 3,5% A, Sveže mleko 3,5% B, UHT mleko 3,5%.
+
+Polizdelki (Prep-items / Baze): npr. Bešamel omaka, Testo za pico, Piščančja osnova, Palačinkino testo. (Polizdelek je sestavljen iz surovin in ima svoj normativ ter lastno ceno/strošek).
+
+Prodajni artikli (Končni izdelki na blagajni): npr. Lasagne Bolognese, Pica Capricciosa, Bela kava. (Lahko vsebujejo mešanico neposrednih surovin in polizdelkov).
+
+2. Podatkovni model za nadomestne surovine (Substitute)
+Da sistem zna samodejno razknjiževati zalogo, ko primarne surovine ni na zalogi, se v bazi podatkov definira tabela substitutov vezana na primarno surovino ali neposredno na vrstico normativa.
+
+Podatkovna struktura pravila substitucije:
+Primarna surovina: ID_Surovina_A (npr. Sveže mleko Mlekarna A)
+
+Substitucijska surovina: ID_Surovina_B (npr. Sveže mleko Mlekarna B)
+
+Prioriteta (Rang): 1 (prva izbira), 2 (druga izbira)
+
+Razmerje pretvorbe (Faktor): Običajno 1.0 (1L = 1L), lahko pa tudi drugače (npr. če nadomeščamo Svež bosiljak 10g s Sušenim bosiljakom 3g, je faktor 0.3).
+
+Način aktivacije:
+
+Avtomatski (FIFO / Zaloga <= 0): Sistem sam preklopi na substitut, ko primarne surovine zmanjka na zalogi.
+
+Ročni (Operator / Kuhar): V sistemu se označi "Trenutno uporabljamo substitut B".
+
+3. Delovanje substitutov v Polizdelkih in Prodajnih artiklih
+A. Substitucija v Polizdelkih (Primer: Bešamel omaka)
+Polizdelek ima svoj normativ (npr. za 5 litrov omake):
+
+Normativ:
+
+Maslo: 0,5 kg
+
+Moka: 0,5 kg
+
+Mleko (Primarno): 5 L (Substitut 1: Mleko znamke B, Substitut 2: Trajno mleko)
+
+Kaj se zgodi ob izvedbi proizvodnje polizdelka (Prevod/Kuhanje)?
+Ko kuhinja v POS/ERP sistemu potrdi izdelavo 5 L Bešamela (ali ko sistem avtomatsko razknjižuje sestavine ob prodaji jedi):
+
+Program preveri zalogo primarnega mleka.
+
+Če je na zalogi le 3 L primarnega mleka, razknjiži 3 L primarnega in avtomatsko 2 L nadomestnega mleka (Substitut 1).
+
+Ponderirana nabavna cena (Food Cost polizdelka): Sistem izračuna dejansko nabavno ceno polizdelka na podlagi dejansko porabljenih surovin (3L po ceni A + 2L po ceni B).
+
+B. Substitucija v Prodajnih artiklih (Primer: Bela kava)
+Prodajni artikel ima normativ:
+
+Kava v zrnju: 8 g
+
+Sveže mleko (Primarno): 0,1 L
+
+Če primarnega mleka zmanjka na zalogi, se ob prodaji Bele kave na blagajni:
+
+Avtomatsko odšteje 0,1 L nadomestnega mleka z zaloge, brez prekinitve dela natakarja ali opozoril na POS blagajni.
+
+Strošek prodanega artikla (Cost of Goods Sold - COGS) se natančno obračuna glede na nabavno ceno dejansko odštetega substituta.
+
+4. Posebni primeri: Ročna izbira substitutov na POS blagajni (Modifikatorji)
+Poleg sistemske/skladiščne substitucije obstaja tudi vsebinska substitucija po želji gosta:
+
+Gost želi namesto navadnega mleka Zobeno mleko ali Laktoza-free mleko.
+
+Kako to rešuje POS:
+
+Na prodajnem artiklu se definira skupina modifikatorjev / doplačil (Sprememba sestavine).
+
+Izbira modifikatorja »Zobeno mleko«:
+
+Odšteje z normativa primarno surovino (Navadno mleko).
+
+Dodaja na normativ substitut (Zobeno mleko).
+
+Po potrebi avtomatsko obračuna razliko v ceni / doplačilo na račun gosta (npr. +0,50 €).
+
+5. Prednosti in vpliv na analitiko ter nadzor zalog
+Preprečevanje "negativne zaloge": Brez substitutov bi zaloga primarnega artikla odšla v minus, medtem ko bi nadomestni artikel na skladišču ostal nepreaknjen.
+
+Natančen obračun Food Cost-a: Ker imajo substituti pogosto različne nabavne cene, sistem ohranja realno sliko marže in stroškov prodanih jedi.
+
+Opozorila nabavi: Ko sistem začne črpati substitute z nižjo prioriteto, avtomatsko sproži obvestilo nabavni službi, da je primarni artikel popolnoma izčrpan.

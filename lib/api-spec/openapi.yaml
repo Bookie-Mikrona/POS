@@ -19434,9 +19434,18 @@ components:
     SupplierOrderStatus:
       type: string
       enum: [draft, sent, partially_received, received, closed, cancelled]
+    SupplierPriceHistoryEntry:
+      type: object
+      required: [receiptId, date, receiptNumber, unitPrice]
+      description: Potrjena cena iz prejemnice, izražena na osnovno enoto artikla.
+      properties:
+        receiptId: { type: integer }
+        date: { type: string, format: date }
+        receiptNumber: { type: string }
+        unitPrice: { type: number }
     SupplierItemMapping:
       type: object
-      required: [id, supplierId, supplierName, packageFactor, lastUnitPrice, lastPriceReceipt, active]
+      required: [id, supplierId, supplierName, packageFactor, lastUnitPrice, lastPriceReceipt, priceHistory, active]
       properties:
         id: { type: integer }
         supplierId: { type: string }
@@ -19454,6 +19463,10 @@ components:
             receiptId: { type: integer }
             date: { type: string, format: date }
             receiptNumber: { type: string }
+        priceHistory:
+          type: array
+          description: Do pet najnovejših potrjenih prejemnic, razvrščenih po datumu padajoče.
+          items: { $ref: "#/components/schemas/SupplierPriceHistoryEntry" }
         active: { type: boolean }
     SupplierReorderArticle:
       type: object

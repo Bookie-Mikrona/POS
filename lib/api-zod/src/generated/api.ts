@@ -10745,6 +10745,12 @@ export const GetSupplierOrderDashboardResponse = zod.object({
   "date": zod.coerce.date(),
   "receiptNumber": zod.string()
 }).nullable(),
+  "priceHistory": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "date": zod.coerce.date(),
+  "receiptNumber": zod.string(),
+  "unitPrice": zod.number()
+}).describe('Potrjena cena iz prejemnice, izražena na osnovno enoto artikla.')).describe('Do pet najnovejših potrjenih prejemnic, razvrščenih po datumu padajoče.'),
   "active": zod.boolean()
 }))
 })),

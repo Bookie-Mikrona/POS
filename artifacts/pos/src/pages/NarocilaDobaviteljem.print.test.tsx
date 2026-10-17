@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import NarocilaDobaviteljem from "./NarocilaDobaviteljem";
 
@@ -64,6 +64,10 @@ const mocks = vi.hoisted(() => ({
         lastPackagePrice: 22.5,
         lastUnitPrice: 3.75,
         lastPriceReceipt: { receiptId: 7044, date: "2026-10-17", receiptNumber: "26100001" },
+        priceHistory: [
+          { receiptId: 7044, date: "2026-10-17", receiptNumber: "26100001", unitPrice: 3.75 },
+          { receiptId: 7032, date: "2026-10-10", receiptNumber: "26000099", unitPrice: 3.25 },
+        ],
         active: true,
       }],
     }],
@@ -291,6 +295,28 @@ describe("supplier order print view", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7044&nacin=ogled");
   });
 
+  it("shows recent confirmed prices and opens a historical receipt in read-only mode", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    const history = screen.getByTestId("price-history-7042");
+    fireEvent.click(within(history).getByText(/Zgodovina potrjenih cen/));
+
+    expect(history.textContent).toContain("3,25");
+    expect(history.textContent).toContain("10.");
+    const historicalReceipt = within(history).getByTestId("price-history-receipt-7042-7032");
+    expect(historicalReceipt.textContent).toContain("26000099");
+
+    fireEvent.click(historicalReceipt);
+    expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7032&nacin=ogled");
+  });
+
   it("compares supplier prices by base unit and omits prices with invalid or missing package factors", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;
@@ -308,6 +334,7 @@ describe("supplier order print view", () => {
           lastPackagePrice: 20,
           lastUnitPrice: 2.5,
           lastPriceReceipt: null,
+          priceHistory: [],
         },
         {
           ...existing,
@@ -319,6 +346,7 @@ describe("supplier order print view", () => {
           lastPackagePrice: 10,
           lastUnitPrice: null,
           lastPriceReceipt: null,
+          priceHistory: [],
         },
         {
           ...existing,
@@ -330,6 +358,7 @@ describe("supplier order print view", () => {
           lastPackagePrice: null,
           lastUnitPrice: null,
           lastPriceReceipt: null,
+          priceHistory: [],
         },
         {
           ...existing,
@@ -341,6 +370,7 @@ describe("supplier order print view", () => {
           lastPackagePrice: 16,
           lastUnitPrice: null,
           lastPriceReceipt: null,
+          priceHistory: [],
         },
       ],
     });

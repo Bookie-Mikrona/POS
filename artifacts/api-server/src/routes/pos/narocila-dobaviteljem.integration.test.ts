@@ -298,6 +298,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .find((row: any) => row.articleId === articleId).mappings
       .find((mapping: any) => mapping.id === mappingId);
     expect(mappingWithDraftReceipt.lastPriceReceipt).toBeNull();
+    expect(mappingWithDraftReceipt.priceHistory).toEqual([]);
     expect(mappingWithDraftReceipt).toMatchObject({
       packageFactor: 8,
       lastPackagePrice: 18,
@@ -623,6 +624,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
         receiptNumber: detail.body.stevilka as string,
         date: input.date,
         packagePrice: lineAmount,
+        unitPrice: input.unitPrice,
       };
     };
 
@@ -638,7 +640,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
         unitId: enotaId,
         articleId: articleA.id,
         supplierMappingId: mappingA.id,
-        unitPrice: 2,
+        unitPrice: 1.5,
         date: "2026-10-18",
       });
       expect(laterInsertedOlderSourceA.receiptId).toBeGreaterThan(sourceA.receiptId);
@@ -708,6 +710,12 @@ describe("POS supplier ordering and linked receipt flow", () => {
           date: sourceB.date,
           receiptNumber: sourceB.receiptNumber,
         },
+        priceHistory: [{
+          receiptId: sourceB.receiptId,
+          date: sourceB.date,
+          receiptNumber: sourceB.receiptNumber,
+          unitPrice: sourceB.unitPrice,
+        }],
       });
 
       context.enotaId = enotaId;
@@ -725,6 +733,20 @@ describe("POS supplier ordering and linked receipt flow", () => {
           date: sourceA.date,
           receiptNumber: sourceA.receiptNumber,
         },
+        priceHistory: [
+          {
+            receiptId: sourceA.receiptId,
+            date: sourceA.date,
+            receiptNumber: sourceA.receiptNumber,
+            unitPrice: sourceA.unitPrice,
+          },
+          {
+            receiptId: laterInsertedOlderSourceA.receiptId,
+            date: laterInsertedOlderSourceA.date,
+            receiptNumber: laterInsertedOlderSourceA.receiptNumber,
+            unitPrice: laterInsertedOlderSourceA.unitPrice,
+          },
+        ],
       });
     } finally {
       context.enotaId = enotaId;

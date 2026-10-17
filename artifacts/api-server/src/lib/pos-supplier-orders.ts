@@ -223,58 +223,102 @@ export type SupplierPriceReceiptSource = {
   receiptNumber: string;
 };
 
+export type SupplierPriceHistoryEntry = SupplierPriceReceiptSource & {
+  unitPrice: number;
+};
+
+export async function getSupplierPriceHistory(
+  tx: typeof db | any,
+  enotaId: number,
+  mappingIds: number[],
+  limit = 5,
+): Promise<Map<number, SupplierPriceHistoryEntry[]>> {
+  const scopedMappingIds = [...new Set(mappingIds)]
+    .filter(id => Number.isInteger(id) && id > 0);
+  if (scopedMappingIds.length === 0) return new Map();
+  const historyLimit = Math.min(20, Math.max(1, Math.trunc(limit) || 5));
+
+  const result = await tx.execute(sql`
+    WITH receipt_prices AS (
+      SELECT DISTINCT ON (order_line.supplier_mapping_id, receipt.id)
+        order_line.supplier_mapping_id AS "mappingId",
+        receipt.id AS "receiptId",
+        TO_CHAR(receipt.datum, 'YYYY-MM-DD') AS "date",
+        COALESCE(
+          NULLIF(BTRIM(receipt.stevilka), ''),
+          'ID-' || receipt.id::text
+        ) AS "receiptNumber",
+        receipt_line.neto_cena::double precision AS "unitPrice"
+      FROM prejemnice_postavke receipt_line
+      JOIN prejemnice receipt
+        ON receipt.id = receipt_line.prejemnica_id
+       AND receipt.enota_id = ${enotaId}
+      JOIN pos_supplier_order_lines order_line
+        ON order_line.id = receipt_line.supplier_order_line_id
+       AND order_line.enota_id = ${enotaId}
+      JOIN artikel_dobavitelj mapping
+        ON mapping.id = order_line.supplier_mapping_id
+       AND mapping.enota_id = ${enotaId}
+      WHERE order_line.supplier_mapping_id IN (
+        ${sql.join(scopedMappingIds.map(id => sql`${id}`), sql`, `)}
+      )
+        AND receipt.status = 'confirmed'
+        AND receipt_line.neto_cena IS NOT NULL
+        AND (
+          receipt_line.izv_cena IS NOT NULL
+          OR COALESCE(receipt_line.neto_znesek, 0) > 0
+          OR COALESCE(receipt_line.cena_kos, 0) > 0
+        )
+      ORDER BY order_line.supplier_mapping_id, receipt.id, receipt_line.id DESC
+    ),
+    ranked_receipts AS (
+      SELECT
+        receipt_prices.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY receipt_prices."mappingId"
+          ORDER BY receipt_prices."date" DESC, receipt_prices."receiptId" DESC
+        ) AS "historyPosition"
+      FROM receipt_prices
+    )
+    SELECT "mappingId", "receiptId", "date", "receiptNumber", "unitPrice"
+    FROM ranked_receipts
+    WHERE "historyPosition" <= ${historyLimit}
+    ORDER BY "mappingId", "date" DESC, "receiptId" DESC
+  `);
+  const history = new Map<number, SupplierPriceHistoryEntry[]>();
+  for (const row of result.rows as Array<{
+    mappingId: number | string;
+    receiptId: number | string;
+    date: string;
+    receiptNumber: string;
+    unitPrice: number | string;
+  }>) {
+    const mappingId = Number(row.mappingId);
+    const entries = history.get(mappingId) ?? [];
+    entries.push({
+      receiptId: Number(row.receiptId),
+      date: row.date,
+      receiptNumber: row.receiptNumber,
+      unitPrice: Number(row.unitPrice),
+    });
+    history.set(mappingId, entries);
+  }
+  return history;
+}
+
 export async function getLatestSupplierPriceReceipts(
   tx: typeof db | any,
   enotaId: number,
   mappingIds: number[],
 ): Promise<Map<number, SupplierPriceReceiptSource>> {
-  const scopedMappingIds = [...new Set(mappingIds)]
-    .filter(id => Number.isInteger(id) && id > 0);
-  if (scopedMappingIds.length === 0) return new Map();
-
-  const result = await tx.execute(sql`
-    SELECT DISTINCT ON (order_line.supplier_mapping_id)
-      order_line.supplier_mapping_id AS "mappingId",
-      receipt.id AS "receiptId",
-      TO_CHAR(receipt.datum, 'YYYY-MM-DD') AS "date",
-      COALESCE(
-        NULLIF(BTRIM(receipt.stevilka), ''),
-        'ID-' || receipt.id::text
-      ) AS "receiptNumber"
-    FROM prejemnice_postavke receipt_line
-    JOIN prejemnice receipt
-      ON receipt.id = receipt_line.prejemnica_id
-     AND receipt.enota_id = ${enotaId}
-    JOIN pos_supplier_order_lines order_line
-      ON order_line.id = receipt_line.supplier_order_line_id
-     AND order_line.enota_id = ${enotaId}
-    JOIN artikel_dobavitelj mapping
-      ON mapping.id = order_line.supplier_mapping_id
-     AND mapping.enota_id = ${enotaId}
-    WHERE order_line.supplier_mapping_id IN (
-      ${sql.join(scopedMappingIds.map(id => sql`${id}`), sql`, `)}
-    )
-      AND receipt.status = 'confirmed'
-      AND receipt_line.neto_cena IS NOT NULL
-      AND (
-        receipt_line.izv_cena IS NOT NULL
-        OR COALESCE(receipt_line.neto_znesek, 0) > 0
-        OR COALESCE(receipt_line.cena_kos, 0) > 0
-      )
-    ORDER BY
-      order_line.supplier_mapping_id,
-      receipt.datum DESC,
-      receipt.id DESC,
-      receipt_line.id DESC
-  `);
-  return new Map((result.rows as Array<{
-    mappingId: number | string;
-    receiptId: number | string;
-    date: string;
-    receiptNumber: string;
-  }>).map(row => [
-    Number(row.mappingId),
-    { receiptId: Number(row.receiptId), date: row.date, receiptNumber: row.receiptNumber },
+  const history = await getSupplierPriceHistory(tx, enotaId, mappingIds, 1);
+  return new Map([...history.entries()].map(([mappingId, [latest]]) => [
+    mappingId,
+    {
+      receiptId: latest.receiptId,
+      date: latest.date,
+      receiptNumber: latest.receiptNumber,
+    },
   ]));
 }
 
