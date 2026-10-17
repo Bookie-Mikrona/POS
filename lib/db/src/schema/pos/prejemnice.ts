@@ -5,6 +5,7 @@ import { enoteTable } from "./enote";
 import { artikliTable } from "./artikli";
 import { counterpartiesTable } from "../counterparties";
 import { purchaseSourceDocumentsTable } from "../purchase-source-documents";
+import { posSupplierOrderLinesTable } from "./narocila-dobaviteljem";
 import type { AlergenKoda, AlergenStatusPotrditve, AlergenVir } from "./artikli";
 
 export const prejemnicaVrstaDokumenta = pgEnum("prejemnica_vrsta_dokumenta", [
@@ -77,6 +78,10 @@ export const prejemniceTable = pgTable("prejemnice", {
 export const prejemnicePostavkeTable = pgTable("prejemnice_postavke", {
   id: serial("id").primaryKey(),
   prejemnicaId: integer("prejemnica_id").notNull().references(() => prejemniceTable.id, { onDelete: "cascade" }),
+  supplierOrderLineId: integer("supplier_order_line_id").references(
+    () => posSupplierOrderLinesTable.id,
+    { onDelete: "restrict" },
+  ),
   // artikel_id je NULL pri uvoznih osnutkih (DROP NOT NULL v migraciji 0009)
   artikelId: integer("artikel_id").references(() => artikliTable.id),
   kolicina: numeric("kolicina", { precision: 10, scale: 4 }).notNull().default("0"),

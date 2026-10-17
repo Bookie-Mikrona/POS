@@ -53,6 +53,7 @@ import dnevniMeniRouter from "./dnevni-meni";
 import modSkupineRouter from "./modifikatorske-skupine";
 import inventureRouter from "./inventure";
 import prejemniceRouter from "./prejemnice";
+import narocilaDobaviteljemRouter from "./narocila-dobaviteljem";
 import izdajniceRouter from "./izdajnice";
 import zacetneZalogeRouter from "./zacetne-zaloge";
 import zalogeRouter from "./zaloge";
@@ -402,6 +403,7 @@ export const protectedPosRouterMounts: ProtectedPosRouterMount[] = [
   { prefix: "", childRouter: modSkupineRouter },
   { prefix: "", childRouter: inventureRouter },
   { prefix: "", childRouter: prejemniceRouter },
+  { prefix: "", childRouter: narocilaDobaviteljemRouter },
   { prefix: "", childRouter: izdajniceRouter },
   { prefix: "", childRouter: zacetneZalogeRouter },
   { prefix: "", childRouter: zalogeRouter },

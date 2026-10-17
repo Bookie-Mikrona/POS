@@ -86,6 +86,7 @@ const KitchenPage = lazy(() => import("@/pages/Kitchen"));
 const IzmenePage = lazy(() => import("@/pages/Izmene"));
 const ObracunUrPage = lazy(() => import("@/pages/ObracunUr"));
 const ZalogePage = lazy(() => import("@/pages/Zaloge"));
+const NarocilaDobaviteljemPage = lazy(() => import("@/pages/NarocilaDobaviteljem"));
 const SimulacijaPage = lazy(() => import("@/pages/Simulacija"));
 const TestniZagoniPage = lazy(() => import("@/pages/TestniZagoni"));
 const PartnerjiPage = lazy(() => import("@/pages/Partnerji"));
@@ -170,6 +171,7 @@ const secondaryNav = [
   { href: "/kosila", label: "Kosila", icon: Utensils },
   { href: "/javna-stran", label: "Javna stran", icon: Globe2 },
   { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
+  { href: "/narocila-dobaviteljem", label: "Naročila dobaviteljem", icon: PackageOpen },
   { href: "/odstopanja", label: "Cen. odstopanja", icon: TrendingDown },
   { href: "/uvoz-cenik", label: "Uvoz cenika", icon: Tag },
   { href: "/statistike", label: "Statistike", icon: BarChart3 },
@@ -560,6 +562,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       { href: "/kosila", label: "Kosila" },
       { href: "/javna-stran", label: "Javna stran" },
       { href: "/zaloge", label: "Zaloge" },
+      { href: "/narocila-dobaviteljem", label: "Naročila dobaviteljem" },
       { href: "/odstopanja", label: "Cen. odstopanja" },
       { href: "/racuni", label: "Računi" },
       { href: "/statistike", label: "Statistike" },
@@ -641,6 +644,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     ...(isAdmin || isAdminEnote ? [{ href: "/javna-stran", label: "Javna stran", icon: Globe2 }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/qr-meni", label: "QR meni", icon: QrCode }] : []),
     { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
+    { href: "/narocila-dobaviteljem", label: "Naročila dobaviteljem", icon: PackageOpen },
     { href: "/statistike", label: "Statistike", icon: BarChart3 },
     ...(isAdmin || isAdminEnote ? [{ href: "/operativna-porocila", label: "Operativna poročila", icon: Activity }] : []),
     { href: "/realizacija", label: "Realizacija", icon: FileText },
@@ -1021,6 +1025,7 @@ export function PosPageRoutes() {
           <Route path="/izmene" component={IzmenePage} />
           <Route path="/obracun-ur" component={ObracunUrPage} />
           <Route path="/zaloge" component={ZalogePage} />
+          <Route path="/narocila-dobaviteljem" component={NarocilaDobaviteljemPage} />
           <Route path="/odstopanja" component={OdstopanjaPage} />
           <Route path="/uvoz-cenik" component={UvozCenikPage} />
           <Route path="/simulacija" component={SimulacijaPage} />

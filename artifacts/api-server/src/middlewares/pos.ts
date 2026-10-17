@@ -97,7 +97,7 @@ const CAPABILITY_PATHS: CapabilityPathRule[] = [
   prefixes("settings", "/nastavitve", "/poslovni-prostori", "/naprave", "/glasovni-sinonimi", "/partnerji", "/furs", "/bizbox-nastavitve", "/certifikat"),
   prefixes("bar", "/happy-hour"),
   prefixes("statistics", "/statistike"),
-  prefixes("inventory", "/zaloge", "/inventure", "/prejemnice", "/izdajnice", "/zacetne-zaloge", "/uvoz", "/embalaza"),
+  prefixes("inventory", "/zaloge", "/inventure", "/prejemnice", "/izdajnice", "/zacetne-zaloge", "/uvoz", "/embalaza", "/narocila-dobaviteljem"),
   prefixes("prepared_food", "/prepared-food"),
   prefixes("plate_waste", "/plate-waste"),
   prefixes(["kitchen", "bar"], "/kds"),

@@ -121,6 +121,7 @@ export const NAV_CAPABILITY_BY_PATH: Record<string, UnitCapability> = {
   "/odpadki-s-kroznikov": "plate_waste",
   "/meni": "menu",
   "/zaloge": "inventory",
+  "/narocila-dobaviteljem": "inventory",
   "/statistike": "statistics",
   "/operativna-porocila": "operational_reports",
   "/realizacija": "realization",

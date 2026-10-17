@@ -70,6 +70,8 @@ tags:
     description: Vodenje zalog vhodnih artiklov
   - name: prejemnice
     description: Prejemnice vhodnega blaga
+  - name: nabava
+    description: Naročila dobaviteljem in ponovno naročanje
   - name: inventure
     description: Inventurni popisi zalog
   - name: modifikatorji
@@ -5427,6 +5429,184 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ZalogaGibPogled"
+  /narocila-dobaviteljem/pregled:
+    get:
+      operationId: getSupplierOrderDashboard
+      tags: [nabava]
+      summary: Pregled zalog, dobaviteljskih povezav in predlogov za ponovno naročilo
+      responses:
+        "200":
+          description: Pregled nabave
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderDashboard"
+  /narocila-dobaviteljem/artikli/{artikelId}/nastavitve:
+    put:
+      operationId: saveSupplierReorderSettings
+      tags: [nabava]
+      summary: Shrani prag zaloge, ciljno zalogo in prednostno dobaviteljsko postavko
+      parameters:
+        - name: artikelId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierReorderSettingsInput"
+      responses:
+        "200":
+          description: Nastavitve so shranjene
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierReorderSettings"
+        "400": { description: Neveljavne nastavitve ali neveljavna dobaviteljska povezava }
+  /narocila-dobaviteljem:
+    get:
+      operationId: listSupplierOrders
+      tags: [nabava]
+      summary: Seznam naročil dobaviteljem
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/SupplierOrderStatus"
+      responses:
+        "200":
+          description: Seznam naročil
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupplierOrderSummary"
+    post:
+      operationId: createSupplierOrder
+      tags: [nabava]
+      summary: Ustvari osnutek naročila dobavitelju
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierOrderInput"
+      responses:
+        "201":
+          description: Osnutek naročila je ustvarjen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderDetail"
+        "400": { description: Neveljavne postavke naročila }
+  /narocila-dobaviteljem/{id}:
+    get:
+      operationId: getSupplierOrder
+      tags: [nabava]
+      summary: Podrobnosti naročila dobavitelju
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Naročilo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderDetail"
+        "404": { description: Naročilo ni najdeno }
+    put:
+      operationId: updateSupplierOrder
+      tags: [nabava]
+      summary: Posodobi osnutek naročila
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierOrderInput"
+      responses:
+        "200":
+          description: Naročilo je posodobljeno
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderDetail"
+        "409": { description: Naročila v tem stanju ni več mogoče urejati }
+  /narocila-dobaviteljem/{id}/send:
+    post:
+      operationId: markSupplierOrderSent
+      tags: [nabava]
+      summary: Označi naročilo kot poslano dobavitelju
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Naročilo je poslano
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderDetail"
+        "409": { description: Neveljaven prehod stanja }
+  /narocila-dobaviteljem/{id}/close:
+    post:
+      operationId: closeSupplierOrder
+      tags: [nabava]
+      summary: Zapre naročilo in zabeleži nedobavljeno količino
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 500 }
+      responses:
+        "200":
+          description: Naročilo je zaprto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderDetail"
+        "409": { description: Naročila z odprto prejemnico ni mogoče zapreti }
+  /narocila-dobaviteljem/{id}/cancel:
+    post:
+      operationId: cancelSupplierOrder
+      tags: [nabava]
+      summary: Prekliče naročilo brez potrjenih prevzemov
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Naročilo je preklicano
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderDetail"
+        "409": { description: Naročila s potrjenimi prevzemi ni mogoče preklicati }
   /prejemnice:
     get:
       operationId: listPrejemnice
@@ -18934,6 +19114,9 @@ components:
           type: integer
         artikelId:
           type: integer
+        supplierOrderLineId:
+          type: [integer, "null"]
+          description: Povezana postavka naročila dobavitelju, če je prejemnica nastala iz naročila
         artikelIme:
           type: string
         tip:
@@ -19248,6 +19431,164 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PrejemnicaOdvisniStrosek"
+    SupplierOrderStatus:
+      type: string
+      enum: [draft, sent, partially_received, received, closed, cancelled]
+    SupplierItemMapping:
+      type: object
+      required: [id, supplierId, supplierName, packageFactor, active]
+      properties:
+        id: { type: integer }
+        supplierId: { type: string }
+        supplierName: { type: string }
+        supplierItemName: { type: [string, "null"] }
+        supplierCode: { type: [string, "null"] }
+        packageName: { type: [string, "null"] }
+        packageFactor: { type: number }
+        lastPackagePrice: { type: [number, "null"] }
+        active: { type: boolean }
+    SupplierReorderArticle:
+      type: object
+      required:
+        - articleId
+        - articleName
+        - baseUnit
+        - onHand
+        - openOrderQuantity
+        - hasSuggestion
+        - mappings
+      properties:
+        articleId: { type: integer }
+        articleName: { type: string }
+        purchaseName: { type: [string, "null"] }
+        baseUnit: { type: [string, "null"] }
+        onHand: { type: number }
+        reorderPoint: { type: [number, "null"] }
+        targetStock: { type: [number, "null"] }
+        openOrderQuantity: { type: number }
+        suggestedBaseQuantity: { type: [number, "null"] }
+        suggestedPackageQuantity: { type: [number, "null"] }
+        preferredMappingId: { type: [integer, "null"] }
+        hasSuggestion: { type: boolean }
+        mappings:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierItemMapping" }
+    SupplierOrderDashboard:
+      type: object
+      required: [articles, orders]
+      properties:
+        articles:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierReorderArticle" }
+        orders:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOrderSummary" }
+    SupplierReorderSettingsInput:
+      type: object
+      required: [reorderPoint, targetStock, preferredMappingId]
+      properties:
+        reorderPoint: { type: number, minimum: 0 }
+        targetStock: { type: number, exclusiveMinimum: 0 }
+        preferredMappingId: { type: [integer, "null"] }
+    SupplierReorderSettings:
+      type: object
+      required: [articleId, reorderPoint, targetStock, preferredMappingId]
+      properties:
+        articleId: { type: integer }
+        reorderPoint: { type: number }
+        targetStock: { type: number }
+        preferredMappingId: { type: [integer, "null"] }
+    SupplierOrderLineInput:
+      type: object
+      required: [supplierMappingId, packageQuantity]
+      properties:
+        supplierMappingId: { type: integer }
+        packageQuantity: { type: number, exclusiveMinimum: 0 }
+        unitPrice: { type: [number, "null"], minimum: 0 }
+    SupplierOrderInput:
+      type: object
+      required: [supplierId, lines]
+      properties:
+        supplierId: { type: string }
+        expectedDeliveryDate: { type: [string, "null"], format: date }
+        notes: { type: [string, "null"], maxLength: 2000 }
+        lines:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/SupplierOrderLineInput" }
+    SupplierOrderSummary:
+      type: object
+      required: [id, number, supplierId, supplierName, status, createdAt, lineCount, openQuantity]
+      properties:
+        id: { type: integer }
+        number: { type: string }
+        supplierId: { type: string }
+        supplierName: { type: string }
+        status: { $ref: "#/components/schemas/SupplierOrderStatus" }
+        createdAt: { type: string, format: date-time }
+        expectedDeliveryDate: { type: [string, "null"], format: date }
+        lineCount: { type: integer }
+        openQuantity: { type: number }
+        notes: { type: [string, "null"] }
+    SupplierOrderLine:
+      type: object
+      required:
+        - id
+        - supplierMappingId
+        - articleId
+        - articleName
+        - supplierItemName
+        - packageQuantity
+        - packageFactor
+        - packageName
+        - baseUnit
+        - orderedBaseQuantity
+        - receivedBaseQuantity
+        - openBaseQuantity
+        - unitPrice
+      properties:
+        id: { type: integer }
+        supplierMappingId: { type: integer }
+        articleId: { type: integer }
+        articleName: { type: string }
+        supplierItemName: { type: [string, "null"] }
+        supplierCode: { type: [string, "null"] }
+        packageQuantity: { type: number }
+        packageFactor: { type: number }
+        packageName: { type: [string, "null"] }
+        baseUnit: { type: [string, "null"] }
+        orderedBaseQuantity: { type: number }
+        receivedBaseQuantity: { type: number }
+        openBaseQuantity: { type: number }
+        unitPrice: { type: [number, "null"] }
+    SupplierOrderDetail:
+      type: object
+      required:
+        - id
+        - number
+        - supplierId
+        - supplierName
+        - status
+        - createdAt
+        - lineCount
+        - openQuantity
+        - lines
+      properties:
+        id: { type: integer }
+        number: { type: string }
+        supplierId: { type: string }
+        supplierName: { type: string }
+        status: { $ref: "#/components/schemas/SupplierOrderStatus" }
+        createdAt: { type: string, format: date-time }
+        expectedDeliveryDate: { type: [string, "null"], format: date }
+        sentAt: { type: [string, "null"], format: date-time }
+        lineCount: { type: integer }
+        openQuantity: { type: number }
+        notes: { type: [string, "null"] }
+        closedReason: { type: [string, "null"] }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOrderLine" }
     PrejemnicaPostavkaInput:
       type: object
       required:
@@ -19256,6 +19597,9 @@ components:
       properties:
         artikelId:
           type: integer
+        supplierOrderLineId:
+          type: [integer, "null"]
+          description: Povezava s postavko naročila dobavitelju za sledenje prevzemov
         alergeni:
           type: array
           items: { $ref: "#/components/schemas/AlergenKoda" }

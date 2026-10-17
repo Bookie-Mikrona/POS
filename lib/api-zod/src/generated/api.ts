@@ -10655,6 +10655,7 @@ export const GetKarticaArtiklaResponse = zod.object({
   "gibi": zod.array(zod.object({
   "id": zod.number(),
   "artikelId": zod.number(),
+  "supplierOrderLineId": zod.number().nullish().describe('Povezana postavka naročila dobavitelju, če je prejemnica nastala iz naročila'),
   "artikelIme": zod.string(),
   "tip": zod.enum(['prejemnica', 'inventura', 'poraba', 'izdajnica']),
   "kolicina": zod.number(),
@@ -10692,6 +10693,7 @@ export const ListZalogaGibiQueryParams = zod.object({
 export const ListZalogaGibiResponseItem = zod.object({
   "id": zod.number(),
   "artikelId": zod.number(),
+  "supplierOrderLineId": zod.number().nullish().describe('Povezana postavka naročila dobavitelju, če je prejemnica nastala iz naročila'),
   "artikelIme": zod.string(),
   "tip": zod.enum(['prejemnica', 'inventura', 'poraba', 'izdajnica']),
   "kolicina": zod.number(),
@@ -10709,6 +10711,378 @@ export const ListZalogaGibiResponseItem = zod.object({
   "izdStevilka": zod.string().nullish().describe('Številka izdajnice (denormalizirano)')
 })
 export const ListZalogaGibiResponse = zod.array(ListZalogaGibiResponseItem)
+
+
+/**
+ * @summary Pregled zalog, dobaviteljskih povezav in predlogov za ponovno naročilo
+ */
+export const GetSupplierOrderDashboardResponse = zod.object({
+  "articles": zod.array(zod.object({
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "purchaseName": zod.string().nullish(),
+  "baseUnit": zod.string().nullable(),
+  "onHand": zod.number(),
+  "reorderPoint": zod.number().nullish(),
+  "targetStock": zod.number().nullish(),
+  "openOrderQuantity": zod.number(),
+  "suggestedBaseQuantity": zod.number().nullish(),
+  "suggestedPackageQuantity": zod.number().nullish(),
+  "preferredMappingId": zod.number().nullish(),
+  "hasSuggestion": zod.boolean(),
+  "mappings": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "supplierItemName": zod.string().nullish(),
+  "supplierCode": zod.string().nullish(),
+  "packageName": zod.string().nullish(),
+  "packageFactor": zod.number(),
+  "lastPackagePrice": zod.number().nullish(),
+  "active": zod.boolean()
+}))
+})),
+  "orders": zod.array(zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "notes": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Shrani prag zaloge, ciljno zalogo in prednostno dobaviteljsko postavko
+ */
+export const SaveSupplierReorderSettingsParams = zod.object({
+  "artikelId": zod.coerce.number()
+})
+
+export const saveSupplierReorderSettingsBodyReorderPointMin = 0;
+
+export const saveSupplierReorderSettingsBodyTargetStockExclusiveMin = 0;
+
+
+
+export const SaveSupplierReorderSettingsBody = zod.object({
+  "reorderPoint": zod.number().min(saveSupplierReorderSettingsBodyReorderPointMin),
+  "targetStock": zod.number().gt(saveSupplierReorderSettingsBodyTargetStockExclusiveMin),
+  "preferredMappingId": zod.number().nullable()
+})
+
+export const SaveSupplierReorderSettingsResponse = zod.object({
+  "articleId": zod.number(),
+  "reorderPoint": zod.number(),
+  "targetStock": zod.number(),
+  "preferredMappingId": zod.number().nullable()
+})
+
+
+/**
+ * @summary Seznam naročil dobaviteljem
+ */
+export const ListSupplierOrdersQueryParams = zod.object({
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']).optional()
+})
+
+export const ListSupplierOrdersResponseItem = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "notes": zod.string().nullish()
+})
+export const ListSupplierOrdersResponse = zod.array(ListSupplierOrdersResponseItem)
+
+
+/**
+ * @summary Ustvari osnutek naročila dobavitelju
+ */
+export const createSupplierOrderBodyNotesMax = 2000;
+
+export const createSupplierOrderBodyLinesItemPackageQuantityExclusiveMin = 0;
+
+export const createSupplierOrderBodyLinesItemUnitPriceMin = 0;
+
+
+
+
+export const CreateSupplierOrderBody = zod.object({
+  "supplierId": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "notes": zod.string().max(createSupplierOrderBodyNotesMax).nullish(),
+  "lines": zod.array(zod.object({
+  "supplierMappingId": zod.number(),
+  "packageQuantity": zod.number().gt(createSupplierOrderBodyLinesItemPackageQuantityExclusiveMin),
+  "unitPrice": zod.number().min(createSupplierOrderBodyLinesItemUnitPriceMin).nullish()
+})).min(1)
+})
+
+export const CreateSupplierOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "notes": zod.string().nullish(),
+  "closedReason": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierMappingId": zod.number(),
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "supplierItemName": zod.string().nullable(),
+  "supplierCode": zod.string().nullish(),
+  "packageQuantity": zod.number(),
+  "packageFactor": zod.number(),
+  "packageName": zod.string().nullable(),
+  "baseUnit": zod.string().nullable(),
+  "orderedBaseQuantity": zod.number(),
+  "receivedBaseQuantity": zod.number(),
+  "openBaseQuantity": zod.number(),
+  "unitPrice": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Podrobnosti naročila dobavitelju
+ */
+export const GetSupplierOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSupplierOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "notes": zod.string().nullish(),
+  "closedReason": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierMappingId": zod.number(),
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "supplierItemName": zod.string().nullable(),
+  "supplierCode": zod.string().nullish(),
+  "packageQuantity": zod.number(),
+  "packageFactor": zod.number(),
+  "packageName": zod.string().nullable(),
+  "baseUnit": zod.string().nullable(),
+  "orderedBaseQuantity": zod.number(),
+  "receivedBaseQuantity": zod.number(),
+  "openBaseQuantity": zod.number(),
+  "unitPrice": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Posodobi osnutek naročila
+ */
+export const UpdateSupplierOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateSupplierOrderBodyNotesMax = 2000;
+
+export const updateSupplierOrderBodyLinesItemPackageQuantityExclusiveMin = 0;
+
+export const updateSupplierOrderBodyLinesItemUnitPriceMin = 0;
+
+
+
+
+export const UpdateSupplierOrderBody = zod.object({
+  "supplierId": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "notes": zod.string().max(updateSupplierOrderBodyNotesMax).nullish(),
+  "lines": zod.array(zod.object({
+  "supplierMappingId": zod.number(),
+  "packageQuantity": zod.number().gt(updateSupplierOrderBodyLinesItemPackageQuantityExclusiveMin),
+  "unitPrice": zod.number().min(updateSupplierOrderBodyLinesItemUnitPriceMin).nullish()
+})).min(1)
+})
+
+export const UpdateSupplierOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "notes": zod.string().nullish(),
+  "closedReason": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierMappingId": zod.number(),
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "supplierItemName": zod.string().nullable(),
+  "supplierCode": zod.string().nullish(),
+  "packageQuantity": zod.number(),
+  "packageFactor": zod.number(),
+  "packageName": zod.string().nullable(),
+  "baseUnit": zod.string().nullable(),
+  "orderedBaseQuantity": zod.number(),
+  "receivedBaseQuantity": zod.number(),
+  "openBaseQuantity": zod.number(),
+  "unitPrice": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Označi naročilo kot poslano dobavitelju
+ */
+export const MarkSupplierOrderSentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MarkSupplierOrderSentResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "notes": zod.string().nullish(),
+  "closedReason": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierMappingId": zod.number(),
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "supplierItemName": zod.string().nullable(),
+  "supplierCode": zod.string().nullish(),
+  "packageQuantity": zod.number(),
+  "packageFactor": zod.number(),
+  "packageName": zod.string().nullable(),
+  "baseUnit": zod.string().nullable(),
+  "orderedBaseQuantity": zod.number(),
+  "receivedBaseQuantity": zod.number(),
+  "openBaseQuantity": zod.number(),
+  "unitPrice": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Zapre naročilo in zabeleži nedobavljeno količino
+ */
+export const CloseSupplierOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const closeSupplierOrderBodyReasonMin = 3;
+export const closeSupplierOrderBodyReasonMax = 500;
+
+
+
+export const CloseSupplierOrderBody = zod.object({
+  "reason": zod.string().min(closeSupplierOrderBodyReasonMin).max(closeSupplierOrderBodyReasonMax)
+})
+
+export const CloseSupplierOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "notes": zod.string().nullish(),
+  "closedReason": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierMappingId": zod.number(),
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "supplierItemName": zod.string().nullable(),
+  "supplierCode": zod.string().nullish(),
+  "packageQuantity": zod.number(),
+  "packageFactor": zod.number(),
+  "packageName": zod.string().nullable(),
+  "baseUnit": zod.string().nullable(),
+  "orderedBaseQuantity": zod.number(),
+  "receivedBaseQuantity": zod.number(),
+  "openBaseQuantity": zod.number(),
+  "unitPrice": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Prekliče naročilo brez potrjenih prevzemov
+ */
+export const CancelSupplierOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CancelSupplierOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "notes": zod.string().nullish(),
+  "closedReason": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierMappingId": zod.number(),
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "supplierItemName": zod.string().nullable(),
+  "supplierCode": zod.string().nullish(),
+  "packageQuantity": zod.number(),
+  "packageFactor": zod.number(),
+  "packageName": zod.string().nullable(),
+  "baseUnit": zod.string().nullable(),
+  "orderedBaseQuantity": zod.number(),
+  "receivedBaseQuantity": zod.number(),
+  "openBaseQuantity": zod.number(),
+  "unitPrice": zod.number().nullable()
+}))
+})
 
 
 /**
@@ -10762,6 +11136,7 @@ export const CreatePrejemnicaBody = zod.object({
 })).optional(),
   "postavke": zod.array(zod.object({
   "artikelId": zod.number(),
+  "supplierOrderLineId": zod.number().nullish().describe('Povezava s postavko naročila dobavitelju za sledenje prevzemov'),
   "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniStatus": zod.enum(['nepreverjeno', 'potrjeno_brez', 'potrjeno']).optional(),
@@ -10991,6 +11366,7 @@ export const UpdatePrejemnicaBody = zod.object({
 })).optional(),
   "postavke": zod.array(zod.object({
   "artikelId": zod.number(),
+  "supplierOrderLineId": zod.number().nullish().describe('Povezava s postavko naročila dobavitelju za sledenje prevzemov'),
   "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])).optional(),
   "alergeniStatus": zod.enum(['nepreverjeno', 'potrjeno_brez', 'potrjeno']).optional(),

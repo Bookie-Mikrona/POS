@@ -7645,6 +7645,11 @@ export const ZalogaGibPogledTip = {
 export interface ZalogaGibPogled {
   id: number;
   artikelId: number;
+  /**
+     * Povezana postavka naročila dobavitelju, če je prejemnica nastala iz naročila
+     * @nullable
+     */
+  supplierOrderLineId?: number | null;
   artikelIme: string;
   tip: ZalogaGibPogledTip;
   kolicina: number;
@@ -7788,6 +7793,11 @@ export const PrejemnicaPostavkaInputVrsticaTip = {
 
 export interface PrejemnicaPostavkaInput {
   artikelId: number;
+  /**
+     * Povezava s postavko naročila dobavitelju za sledenje prevzemov
+     * @nullable
+     */
+  supplierOrderLineId?: number | null;
   alergeni?: AlergenKoda[];
   alergeniSledi?: AlergenKoda[];
   alergeniStatus?: AlergenStatus;
@@ -8070,6 +8080,160 @@ export interface PrejemnicaFull {
   ustvarjeno: string;
   postavke: PrejemnicaPostavkaPogled[];
   odvisniStroski?: PrejemnicaOdvisniStrosek[];
+}
+
+export type SupplierOrderStatus = typeof SupplierOrderStatus[keyof typeof SupplierOrderStatus];
+
+
+export const SupplierOrderStatus = {
+  draft: 'draft',
+  sent: 'sent',
+  partially_received: 'partially_received',
+  received: 'received',
+  closed: 'closed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface SupplierItemMapping {
+  id: number;
+  supplierId: string;
+  supplierName: string;
+  /** @nullable */
+  supplierItemName?: string | null;
+  /** @nullable */
+  supplierCode?: string | null;
+  /** @nullable */
+  packageName?: string | null;
+  packageFactor: number;
+  /** @nullable */
+  lastPackagePrice?: number | null;
+  active: boolean;
+}
+
+export interface SupplierReorderArticle {
+  articleId: number;
+  articleName: string;
+  /** @nullable */
+  purchaseName?: string | null;
+  /** @nullable */
+  baseUnit: string | null;
+  onHand: number;
+  /** @nullable */
+  reorderPoint?: number | null;
+  /** @nullable */
+  targetStock?: number | null;
+  openOrderQuantity: number;
+  /** @nullable */
+  suggestedBaseQuantity?: number | null;
+  /** @nullable */
+  suggestedPackageQuantity?: number | null;
+  /** @nullable */
+  preferredMappingId?: number | null;
+  hasSuggestion: boolean;
+  mappings: SupplierItemMapping[];
+}
+
+export interface SupplierOrderSummary {
+  id: number;
+  number: string;
+  supplierId: string;
+  supplierName: string;
+  status: SupplierOrderStatus;
+  createdAt: string;
+  /** @nullable */
+  expectedDeliveryDate?: string | null;
+  lineCount: number;
+  openQuantity: number;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface SupplierOrderDashboard {
+  articles: SupplierReorderArticle[];
+  orders: SupplierOrderSummary[];
+}
+
+export interface SupplierReorderSettingsInput {
+  /** @minimum 0 */
+  reorderPoint: number;
+  /** @exclusiveMinimum 0 */
+  targetStock: number;
+  /** @nullable */
+  preferredMappingId: number | null;
+}
+
+export interface SupplierReorderSettings {
+  articleId: number;
+  reorderPoint: number;
+  targetStock: number;
+  /** @nullable */
+  preferredMappingId: number | null;
+}
+
+export interface SupplierOrderLineInput {
+  supplierMappingId: number;
+  /** @exclusiveMinimum 0 */
+  packageQuantity: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  unitPrice?: number | null;
+}
+
+export interface SupplierOrderInput {
+  supplierId: string;
+  /** @nullable */
+  expectedDeliveryDate?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  notes?: string | null;
+  /** @minItems 1 */
+  lines: SupplierOrderLineInput[];
+}
+
+export interface SupplierOrderLine {
+  id: number;
+  supplierMappingId: number;
+  articleId: number;
+  articleName: string;
+  /** @nullable */
+  supplierItemName: string | null;
+  /** @nullable */
+  supplierCode?: string | null;
+  packageQuantity: number;
+  packageFactor: number;
+  /** @nullable */
+  packageName: string | null;
+  /** @nullable */
+  baseUnit: string | null;
+  orderedBaseQuantity: number;
+  receivedBaseQuantity: number;
+  openBaseQuantity: number;
+  /** @nullable */
+  unitPrice: number | null;
+}
+
+export interface SupplierOrderDetail {
+  id: number;
+  number: string;
+  supplierId: string;
+  supplierName: string;
+  status: SupplierOrderStatus;
+  createdAt: string;
+  /** @nullable */
+  expectedDeliveryDate?: string | null;
+  /** @nullable */
+  sentAt?: string | null;
+  lineCount: number;
+  openQuantity: number;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  closedReason?: string | null;
+  lines: SupplierOrderLine[];
 }
 
 export type PrejemnicaInputVrstaCen = typeof PrejemnicaInputVrstaCen[keyof typeof PrejemnicaInputVrstaCen];
@@ -13860,6 +14024,18 @@ datumDo?: string;
 
 export type ListZalogaGibiParams = {
 artikelId?: number;
+};
+
+export type ListSupplierOrdersParams = {
+status?: SupplierOrderStatus;
+};
+
+export type CloseSupplierOrderBody = {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
 };
 
 export type MatchImportedReceiptLine200 = {

@@ -63,6 +63,7 @@ import type {
   CardPaymentAttemptRecovery,
   CheckZacetnaZalogaLeto200,
   CloseMalicaContractBody,
+  CloseSupplierOrderBody,
   CompanyWithRole,
   ConfirmCreditNotePackagingBody,
   ConfirmDocumentBody,
@@ -285,6 +286,7 @@ import type {
   ListRacuniParams,
   ListRazpolozljiveMizeParams,
   ListRezervacijeParams,
+  ListSupplierOrdersParams,
   ListTestniZagoniParams,
   ListTipsLedgerParams,
   ListVatCodesParams,
@@ -493,6 +495,12 @@ import type {
   SumupPayBody,
   SumupPayOdgovor,
   SumupStatusOdgovor,
+  SupplierOrderDashboard,
+  SupplierOrderDetail,
+  SupplierOrderInput,
+  SupplierOrderSummary,
+  SupplierReorderSettings,
+  SupplierReorderSettingsInput,
   TerminalPlaciloOdgovor,
   TerminalPlaciloPovprasevanje,
   TerminalTestOdgovor,
@@ -19902,6 +19910,673 @@ export function useListZalogaGibi<TData = Awaited<ReturnType<typeof listZalogaGi
 
 
 
+
+export const getGetSupplierOrderDashboardUrl = () => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/pregled`
+}
+
+/**
+ * @summary Pregled zalog, dobaviteljskih povezav in predlogov za ponovno naročilo
+ */
+export const getSupplierOrderDashboard = async ( options?: RequestInit): Promise<SupplierOrderDashboard> => {
+
+  return customFetch<SupplierOrderDashboard>(getGetSupplierOrderDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierOrderDashboardQueryKey = () => {
+    return [
+    `/api/narocila-dobaviteljem/pregled`
+    ] as const;
+    }
+
+
+export const getGetSupplierOrderDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getSupplierOrderDashboard>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrderDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierOrderDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplierOrderDashboard>>> = ({ signal }) => getSupplierOrderDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrderDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSupplierOrderDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplierOrderDashboard>>>
+export type GetSupplierOrderDashboardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Pregled zalog, dobaviteljskih povezav in predlogov za ponovno naročilo
+ */
+
+export function useGetSupplierOrderDashboard<TData = Awaited<ReturnType<typeof getSupplierOrderDashboard>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrderDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSupplierOrderDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveSupplierReorderSettingsUrl = (artikelId: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/artikli/${artikelId}/nastavitve`
+}
+
+/**
+ * @summary Shrani prag zaloge, ciljno zalogo in prednostno dobaviteljsko postavko
+ */
+export const saveSupplierReorderSettings = async (artikelId: number,
+    supplierReorderSettingsInput: SupplierReorderSettingsInput, options?: RequestInit): Promise<SupplierReorderSettings> => {
+
+  return customFetch<SupplierReorderSettings>(getSaveSupplierReorderSettingsUrl(artikelId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierReorderSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getSaveSupplierReorderSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSupplierReorderSettings>>, TError,{artikelId: number;data: BodyType<SupplierReorderSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSupplierReorderSettings>>, TError,{artikelId: number;data: BodyType<SupplierReorderSettingsInput>}, TContext> => {
+
+const mutationKey = ['saveSupplierReorderSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSupplierReorderSettings>>, {artikelId: number;data: BodyType<SupplierReorderSettingsInput>}> = (props) => {
+          const {artikelId,data} = props ?? {};
+
+          return  saveSupplierReorderSettings(artikelId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSupplierReorderSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof saveSupplierReorderSettings>>>
+    export type SaveSupplierReorderSettingsMutationBody = BodyType<SupplierReorderSettingsInput>
+    export type SaveSupplierReorderSettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Shrani prag zaloge, ciljno zalogo in prednostno dobaviteljsko postavko
+ */
+export const useSaveSupplierReorderSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSupplierReorderSettings>>, TError,{artikelId: number;data: BodyType<SupplierReorderSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveSupplierReorderSettings>>,
+        TError,
+        {artikelId: number;data: BodyType<SupplierReorderSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getSaveSupplierReorderSettingsMutationOptions(options));
+    }
+
+export const getListSupplierOrdersUrl = (params?: ListSupplierOrdersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/narocila-dobaviteljem?${stringifiedParams}` : `/api/narocila-dobaviteljem`
+}
+
+/**
+ * @summary Seznam naročil dobaviteljem
+ */
+export const listSupplierOrders = async (params?: ListSupplierOrdersParams, options?: RequestInit): Promise<SupplierOrderSummary[]> => {
+
+  return customFetch<SupplierOrderSummary[]>(getListSupplierOrdersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupplierOrdersQueryKey = (params?: ListSupplierOrdersParams,) => {
+    return [
+    `/api/narocila-dobaviteljem`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSupplierOrdersQueryOptions = <TData = Awaited<ReturnType<typeof listSupplierOrders>>, TError = ErrorType<unknown>>(params?: ListSupplierOrdersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupplierOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupplierOrdersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupplierOrders>>> = ({ signal }) => listSupplierOrders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupplierOrders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSupplierOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof listSupplierOrders>>>
+export type ListSupplierOrdersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Seznam naročil dobaviteljem
+ */
+
+export function useListSupplierOrders<TData = Awaited<ReturnType<typeof listSupplierOrders>>, TError = ErrorType<unknown>>(
+ params?: ListSupplierOrdersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupplierOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSupplierOrdersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSupplierOrderUrl = () => {
+
+
+
+
+  return `/api/narocila-dobaviteljem`
+}
+
+/**
+ * @summary Ustvari osnutek naročila dobavitelju
+ */
+export const createSupplierOrder = async (supplierOrderInput: SupplierOrderInput, options?: RequestInit): Promise<SupplierOrderDetail> => {
+
+  return customFetch<SupplierOrderDetail>(getCreateSupplierOrderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierOrderInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSupplierOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupplierOrder>>, TError,{data: BodyType<SupplierOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSupplierOrder>>, TError,{data: BodyType<SupplierOrderInput>}, TContext> => {
+
+const mutationKey = ['createSupplierOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSupplierOrder>>, {data: BodyType<SupplierOrderInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSupplierOrder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSupplierOrderMutationResult = NonNullable<Awaited<ReturnType<typeof createSupplierOrder>>>
+    export type CreateSupplierOrderMutationBody = BodyType<SupplierOrderInput>
+    export type CreateSupplierOrderMutationError = ErrorType<void>
+
+    /**
+ * @summary Ustvari osnutek naročila dobavitelju
+ */
+export const useCreateSupplierOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupplierOrder>>, TError,{data: BodyType<SupplierOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSupplierOrder>>,
+        TError,
+        {data: BodyType<SupplierOrderInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSupplierOrderMutationOptions(options));
+    }
+
+export const getGetSupplierOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/${id}`
+}
+
+/**
+ * @summary Podrobnosti naročila dobavitelju
+ */
+export const getSupplierOrder = async (id: number, options?: RequestInit): Promise<SupplierOrderDetail> => {
+
+  return customFetch<SupplierOrderDetail>(getGetSupplierOrderUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierOrderQueryKey = (id: number,) => {
+    return [
+    `/api/narocila-dobaviteljem/${id}`
+    ] as const;
+    }
+
+
+export const getGetSupplierOrderQueryOptions = <TData = Awaited<ReturnType<typeof getSupplierOrder>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierOrderQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplierOrder>>> = ({ signal }) => getSupplierOrder(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrder>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSupplierOrderQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplierOrder>>>
+export type GetSupplierOrderQueryError = ErrorType<void>
+
+
+/**
+ * @summary Podrobnosti naročila dobavitelju
+ */
+
+export function useGetSupplierOrder<TData = Awaited<ReturnType<typeof getSupplierOrder>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSupplierOrderQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSupplierOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/${id}`
+}
+
+/**
+ * @summary Posodobi osnutek naročila
+ */
+export const updateSupplierOrder = async (id: number,
+    supplierOrderInput: SupplierOrderInput, options?: RequestInit): Promise<SupplierOrderDetail> => {
+
+  return customFetch<SupplierOrderDetail>(getUpdateSupplierOrderUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierOrderInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateSupplierOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupplierOrder>>, TError,{id: number;data: BodyType<SupplierOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSupplierOrder>>, TError,{id: number;data: BodyType<SupplierOrderInput>}, TContext> => {
+
+const mutationKey = ['updateSupplierOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSupplierOrder>>, {id: number;data: BodyType<SupplierOrderInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSupplierOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSupplierOrderMutationResult = NonNullable<Awaited<ReturnType<typeof updateSupplierOrder>>>
+    export type UpdateSupplierOrderMutationBody = BodyType<SupplierOrderInput>
+    export type UpdateSupplierOrderMutationError = ErrorType<void>
+
+    /**
+ * @summary Posodobi osnutek naročila
+ */
+export const useUpdateSupplierOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupplierOrder>>, TError,{id: number;data: BodyType<SupplierOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSupplierOrder>>,
+        TError,
+        {id: number;data: BodyType<SupplierOrderInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSupplierOrderMutationOptions(options));
+    }
+
+export const getMarkSupplierOrderSentUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/${id}/send`
+}
+
+/**
+ * @summary Označi naročilo kot poslano dobavitelju
+ */
+export const markSupplierOrderSent = async (id: number, options?: RequestInit): Promise<SupplierOrderDetail> => {
+
+  return customFetch<SupplierOrderDetail>(getMarkSupplierOrderSentUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkSupplierOrderSentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markSupplierOrderSent>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markSupplierOrderSent>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['markSupplierOrderSent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markSupplierOrderSent>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  markSupplierOrderSent(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkSupplierOrderSentMutationResult = NonNullable<Awaited<ReturnType<typeof markSupplierOrderSent>>>
+
+    export type MarkSupplierOrderSentMutationError = ErrorType<void>
+
+    /**
+ * @summary Označi naročilo kot poslano dobavitelju
+ */
+export const useMarkSupplierOrderSent = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markSupplierOrderSent>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markSupplierOrderSent>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getMarkSupplierOrderSentMutationOptions(options));
+    }
+
+export const getCloseSupplierOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/${id}/close`
+}
+
+/**
+ * @summary Zapre naročilo in zabeleži nedobavljeno količino
+ */
+export const closeSupplierOrder = async (id: number,
+    closeSupplierOrderBody: CloseSupplierOrderBody, options?: RequestInit): Promise<SupplierOrderDetail> => {
+
+  return customFetch<SupplierOrderDetail>(getCloseSupplierOrderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(closeSupplierOrderBody)
+  }
+);}
+
+
+
+
+
+export const getCloseSupplierOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeSupplierOrder>>, TError,{id: number;data: BodyType<CloseSupplierOrderBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeSupplierOrder>>, TError,{id: number;data: BodyType<CloseSupplierOrderBody>}, TContext> => {
+
+const mutationKey = ['closeSupplierOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeSupplierOrder>>, {id: number;data: BodyType<CloseSupplierOrderBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  closeSupplierOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseSupplierOrderMutationResult = NonNullable<Awaited<ReturnType<typeof closeSupplierOrder>>>
+    export type CloseSupplierOrderMutationBody = BodyType<CloseSupplierOrderBody>
+    export type CloseSupplierOrderMutationError = ErrorType<void>
+
+    /**
+ * @summary Zapre naročilo in zabeleži nedobavljeno količino
+ */
+export const useCloseSupplierOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeSupplierOrder>>, TError,{id: number;data: BodyType<CloseSupplierOrderBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeSupplierOrder>>,
+        TError,
+        {id: number;data: BodyType<CloseSupplierOrderBody>},
+        TContext
+      > => {
+      return useMutation(getCloseSupplierOrderMutationOptions(options));
+    }
+
+export const getCancelSupplierOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/${id}/cancel`
+}
+
+/**
+ * @summary Prekliče naročilo brez potrjenih prevzemov
+ */
+export const cancelSupplierOrder = async (id: number, options?: RequestInit): Promise<SupplierOrderDetail> => {
+
+  return customFetch<SupplierOrderDetail>(getCancelSupplierOrderUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelSupplierOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSupplierOrder>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelSupplierOrder>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['cancelSupplierOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelSupplierOrder>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelSupplierOrder(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelSupplierOrderMutationResult = NonNullable<Awaited<ReturnType<typeof cancelSupplierOrder>>>
+
+    export type CancelSupplierOrderMutationError = ErrorType<void>
+
+    /**
+ * @summary Prekliče naročilo brez potrjenih prevzemov
+ */
+export const useCancelSupplierOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSupplierOrder>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelSupplierOrder>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getCancelSupplierOrderMutationOptions(options));
+    }
 
 export const getListPrejemniceUrl = () => {
 

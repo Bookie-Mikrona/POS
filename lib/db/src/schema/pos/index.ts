@@ -29,6 +29,7 @@ export * from "./zaloge";
 export * from "./prepared-food";
 export * from "./plate-waste";
 export * from "./prejemnice";
+export * from "./narocila-dobaviteljem";
 export * from "./izdajnice";
 export * from "./inventure";
 export * from "./zacetne-zaloge";
