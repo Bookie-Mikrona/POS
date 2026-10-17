@@ -19,7 +19,7 @@ const { mockUseFeedback, mockUseComments, mockExportFeedback } = vi.hoisted(() =
 }));
 
 vi.mock("@workspace/api-client-react", async () => {
-  const actual = await vi.importActual("@workspace/api-client-react");
+  const actual = await importOriginal<typeof import("recharts")>();
   return {
     ...actual as object,
     useGetOperativnaPorocilaQrFeedback: mockUseFeedback,
@@ -207,7 +207,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   });
 
   it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", () => {
-    const chartData = buildTrendChartData(feedbackReport.trends);
+    const chartData = buildTrendChartData(trends);
     expect(chartData[0]).toMatchObject({
       foodReliable: 4.5,
       ambienceReliable: 3,
@@ -221,7 +221,11 @@ describe("OperativnaPorocilaQrFeedback", () => {
       ambienceSmallSample: 4,
     });
 
-    const { rerender } = render(<svg><SmallSampleDot cx={20} cy={30} /></svg>);
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
+      </QueryClientProvider>
+    );
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("stroke")).toBe("#f59e0b");
     rerender(<svg><SmallSampleDot cx={20} cy={30} active /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("r")).toBe("7");
@@ -229,7 +233,11 @@ describe("OperativnaPorocilaQrFeedback", () => {
 
   it("tooltip pokaže odzive in opozori samo pri nezanesljivi točki", () => {
     const [reliable, unreliable] = buildTrendChartData(feedbackReport.trends);
-    const { rerender } = render(<TrendTooltip active payload={[{ payload: reliable }]} />);
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
+      </QueryClientProvider>
+    );
     expect(screen.getByTestId("trend-tooltip").textContent).toContain("6 odzivov");
     expect(screen.queryByTestId("trend-tooltip-small-sample")).toBeNull();
 
@@ -329,7 +337,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   it("razvrsti v obe smeri po razliki, trenutni oceni in velikosti vzorca, null pa ohrani na koncu", async () => {
     renderComponent();
 
-    const visibleNames = () => screen.getAllByRole("row").map(row => row.querySelector("td")?.textContent);
+    const visibleNames = screen.getAllByRole("row").map(row => row.querySelector("td")?.textContent);
     expect(visibleNames()).toEqual(["Espresso", "Kava", "Pizza", "Čaj", "Sladoled"]);
     fireEvent.click(screen.getByTestId("button-article-sort-order"));
     expect(visibleNames()).toEqual(["Čaj", "Espresso", "Kava", "Pizza", "Sladoled"]);

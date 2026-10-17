@@ -180,6 +180,11 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
 
   const { totals, dimensions, comparison, trends, articles, warnings, comments } = data;
   const trendChartData = buildTrendChartData(trends);
+  const missingCurrent = Math.max(0, totals.minimumSample - comparison.current.responses);
+  const missingPrevious = Math.max(0, totals.minimumSample - comparison.previous.responses);
+  const sampleProgress = missingCurrent > 0 || missingPrevious > 0
+    ? `Manjkajoči odzivi do zanesljive smeri: trenutno obdobje – ${formatMissingResponses(missingCurrent)}; prejšnje obdobje – ${formatMissingResponses(missingPrevious)}.`
+    : null;
 
   const normalizedArticleSearch = normalizeSearchText(articleSearch.trim());
   const visibleArticles = articles
@@ -266,6 +271,11 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
             <p className="text-xs mt-2" data-testid="empty-comparison-state">
               Primerjava ni na voljo. Prejšnje obdobje {formatPeriod(comparison.previous.od, comparison.previous.do)} vsebuje {comparison.previous.responses} odzivov.
             </p>
+            {sampleProgress && (
+              <p className="text-xs mt-2" data-testid="empty-sample-progress">
+                {sampleProgress}
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -283,9 +293,9 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
               </CardContent>
             </Card>
 
-            <ScoreCard title="Hrana" metric={dimensions.food} comparison={comparison.dimensions.food} />
-            <ScoreCard title="Ambient" metric={dimensions.ambience} comparison={comparison.dimensions.ambience} />
-            <ScoreCard title="Postrežba" metric={dimensions.service} comparison={comparison.dimensions.service} />
+            <ScoreCard title="Hrana" metric={dimensions.food} comparison={comparison.dimensions.food} sampleProgress={sampleProgress} />
+            <ScoreCard title="Ambient" metric={dimensions.ambience} comparison={comparison.dimensions.ambience} sampleProgress={sampleProgress} />
+            <ScoreCard title="Postrežba" metric={dimensions.service} comparison={comparison.dimensions.service} sampleProgress={sampleProgress} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -621,10 +631,16 @@ type ComparisonMetric = {
   directionReason: string | null;
 };
 
-function ScoreCard({ title, metric, comparison }: {
+function formatMissingResponses(count: number): string {
+  const remainder = count % 100;
+  const noun = remainder === 1 ? "odziv" : remainder === 2 ? "odziva" : remainder === 3 || remainder === 4 ? "odzivi" : "odzivov";
+  return `${count} ${noun}`;
+}
+function ScoreCard({ title, metric, comparison, sampleProgress }: {
   title: string;
   metric: { average: number | null; count: number; smallSample: boolean };
   comparison: ComparisonMetric;
+  sampleProgress: string | null;
 }) {
   const comparisonContent = comparison.direction === "unavailable" && comparison.difference !== null
     ? {
@@ -669,6 +685,11 @@ function ScoreCard({ title, metric, comparison }: {
         {comparison.directionReason && (
           <p className="mt-1 text-[11px] leading-snug text-amber-700 dark:text-amber-300" data-testid={`metric-direction-reason-${title.toLowerCase()}`}>
             {comparison.directionReason}
+          </p>
+        )}
+        {comparison.direction === "unavailable" && sampleProgress && (
+          <p className="mt-1 text-[11px] leading-snug text-amber-700 dark:text-amber-300" data-testid={`metric-sample-progress-${title.toLowerCase()}`}>
+            {sampleProgress}
           </p>
         )}
         <div className="mt-3 flex items-center justify-between text-xs">
