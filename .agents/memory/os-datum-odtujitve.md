@@ -31,4 +31,4 @@ Mesec odtujitve se **NE šteje** — simetrično z začetnim pravilom (naslednji
 - Kronološki pregled: izločitev vrstica rdeča ozadje, negativna `spremembaNv` rdeča.
 
 ## Velja za status
-Ko je `datumOdtujitve` nastavljeno, `resolveStatusSredstvo` vrne "izloceno" — brez spremembe glava.status v DB (razen DELETE handler ki ga eksplicitno postavi).
+V trenutnem pogledu nastavljeni datum odtujitve pomeni »izločeno«. V zgodovinskem registru velja samo odtujitev do presečnega datuma poročila; poznejša ne spremeni tedanjega statusa ali stanja. Podrobnosti: [Viri statusa](os-status-source-policy.md).

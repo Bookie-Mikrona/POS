@@ -1461,13 +1461,7 @@ async function buildEnrichedRegisterData(
   if (skupinaId)   conditions.push(eq(osnovnaSredstvaTable.skupinaId,   skupinaId));
   if (costCenterId) conditions.push(eq(osnovnaSredstvaTable.costCenterId, costCenterId));
   if (accountId)   conditions.push(eq(osnovnaSredstvaTable.accountId,   accountId));
-  if (includeIzloceno !== "true" && status !== "izloceno") {
-    conditions.push(or(
-      eq(osnovnaSredstvaTable.status, "v_teku"),
-      eq(osnovnaSredstvaTable.status, "v_uporabi"),
-      eq(osnovnaSredstvaTable.status, "odpisano"),
-    )!);
-  }
+  // Status filtriramo šele po izračunu na datumKonca; današnja izločitev ni zgodovinski status.
 
   let glave = await db.select().from(osnovnaSredstvaTable)
     .where(and(...conditions)).orderBy(asc(osnovnaSredstvaTable.inventarnaSt));
@@ -1546,10 +1540,11 @@ async function buildEnrichedRegisterData(
     const t = totalsMap.get(g.id) ?? { nabavna: 0, odpisana: 0, hasAktivirana: false };
     const input: RegisterSredstvoInput = {
       id: g.id, inventarnaSt: g.inventarnaSt, naziv: g.naziv, skupinaId: g.skupinaId ?? null,
-      status: resolveStatusSredstvo(g.status, { ...t, obracunaniOdpisi: odpisi.get(g.id) ?? 0 }, g.datumOdtujitve),
+      status: resolveStatusSredstvo(g.status, { ...t, obracunaniOdpisi: odpisi.get(g.id) ?? 0 }, g.datumOdtujitve, datumKonca),
       steviloDoknjizb: doknjizbe.filter((d) => d.seq > 0).length,
       doknjizbe, obracuniPoLetih: obracuniByIdMap.get(g.id) ?? new Map<number, string>(),
-      oslabitevPoLetih: oslabitevByIdMap.get(g.id), datumOdtujitve: g.datumOdtujitve ?? null,
+      oslabitevPoLetih: oslabitevByIdMap.get(g.id),
+      datumOdtujitve: g.datumOdtujitve && g.datumOdtujitve <= datumKonca ? g.datumOdtujitve : null,
     };
     return calcMedletniSredstvo(input, leto);
   });
@@ -1557,7 +1552,7 @@ async function buildEnrichedRegisterData(
   const OS_STATUSI_LIST = ["v_teku", "v_uporabi", "odpisano", "izloceno"] as const;
   const finalVrstice = status && OS_STATUSI_LIST.includes(status as (typeof OS_STATUSI_LIST)[number])
     ? vrstice.filter((v) => v.status === status)
-    : vrstice;
+    : vrstice.filter((v) => includeIzloceno === "true" || v.status !== "izloceno");
 
   const seštevki = calcMedletniSeštevki(finalVrstice);
 
@@ -1696,15 +1691,7 @@ router.get(
     if (skupinaId) conditions.push(eq(osnovnaSredstvaTable.skupinaId, skupinaId));
     if (costCenterId) conditions.push(eq(osnovnaSredstvaTable.costCenterId, costCenterId));
     if (accountId) conditions.push(eq(osnovnaSredstvaTable.accountId, accountId));
-    if (includeIzloceno !== "true" && status !== "izloceno") {
-      conditions.push(
-        or(
-          eq(osnovnaSredstvaTable.status, "v_teku"),
-          eq(osnovnaSredstvaTable.status, "v_uporabi"),
-          eq(osnovnaSredstvaTable.status, "odpisano"),
-        )!,
-      );
-    }
+    // Status filtriramo šele po izračunu na datumKonca, ne po današnjem stanju glave.
 
     let glave = await db
       .select()
@@ -1827,7 +1814,7 @@ router.get(
       const doknjizbe = doknjizbeMap.get(g.id) ?? [];
       const obracuniPoLetih = obracuniByIdMap.get(g.id) ?? new Map<number, string>();
       const t = totalsMap.get(g.id) ?? { nabavna: 0, odpisana: 0, hasAktivirana: false };
-      const computedStatus = resolveStatusSredstvo(g.status, { ...t, obracunaniOdpisi: odpisi.get(g.id) ?? 0 }, g.datumOdtujitve);
+      const computedStatus = resolveStatusSredstvo(g.status, { ...t, obracunaniOdpisi: odpisi.get(g.id) ?? 0 }, g.datumOdtujitve, datumKonca);
       const steviloDoknjizb = doknjizbe.filter((d) => d.seq > 0).length;
 
       const input: RegisterSredstvoInput = {
@@ -1840,7 +1827,7 @@ router.get(
         doknjizbe,
         obracuniPoLetih,
         oslabitevPoLetih: oslabitevByIdMap.get(g.id),
-        datumOdtujitve: g.datumOdtujitve ?? null,
+        datumOdtujitve: g.datumOdtujitve && g.datumOdtujitve <= datumKonca ? g.datumOdtujitve : null,
       };
       return calcMedletniSredstvo(input, leto);
     });
@@ -1850,7 +1837,7 @@ router.get(
     const finalVrstice =
       status && OS_STATUSI_LIST.includes(status as (typeof OS_STATUSI_LIST)[number])
         ? vrstice.filter((v) => v.status === status)
-        : vrstice;
+        : vrstice.filter((v) => includeIzloceno === "true" || v.status !== "izloceno");
 
     const seštevki = calcMedletniSeštevki(finalVrstice);
 

@@ -28,13 +28,17 @@ export function formatObracunPeriod(leto: number, doMeseca: number): string {
  * Polje glave je le usklajena kopija, ne vir resnice za prikaz.
  *
  * @param datumOdtujitve  Ko je nastavljeno, sredstvo velja za izločeno.
+ * @param naDan  Zgodovinski presečni datum (ISO); poznejša odtujitev še ne velja.
  */
 export function resolveStatusSredstvo(
   glavaStatus: string,
   totals: { nabavna: number; odpisana: number; hasAktivirana: boolean; obracunaniOdpisi?: number },
   datumOdtujitve?: string | null,
+  naDan?: string,
 ): string {
-  if (glavaStatus === "izloceno" || datumOdtujitve) return "izloceno";
+  // Tudi shranjeni status "izloceno" pripada prihodnji odtujitvi, ne preteklemu registru.
+  const prihodnjaOdtujitev = Boolean(naDan && datumOdtujitve && datumOdtujitve > naDan);
+  if (!prihodnjaOdtujitev && (glavaStatus === "izloceno" || datumOdtujitve)) return "izloceno";
   if (!totals.hasAktivirana) return "v_teku"; // nobena doknjižba ni aktivirana
   const sedanja = totals.nabavna - totals.odpisana - (totals.obracunaniOdpisi ?? 0);
   if (sedanja > 0.005) return "v_uporabi"; // vsaj 1 cent neodpisano

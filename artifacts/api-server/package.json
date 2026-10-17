@@ -15,6 +15,7 @@
     "prebuild": "pnpm run generate:srs-chart",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
+    "pretypecheck": "pnpm -w run typecheck:libs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:backup-roundtrip": "vitest run --config vitest.backup-roundtrip.config.ts",
