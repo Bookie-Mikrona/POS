@@ -8154,8 +8154,16 @@ export interface SupplierOrderSummary {
   expectedDeliveryDate?: string | null;
   lineCount: number;
   openQuantity: number;
-  /** @nullable */
-  notes?: string | null;
+  /**
+     * Interna opomba; ne natisne se.
+     * @nullable
+     */
+  internalNotes: string | null;
+  /**
+     * Navodilo za dobavitelja; natisne se na naročilu.
+     * @nullable
+     */
+  supplierNotes: string | null;
 }
 
 export interface SupplierOrderDashboard {
@@ -8196,6 +8204,20 @@ export interface SupplierOrderInput {
   /** @nullable */
   expectedDeliveryDate?: string | null;
   /**
+     * Interna opomba, vidna samo uporabnikom v aplikaciji; nikoli se ne natisne.
+     * @maxLength 2000
+     * @nullable
+     */
+  internalNotes?: string | null;
+  /**
+     * Navodilo za dobavitelja; to besedilo se natisne na naročilu.
+     * @maxLength 2000
+     * @nullable
+     */
+  supplierNotes?: string | null;
+  /**
+     * Zastareli vhod za združljivost; strežnik ga shrani kot interno opombo in ga ne natisne.
+     * @deprecated
      * @maxLength 2000
      * @nullable
      */
@@ -8239,8 +8261,16 @@ export interface SupplierOrderDetail {
   sentAt?: string | null;
   lineCount: number;
   openQuantity: number;
-  /** @nullable */
-  notes?: string | null;
+  /**
+     * Interna opomba; ne natisne se.
+     * @nullable
+     */
+  internalNotes: string | null;
+  /**
+     * Navodilo za dobavitelja; natisne se na naročilu.
+     * @nullable
+     */
+  supplierNotes: string | null;
   /** @nullable */
   closedReason?: string | null;
   lines: SupplierOrderLine[];

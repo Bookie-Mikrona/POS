@@ -154,4 +154,4 @@
 - [Avtomatizacija brez ročnih vnosov](avtomatizacija-brez-rocnih-vnosov.md) — privzeto samodejno, ročni vnos le za popravek; sprašuj le pri nepovratnem ali dvoumnem
 - [Uskladitev POS temeljnic](pos-receipt-booking-reconciliation.md) — plačan B2B ostane posamičen; zbirniki ohranijo izdani DDV in časovno sled storna.
 - [Javni QR meni – kaj gost vidi](qr-meni-javni-podatki.md) — brez internih opomb, brez točnih količin, prazne kategorije skrite; skupni formatter zneskov in imena mize.
-- [Naročila dobaviteljem in prevzemi](supplier-orders-and-receipts.md) — naročilo ne spreminja zaloge ali knjigovodstva; učinek nastane šele ob potrjeni prejemnici.
+- [Naročila dobaviteljem in prevzemi](supplier-orders-and-receipts.md) — naročilo ne spreminja zaloge; interne opombe so ločene od izrecnih navodil za dobavitelja.

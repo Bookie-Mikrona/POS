@@ -10756,7 +10756,8 @@ export const GetSupplierOrderDashboardResponse = zod.object({
   "expectedDeliveryDate": zod.coerce.date().nullish(),
   "lineCount": zod.number(),
   "openQuantity": zod.number(),
-  "notes": zod.string().nullish()
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.')
 }))
 })
 
@@ -10805,7 +10806,8 @@ export const ListSupplierOrdersResponseItem = zod.object({
   "expectedDeliveryDate": zod.coerce.date().nullish(),
   "lineCount": zod.number(),
   "openQuantity": zod.number(),
-  "notes": zod.string().nullish()
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.')
 })
 export const ListSupplierOrdersResponse = zod.array(ListSupplierOrdersResponseItem)
 
@@ -10813,6 +10815,10 @@ export const ListSupplierOrdersResponse = zod.array(ListSupplierOrdersResponseIt
 /**
  * @summary Ustvari osnutek naročila dobavitelju
  */
+export const createSupplierOrderBodyInternalNotesMax = 2000;
+
+export const createSupplierOrderBodySupplierNotesMax = 2000;
+
 export const createSupplierOrderBodyNotesMax = 2000;
 
 export const createSupplierOrderBodyLinesItemPackageQuantityExclusiveMin = 0;
@@ -10825,7 +10831,9 @@ export const createSupplierOrderBodyLinesItemUnitPriceMin = 0;
 export const CreateSupplierOrderBody = zod.object({
   "supplierId": zod.string(),
   "expectedDeliveryDate": zod.coerce.date().nullish(),
-  "notes": zod.string().max(createSupplierOrderBodyNotesMax).nullish(),
+  "internalNotes": zod.string().max(createSupplierOrderBodyInternalNotesMax).nullish().describe('Interna opomba, vidna samo uporabnikom v aplikaciji; nikoli se ne natisne.'),
+  "supplierNotes": zod.string().max(createSupplierOrderBodySupplierNotesMax).nullish().describe('Navodilo za dobavitelja; to besedilo se natisne na naročilu.'),
+  "notes": zod.string().max(createSupplierOrderBodyNotesMax).nullish().describe('Zastareli vhod za združljivost; strežnik ga shrani kot interno opombo in ga ne natisne.'),
   "lines": zod.array(zod.object({
   "supplierMappingId": zod.number(),
   "packageQuantity": zod.number().gt(createSupplierOrderBodyLinesItemPackageQuantityExclusiveMin),
@@ -10844,7 +10852,8 @@ export const CreateSupplierOrderResponse = zod.object({
   "sentAt": zod.coerce.date().nullish(),
   "lineCount": zod.number(),
   "openQuantity": zod.number(),
-  "notes": zod.string().nullish(),
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.'),
   "closedReason": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.number(),
@@ -10883,7 +10892,8 @@ export const GetSupplierOrderResponse = zod.object({
   "sentAt": zod.coerce.date().nullish(),
   "lineCount": zod.number(),
   "openQuantity": zod.number(),
-  "notes": zod.string().nullish(),
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.'),
   "closedReason": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.number(),
@@ -10911,6 +10921,10 @@ export const UpdateSupplierOrderParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const updateSupplierOrderBodyInternalNotesMax = 2000;
+
+export const updateSupplierOrderBodySupplierNotesMax = 2000;
+
 export const updateSupplierOrderBodyNotesMax = 2000;
 
 export const updateSupplierOrderBodyLinesItemPackageQuantityExclusiveMin = 0;
@@ -10923,7 +10937,9 @@ export const updateSupplierOrderBodyLinesItemUnitPriceMin = 0;
 export const UpdateSupplierOrderBody = zod.object({
   "supplierId": zod.string(),
   "expectedDeliveryDate": zod.coerce.date().nullish(),
-  "notes": zod.string().max(updateSupplierOrderBodyNotesMax).nullish(),
+  "internalNotes": zod.string().max(updateSupplierOrderBodyInternalNotesMax).nullish().describe('Interna opomba, vidna samo uporabnikom v aplikaciji; nikoli se ne natisne.'),
+  "supplierNotes": zod.string().max(updateSupplierOrderBodySupplierNotesMax).nullish().describe('Navodilo za dobavitelja; to besedilo se natisne na naročilu.'),
+  "notes": zod.string().max(updateSupplierOrderBodyNotesMax).nullish().describe('Zastareli vhod za združljivost; strežnik ga shrani kot interno opombo in ga ne natisne.'),
   "lines": zod.array(zod.object({
   "supplierMappingId": zod.number(),
   "packageQuantity": zod.number().gt(updateSupplierOrderBodyLinesItemPackageQuantityExclusiveMin),
@@ -10942,7 +10958,8 @@ export const UpdateSupplierOrderResponse = zod.object({
   "sentAt": zod.coerce.date().nullish(),
   "lineCount": zod.number(),
   "openQuantity": zod.number(),
-  "notes": zod.string().nullish(),
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.'),
   "closedReason": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.number(),
@@ -10981,7 +10998,8 @@ export const MarkSupplierOrderSentResponse = zod.object({
   "sentAt": zod.coerce.date().nullish(),
   "lineCount": zod.number(),
   "openQuantity": zod.number(),
-  "notes": zod.string().nullish(),
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.'),
   "closedReason": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.number(),
@@ -11029,7 +11047,8 @@ export const CloseSupplierOrderResponse = zod.object({
   "sentAt": zod.coerce.date().nullish(),
   "lineCount": zod.number(),
   "openQuantity": zod.number(),
-  "notes": zod.string().nullish(),
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.'),
   "closedReason": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.number(),
@@ -11068,7 +11087,8 @@ export const CancelSupplierOrderResponse = zod.object({
   "sentAt": zod.coerce.date().nullish(),
   "lineCount": zod.number(),
   "openQuantity": zod.number(),
-  "notes": zod.string().nullish(),
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.'),
   "closedReason": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.number(),

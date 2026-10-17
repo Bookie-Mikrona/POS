@@ -181,6 +181,8 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(created.body).toMatchObject({
       status: "draft",
       supplierId,
+      internalNotes: "Prvo naročilo",
+      supplierNotes: null,
       lineCount: 1,
       lines: [{
         supplierMappingId: mappingId,
@@ -405,6 +407,62 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const unlinkedConfirmation = await request(app).post(`/prejemnice/${unlinkedReceiptId}/confirm`).send({});
     expect(unlinkedConfirmation.status, JSON.stringify(unlinkedConfirmation.body)).toBe(200);
     expect(await getMappingPrice()).toEqual({ packagePrice: 30, unitPrice: 3.75 });
+  });
+
+  it("keeps legacy notes internal and preserves supplier instructions for older clients", async () => {
+    const created = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      notes: "Stara opomba, shranjena pred ločitvijo.",
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 30 }],
+    });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    orderIds.push(created.body.id);
+    expect(created.body).toMatchObject({
+      internalNotes: "Stara opomba, shranjena pred ločitvijo.",
+      supplierNotes: null,
+    });
+    expect(created.body).not.toHaveProperty("notes");
+
+    const separated = await request(app).put(`/narocila-dobaviteljem/${created.body.id}`).send({
+      supplierId,
+      expectedDeliveryDate: null,
+      internalNotes: "Samo za zaposlene.",
+      supplierNotes: "Prosimo, dostavite pred 10. uro.",
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 30 }],
+    });
+    expect(separated.status, JSON.stringify(separated.body)).toBe(200);
+    expect(separated.body).toMatchObject({
+      internalNotes: "Samo za zaposlene.",
+      supplierNotes: "Prosimo, dostavite pred 10. uro.",
+    });
+
+    const legacyUpdate = await request(app).put(`/narocila-dobaviteljem/${created.body.id}`).send({
+      supplierId,
+      expectedDeliveryDate: null,
+      notes: "Posodobljena interna opomba iz starega odjemalca.",
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 30 }],
+    });
+    expect(legacyUpdate.status, JSON.stringify(legacyUpdate.body)).toBe(200);
+    expect(legacyUpdate.body).toMatchObject({
+      internalNotes: "Posodobljena interna opomba iz starega odjemalca.",
+      supplierNotes: "Prosimo, dostavite pred 10. uro.",
+    });
+
+    const [stored] = await db.select({
+      internalNotes: posSupplierOrdersTable.opomba,
+      supplierNotes: posSupplierOrdersTable.navodiloDobavitelju,
+    }).from(posSupplierOrdersTable).where(eq(posSupplierOrdersTable.id, created.body.id));
+    expect(stored).toEqual({
+      internalNotes: "Posodobljena interna opomba iz starega odjemalca.",
+      supplierNotes: "Prosimo, dostavite pred 10. uro.",
+    });
+
+    const listed = await request(app).get("/narocila-dobaviteljem");
+    expect(listed.status).toBe(200);
+    expect(listed.body.find((order: any) => order.id === created.body.id)).toMatchObject({
+      internalNotes: "Posodobljena interna opomba iz starega odjemalca.",
+      supplierNotes: "Prosimo, dostavite pred 10. uro.",
+    });
   });
 
   it("does not let a non-administrator manage purchase orders", async () => {

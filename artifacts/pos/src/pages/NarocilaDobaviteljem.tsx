@@ -137,10 +137,10 @@ function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }) {
       </table>
       {hasUnpricedLines && <p className="supplier-order-print__subtotal-note">Vsota ne vključuje postavk brez določene cene.</p>}
 
-      {order.notes && (
+      {order.supplierNotes && (
         <section className="supplier-order-print__notes">
-          <h2>Opombe</h2>
-          <p data-testid="text-supplier-order-print-notes">{order.notes}</p>
+          <h2>Navodilo dobavitelju</h2>
+          <p data-testid="text-supplier-order-print-instructions">{order.supplierNotes}</p>
         </section>
       )}
     </article>,
@@ -187,7 +187,14 @@ export default function NarocilaDobaviteljem() {
   const [settingPoint, setSettingPoint] = useState("");
   const [settingTarget, setSettingTarget] = useState("");
   const [settingMapping, setSettingMapping] = useState("");
-  const [orderEditor, setOrderEditor] = useState<{ id?: number; supplierId: string; rows: OrderRow[]; date: string; notes: string } | null>(null);
+  const [orderEditor, setOrderEditor] = useState<{
+    id?: number;
+    supplierId: string;
+    rows: OrderRow[];
+    date: string;
+    internalNotes: string;
+    supplierNotes: string;
+  } | null>(null);
   const [closeReason, setCloseReason] = useState("");
   const [closeDialog, setCloseDialog] = useState(false);
   const [articleSelection, setArticleSelection] = useState<number[]>([]);
@@ -251,7 +258,7 @@ export default function NarocilaDobaviteljem() {
     const supplier = supplierId
       ? articles.flatMap(article => article.mappings).find(mapping => mapping.supplierId === supplierId)
       : undefined;
-    setOrderEditor({ supplierId: supplierId ?? "", date: "", notes: "", rows: [] });
+    setOrderEditor({ supplierId: supplierId ?? "", date: "", internalNotes: "", supplierNotes: "", rows: [] });
     setActiveView("suggestions");
     if (supplier) setNotice({ text: `Sestavljate osnutek za ${supplier.supplierName}.` });
   };
@@ -280,7 +287,7 @@ export default function NarocilaDobaviteljem() {
       return;
     }
     const mapping = mappingsByArticle[0]?.mapping;
-    setOrderEditor({ supplierId, date: "", notes: "", rows });
+    setOrderEditor({ supplierId, date: "", internalNotes: "", supplierNotes: "", rows });
     setNotice({ text: `Predlog vključuje ${rows.length} artiklov${mapping ? ` za ${mapping.supplierName}` : ""}.` });
   };
   const editSelectedOrder = () => {
@@ -289,7 +296,8 @@ export default function NarocilaDobaviteljem() {
       id: orderDetail.id,
       supplierId: orderDetail.supplierId,
       date: orderDetail.expectedDeliveryDate?.slice(0, 10) ?? "",
-      notes: orderDetail.notes ?? "",
+      internalNotes: orderDetail.internalNotes ?? "",
+      supplierNotes: orderDetail.supplierNotes ?? "",
       rows: orderDetail.lines.map(line => ({
         supplierMappingId: line.supplierMappingId,
         packageQuantity: line.packageQuantity,
@@ -306,7 +314,8 @@ export default function NarocilaDobaviteljem() {
     const data: SupplierOrderInput = {
       supplierId: orderEditor.supplierId,
       expectedDeliveryDate: orderEditor.date || null,
-      notes: orderEditor.notes.trim() || null,
+      internalNotes: orderEditor.internalNotes.trim() || null,
+      supplierNotes: orderEditor.supplierNotes.trim() || null,
       lines: orderEditor.rows,
     };
     try {
@@ -632,8 +641,20 @@ export default function NarocilaDobaviteljem() {
                 {articles.flatMap(article => article.mappings.filter(mapping => mapping.active && mapping.supplierId === orderEditor.supplierId).map(mapping => <option key={mapping.id} value={mapping.id}>{article.articleName} · {mapping.packageName ?? mapping.supplierItemName ?? "pakiranje"}</option>))}
               </select>
             </label>
-            <label className="text-xs font-semibold text-[#5f7068]">Opomba<Input value={orderEditor.notes} onChange={event => setOrderEditor({ ...orderEditor, notes: event.target.value })} maxLength={2000} placeholder="Navodilo dobavitelju ali interna opomba" className="mt-1.5 border-[#dcd4c6]" /></label>
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-[#5f7068]">Interna opomba · samo za zaposlene
+              <textarea value={orderEditor.internalNotes} onChange={event => setOrderEditor({ ...orderEditor, internalNotes: event.target.value })} maxLength={2000} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Besedilo ostane v aplikaciji in se ne natisne." />
+            </label>
+            <label className="text-xs font-semibold text-[#5f7068]">Navodilo dobavitelju · natisne se
+              <textarea value={orderEditor.supplierNotes} onChange={event => setOrderEditor({ ...orderEditor, supplierNotes: event.target.value })} maxLength={2000} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Samo to besedilo bo vključeno v izpis." />
+            </label>
+          </div>
+          <p role="note" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+            {orderEditor.id
+              ? "Interna opomba je vidna samo zaposlenim in se ne natisne. Prej shranjene enotne opombe so ohranjene v tem polju; če je katera namenjena dobavitelju, jo kopirajte v polje »Navodilo dobavitelju«."
+              : "Interna opomba se ne natisne. Za besedilo, namenjeno dobavitelju, uporabite ločeno polje »Navodilo dobavitelju«."}
+          </p>
           <p className="rounded-lg bg-[#f2f4ed] px-3 py-2 text-xs leading-relaxed text-[#66746b]">Osnutek je mogoče natisniti in poslati zunaj aplikacije. Shranjevanje ali označitev kot poslano ne spremeni zaloge in ne ustvari računovodske knjižbe.</p>
         </div>
         <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur"><Button variant="outline" onClick={() => setOrderEditor(null)}>Prekliči</Button><Button disabled={busy} onClick={() => void saveOrderDraft()} className="bg-[#285d50] text-white hover:bg-[#204b41]">{busy ? "Shranjujem…" : "Shrani osnutek"}</Button></div>
@@ -655,7 +676,16 @@ export default function NarocilaDobaviteljem() {
               <div className="rounded-xl border border-[#e6dfd2] bg-[#fbfaf6] p-3"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#77817b]">Odprta količina</p><p className="data-mono mt-1 font-semibold text-[#344d45]">{formatQty(orderDetail.openQuantity)}</p></div>
               <div className="rounded-xl border border-[#e6dfd2] bg-[#fbfaf6] p-3"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#77817b]">Označeno kot poslano</p><p className="mt-1 font-semibold text-[#344d45]">{formatDate(orderDetail.sentAt)}</p></div>
             </div>
-            {orderDetail.notes && <p className="rounded-lg bg-[#f4f1e9] px-3 py-2 text-sm text-[#65736b]">{orderDetail.notes}</p>}
+            {(orderDetail.internalNotes || orderDetail.supplierNotes) && <div className="grid gap-3 sm:grid-cols-2">
+              {orderDetail.internalNotes && <section className="rounded-lg bg-[#f4f1e9] px-3 py-2 text-sm text-[#65736b]">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-[#59695f]">Interna opomba · ne natisne se</h3>
+                <p className="mt-1 whitespace-pre-wrap">{orderDetail.internalNotes}</p>
+              </section>}
+              {orderDetail.supplierNotes && <section className="rounded-lg border border-[#d8dfd4] bg-[#edf2e9] px-3 py-2 text-sm text-[#52685f]">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-[#315247]">Navodilo dobavitelju · natisne se</h3>
+                <p className="mt-1 whitespace-pre-wrap">{orderDetail.supplierNotes}</p>
+              </section>}
+            </div>}
             {orderDetail.closedReason && <p className="rounded-lg border border-[#e7dfd2] bg-[#f5f2eb] px-3 py-2 text-sm text-[#66736d]"><strong>Razlog zaprtja:</strong> {orderDetail.closedReason}</p>}
             <div className="overflow-x-auto rounded-xl border border-[#e6dfd2]">
               <table className="w-full min-w-[680px] text-left text-sm">

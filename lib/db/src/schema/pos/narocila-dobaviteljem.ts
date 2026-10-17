@@ -54,6 +54,7 @@ export const posSupplierOrdersTable = pgTable(
     status: text("status").notNull().default("draft"),
     datumDobave: date("datum_dobave"),
     opomba: text("opomba"),
+    navodiloDobavitelju: text("navodilo_dobavitelju"),
     razlogZaprtja: text("razlog_zaprtja"),
     ustvaril: text("ustvaril"),
     ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),

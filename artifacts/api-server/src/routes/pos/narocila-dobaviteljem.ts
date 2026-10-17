@@ -31,16 +31,37 @@ const orderStatus = z.enum([
   "cancelled",
 ]);
 
+const orderNoteInput = z.string().trim().max(2000).nullable().optional();
+
 const orderInput = z.object({
   supplierId: z.string().uuid(),
   expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  notes: z.string().trim().max(2000).nullable().optional(),
+  internalNotes: orderNoteInput,
+  supplierNotes: orderNoteInput,
+  // Older POS clients send `notes`; keep accepting it as internal-only text.
+  notes: orderNoteInput,
   lines: z.array(z.object({
     supplierMappingId: z.number().int().positive(),
     packageQuantity: z.number().finite().positive(),
     unitPrice: z.number().finite().nonnegative().nullable().optional(),
   })).min(1).max(500),
+}).superRefine((value, ctx) => {
+  if (value.notes !== undefined && value.internalNotes !== undefined && value.notes !== value.internalNotes) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["internalNotes"],
+      message: "Uporabite samo eno vrednost za interno opombo.",
+    });
+  }
 });
+
+function getInternalNotes(input: z.infer<typeof orderInput>): string | null | undefined {
+  return input.internalNotes !== undefined ? input.internalNotes : input.notes;
+}
+
+function normalizeOrderNote(value: string | null | undefined): string | null {
+  return value?.trim() || null;
+}
 
 const reorderSettingsInput = z.object({
   reorderPoint: z.number().finite().nonnegative(),
@@ -128,7 +149,8 @@ async function getSupplierOrderSummaries(enotaId: number, status?: string, limit
       o.status,
       o.ustvarjeno AS "createdAt",
       o.datum_dobave AS "expectedDeliveryDate",
-      o.opomba AS notes,
+      o.opomba AS "internalNotes",
+      o.navodilo_dobavitelju AS "supplierNotes",
       COUNT(line.id)::integer AS "lineCount",
       COALESCE(SUM(
         GREATEST(line.kolicina_pakiranj * line.faktor_pakiranja
@@ -155,7 +177,8 @@ async function getSupplierOrderSummaries(enotaId: number, status?: string, limit
     expectedDeliveryDate: dateOnly(row.expectedDeliveryDate),
     lineCount: Number(row.lineCount),
     openQuantity: Number(row.openQuantity),
-    notes: row.notes == null ? null : String(row.notes),
+    internalNotes: row.internalNotes == null ? null : String(row.internalNotes),
+    supplierNotes: row.supplierNotes == null ? null : String(row.supplierNotes),
   }));
 }
 
@@ -169,7 +192,8 @@ async function getSupplierOrderDetail(enotaId: number, id: number) {
     createdAt: posSupplierOrdersTable.ustvarjeno,
     expectedDeliveryDate: posSupplierOrdersTable.datumDobave,
     sentAt: posSupplierOrdersTable.poslanoDne,
-    notes: posSupplierOrdersTable.opomba,
+    internalNotes: posSupplierOrdersTable.opomba,
+    supplierNotes: posSupplierOrdersTable.navodiloDobavitelju,
     closedReason: posSupplierOrdersTable.razlogZaprtja,
   })
     .from(posSupplierOrdersTable)
@@ -524,7 +548,8 @@ router.post("/narocila-dobaviteljem", async (req, res): Promise<void> => {
         stevilka: `TMP-${randomUUID()}`,
         status: "draft",
         datumDobave: parsed.data.expectedDeliveryDate ?? null,
-        opomba: parsed.data.notes?.trim() || null,
+        opomba: normalizeOrderNote(getInternalNotes(parsed.data)),
+        navodiloDobavitelju: normalizeOrderNote(parsed.data.supplierNotes),
         ustvaril: actor,
       }).returning({ id: posSupplierOrdersTable.id });
       const number = `NAB-${year}-${String(header.id).padStart(6, "0")}`;
@@ -594,12 +619,16 @@ router.put("/narocila-dobaviteljem/:id", async (req, res): Promise<void> => {
         parsed.data.supplierId,
         parsed.data.lines,
       );
+      const internalNotes = getInternalNotes(parsed.data);
       await tx.update(posSupplierOrdersTable)
         .set({
           dobaviteljId: parsed.data.supplierId,
           dobaviteljNaziv: supplier.name,
           datumDobave: parsed.data.expectedDeliveryDate ?? null,
-          opomba: parsed.data.notes?.trim() || null,
+          ...(internalNotes !== undefined ? { opomba: normalizeOrderNote(internalNotes) } : {}),
+          ...(parsed.data.supplierNotes !== undefined
+            ? { navodiloDobavitelju: normalizeOrderNote(parsed.data.supplierNotes) }
+            : {}),
           posodobljeno: new Date(),
         })
         .where(eq(posSupplierOrdersTable.id, id));

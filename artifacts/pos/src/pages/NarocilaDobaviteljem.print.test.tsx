@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import NarocilaDobaviteljem from "./NarocilaDobaviteljem";
 
@@ -17,7 +17,8 @@ const mocks = vi.hoisted(() => ({
     sentAt: null,
     lineCount: 1,
     openQuantity: 12,
-    notes: "Prosimo za dostavo do 10.00.\nHvala.",
+    internalNotes: "INTERNAL ONLY: preveriti stanje embalaže.",
+    supplierNotes: "Prosimo za dostavo do 10.00.\nHvala.",
     closedReason: null,
     lines: [{
       id: 7041,
@@ -89,7 +90,8 @@ vi.mock("@workspace/api-client-react", async () => {
         expectedDeliveryDate: mocks.order.expectedDeliveryDate,
         lineCount: mocks.order.lineCount,
         openQuantity: mocks.order.openQuantity,
-        notes: mocks.order.notes,
+        internalNotes: mocks.order.internalNotes,
+        supplierNotes: mocks.order.supplierNotes,
       }],
       isLoading: false,
       isError: false,
@@ -143,8 +145,10 @@ describe("supplier order print view", () => {
     expect(screen.getByTestId("row-supplier-order-print-7041").textContent).toContain("2");
     expect(screen.getByTestId("row-supplier-order-print-7041").textContent).toContain("18,00");
     expect(screen.getByTestId("row-supplier-order-print-7041").textContent).toContain("36,00");
-    expect(screen.getByTestId("text-supplier-order-print-notes").textContent).toContain("Prosimo za dostavo do 10.00.");
-    expect(screen.getByTestId("text-supplier-order-print-notes").textContent).toContain("Hvala.");
+    expect(screen.getByTestId("text-supplier-order-print-instructions").textContent).toContain("Prosimo za dostavo do 10.00.");
+    expect(screen.getByTestId("text-supplier-order-print-instructions").textContent).toContain("Hvala.");
+    expect(document.querySelector(".supplier-order-print")?.textContent).not.toContain("INTERNAL ONLY");
+    expect(screen.getByText("INTERNAL ONLY: preveriti stanje embalaže.")).toBeTruthy();
 
     fireEvent.click(screen.getByTestId("button-print-supplier-order-704"));
 
@@ -168,6 +172,37 @@ describe("supplier order print view", () => {
     expect(source.textContent).toContain("26100001");
     expect(source.textContent).toContain("17.");
     expect(source.textContent).toContain("2026");
+  });
+
+  it("sends internal notes and supplier instructions in separate fields", async () => {
+    mocks.mutation.mockResolvedValue(mocks.order);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
+    fireEvent.change(screen.getByLabelText(/Interna opomba/), {
+      target: { value: "Samo za ekipo." },
+    });
+    fireEvent.change(screen.getByLabelText(/Navodilo dobavitelju/), {
+      target: { value: "Dostavite pred 10. uro." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Shrani osnutek" }));
+
+    await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith({
+      data: {
+        supplierId: "supplier-704",
+        expectedDeliveryDate: null,
+        internalNotes: "Samo za ekipo.",
+        supplierNotes: "Dostavite pred 10. uro.",
+        lines: [{ supplierMappingId: 7042, packageQuantity: 3, unitPrice: 22.5 }],
+      },
+    }));
   });
 
   it("prefills the next suggested order with the latest price for the current package size", () => {

@@ -19517,14 +19517,26 @@ components:
       properties:
         supplierId: { type: string }
         expectedDeliveryDate: { type: [string, "null"], format: date }
-        notes: { type: [string, "null"], maxLength: 2000 }
+        internalNotes:
+          type: [string, "null"]
+          maxLength: 2000
+          description: Interna opomba, vidna samo uporabnikom v aplikaciji; nikoli se ne natisne.
+        supplierNotes:
+          type: [string, "null"]
+          maxLength: 2000
+          description: Navodilo za dobavitelja; to besedilo se natisne na naročilu.
+        notes:
+          type: [string, "null"]
+          maxLength: 2000
+          deprecated: true
+          description: Zastareli vhod za združljivost; strežnik ga shrani kot interno opombo in ga ne natisne.
         lines:
           type: array
           minItems: 1
           items: { $ref: "#/components/schemas/SupplierOrderLineInput" }
     SupplierOrderSummary:
       type: object
-      required: [id, number, supplierId, supplierName, status, createdAt, lineCount, openQuantity]
+      required: [id, number, supplierId, supplierName, status, createdAt, lineCount, openQuantity, internalNotes, supplierNotes]
       properties:
         id: { type: integer }
         number: { type: string }
@@ -19535,7 +19547,8 @@ components:
         expectedDeliveryDate: { type: [string, "null"], format: date }
         lineCount: { type: integer }
         openQuantity: { type: number }
-        notes: { type: [string, "null"] }
+        internalNotes: { type: [string, "null"], description: Interna opomba; ne natisne se. }
+        supplierNotes: { type: [string, "null"], description: Navodilo za dobavitelja; natisne se na naročilu. }
     SupplierOrderLine:
       type: object
       required:
@@ -19578,6 +19591,8 @@ components:
         - createdAt
         - lineCount
         - openQuantity
+        - internalNotes
+        - supplierNotes
         - lines
       properties:
         id: { type: integer }
@@ -19590,7 +19605,8 @@ components:
         sentAt: { type: [string, "null"], format: date-time }
         lineCount: { type: integer }
         openQuantity: { type: number }
-        notes: { type: [string, "null"] }
+        internalNotes: { type: [string, "null"], description: Interna opomba; ne natisne se. }
+        supplierNotes: { type: [string, "null"], description: Navodilo za dobavitelja; natisne se na naročilu. }
         closedReason: { type: [string, "null"] }
         lines:
           type: array
