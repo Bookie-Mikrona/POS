@@ -1,0 +1,52 @@
+ali imajo gostinski lokali nabavne artikle ločene v skupine (npr. meso, ribe, zelenjava, sadje, pijače, itd.) za lažje naročanje pri dobavitljih? kako imajo to rešeno programi pos gostinstvo?
+
+Da, gostinski lokali imajo nabavne artikle skoraj vedno razvrščene v skupine in podskupine. Razdelitev po kategorijah (kot so meso, ribe, zelenjava, mlečni izdelki, pijače, embalaža, čistila itd.) je ključna za preglednost, hitrejše inventure in učinkovito naročanje pri dobaviteljih.
+
+Tako imajo to področje običajno rešeno sodobni gostinski POS (Point of Sale) in ERP sistemi:
+
+1. Struktura šifranta artiklov in nabavnih kategorij
+Gostinski programi ločujejo prodajne artikle (to, kar vidi gost na računu, npr. Odpokani kratek espresso ali Hišni golaž) od nabavnih artiklov / surovin (to, kar se kupuje od dobaviteljev, npr. Kava v zrnju 1 kg, Goveje stegno 1 kg).
+
+Kategorizacija surovin: V ozadju programa (back-office) se vsaki surovini določi:
+
+Primarna skupina: Pijača, Sveže meso, Ribe in plodovi morja, Sadje in zelenjava, Mlečni izdelki, Suha živila/Začimbe, Čistila in potrošni material.
+
+Podskupina: Npr. Meso -> Govedina, Pijača -> Brezalkoholne pijače -> Gazirane pijače.
+
+Povezava z dobaviteljem: Vsakemu artiklu ali celi skupini artiklov se določi primarni dobavitelj (npr. Zelenjava -> Dobavitelj X, Meso -> Mesarija Y).
+
+2. Kako POS sistemi olajšajo naročanje?
+Moderni gostinski programi ponujajo več načinov za hitro in avtomatizirano sestavo naročilnic:
+
+A. Naročanje po skupinah ali dobaviteljih
+Gostinec ali vodja kuhinje v programu izbere možnost »Novo naročilo« in profil filtrira na dva načina:
+
+Izbira dobavitelja: Program avtomatsko prikaže samo tiste artikle/surovine, ki se običajno kupujejo pri tem dobavitelju.
+
+Izbira skupine: Izbere se npr. skupina Sveže meso, nakar program izpiše vse artikle iz te kategorije z zadnjimi nabavnimi cenami in trenutno zalogo.
+
+B. Avtomatsko predlaganje količin (Minimalne zaloge)
+V POS sistemu se za posamezne artikle določita minimalna zaloga in optimalna zaloga:
+
+Ko zaloga pade pod minimum, program avtomatsko generira predlog naročila za posameznega dobavitelja.
+
+Naročilnico se nato z enim klikom pregleda, po potrebi ročno popravi in potrdi.
+
+C. Normativi in avtomatski izračun porabe
+Sistemi na podlagi prodanih jedi/pijač (preko normativov) samodejno odštevajo surovine iz zaloge. Na podlagi predvidene prodaje ali trenutnega stanja zalog program izračuna primanjkljaj surovin po skupinah.
+
+3. Načini pošiljanja naročil dobaviteljem
+Ko je naročilo v POS sistemu sestavljeno po skupinah in dobaviteljih, omogočajo programi različne poti za oddajo:
+
+E-pošta / PDF naročilnica: Program samodejno oblikuje PDF dokument ali e-sporočilo z vsemi kodbami artiklov dobavitelja ter ga pošlje na e-naslov dobavitelja.
+
+EDI / E-dokumenti: Pri večjih dobaviteljih (npr. veletrgovci) poteka izmenjava naročil neposredno prek elektronske izmenjave podatkov (EDI/e-SLOG).
+
+Mobilne aplikacije za nabavo: Številni sodobni POS sistemi ponujajo mobilne aplikacije za natakarje/kuharje, kjer s tablico ali telefonom hodijo po skladišču ali hladilnici, izbirajo skupine artiklov ter vpisujejo potrebne količine.
+
+Povzetek prednosti
+Manj napak: Kuhar ali natakar ne pozabi naročiti ključnih sestavin, saj se naročilnica ustvarja po sistematičnem seznamu.
+
+Hitrost: Namesto ročnega pisanja seznamov se naročilo sestavi v nekaj klikih.
+
+Nadzor nad stroški: Jasen pregled nad porabo in nabavnimi cenami po posameznih kategorijah (food cost / beverage cost analysis).
