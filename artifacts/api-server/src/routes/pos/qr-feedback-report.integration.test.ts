@@ -2,6 +2,7 @@ import express from "express";
 import supertest from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
+import { GetOperativnaPorocilaQrFeedbackResponse } from "@workspace/api-zod";
 
 vi.mock("@clerk/express", () => ({
   getAuth: (req: express.Request) => ({ userId: req.header("x-test-user") ?? null }),
@@ -132,6 +133,35 @@ beforeAll(async () => {
       createdAt: new Date("2025-01-09T12:00:00Z"),
     },
   ]);
+
+  // Separate dates keep the five-per-period contract fixture independent of
+  // the small-sample, empty-report, and business-day fixtures above.
+  const reliableOrders = await db.insert(narocilaTable).values(
+    Array.from({ length: 10 }, () => ({
+      enotaId: unitA, status: "zakljuceno" as const, vir: "qr_gost" as const,
+    })),
+  ).returning({ id: narocilaTable.id });
+  orderIds.push(...reliableOrders.map(order => order.id));
+  const reliableItems = await db.insert(postavkeTable).values(
+    reliableOrders.map(order => ({
+      narociloId: order.id, ime: `Pogodbena juha ${suffix}`,
+      cenaKos: "5", skupaj: "5", davek: "9.5",
+    })),
+  ).returning({ id: postavkeTable.id, narociloId: postavkeTable.narociloId });
+  await db.insert(qrGostPovratneInformacijeTable).values(
+    reliableItems.map((item, index) => {
+      const current = index >= 5;
+      const createdAt = new Date(current ? "2025-02-10T12:00:00Z" : "2025-02-09T12:00:00Z");
+      return {
+        enotaId: unitA, narociloId: item.narociloId,
+        hranaOcena: current ? 5 : 3,
+        ambientOcena: current ? 2 : 4,
+        storitevOcena: 3,
+        ocenePostavk: { [item.id]: current ? 5 : 3 },
+        komentar: null, consentVersion: "1", consentedAt: createdAt, createdAt,
+      };
+    }),
+  );
 });
 
 afterAll(async () => {
@@ -145,6 +175,72 @@ afterAll(async () => {
 });
 
 describe("QR feedback operational report privacy and tenant scope", () => {
+  describe.each([
+    { sample: "unreliable", date: "2025-01-10", currentCount: 4, previousCount: 2 },
+    { sample: "reliable", date: "2025-02-10", currentCount: 5, previousCount: 5 },
+  ])("generated response contract ($sample comparison)", ({ sample, date, currentCount, previousCount }) => {
+    async function fetchReport() {
+      const response = await get(admin, unitA, `/operativna-porocila/qr-feedback?od=${date}&do=${date}`);
+      expect(response.status, JSON.stringify(response.body)).toBe(200);
+      return response.body;
+    }
+
+    it("validates the entire actual JSON response against the generated schema", async () => {
+      const report = GetOperativnaPorocilaQrFeedbackResponse.parse(await fetchReport());
+      expect(report.comparison.current.responses).toBe(currentCount);
+      expect(report.comparison.previous.responses).toBe(previousCount);
+      const reliable = sample === "reliable";
+      for (const [dimension, direction] of [
+        ["food", "improved"], ["ambience", "declined"], ["service", "unchanged"],
+      ] as const) {
+        expect(report.comparison.dimensions[dimension]).toMatchObject({
+          direction: reliable ? direction : "unavailable",
+          directionReason: reliable ? null : expect.stringContaining("vsaj 5 odzivov"),
+        });
+      }
+      expect(report.articles.length).toBeGreaterThan(0);
+      for (const article of report.articles) {
+        expect(article).toMatchObject({
+          direction: reliable ? "improved" : "unavailable",
+          directionReason: reliable ? null : expect.stringContaining("vsaj 5 ocen"),
+        });
+        if (reliable) {
+          expect(article.current.count).toBe(5);
+          expect(article.previous.count).toBe(5);
+        }
+      }
+    });
+
+    it.each(["missing directionReason", "invalid direction"] as const)(
+      "rejects %s at each dimension and article with the exact field path",
+      async (mutation) => {
+        const body = await fetchReport();
+        GetOperativnaPorocilaQrFeedbackResponse.parse(body);
+        const paths: (string | number)[][] = [
+          ["comparison", "dimensions", "food"],
+          ["comparison", "dimensions", "ambience"],
+          ["comparison", "dimensions", "service"],
+          ...body.articles.map((_: unknown, index: number) => ["articles", index]),
+        ];
+        expect(body.articles.length).toBeGreaterThan(0);
+        for (const path of paths) {
+          const malformed = structuredClone(body);
+          const metric = path.reduce((value, key) => value[key], malformed);
+          const field = mutation === "missing directionReason" ? "directionReason" : "direction";
+          if (field === "directionReason") delete metric.directionReason;
+          else metric.direction = "not-a-valid-direction";
+          const result = GetOperativnaPorocilaQrFeedbackResponse.safeParse(malformed);
+          expect(result.success, `${mutation}: ${[...path, field].join(".")}`).toBe(false);
+          if (!result.success) {
+            expect(result.error.issues).toEqual([
+              expect.objectContaining({ path: [...path, field] }),
+            ]);
+          }
+        }
+      },
+    );
+  });
+
   it("aggregates company units, honors business-day bounds, and validates item ownership", async () => {
     const response = await get(admin, unitA, "/operativna-porocila/qr-feedback?od=2025-01-10&do=2025-01-10");
     expect(response.status, JSON.stringify(response.body)).toBe(200);
@@ -251,6 +347,7 @@ describe("QR feedback operational report privacy and tenant scope", () => {
     const base = "od=2025-01-12&do=2025-01-12";
     const aggregate = await get(admin, unitA, `/operativna-porocila/qr-feedback?${base}`);
     expect(aggregate.status).toBe(200);
+    GetOperativnaPorocilaQrFeedbackResponse.parse(aggregate.body);
     expect(aggregate.body.totals).toMatchObject({ responses: 0, smallSample: true });
     expect(aggregate.body.trends).toEqual([]);
     expect(aggregate.body.articles).toEqual([]);
