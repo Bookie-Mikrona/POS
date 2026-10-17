@@ -1382,7 +1382,7 @@ router.post(
 // Shrani / ažurira mesečni obračun amortizacije za dano leto in mesec.
 // UPSERT logika: ena glava na leto, vrstice se ažurirajo ob ponovnem zagonu.
 //
-// Zaklep: leto Y+1 je blokiran, dokler Y ni zakljucen (do_meseca = 12).
+// Zaklep: leto Y+1 je blokiran, dokler Y ni zakljucen (december ali prazen obračun).
 // Dostop: samo os_admin.
 
 router.post(
@@ -1417,7 +1417,24 @@ router.post(
       .where(and(eq(osAmortizacijaObracunTable.companyId, companyId), eq(osAmortizacijaObracunTable.leto, prevLeto)))
       .limit(1);
 
-    if (prevObracun && prevObracun.status !== "zakljucen") {
+    // Stare prazne glave so bile shranjene kot odprte. Odsotnost vrstic sama
+    // ni dokaz praznega obračuna (npr. sredstvo brez skupine), zato preverimo
+    // tudi register podjetja. Ob kakršnih koli sredstvih zaklep ostane.
+    let prazenPrejsnjiObracun = false;
+    if (prevObracun?.status === "odprt") {
+      const [vrstice, sredstva] = await Promise.all([
+        db.select({ id: osAmortizacijaObracunSredstvoTable.id })
+          .from(osAmortizacijaObracunSredstvoTable)
+          .where(eq(osAmortizacijaObracunSredstvoTable.obracunId, prevObracun.id))
+          .limit(1),
+        db.select({ id: osnovnaSredstvaTable.id })
+          .from(osnovnaSredstvaTable)
+          .where(eq(osnovnaSredstvaTable.companyId, companyId))
+          .limit(1),
+      ]);
+      prazenPrejsnjiObracun = vrstice.length === 0 && sredstva.length === 0;
+    }
+    if (prevObracun && prevObracun.status !== "zakljucen" && !prazenPrejsnjiObracun) {
       res.status(409).json({
         error: `Obračun za leto ${prevLeto} ni dokončan za celo leto. Najprej zaključi leto ${prevLeto} (obračun do decembra), nato lahko obračunaš leto ${leto}.`,
         code: "PREV_YEAR_NOT_CLOSED",
@@ -1582,7 +1599,8 @@ router.post(
     const vhodniPodpis = computeVhodniPodpis(pravilo, flatDoknjizbeForHash);
 
     // ── UPSERT glava ──────────────────────────────────────────────────────────
-    const novStatus = doMeseca >= 12 ? "zakljucen" : "odprt";
+    // Prazen obračun nima sredstev za nadaljnji obračun in ne sme blokirati naslednjega leta.
+    const novStatus = doMeseca >= 12 || obracunResult.sredstva.length === 0 ? "zakljucen" : "odprt";
 
     const [glava] = await db
       .insert(osAmortizacijaObracunTable)

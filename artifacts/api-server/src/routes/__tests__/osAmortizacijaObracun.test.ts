@@ -3,7 +3,7 @@
  *
  * Pokriva:
  *   1. Engine: calcMeseci z doMeseca, znesek raste z doMeseca
- *   2. STATUS: doMeseca=12 → zakljucen; doMeseca<12 → odprt
+ *   2. STATUS: december ali prazen obračun → zakljucen; sicer odprt
  *   3. ZAKLEP: prevLeto odprt → 409; ne obstaja ali zakljucen → dovoli
  *   4. os_viewer → 403
  *   5. Neveljaven vhod → 400
@@ -16,7 +16,11 @@ import request from "supertest";
 // ─── vi.hoisted ───────────────────────────────────────────────────────────────
 
 const { dbState } = vi.hoisted(() => {
-  const dbState = { queues: [] as unknown[][], idx: 0 };
+  const dbState = {
+    queues: [] as unknown[][], idx: 0,
+    inserted: [] as Record<string, unknown>[],
+    updated: [] as Record<string, unknown>[],
+  };
   return { dbState };
 });
 
@@ -46,8 +50,14 @@ vi.mock("@workspace/db", () => {
     const rows = nextFrom(dbState);
     const p = Promise.resolve(rows);
     const chain: Record<string, unknown> = {
-      values: () => chain,
-      onConflictDoUpdate: () => chain,
+      values: (values: Record<string, unknown>) => {
+        dbState.inserted.push(values);
+        return chain;
+      },
+      onConflictDoUpdate: ({ set }: { set: Record<string, unknown> }) => {
+        dbState.updated.push(set);
+        return chain;
+      },
       returning: () => p,
       then: p.then.bind(p),
       catch: (p as Promise<unknown[]>).catch.bind(p),
@@ -517,6 +527,8 @@ describe("POST /os/:companyId/amortizacija/obracun", () => {
   beforeEach(() => {
     dbState.queues = [];
     dbState.idx = 0;
+    dbState.inserted = [];
+    dbState.updated = [];
   });
 
   function pushAccessQueues(role = "os_admin") {
@@ -524,12 +536,20 @@ describe("POST /os/:companyId/amortizacija/obracun", () => {
     dbState.queues.push([{ role }]); // osRoles
   }
 
-  function pushObracunQueues(prevObracun: unknown[], glavaResult: unknown[]) {
+  function pushObracunQueues(prevObracun: unknown[], glavaResult: unknown[], withAsset = false) {
     dbState.queues.push(prevObracun);    // prevObracun select
+    if ((prevObracun[0] as { id?: string } | undefined)?.id) {
+      dbState.queues.push([]); // oslabitev preteklega leta
+    }
     dbState.queues.push([]);              // novaLetnaRows (oslabitev preteklih let)
     dbState.queues.push(MOCK_NASTAVITVE); // nastavitve
     dbState.queues.push([]);              // skupineRows (loadSredstvaData)
-    dbState.queues.push([]);              // glaveRows
+    dbState.queues.push(withAsset ? [{
+      id: "s-1", inventarnaSt: "001", naziv: "Test sredstvo", status: "v_uporabi",
+      skupinaId: null, costCenterId: null, accountId: null,
+      kontoStroskaId: null, kontoPopravkaId: null,
+    }] : []);                            // glaveRows
+    if (withAsset) dbState.queues.push([]); // doknjizbeRows
     dbState.queues.push(MOCK_ACC_MAP);    // accountMap (loadValidatedAccountMap)
     dbState.queues.push(glavaResult);     // UPSERT glava returning
   }
@@ -566,7 +586,8 @@ describe("POST /os/:companyId/amortizacija/obracun", () => {
 
   it("zaklep: prevLeto obstaja in je odprt → 409", async () => {
     pushAccessQueues("os_admin");
-    dbState.queues.push([{ status: "odprt", doMeseca: 6 }]); // prevObracun
+    dbState.queues.push([{ id: "prev-obr", status: "odprt", doMeseca: 6 }]); // prevObracun
+    dbState.queues.push([{ id: "prev-vrstica" }], [{ id: "s-1" }]);
     const app = await buildApp();
     const res = await request(app)
       .post("/os/company-1/amortizacija/obracun")
@@ -575,6 +596,43 @@ describe("POST /os/:companyId/amortizacija/obracun", () => {
     expect(res.status).toBe(409);
     expect(res.body.code).toBe("PREV_YEAR_NOT_CLOSED");
     expect(res.body.error).toContain("2023");
+  });
+
+  it.each([
+    [[{ id: "prev-vrstica" }], []],
+    [[], [{ id: "s-1" }]],
+  ])("stara odprta glava ostane zaklenjena, če obstaja vrstica ali sredstvo", async (vrstice, sredstva) => {
+    pushAccessQueues();
+    dbState.queues.push(
+      [{ id: "prev-obr", status: "odprt", doMeseca: 6 }],
+      vrstice,
+      sredstva,
+    );
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/os/company-1/amortizacija/obracun")
+      .set("Authorization", "Bearer test-clerk-uid")
+      .send({ leto: 2024, doMeseca: 6 });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("PREV_YEAR_NOT_CLOSED");
+    expect(dbState.inserted).toHaveLength(0);
+  });
+
+  it("stara prazna odprta glava ne blokira naslednjega leta brez ponovnega obračuna", async () => {
+    pushAccessQueues();
+    const accessCount = dbState.queues.length;
+    pushObracunQueues(
+      [{ id: "prev-empty", status: "odprt", doMeseca: 6 }],
+      [{ id: "obr-next" }],
+    );
+    dbState.queues.splice(accessCount + 1, 0, [], []); // brez vrstic in brez sredstev
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/os/company-1/amortizacija/obracun")
+      .set("Authorization", "Bearer test-clerk-uid")
+      .send({ leto: 2024, doMeseca: 6 });
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe("zakljucen");
   });
 
   it("zaklep: prevLeto ne obstaja → dovoli (baseline)", async () => {
@@ -623,11 +681,12 @@ describe("POST /os/:companyId/amortizacija/obracun", () => {
     expect(res.body.doMeseca).toBe(12);
   });
 
-  it("doMeseca<12 → status='odprt' v odgovoru", async () => {
+  it("doMeseca<12 s sredstvom brez amortizacije → ostane odprt", async () => {
     pushAccessQueues("os_admin");
     pushObracunQueues(
       [],
       [{ id: "obr-4", companyId: "company-1", leto: 2024, doMeseca: 9, status: "odprt" }],
+      true,
     );
     const app = await buildApp();
     const res = await request(app)
@@ -636,5 +695,50 @@ describe("POST /os/:companyId/amortizacija/obracun", () => {
       .send({ leto: 2024, doMeseca: 9 });
     expect(res.status).toBe(201);
     expect(res.body.status).toBe("odprt");
+    expect(dbState.inserted[0].status).toBe("odprt");
+    expect(dbState.updated[0].status).toBe("odprt");
+  });
+
+  it.each([1, 6, 9, 12])("prazen obračun do meseca %i se shrani kot zakljucen tudi pri posodobitvi", async (doMeseca) => {
+    pushAccessQueues();
+    pushObracunQueues([], [{ id: "obr-empty" }]);
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/os/company-1/amortizacija/obracun")
+      .set("Authorization", "Bearer test-clerk-uid")
+      .send({ leto: 2024, doMeseca });
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe("zakljucen");
+    expect(res.body.steviloSredstev).toBe(0);
+    expect(res.body.doMeseca).toBe(doMeseca);
+    expect(dbState.inserted[0]).toMatchObject({ leto: 2024, doMeseca, status: "zakljucen" });
+    expect(dbState.updated[0]).toMatchObject({ doMeseca, status: "zakljucen" });
+  });
+
+  it("prazen delni obračun ne blokira obračuna naslednjega leta", async () => {
+    const app = await buildApp();
+    pushAccessQueues();
+    pushObracunQueues([], [{ id: "obr-empty" }]);
+    const first = await request(app)
+      .post("/os/company-1/amortizacija/obracun")
+      .set("Authorization", "Bearer test-clerk-uid")
+      .send({ leto: 2024, doMeseca: 6 });
+
+    expect(first.status).toBe(201);
+    const savedHeader: Record<string, unknown> = { id: first.body.obracunId, ...dbState.inserted[0] };
+    expect(savedHeader.status).toBe("zakljucen");
+    // Zavržemo neporabljene rezultate prvega klica; drugi prebere dejansko shranjeni status.
+    dbState.queues = [];
+    dbState.idx = 0;
+    pushAccessQueues();
+    pushObracunQueues([savedHeader], [{ id: "obr-next" }]);
+    const next = await request(app)
+      .post("/os/company-1/amortizacija/obracun")
+      .set("Authorization", "Bearer test-clerk-uid")
+      .send({ leto: 2025, doMeseca: 6 });
+
+    expect(next.status).toBe(201);
+    expect(next.body.leto).toBe(2025);
   });
 });

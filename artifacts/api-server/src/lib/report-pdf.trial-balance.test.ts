@@ -13,6 +13,19 @@ const localized = (value: number) => value.toLocaleString("sl-SI", {
   minimumFractionDigits: 2, maximumFractionDigits: 2,
 });
 
+function totalsFor(rows: typeof fixture.rows) {
+  const total = (field: typeof fields[number]) =>
+    rows.reduce((sum, row) => sum + Math.round(Number(row[field]) * 100), 0) / 100;
+  return {
+    totalOpeningBalanceDebit: total("openingBalanceDebit").toFixed(2),
+    totalOpeningBalanceCredit: total("openingBalanceCredit").toFixed(2),
+    totalTurnoverDebit: total("turnoverDebit").toFixed(2),
+    totalTurnoverCredit: total("turnoverCredit").toFixed(2),
+    totalBalanceDebit: total("balanceDebit").toFixed(2),
+    totalBalanceCredit: total("balanceCredit").toFixed(2),
+  };
+}
+
 function inspectPdf(buffer: Buffer) {
   const info = spawnSync("pdfinfo", ["-"], { input: buffer, encoding: "utf8" });
   const text = spawnSync("pdftotext", ["-layout", "-", "-"], { input: buffer, encoding: "utf8" });
@@ -26,26 +39,15 @@ function inspectPdf(buffer: Buffer) {
 
 describe("PDF bruto bilance", () => {
   it("keeps opening balances, all numeric columns and repeated headers aligned across 150 accounts", async () => {
-    const rows = Array.from({ length: 65 }, (_, i) => ({
+    const rows = Array.from({ length: 150 }, (_, i) => ({
+      ...fixture.rows[i % fixture.rows.length]!,
       accountId: String(i),
-      accountCode: String(i).padStart(7, "0"),
-      accountName: i === 18
-        ? `Konto ${i} – naziv, ki je predolg za stolpec in mora ostati na eni vrstici brez prekrivanja drugih kontov`
-        : `Konto ${i} – daljši naziv preizkusne vrstice`,
-      accountType: "asset",
-      openingBalanceDebit: "87.00",
-      openingBalanceCredit: "87.00",
-      turnoverDebit: "105.00",
-      turnoverCredit: "105.00",
-      balanceDebit: "192.00",
-      balanceCredit: "192.00",
+      accountCode: String(1000000 + i),
     }));
     const pdf = await generateTrialBalancePdf({
       companyName: "Mikrona d.o.o.", dateFrom: "2025-01-01", dateTo: "2025-12-31",
-      rows: [],
-      totalOpeningBalanceDebit: "0", totalOpeningBalanceCredit: "0",
-      totalTurnoverDebit: "0", totalTurnoverCredit: "0",
-      totalBalanceDebit: "0", totalBalanceCredit: "0",
+      rows,
+      ...totalsFor(rows),
     });
     const { pages, textPages } = inspectPdf(pdf);
     expect(pages).toBe(5);
@@ -103,9 +105,9 @@ describe("PDF bruto bilance", () => {
     [30, 1], [31, 2], [34, 2], [35, 2],
     [67, 2], [68, 3], [70, 3], [71, 3],
   ])("keeps totals and balance control together at the %i-account page boundary", async (count, expectedPages) => {
-    const rows = Array.from({ length: 65 }, (_, i) => ({
+    const rows = Array.from({ length: count }, (_, i) => ({
       accountId: String(i),
-      accountCode: String(i).padStart(7, "0"),
+      accountCode: String(1000000 + i),
       accountName: i === 18
         ? `Konto ${i} – naziv, ki je predolg za stolpec in mora ostati na eni vrstici brez prekrivanja drugih kontov`
         : `Konto ${i} – daljši naziv preizkusne vrstice`,
@@ -119,10 +121,8 @@ describe("PDF bruto bilance", () => {
     }));
     const pdf = await generateTrialBalancePdf({
       companyName: "Mikrona d.o.o.", dateFrom: "2025-01-01", dateTo: "2025-12-31",
-      rows: [],
-      totalOpeningBalanceDebit: "0", totalOpeningBalanceCredit: "0",
-      totalTurnoverDebit: "0", totalTurnoverCredit: "0",
-      totalBalanceDebit: "0", totalBalanceCredit: "0",
+      rows,
+      ...totalsFor(rows),
     });
     const { pages, textPages } = inspectPdf(pdf);
     expect(pages).toBe(expectedPages);
@@ -143,6 +143,8 @@ describe("PDF bruto bilance", () => {
     async (statementView) => {
     const pdf = await generateTrialBalancePdf({
       companyName: "Mikrona d.o.o.", dateFrom: "2025-01-01", dateTo: "2025-12-31",
+      accountClass: "0",
+      statementView,
       rows: [],
       totalOpeningBalanceDebit: "0", totalOpeningBalanceCredit: "0",
       totalTurnoverDebit: "0", totalTurnoverCredit: "0",
@@ -156,31 +158,32 @@ describe("PDF bruto bilance", () => {
   );
 
   it("shows the signed net saldo while preserving the gross closing debit and credit", async () => {
-    const rows = Array.from({ length: 65 }, (_, i) => ({
+    const rows = [
+      { debit: "23948.52", credit: "21081.77" },
+      { debit: "0.00", credit: "125.00" },
+      { debit: "10.00", credit: "10.00" },
+    ].map(({ debit, credit }, i) => ({
       accountId: String(i),
-      accountCode: String(i).padStart(7, "0"),
-      accountName: i === 18
-        ? `Konto ${i} – naziv, ki je predolg za stolpec in mora ostati na eni vrstici brez prekrivanja drugih kontov`
-        : `Konto ${i} – daljši naziv preizkusne vrstice`,
+      accountCode: String(1100000 + i),
+      accountName: `Konto ${i}`,
       accountType: "asset",
-      openingBalanceDebit: "87.00",
-      openingBalanceCredit: "87.00",
-      turnoverDebit: "105.00",
-      turnoverCredit: "105.00",
-      balanceDebit: "192.00",
-      balanceCredit: "192.00",
+      openingBalanceDebit: "0.00",
+      openingBalanceCredit: "0.00",
+      turnoverDebit: debit,
+      turnoverCredit: credit,
+      balanceDebit: debit,
+      balanceCredit: credit,
     }));
     const pdf = await generateTrialBalancePdf({
       companyName: "Mikrona d.o.o.", dateFrom: "2025-01-01", dateTo: "2025-12-31",
-      rows: [],
-      totalOpeningBalanceDebit: "0", totalOpeningBalanceCredit: "0",
-      totalTurnoverDebit: "0", totalTurnoverCredit: "0",
-      totalBalanceDebit: "0", totalBalanceCredit: "0",
+      rows,
+      ...totalsFor(rows),
     });
     const { textPages } = inspectPdf(pdf);
     const text = textPages.join("\n");
 
     const totals = text.split("\n").find(line => line.includes("SKUPAJ"))!;
+    expect(totals).toContain("+2741,75");
 
     expect(text).toContain("+ breme / − dobro");
     expect(text).toContain("Skupaj — breme/dobro");
@@ -213,10 +216,8 @@ describe("PDF bruto bilance", () => {
     }));
     const pdf = await generateTrialBalancePdf({
       companyName: "Mikrona d.o.o.", dateFrom: "2025-01-01", dateTo: "2025-12-31",
-      rows: [],
-      totalOpeningBalanceDebit: "0", totalOpeningBalanceCredit: "0",
-      totalTurnoverDebit: "0", totalTurnoverCredit: "0",
-      totalBalanceDebit: "0", totalBalanceCredit: "0",
+      rows,
+      ...totalsFor(rows),
     });
     const { pages, textPages } = inspectPdf(pdf);
     expect(pages).toBe(2);
