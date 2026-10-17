@@ -1,3 +1,4 @@
+export * from "./erp-smtp-settings";
 // ── ERP: Dvostavno knjigovodstvo ─────────────────────────────────────────────
 export * from "./company-modules";
 export * from "./company-pos-plans";

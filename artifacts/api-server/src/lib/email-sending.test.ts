@@ -1,13 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sendMail, createTransport } = vi.hoisted(() => {
+const { sendMail, createTransport, getErpSmtp } = vi.hoisted(() => {
   const sendMail = vi.fn();
-  return { sendMail, createTransport: vi.fn(() => ({ sendMail })) };
+  return { sendMail, createTransport: vi.fn(() => ({ sendMail, close: vi.fn() })), getErpSmtp: vi.fn() };
 });
 vi.mock("nodemailer", () => ({ default: { createTransport } }));
+vi.mock("./erp-smtp-settings", async importOriginal => ({
+  ...await importOriginal<typeof import("./erp-smtp-settings")>(),
+  getErpSmtp,
+}));
 
 import { posljiEmailRacun, posljiEmailZacasnoGeslo, posljiEslogEmail, posljiTestnoEmail } from "./pos-email";
-import { getErpSmtp, posljiPorociloPdf } from "./erp-email";
+import { posljiPorociloPdf } from "./erp-email";
 
 const smtp = {
   smtpHost: "smtp.example.invalid", smtpPort: 587, smtpUser: "test-user",
@@ -19,12 +23,17 @@ const receipt = {
   zoi: null, eor: null, ustvarjeno: "2026-10-01",
 };
 const report = {
+  companyId: "company-report",
   prejemnik: "customer@example.org", companyName: "Legacy Company", reportTitle: "Report",
   subtitle: "Period", filename: "report.pdf", pdfBuffer: Buffer.from("test PDF"),
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getErpSmtp.mockResolvedValue({
+    host: smtp.smtpHost, port: 587, user: smtp.smtpUser,
+    password: smtp.smtpPassword, from: smtp.smtpFrom,
+  });
   sendMail.mockResolvedValue({ messageId: "local-test" });
   // Only the isolated test process sees these dummy settings. No real SMTP connection.
   for (const [key, value] of Object.entries({
@@ -48,11 +57,11 @@ describe("all five send functions share company sender policy", () => {
       replyTo: { name: sender.companyName, address: sender.companyEmail },
       envelope: { from: "info@mikrona.si", to: report.prejemnik },
     }));
-    expect(createTransport).toHaveBeenCalledWith({
+    expect(createTransport).toHaveBeenCalledWith(expect.objectContaining({
       host: smtp.smtpHost, port: 587, secure: false,
       auth: { user: smtp.smtpUser, pass: smtp.smtpPassword },
       tls: { rejectUnauthorized: true },
-    });
+    }));
   });
 
   it.each([
@@ -84,12 +93,11 @@ describe("all five send functions share company sender policy", () => {
     expect(mail).not.toHaveProperty("replyTo");
   });
 
-  it.each(["missing", "empty", "465"])("ERP uses implicit TLS on default/465 port (%s)", async setting => {
-    if (setting === "missing") vi.stubEnv("SMTP_PORT", undefined);
-    else vi.stubEnv("SMTP_PORT", setting === "empty" ? "" : setting);
-    vi.stubEnv("SMTP_HOST", "mail.mikrona.si");
-    expect(getErpSmtp()?.port).toBe(465);
+  it("ERP uses stored company settings with implicit TLS on port 465", async () => {
+    getErpSmtp.mockResolvedValue({ host: "mail.mikrona.si", port: 465,
+      user: smtp.smtpUser, password: smtp.smtpPassword, from: smtp.smtpFrom });
     await posljiPorociloPdf(report, sender);
+    expect(getErpSmtp).toHaveBeenCalledWith(report.companyId);
     expect(createTransport).toHaveBeenCalledWith(expect.objectContaining({
       host: "mail.mikrona.si", port: 465, secure: true, tls: { rejectUnauthorized: true },
     }));

@@ -1,33 +1,15 @@
 /**
  * E-poštno pošiljanje za ERP modul.
  *
- * Konfiguracija SMTP se bere iz okoliških spremenljivk:
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
- *
- * Brez teh vrednosti pošiljanje ni možno in endpoint vrne jasno napako.
+ * Konfiguracija SMTP se bere iz zaščitenih nastavitev aktivnega podjetja.
  */
 
-import nodemailer from "nodemailer";
 import { buildEmailSender, type CompanyEmailSender } from "./email-sender";
-
-export function getErpSmtp(): {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  from: string;
-} | null {
-  const host     = process.env["SMTP_HOST"]     ?? "";
-  const user     = process.env["SMTP_USER"]     ?? "";
-  const password = process.env["SMTP_PASSWORD"] ?? "";
-  const from     = process.env["SMTP_FROM"]     ?? "";
-  const port     = Number(process.env["SMTP_PORT"] || "465");
-
-  if (!host || !user || !password || !from) return null;
-  return { host, port, user, password, from };
-}
+import { getErpSmtp, createErpTransport } from "./erp-smtp-settings";
+export { getErpSmtp } from "./erp-smtp-settings";
 
 export async function posljiPorociloPdf(opts: {
+  companyId: string;
   prejemnik: string;
   companyName: string;
   reportTitle: string;
@@ -35,23 +17,22 @@ export async function posljiPorociloPdf(opts: {
   filename: string;
   pdfBuffer: Buffer;
 }, sender?: CompanyEmailSender): Promise<{ uspeh: boolean; napaka?: string }> {
-  const smtp = getErpSmtp();
+  let smtp;
+  try {
+    smtp = await getErpSmtp(opts.companyId);
+  } catch {
+    return { uspeh: false, napaka: "SMTP nastavitev ni mogoče prebrati. Preverite zaščito gesla v nastavitvah ERP." };
+  }
   if (!smtp) {
     return {
       uspeh: false,
       napaka:
         "SMTP nastavitve za ERP niso konfigurirane. " +
-        "Nastavite spremenljivke SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM.",
+        "Odprite Nastavitve podjetja → Podjetje → E-pošta poročil (SMTP).",
     };
   }
 
-  const transporter = nodemailer.createTransport({
-    host: smtp.host,
-    port: smtp.port,
-    secure: smtp.port === 465,
-    auth: { user: smtp.user, pass: smtp.password },
-    tls: { rejectUnauthorized: true },
-  });
+  const transporter = createErpTransport(smtp);
 
   const genDate = new Date().toLocaleDateString("sl-SI", {
     day: "2-digit", month: "2-digit", year: "numeric",
@@ -93,7 +74,8 @@ export async function posljiPorociloPdf(opts: {
     });
     return { uspeh: true };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { uspeh: false, napaka: msg };
+    return { uspeh: false, napaka: "Pošiljanje ni uspelo. Preverite SMTP nastavitve in dosegljivost strežnika." };
+  } finally {
+    transporter.close();
   }
 }

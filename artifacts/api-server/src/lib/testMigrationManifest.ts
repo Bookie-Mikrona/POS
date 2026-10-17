@@ -566,6 +566,10 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "audit",
     dependsOn: ["261-pos-supplier-order-notes.sql"],
   },
+  {
+    file: "263-erp-smtp-settings.sql",
+    classification: "schema",
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

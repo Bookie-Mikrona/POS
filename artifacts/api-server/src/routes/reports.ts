@@ -19,9 +19,12 @@ import {
   generateIncomeStatementPdf,
   generateTrialBalancePdf,
 } from "../lib/report-pdf";
-import { posljiPorociloPdf, getErpSmtp } from "../lib/erp-email";
+import { posljiPorociloPdf } from "../lib/erp-email";
+import { getSmtpRow } from "../lib/erp-smtp-settings";
+import erpSmtpRouter from "./erp-smtp";
 
 const router: IRouter = Router();
+router.use(erpSmtpRouter);
 
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
@@ -1266,6 +1269,7 @@ router.post(
     // Pošlji po e-pošti ali vrni kot blob
     if (email) {
       const result = await posljiPorociloPdf({
+        companyId,
         prejemnik: email,
         companyName,
         reportTitle,
@@ -1391,7 +1395,8 @@ router.get(
     const companyId = extractParam(req.params.companyId);
     const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!ok) return;
-    const smtp = getErpSmtp();
+    res.setHeader("Cache-Control", "no-store");
+    const smtp = await getSmtpRow(companyId);
     res.json({ konfigurirano: !!smtp });
   },
 );

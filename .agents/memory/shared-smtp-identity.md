@@ -16,3 +16,11 @@ The Mikrona relay must be addressed as `mail.mikrona.si`, not an IP alias, with 
 **Why:** The user specified a hostname-issued certificate; connecting through the former IP settings causes hostname verification failures. Changing the visible company identity does not justify weakening transport security.
 
 **How to apply:** Preserve the DNS hostname when adjusting Mikrona delivery settings. Never disable certificate verification to make an IP-based configuration work.
+
+## ERP credential lifecycle
+
+ERP SMTP credentials use the existing durable application secret with a separate cryptographic derivation, rather than requiring another deployment secret.
+
+**Why:** SMTP must be configurable from ERP without an additional infrastructure setup step. This makes rotation of the application's secret affect saved SMTP passwords as well.
+
+**How to apply:** Before rotating the application secret, re-encrypt saved ERP SMTP credentials or arrange for owners to re-enter them afterward. Do not silently fall back to the shared environment SMTP credentials when a company's configuration is missing or cannot be decrypted.

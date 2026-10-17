@@ -87,6 +87,58 @@ tags:
   - name: daily-lunch
     description: Unit and business-date scoped daily lunch offers
 paths:
+  /companies/{companyId}/erp-smtp:
+    parameters:
+      - {name: companyId, in: path, required: true, schema: {type: string}}
+    get:
+      operationId: getErpSmtpSettings
+      tags: [erp-smtp]
+      responses:
+        "200":
+          description: SMTP settings without credentials
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErpSmtpSettings"}
+        "403": {description: Requires owner or accountant access}
+    put:
+      operationId: saveErpSmtpSettings
+      tags: [erp-smtp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ErpSmtpInput"}
+      responses:
+        "200":
+          description: Saved settings without password
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErpSmtpSettings"}
+        "400": {description: Invalid settings or missing initial password}
+        "403": {description: Requires owner or accountant access}
+        "503": {description: Password encryption unavailable}
+  /companies/{companyId}/erp-smtp/test:
+    parameters:
+      - {name: companyId, in: path, required: true, schema: {type: string}}
+    post:
+      operationId: testErpSmtpSettings
+      tags: [erp-smtp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ErpSmtpTestInput"}
+      responses:
+        "200":
+          description: Test message accepted by SMTP server
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErpSmtpTestResult"}
+        "400": {description: Invalid recipient}
+        "403": {description: Requires owner or accountant access}
+        "409": {description: Settings not configured}
+        "429": {description: Please wait before retrying}
+        "502": {description: SMTP test failed}
   /companies/{companyId}/vat-form-preview:
     get:
       operationId: getVatFormPreview
@@ -11827,6 +11879,35 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    ErpSmtpInput:
+      type: object
+      required: [host, port, user, from]
+      properties:
+        host: {type: string, minLength: 1, maxLength: 253, pattern: '^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$'}
+        port: {type: integer, enum: [465, 587]}
+        user: {type: string, minLength: 1, maxLength: 320, pattern: '^[^\r\n\x00]+$'}
+        from: {type: string, maxLength: 320, pattern: '^[A-Za-z0-9.!#$%&''*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$'}
+        password: {type: string, maxLength: 1024, description: Omit or leave empty to keep saved password}
+    ErpSmtpSettings:
+      type: object
+      required: [configured, host, port, user, from, passwordSet]
+      properties:
+        configured: {type: boolean}
+        host: {type: string}
+        port: {type: integer}
+        user: {type: string}
+        from: {type: string}
+        passwordSet: {type: boolean}
+    ErpSmtpTestInput:
+      type: object
+      required: [recipient]
+      properties:
+        recipient: {type: string, maxLength: 320, pattern: '^[A-Za-z0-9.!#$%&''*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$'}
+    ErpSmtpTestResult:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
     VatFormPreview:
       type: object
       required: [form, companyId, year, period, periodMode, periodFrom, periodTo, snapshotHash, fields, partners, issues, canExport, rowCount, notice]

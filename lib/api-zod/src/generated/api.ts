@@ -8,6 +8,77 @@
 import * as zod from 'zod';
 
 
+export const GetErpSmtpSettingsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetErpSmtpSettingsResponse = zod.object({
+  "configured": zod.boolean(),
+  "host": zod.string(),
+  "port": zod.number(),
+  "user": zod.string(),
+  "from": zod.string(),
+  "passwordSet": zod.boolean()
+})
+
+
+export const SaveErpSmtpSettingsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const saveErpSmtpSettingsBodyHostMax = 253;
+
+
+export const saveErpSmtpSettingsBodyHostRegExp = new RegExp('^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$');
+export const saveErpSmtpSettingsBodyUserMax = 320;
+
+
+export const saveErpSmtpSettingsBodyUserRegExp = new RegExp('^[^\\r\\n\\x00]+$');
+export const saveErpSmtpSettingsBodyFromMax = 320;
+
+
+export const saveErpSmtpSettingsBodyFromRegExp = new RegExp('^[A-Za-z0-9.!#$%&\'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$');
+export const saveErpSmtpSettingsBodyPasswordMax = 1024;
+
+
+
+export const SaveErpSmtpSettingsBody = zod.object({
+  "host": zod.string().min(1).max(saveErpSmtpSettingsBodyHostMax).regex(saveErpSmtpSettingsBodyHostRegExp),
+  "port": zod.union([zod.literal(465),zod.literal(587)]),
+  "user": zod.string().min(1).max(saveErpSmtpSettingsBodyUserMax).regex(saveErpSmtpSettingsBodyUserRegExp),
+  "from": zod.string().max(saveErpSmtpSettingsBodyFromMax).regex(saveErpSmtpSettingsBodyFromRegExp),
+  "password": zod.string().max(saveErpSmtpSettingsBodyPasswordMax).optional().describe('Omit or leave empty to keep saved password')
+})
+
+export const SaveErpSmtpSettingsResponse = zod.object({
+  "configured": zod.boolean(),
+  "host": zod.string(),
+  "port": zod.number(),
+  "user": zod.string(),
+  "from": zod.string(),
+  "passwordSet": zod.boolean()
+})
+
+
+export const TestErpSmtpSettingsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const testErpSmtpSettingsBodyRecipientMax = 320;
+
+
+export const testErpSmtpSettingsBodyRecipientRegExp = new RegExp('^[A-Za-z0-9.!#$%&\'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$');
+
+
+export const TestErpSmtpSettingsBody = zod.object({
+  "recipient": zod.string().max(testErpSmtpSettingsBodyRecipientMax).regex(testErpSmtpSettingsBodyRecipientRegExp)
+})
+
+export const TestErpSmtpSettingsResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
 export const GetVatFormPreviewParams = zod.object({
   "companyId": zod.coerce.string()
 })

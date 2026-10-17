@@ -133,6 +133,10 @@ import type {
   EnotaInput,
   EnotaPreklopOdgovor,
   EnotaPreklopTelo,
+  ErpSmtpInput,
+  ErpSmtpSettings,
+  ErpSmtpTestInput,
+  ErpSmtpTestResult,
   ErrorEnvelope,
   ErrorResponse,
   EventTransferDetail,
@@ -601,6 +605,209 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetErpSmtpSettingsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/erp-smtp`
+}
+
+export const getErpSmtpSettings = async (companyId: string, options?: RequestInit): Promise<ErpSmtpSettings> => {
+
+  return customFetch<ErpSmtpSettings>(getGetErpSmtpSettingsUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetErpSmtpSettingsQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/erp-smtp`
+    ] as const;
+    }
+
+
+export const getGetErpSmtpSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getErpSmtpSettings>>, TError = ErrorType<void>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getErpSmtpSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetErpSmtpSettingsQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getErpSmtpSettings>>> = ({ signal }) => getErpSmtpSettings(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getErpSmtpSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetErpSmtpSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getErpSmtpSettings>>>
+export type GetErpSmtpSettingsQueryError = ErrorType<void>
+
+
+
+export function useGetErpSmtpSettings<TData = Awaited<ReturnType<typeof getErpSmtpSettings>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getErpSmtpSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetErpSmtpSettingsQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveErpSmtpSettingsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/erp-smtp`
+}
+
+export const saveErpSmtpSettings = async (companyId: string,
+    erpSmtpInput: ErpSmtpInput, options?: RequestInit): Promise<ErpSmtpSettings> => {
+
+  return customFetch<ErpSmtpSettings>(getSaveErpSmtpSettingsUrl(companyId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(erpSmtpInput)
+  }
+);}
+
+
+
+
+
+export const getSaveErpSmtpSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveErpSmtpSettings>>, TError,{companyId: string;data: BodyType<ErpSmtpInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveErpSmtpSettings>>, TError,{companyId: string;data: BodyType<ErpSmtpInput>}, TContext> => {
+
+const mutationKey = ['saveErpSmtpSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveErpSmtpSettings>>, {companyId: string;data: BodyType<ErpSmtpInput>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  saveErpSmtpSettings(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveErpSmtpSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof saveErpSmtpSettings>>>
+    export type SaveErpSmtpSettingsMutationBody = BodyType<ErpSmtpInput>
+    export type SaveErpSmtpSettingsMutationError = ErrorType<void>
+
+    export const useSaveErpSmtpSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveErpSmtpSettings>>, TError,{companyId: string;data: BodyType<ErpSmtpInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveErpSmtpSettings>>,
+        TError,
+        {companyId: string;data: BodyType<ErpSmtpInput>},
+        TContext
+      > => {
+      return useMutation(getSaveErpSmtpSettingsMutationOptions(options));
+    }
+
+export const getTestErpSmtpSettingsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/erp-smtp/test`
+}
+
+export const testErpSmtpSettings = async (companyId: string,
+    erpSmtpTestInput: ErpSmtpTestInput, options?: RequestInit): Promise<ErpSmtpTestResult> => {
+
+  return customFetch<ErpSmtpTestResult>(getTestErpSmtpSettingsUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(erpSmtpTestInput)
+  }
+);}
+
+
+
+
+
+export const getTestErpSmtpSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testErpSmtpSettings>>, TError,{companyId: string;data: BodyType<ErpSmtpTestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testErpSmtpSettings>>, TError,{companyId: string;data: BodyType<ErpSmtpTestInput>}, TContext> => {
+
+const mutationKey = ['testErpSmtpSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testErpSmtpSettings>>, {companyId: string;data: BodyType<ErpSmtpTestInput>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  testErpSmtpSettings(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestErpSmtpSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof testErpSmtpSettings>>>
+    export type TestErpSmtpSettingsMutationBody = BodyType<ErpSmtpTestInput>
+    export type TestErpSmtpSettingsMutationError = ErrorType<void>
+
+    export const useTestErpSmtpSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testErpSmtpSettings>>, TError,{companyId: string;data: BodyType<ErpSmtpTestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testErpSmtpSettings>>,
+        TError,
+        {companyId: string;data: BodyType<ErpSmtpTestInput>},
+        TContext
+      > => {
+      return useMutation(getTestErpSmtpSettingsMutationOptions(options));
+    }
 
 export const getGetVatFormPreviewUrl = (companyId: string,
     params: GetVatFormPreviewParams,) => {

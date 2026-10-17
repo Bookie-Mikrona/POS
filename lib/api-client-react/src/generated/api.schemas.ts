@@ -5,6 +5,61 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export type ErpSmtpInputPort = typeof ErpSmtpInputPort[keyof typeof ErpSmtpInputPort];
+
+
+export const ErpSmtpInputPort = {
+  NUMBER_465: 465,
+  NUMBER_587: 587,
+} as const;
+
+export interface ErpSmtpInput {
+  /**
+     * @minLength 1
+     * @maxLength 253
+     * @pattern ^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$
+     */
+  host: string;
+  port: ErpSmtpInputPort;
+  /**
+     * @minLength 1
+     * @maxLength 320
+     * @pattern ^[^\r\n\x00]+$
+     */
+  user: string;
+  /**
+     * @maxLength 320
+     * @pattern ^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$
+     */
+  from: string;
+  /**
+     * Omit or leave empty to keep saved password
+     * @maxLength 1024
+     */
+  password?: string;
+}
+
+export interface ErpSmtpSettings {
+  configured: boolean;
+  host: string;
+  port: number;
+  user: string;
+  from: string;
+  passwordSet: boolean;
+}
+
+export interface ErpSmtpTestInput {
+  /**
+     * @maxLength 320
+     * @pattern ^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$
+     */
+  recipient: string;
+}
+
+export interface ErpSmtpTestResult {
+  success: boolean;
+}
+
 export type VatFormPreviewForm = typeof VatFormPreviewForm[keyof typeof VatFormPreviewForm];
 
 
