@@ -780,10 +780,10 @@ router.get(
             totalDebit: account.debit.toFixed(2), totalCredit: account.credit.toFixed(2),
             balance: (account.debit - account.credit).toFixed(2),
           }))
-          .sort((a, b) => a.code.localeCompare(b.code));
+          .sort((a, b) => a.code.localeCompare(b.code, "sl"));
       }
       return reportRow;
-    }).sort((a, b) => a.code.localeCompare(b.code));
+    }).sort((a, b) => a.code.localeCompare(b.code, "sl"));
     const grandTotalDebit = reportRows.reduce((s, r) => s + parseFloat(r.totalDebit), 0);
     const grandTotalCredit = reportRows.reduce((s, r) => s + parseFloat(r.totalCredit), 0);
 

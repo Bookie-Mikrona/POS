@@ -363,12 +363,14 @@ function OsCombobox({
   value,
   onChange,
   options,
+  id,
   placeholder = "— ni določeno —",
   searchPlaceholder = "Išči…",
 }: {
   value: string;
   onChange: (v: string) => void;
   options: OsComboboxOption[];
+  id?: string;
   placeholder?: string;
   searchPlaceholder?: string;
 }) {
@@ -378,6 +380,7 @@ function OsCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -438,7 +441,7 @@ interface OsDialogProps {
   companyId: string;
 }
 
-function OsDialog({
+export function OsDialog({
   open, onClose, editingId, form, setForm, saving, saveError, onSave, skupiny, costCenters, accounts, counterparties, companyId,
 }: OsDialogProps) {
   const isNew = !editingId;
@@ -528,24 +531,29 @@ function OsDialog({
           {/* Kontni načrt */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Konti (skupni za vse doknjižbe)</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { label: "Konto OS", field: "accountId" as const },
-                { label: "Konto popravka", field: "kontoPopravkaId" as const },
-                { label: "Konto stroška", field: "kontoStroskaId" as const },
+                { label: "Konto stroška amortizacije", field: "kontoStroskaId" as const },
+                { label: "Konto popravka vrednosti", field: "kontoPopravkaId" as const },
               ].map(({ label, field: f }) => (
                 <div key={f} className="space-y-1">
-                  <Label className="text-xs">{label}</Label>
+                  <Label htmlFor={`os-${f}`} className="text-xs">{label}</Label>
                   <OsCombobox
+                    id={`os-${f}`}
                     value={form[f]}
                     onChange={(v) => setForm((prev) => ({ ...prev, [f]: v }))}
                     options={accounts.map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
-                    placeholder="—"
+                    placeholder={f === "accountId" ? "—" : "— privzeto iz nastavitev modula —"}
                     searchPlaceholder="Išči konto…"
                   />
                 </div>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Konta amortizacije sta neobvezna. Prazno polje uporabi privzeti konto iz nastavitev modula.
+              Lastna izbira velja za to sredstvo in se upošteva pri naslednjem predogledu knjižbe.
+            </p>
           </div>
 
           {/* seq=0 doknjižba — vrednosti temeljnega nakupa */}
