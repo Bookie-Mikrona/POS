@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import ExcelJS from "exceljs";
 import { AjpesAnnualReportTab } from "@/components/reports/ajpes-annual-report-tab";
+import { FinancialStatementXlsxButton } from "@/components/reports/financial-statement-xlsx-button";
 import { trialBalanceNet, formatTrialBalanceNet } from "@/lib/trial-balance-net";
 import { LedgerStatementTable, type LedgerStatementView } from "@/components/reports/ledger-statement-table";
 import {
@@ -667,12 +668,25 @@ function BalanceSheetTab() {
               />
             </div>
           )}
-          <div className="flex gap-2 items-end">
+          <div className="flex flex-wrap gap-2 items-end lg:col-span-4">
             <Button onClick={handleGenerate} className="h-9 flex-1">
               Prikaži poročilo
             </Button>
             {queried && data && (
               <>
+                {activeCompany && current && (
+                  <FinancialStatementXlsxButton
+                    disabled={isLoading || !!error}
+                    options={{
+                      reportType: "balance_sheet",
+                      companyName: activeCompany.naziv,
+                      period: appliedAsOf,
+                      comparePeriod: appliedCompareAsOf,
+                      current,
+                      compare,
+                    }}
+                  />
+                )}
                 <Button
                   variant="outline"
                   size="icon"
@@ -1030,12 +1044,25 @@ function IncomeStatementTab() {
               <span className="text-sm">Primerja obdobja</span>
             </label>
           </div>
-          <div className="flex gap-2 items-end">
+          <div className="flex flex-wrap gap-2 items-end lg:col-span-4">
             <Button onClick={handleGenerate} className="h-9 flex-1">
               Prikaži poročilo
             </Button>
             {queried && data && (
               <>
+                {activeCompany && current && applied && (
+                  <FinancialStatementXlsxButton
+                    disabled={isLoading || !!error}
+                    options={{
+                      reportType: "income_statement",
+                      companyName: activeCompany.naziv,
+                      period: `${applied.dateFrom}_${applied.dateTo}`,
+                      comparePeriod: applied.compareDateFrom ? `${applied.compareDateFrom}_${applied.compareDateTo}` : undefined,
+                      current,
+                      compare,
+                    }}
+                  />
+                )}
                 <Button
                   variant="outline"
                   size="icon"

@@ -36,6 +36,8 @@ vi.mock("@clerk/react", () => ({
   useAuth: () => ({ getToken: vi.fn().mockResolvedValue("test-token") }),
 }));
 
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+
 const praznaPoizvedba = {
   data: undefined,
   isLoading: false,
@@ -66,6 +68,69 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
+
+  it.each(["balance-sheet", "income-statement"] as const)(
+    "%s: pravi gumb izvozi razdelke, konte, vsote in primerjavo za prikazano obdobje",
+    async (reportType) => {
+      const section = (balance: string) => ({
+        sections: [{
+          class: "0", label: "Preizkusni razdelek",
+          items: [{ accountId: "a", accountCode: "0010000", accountName: "=Naziv čšž", balance }],
+          subtotal: balance,
+        }],
+        total: balance,
+      });
+      state.useGetBalanceSheet.mockReturnValue({
+        ...praznaPoizvedba,
+        data: { current: { aktiva: section("1234.56"), pasiva: section("1234.56") },
+          compare: { aktiva: section("1000"), pasiva: section("1000") } },
+      });
+      state.useGetIncomeStatement.mockReturnValue({
+        ...praznaPoizvedba,
+        data: { current: { revenue: section("1234.56"), expenses: section("1300"), netResult: "-65.44" },
+          compare: { revenue: section("1000"), expenses: section("900"), netResult: "100" } },
+      });
+      state.useGetTrialBalance.mockReturnValue(praznaPoizvedba);
+      const { container } = render(<Porocila />);
+      if (reportType === "income-statement") {
+        const tab = screen.getByRole("tab", { name: "Izkaz poslovnega izida" });
+        fireEvent.mouseDown(tab, { button: 0, ctrlKey: false });
+        fireEvent.click(tab);
+      }
+      expect(screen.queryByRole("button", { name: "Izvozi XLSX" })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("checkbox"));
+      const dates = container.querySelectorAll('input[type="date"]');
+      const isBalance = reportType === "balance-sheet";
+      const values = isBalance ? ["2026-06-30", "2025-12-31"] : ["2026-01-01", "2026-06-30", "2025-01-01", "2025-06-30"];
+      values.forEach((value, i) => fireEvent.change(dates[i], { target: { value } }));
+      fireEvent.click(screen.getByRole("button", { name: "Prikaži poročilo" }));
+      // Editing a filter does not change the already displayed/exported report.
+      fireEvent.change(dates[0], { target: { value: "2024-01-01" } });
+      fireEvent.click(screen.getByRole("button", { name: "Izvozi XLSX" }));
+      await waitFor(() => expect(downloadState.blob).not.toBeNull());
+      expect(downloadState.filename).toBe(isBalance ? "bilanca-stanja-2026-06-30.xlsx" : "izkaz-poslovnega-izida-2026-01-01-2026-06-30.xlsx");
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await downloadState.blob!.arrayBuffer() as unknown as Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0]);
+      const sheet = workbook.worksheets[0];
+      expect(sheet.name).toBe(isBalance ? "Bilanca stanja" : "Izkaz poslovnega izida");
+      expect(sheet.getCell("A1").value).toBe(state.activeCompany.naziv);
+      const findRow = (label: string) => {
+        let number = 0;
+        sheet.eachRow((row) => { if (row.getCell(2).value === label) number = row.number; });
+        expect(number).toBeGreaterThan(0);
+        return sheet.getRow(number);
+      };
+      expect(findRow(isBalance ? "AKTIVA" : "PRIHODKI").font.bold).toBe(true);
+      expect(findRow("Preizkusni razdelek").font.bold).toBe(true);
+      expect(findRow("=Naziv čšž").getCell(1).value).toBe("0010000");
+      expect(findRow(isBalance ? "SKUPAJ AKTIVA" : "SKUPAJ PRIHODKI").getCell(3).value).toBe(1234.56);
+      const total = findRow(isBalance ? "SKUPAJ PASIVA" : "POSLOVNI IZID OBDOBJA");
+      expect(total.getCell(3).value).toBe(isBalance ? 1234.56 : -65.44);
+      expect(total.getCell(4).value).toBe(isBalance ? 1000 : 100);
+      expect(total.getCell(3).numFmt).toBe("#,##0.00");
+      expect(URL.revokeObjectURL).toHaveBeenCalled();
+    },
+  );
 
   it("iz pravega gumba ustvari berljiv XLSX z glavo, vrsticami, skupno vrstico in številskim formatom", async () => {
     state.useGetBalanceSheet.mockReturnValue(praznaPoizvedba);
