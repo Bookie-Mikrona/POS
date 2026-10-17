@@ -622,7 +622,7 @@ async function nextStevilkaPrejemnica(year: number, _davcna: string, tenotaId: n
   return `${yy}${String(nextSeq).padStart(6, "0")}`;
 }
 
-router.get("/prejemnice", async (req, res): Promise<void> => {
+router.get("/prejemnice", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId;
   const rows = await db
     .select({

@@ -899,6 +899,22 @@ describe("POS supplier ordering and linked receipt flow", () => {
         date: "2026-10-20",
       });
 
+      context.enotaId = enotaId;
+      const receiptListA = await request(app).get("/prejemnice");
+      expect(receiptListA.status, JSON.stringify(receiptListA.body)).toBe(200);
+      const receiptIdsForA = receiptListA.body.map((receipt: any) => receipt.id);
+      expect(receiptIdsForA).toContain(sourceA.receiptId);
+      expect(receiptIdsForA).toContain(laterInsertedOlderSourceA.receiptId);
+      expect(receiptIdsForA).not.toContain(sourceB.receiptId);
+
+      context.enotaId = unitB.id;
+      const receiptListB = await request(app).get("/prejemnice");
+      expect(receiptListB.status, JSON.stringify(receiptListB.body)).toBe(200);
+      const receiptIdsForB = receiptListB.body.map((receipt: any) => receipt.id);
+      expect(receiptIdsForB).toContain(sourceB.receiptId);
+      expect(receiptIdsForB).not.toContain(sourceA.receiptId);
+      expect(receiptIdsForB).not.toContain(laterInsertedOlderSourceA.receiptId);
+
       context.enotaId = unitB.id;
       const inaccessibleReceiptA = await request(app).get(`/prejemnice/${sourceA.receiptId}`);
       expect(inaccessibleReceiptA.status).toBe(404);
