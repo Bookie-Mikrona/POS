@@ -197,6 +197,11 @@ export default function NarocilaDobaviteljem() {
   } | null>(null);
   const [closeReason, setCloseReason] = useState("");
   const [closeDialog, setCloseDialog] = useState(false);
+  const [packageReview, setPackageReview] = useState<{
+    order: SupplierOrderDetail;
+    lines: SupplierOrderDetail["lines"];
+  } | null>(null);
+  const [packageReviewAcknowledged, setPackageReviewAcknowledged] = useState(false);
   const [articleSelection, setArticleSelection] = useState<number[]>([]);
 
   const articles = dashboard?.articles ?? [];
@@ -350,18 +355,17 @@ export default function NarocilaDobaviteljem() {
       await refreshLists(orderDetail.id);
     } catch (error) { showError(error, "Spremembe naročila ni bilo mogoče shraniti."); }
   };
-  const prepareReceipt = async () => {
-    if (!orderDetail) return;
-    const openLines = orderDetail.lines.filter(line => line.openBaseQuantity > 0);
+  const createReceiptDraft = async (receiptOrder: SupplierOrderDetail) => {
+    const openLines = receiptOrder.lines.filter(line => line.openBaseQuantity > 0);
     if (!openLines.length) {
       setNotice({ text: "Na naročilu ni več odprtih količin za prevzem.", error: true });
       return;
     }
     try {
-      await createReceipt.mutateAsync({
+      const receipt = await createReceipt.mutateAsync({
         data: {
           datum: new Date().toISOString().slice(0, 10),
-          opomba: `Prejemnica za naročilo ${orderDetail.number}`,
+          opomba: `Prejemnica za naročilo ${receiptOrder.number}`,
           vrstaCen: "neto",
           valuta: "EUR",
           postavke: openLines.map(line => {
@@ -383,8 +387,34 @@ export default function NarocilaDobaviteljem() {
       });
       setNotice({ text: "Osnutek prejemnice je pripravljen samo za odprte količine. Zaloga se spremeni šele ob potrditvi prejemnice." });
       setSelectedOrderId(null);
-      navigate("/zaloge");
+      setPackageReview(null);
+      setPackageReviewAcknowledged(false);
+      navigate(`/zaloge?prejemnica=${receipt.id}`);
     } catch (error) { showError(error, "Prejemnice ni bilo mogoče pripraviti."); }
+  };
+  const prepareReceipt = async () => {
+    if (!orderDetail) return;
+    const refreshed = await refetchDetail();
+    if (refreshed.isError || !refreshed.data) {
+      setNotice({ text: "Naročila ni bilo mogoče osvežiti. Prejemnica ni bila pripravljena.", error: true });
+      return;
+    }
+    const latestOrder = refreshed.data;
+    const openLines = latestOrder.lines.filter(line => line.openBaseQuantity > 0);
+    if (!openLines.length) {
+      setNotice({ text: "Na naročilu ni več odprtih količin za prevzem.", error: true });
+      return;
+    }
+    const changedPackages = openLines.filter(line =>
+      line.currentPackageFactor != null
+      && Math.abs(line.currentPackageFactor - line.packageFactor) > 1e-9,
+    );
+    if (changedPackages.length) {
+      setPackageReview({ order: latestOrder, lines: changedPackages });
+      setPackageReviewAcknowledged(false);
+      return;
+    }
+    await createReceiptDraft(latestOrder);
   };
   const toggleArticle = (id: number) => setArticleSelection(current =>
     current.includes(id) ? current.filter(value => value !== id) : [...current, id],
@@ -735,6 +765,46 @@ export default function NarocilaDobaviteljem() {
         <p className="mt-1 text-sm leading-relaxed text-[#758078]">Nedobavljena odprta količina se zaključi z navedenim razlogom. Že potrjeni prevzemi ostanejo evidentirani.</p>
         <label className="mt-4 block text-xs font-semibold text-[#5f7068]">Razlog zaprtja<Input autoFocus value={closeReason} onChange={event => setCloseReason(event.target.value)} maxLength={500} placeholder="Npr. dobavitelj ne more dobaviti preostanka" className="mt-1.5 border-[#dcd4c6]" /></label>
         <div className="mt-5 flex justify-end gap-2"><Button variant="outline" onClick={() => setCloseDialog(false)}>Nazaj</Button><Button disabled={closeOrder.isPending} onClick={() => void performOrderAction("close")} className="bg-[#285d50] text-white hover:bg-[#204b41]">{closeOrder.isPending ? "Zapiram…" : "Potrdi zaprtje"}</Button></div>
+      </section>
+    </div>}
+    {packageReview && <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#172a25]/60 p-3">
+      <section role="alertdialog" aria-modal="true" aria-labelledby="package-change-title" className="w-full max-w-xl rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+          <div>
+            <h2 id="package-change-title" className="text-lg font-bold text-[#203d39]">Pakiranje se je spremenilo</h2>
+            <p className="mt-1 text-sm leading-relaxed text-[#66746b]">Naročilo ohrani pakiranje ob oddaji. Pred pripravo prejemnice preverite dejansko količino; spodnja razlika ne spreminja naročila ali že shranjenih prejemnic.</p>
+          </div>
+        </div>
+        <div className="mt-4 divide-y divide-amber-100 rounded-xl border border-amber-200 bg-amber-50/60">
+          {packageReview.lines.map(line => <div key={line.id} className="grid gap-2 px-3 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+            <div>
+              <p className="font-semibold text-[#344d45]">{line.articleName}</p>
+              <p className="text-xs text-[#748078]">Odprto za prevzem: {formatQty(line.openBaseQuantity)} {line.baseUnit ?? ""}</p>
+            </div>
+            <p className="text-xs text-[#66746b]"><span className="block font-semibold text-[#344d45]">Ob oddaji</span>{formatQty(line.packageFactor)} {line.baseUnit ?? ""} / pak.</p>
+            <p className="text-xs text-[#66746b]"><span className="block font-semibold text-[#344d45]">Trenutno pakiranje</span>{formatQty(line.currentPackageFactor)} {line.baseUnit ?? ""} / pak.</p>
+          </div>)}
+        </div>
+        <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-lg border border-[#e6dfd2] bg-white px-3 py-2.5 text-sm text-[#485b52]">
+          <input
+            type="checkbox"
+            checked={packageReviewAcknowledged}
+            onChange={event => setPackageReviewAcknowledged(event.target.checked)}
+            className="mt-0.5 accent-[#285d50]"
+          />
+          <span>Preveril/-a sem dejansko količino glede na trenutno pakiranje.</span>
+        </label>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => { setPackageReview(null); setPackageReviewAcknowledged(false); }}>Prekliči</Button>
+          <Button
+            disabled={!packageReviewAcknowledged || busy}
+            onClick={() => { if (packageReviewAcknowledged) void createReceiptDraft(packageReview.order); }}
+            className="bg-[#285d50] text-white hover:bg-[#204b41]"
+          >
+            {createReceipt.isPending ? "Pripravljam…" : "Nadaljuj na prejemnico"}
+          </Button>
+        </div>
       </section>
     </div>}
   </main>;

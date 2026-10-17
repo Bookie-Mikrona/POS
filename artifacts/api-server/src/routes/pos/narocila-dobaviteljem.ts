@@ -224,6 +224,7 @@ async function getSupplierOrderDetail(enotaId: number, id: number) {
       line.dobaviteljeva_sifra AS "supplierCode",
       line.kolicina_pakiranj::float8 AS "packageQuantity",
       line.faktor_pakiranja::float8 AS "packageFactor",
+      current_mapping.enot_v_paketu::float8 AS "currentPackageFactor",
       line.naziv_pakiranja AS "packageName",
       line.osnovna_enota AS "baseUnit",
       (line.kolicina_pakiranj * line.faktor_pakiranja)::float8 AS "orderedBaseQuantity",
@@ -236,6 +237,9 @@ async function getSupplierOrderDetail(enotaId: number, id: number) {
     FROM pos_supplier_order_lines line
     LEFT JOIN confirmed_received received
       ON received.supplier_order_line_id = line.id
+    LEFT JOIN artikel_dobavitelj current_mapping
+      ON current_mapping.id = line.supplier_mapping_id
+     AND current_mapping.enota_id = line.enota_id
     WHERE line.enota_id = ${enotaId} AND line.narocilo_id = ${id}
     ORDER BY line.id
   `);
@@ -254,6 +258,7 @@ async function getSupplierOrderDetail(enotaId: number, id: number) {
       supplierCode: line.supplierCode == null ? null : String(line.supplierCode),
       packageQuantity: Number(line.packageQuantity),
       packageFactor: Number(line.packageFactor),
+      currentPackageFactor: nullableNumber(line.currentPackageFactor),
       packageName: line.packageName == null ? null : String(line.packageName),
       baseUnit: line.baseUnit == null ? null : String(line.baseUnit),
       orderedBaseQuantity: Number(line.orderedBaseQuantity),

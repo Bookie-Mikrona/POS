@@ -8239,6 +8239,8 @@ export interface SupplierOrderLine {
   packageQuantity: number;
   packageFactor: number;
   /** @nullable */
+  currentPackageFactor: number | null;
+  /** @nullable */
   packageName: string | null;
   /** @nullable */
   baseUnit: string | null;

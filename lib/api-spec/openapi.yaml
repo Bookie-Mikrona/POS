@@ -19560,6 +19560,7 @@ components:
         - supplierItemName
         - packageQuantity
         - packageFactor
+        - currentPackageFactor
         - packageName
         - baseUnit
         - orderedBaseQuantity
@@ -19575,6 +19576,7 @@ components:
         supplierCode: { type: [string, "null"] }
         packageQuantity: { type: number }
         packageFactor: { type: number }
+        currentPackageFactor: { type: [number, "null"] }
         packageName: { type: [string, "null"] }
         baseUnit: { type: [string, "null"] }
         orderedBaseQuantity: { type: number }

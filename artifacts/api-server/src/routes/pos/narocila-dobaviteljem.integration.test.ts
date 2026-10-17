@@ -199,6 +199,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
         supplierMappingId: mappingId,
         packageQuantity: 2,
         packageFactor: 6,
+        currentPackageFactor: 6,
         orderedBaseQuantity: 12,
         receivedBaseQuantity: 0,
         openBaseQuantity: 12,
@@ -239,6 +240,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(orderAfterPackageChange.status).toBe(200);
     expect(orderAfterPackageChange.body.lines[0]).toMatchObject({
       packageFactor: 6,
+      currentPackageFactor: 8,
       packageName: "zaboj",
       unitPrice: 20,
     });
@@ -276,6 +278,18 @@ describe("POS supplier ordering and linked receipt flow", () => {
     };
 
     const firstReceiptId = await createReceipt(3.5);
+    await db.update(artikelDobaviteljTable)
+      .set({ enotVPaketu: "10", nazivPaketa: "zaboj 10" })
+      .where(eq(artikelDobaviteljTable.id, mappingId));
+    const receiptAfterMappingChange = await request(app).get(`/prejemnice/${firstReceiptId}`);
+    expect(receiptAfterMappingChange.status).toBe(200);
+    expect(receiptAfterMappingChange.body.postavke[0]).toMatchObject({
+      kolicina: 6,
+      enotVPaketu: 1,
+    });
+    await db.update(artikelDobaviteljTable)
+      .set({ enotVPaketu: "8", nazivPaketa: "zaboj 8" })
+      .where(eq(artikelDobaviteljTable.id, mappingId));
     const [stockWithDraftReceipt] = await db.select().from(zalogeTable).where(eq(zalogeTable.artikelId, articleId));
     expect(Number(stockWithDraftReceipt.kolicina)).toBe(2);
     expect(await getMappingPrice()).toEqual({ packagePrice: 18, unitPrice: 3 });

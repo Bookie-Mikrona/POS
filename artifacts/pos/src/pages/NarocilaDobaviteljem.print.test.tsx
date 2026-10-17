@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
       supplierCode: "ML-01",
       packageQuantity: 2,
       packageFactor: 6,
+      currentPackageFactor: 6,
       packageName: "zaboj",
       baseUnit: "L",
       orderedBaseQuantity: 12,
@@ -106,7 +107,7 @@ vi.mock("@workspace/api-client-react", async () => {
       data: mocks.order,
       isLoading: false,
       isError: false,
-      refetch: vi.fn(),
+      refetch: async () => ({ data: mocks.order, isError: false }),
     }),
     useSaveSupplierReorderSettings: mutation,
     useCreateSupplierOrder: mutation,
@@ -250,6 +251,85 @@ describe("supplier order print view", () => {
     } finally {
       Object.assign(article, originalArticle);
       Object.assign(mapping, originalMapping);
+    }
+  });
+
+  it("requires a quantity check before preparing a receipt when the package changed", async () => {
+    const originalStatus = mocks.order.status;
+    const originalCurrentPackageFactor = mocks.order.lines[0].currentPackageFactor;
+    mocks.order.status = "sent";
+    mocks.order.lines[0].currentPackageFactor = 8;
+    mocks.mutation.mockResolvedValue({ id: 7045 });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      fireEvent.click(screen.getByRole("button", { name: "Pripravi prejemnico" }));
+
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      expect(screen.getByRole("alertdialog").textContent).toContain("6 L / pak.");
+      expect(screen.getByRole("alertdialog").textContent).toContain("8 L / pak.");
+      expect(mocks.mutation).not.toHaveBeenCalled();
+      expect((screen.getByRole("button", { name: "Nadaljuj na prejemnico" }) as HTMLButtonElement).disabled).toBe(true);
+
+      fireEvent.click(screen.getByRole("checkbox", { name: /Preveril\/-a sem dejansko količino/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Nadaljuj na prejemnico" }));
+
+      await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          postavke: [{
+            artikelId: 7043,
+            supplierOrderLineId: 7041,
+            kolicina: 12,
+            cenaKos: 3,
+            skupaj: undefined,
+            izvKolicina: 12,
+            izvCena: 3,
+            izvEnota: "L",
+            enotVPaketu: 1,
+          }],
+        }),
+      }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7045");
+    } finally {
+      mocks.order.status = originalStatus;
+      mocks.order.lines[0].currentPackageFactor = originalCurrentPackageFactor;
+    }
+  });
+
+  it("prepares a receipt without a warning when the package is unchanged", async () => {
+    const originalStatus = mocks.order.status;
+    mocks.order.status = "sent";
+    mocks.mutation.mockResolvedValue({ id: 7046 });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      fireEvent.click(screen.getByRole("button", { name: "Pripravi prejemnico" }));
+
+      await waitFor(() => expect(mocks.mutation).toHaveBeenCalled());
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7046");
+    } finally {
+      mocks.order.status = originalStatus;
     }
   });
 });
