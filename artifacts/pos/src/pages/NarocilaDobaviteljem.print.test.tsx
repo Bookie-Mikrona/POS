@@ -584,6 +584,54 @@ describe("supplier order print view", () => {
     expect(print).not.toHaveBeenCalled();
   });
 
+  it("keeps Tab and Shift+Tab within the print warning actions", () => {
+    mocks.order.supplierNotes = " \n ";
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+    const printButton = screen.getByTestId("button-print-supplier-order-704");
+    fireEvent.click(printButton);
+
+    const warning = screen.getByRole("alertdialog");
+    const firstAction = screen.getByTestId("button-dismiss-supplier-order-print-warning");
+    const lastAction = screen.getByTestId("button-continue-supplier-order-print");
+    expect(document.activeElement).toBe(warning);
+
+    fireEvent.keyDown(warning, { key: "Tab", code: "Tab" });
+    expect(document.activeElement).toBe(firstAction);
+    expect(warning.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(printButton);
+
+    warning.focus();
+    fireEvent.keyDown(warning, { key: "Tab", code: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(lastAction);
+    expect(warning.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(printButton);
+
+    fireEvent.keyDown(lastAction, { key: "Tab", code: "Tab" });
+    expect(document.activeElement).toBe(firstAction);
+    expect(warning.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(printButton);
+
+    fireEvent.keyDown(firstAction, { key: "Tab", code: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(lastAction);
+    expect(warning.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(printButton);
+
+    fireEvent.keyDown(lastAction, { key: "Tab", code: "Tab" });
+    expect(document.activeElement).toBe(firstAction);
+    expect(warning.contains(document.activeElement)).toBe(true);
+    expect(print).not.toHaveBeenCalled();
+  });
+
   it("returns a draft to editing from the print warning without printing", () => {
     mocks.order.supplierNotes = "";
     const queryClient = new QueryClient({

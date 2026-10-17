@@ -1339,6 +1339,30 @@ export default function NarocilaDobaviteljem() {
         aria-describedby="supplier-order-print-warning-description"
         tabIndex={-1}
         onKeyDownCapture={event => {
+          if (event.key === "Tab") {
+            const dialog = event.currentTarget;
+            const focusableElements = dialog.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            );
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+            const activeElement = document.activeElement;
+
+            if (!firstElement || !lastElement) {
+              event.preventDefault();
+              return;
+            }
+
+            if (event.shiftKey && (activeElement === firstElement || activeElement === dialog)) {
+              event.preventDefault();
+              lastElement.focus();
+            } else if (!event.shiftKey && (activeElement === lastElement || activeElement === dialog)) {
+              event.preventDefault();
+              firstElement.focus();
+            }
+            return;
+          }
+
           if (event.key === "Escape") {
             event.preventDefault();
             event.stopPropagation();
