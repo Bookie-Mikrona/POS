@@ -213,6 +213,21 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
         ddvStopnja: "0",
         obravnava: "strosek",
       }],
+      packageChangeReviews: [{
+        id: 19,
+        receiptId: 4209,
+        supplierOrderLineId: 621,
+        articleName: "Mleko polnomastno",
+        orderPackageName: "zaboj",
+        orderFactor: 6,
+        orderBaseUnit: "L",
+        currentPackageName: "večji zaboj",
+        currentFactor: 12,
+        currentBaseUnit: "L",
+        actorClerkUserId: "user_reviewed_19",
+        actorNatakarId: 731,
+        reviewedAt: "2026-10-17T11:25:00.000Z",
+      }],
     };
     const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
     mockGetPrejemnica.mockReturnValue({ data: receipt, isLoading: false, isError: false });
@@ -223,9 +238,17 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("heading", { name: /Pregled prejemnice št\. 26100009/ })).toBeInTheDocument();
     expect(within(dialog).getByText("Mlekarna Planika")).toBeInTheDocument();
-    expect(within(dialog).getByText("Mleko polnomastno")).toBeInTheDocument();
+    expect(within(dialog).getByTestId("receipt-view-line-1")).toHaveTextContent("Mleko polnomastno");
     expect(within(dialog).getByTestId("text-receipt-view-total")).toHaveTextContent("15,50 EUR");
     expect(within(dialog).getByText("Prevoz")).toBeInTheDocument();
+    const packageReview = within(dialog).getByTestId("receipt-package-change-review-19");
+    expect(packageReview).toHaveTextContent("Shranjeno v naročilu");
+    expect(packageReview).toHaveTextContent("6 L / zaboj");
+    expect(packageReview).toHaveTextContent("Veljalo ob potrditvi");
+    expect(packageReview).toHaveTextContent("12 L / večji zaboj");
+    expect(packageReview).toHaveTextContent("user_reviewed_19");
+    expect(packageReview).toHaveTextContent("POS natakar ID 731");
+    expect(packageReview).toHaveTextContent("Čas pregleda");
     const milkAllergens = within(dialog).getByTestId("receipt-view-allergens-1");
     expect(milkAllergens).toHaveTextContent("Potrjeno in preverjeno");
     expect(milkAllergens).toHaveTextContent("Specifikacija proizvajalca");

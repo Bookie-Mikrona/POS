@@ -2048,7 +2048,18 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
   const receipt = data as any;
   const postavke = Array.isArray(receipt?.postavke) ? receipt.postavke : [];
   const odvisniStroski = Array.isArray(receipt?.odvisniStroski) ? receipt.odvisniStroski : [];
+  const packageChangeReviews = Array.isArray(receipt?.packageChangeReviews) ? receipt.packageChangeReviews : [];
   const currency = receipt?.valuta || "EUR";
+  const formatReviewedAt = (value: unknown) => {
+    if (typeof value !== "string") return "–";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "–";
+    return new Intl.DateTimeFormat("sl-SI", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Europe/Ljubljana",
+    }).format(date);
+  };
   const summaryFields = [
     { id: "supplier", label: "Dobavitelj", value: receipt?.dobaviteljNaziv || "–" },
     { id: "receipt-date", label: "Datum prejema", value: receipt?.datum ? fmtDatum(receipt.datum) : "–" },
@@ -2185,6 +2196,50 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+              </section>
+            )}
+
+            {packageChangeReviews.length > 0 && (
+              <section className="space-y-2" data-testid="receipt-package-change-reviews">
+                <h3 className="text-sm font-semibold">Potrjene spremembe pakiranja</h3>
+                <div className="space-y-3">
+                  {packageChangeReviews.map((review: any, index: number) => (
+                    <article
+                      key={review.id ?? `${review.supplierOrderLineId}-${index}`}
+                      data-testid={`receipt-package-change-review-${review.id ?? index}`}
+                      className="rounded-md border bg-muted/20 p-3"
+                    >
+                      <h4 className="text-sm font-semibold">{review.articleName || "–"}</h4>
+                      <dl className="mt-2 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Shranjeno v naročilu</dt>
+                          <dd className="mt-1 break-words">
+                            {formatPackageFactor(review.orderFactor)} {review.orderBaseUnit?.trim() || "enot"}
+                            {" / "}{formatPackageName(review.orderPackageName)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Veljalo ob potrditvi</dt>
+                          <dd className="mt-1 break-words">
+                            {formatPackageFactor(review.currentFactor)} {review.currentBaseUnit?.trim() || "enot"}
+                            {" / "}{formatPackageName(review.currentPackageName)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Pregledal</dt>
+                          <dd className="mt-1 break-words">
+                            {review.actorClerkUserId || "–"}
+                            {review.actorNatakarId != null ? ` · POS natakar ID ${review.actorNatakarId}` : ""}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Čas pregleda</dt>
+                          <dd className="mt-1">{formatReviewedAt(review.reviewedAt)}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
                 </div>
               </section>
             )}

@@ -11258,7 +11258,22 @@ export const CreatePrejemnicaResponse = zod.object({
   "znesek": zod.number(),
   "ddvStopnja": zod.number().nullish(),
   "obravnava": zod.enum(['zaloga', 'strosek'])
-})).optional()
+})).optional(),
+  "packageChangeReviews": zod.array(zod.object({
+  "id": zod.number(),
+  "receiptId": zod.number(),
+  "supplierOrderLineId": zod.number(),
+  "articleName": zod.string(),
+  "orderPackageName": zod.string().nullable(),
+  "orderFactor": zod.number().nullable(),
+  "orderBaseUnit": zod.string().nullable(),
+  "currentPackageName": zod.string().nullable(),
+  "currentFactor": zod.number().nullable(),
+  "currentBaseUnit": zod.string().nullable(),
+  "actorClerkUserId": zod.string(),
+  "actorNatakarId": zod.number().nullable(),
+  "reviewedAt": zod.coerce.date()
+}))
 })
 
 
@@ -11364,7 +11379,22 @@ export const GetPrejemnicaResponse = zod.object({
   "znesek": zod.number(),
   "ddvStopnja": zod.number().nullish(),
   "obravnava": zod.enum(['zaloga', 'strosek'])
-})).optional()
+})).optional(),
+  "packageChangeReviews": zod.array(zod.object({
+  "id": zod.number(),
+  "receiptId": zod.number(),
+  "supplierOrderLineId": zod.number(),
+  "articleName": zod.string(),
+  "orderPackageName": zod.string().nullable(),
+  "orderFactor": zod.number().nullable(),
+  "orderBaseUnit": zod.string().nullable(),
+  "currentPackageName": zod.string().nullable(),
+  "currentFactor": zod.number().nullable(),
+  "currentBaseUnit": zod.string().nullable(),
+  "actorClerkUserId": zod.string(),
+  "actorNatakarId": zod.number().nullable(),
+  "reviewedAt": zod.coerce.date()
+}))
 })
 
 
@@ -11488,7 +11518,22 @@ export const UpdatePrejemnicaResponse = zod.object({
   "znesek": zod.number(),
   "ddvStopnja": zod.number().nullish(),
   "obravnava": zod.enum(['zaloga', 'strosek'])
-})).optional()
+})).optional(),
+  "packageChangeReviews": zod.array(zod.object({
+  "id": zod.number(),
+  "receiptId": zod.number(),
+  "supplierOrderLineId": zod.number(),
+  "articleName": zod.string(),
+  "orderPackageName": zod.string().nullable(),
+  "orderFactor": zod.number().nullable(),
+  "orderBaseUnit": zod.string().nullable(),
+  "currentPackageName": zod.string().nullable(),
+  "currentFactor": zod.number().nullable(),
+  "currentBaseUnit": zod.string().nullable(),
+  "actorClerkUserId": zod.string(),
+  "actorNatakarId": zod.number().nullable(),
+  "reviewedAt": zod.coerce.date()
+}))
 })
 
 

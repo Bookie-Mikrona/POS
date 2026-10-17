@@ -33,6 +33,11 @@ export type SupplierOrderPackageFactorChange = {
   currentBaseUnit: string | null;
 };
 
+export type SupplierOrderPackageFactorReviewSnapshot = SupplierOrderPackageFactorChange & {
+  orderFactorExact: string | null;
+  currentFactorExact: string | null;
+};
+
 export class SupplierOrderPackageFactorReviewRequired extends Error {
   constructor(readonly changes: SupplierOrderPackageFactorChange[]) {
     super("Podatki o pakiranju so se spremenili. Pred potrditvijo prejemnice preglejte shranjene in trenutne podatke.");
@@ -163,11 +168,11 @@ export async function requireSupplierOrderPackageFactorReview(
     supplierOrderLineIds: Array<number | string | null | undefined>;
     reviewedPackageFactorChanges?: SupplierOrderPackageFactorChange[];
   },
-): Promise<void> {
+): Promise<SupplierOrderPackageFactorReviewSnapshot[]> {
   const ids = [...new Set(input.supplierOrderLineIds
     .map(value => Number(value))
     .filter(id => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
-  if (ids.length === 0) return;
+  if (ids.length === 0) return [];
 
   const result = await tx.execute(sql`
     SELECT
@@ -196,7 +201,7 @@ export async function requireSupplierOrderPackageFactorReview(
     )
       AND order_line.enota_id = ${input.enotaId}
     ORDER BY mapping.id, order_line.id
-    FOR UPDATE OF mapping
+     FOR UPDATE OF mapping, article, order_line
   `);
 
   const asNullableFactor = (value: unknown): number | null => {
@@ -204,7 +209,7 @@ export async function requireSupplierOrderPackageFactorReview(
     const factor = Number(value);
     return Number.isFinite(factor) ? factor : null;
   };
-  const changes = (result.rows as Array<{
+  const reviewSnapshots = (result.rows as Array<{
     supplierOrderLineId: number | string;
     articleName: string;
     orderPackageName: string | null;
@@ -216,17 +221,28 @@ export async function requireSupplierOrderPackageFactorReview(
     changed: boolean;
   }>)
     .filter(row => Boolean(row.changed))
-    .map(row => ({
-      supplierOrderLineId: Number(row.supplierOrderLineId),
-      articleName: row.articleName,
-      orderPackageName: row.orderPackageName,
-      orderFactor: asNullableFactor(row.orderFactor),
-      orderBaseUnit: row.orderBaseUnit,
-      currentPackageName: row.currentPackageName,
-      currentFactor: asNullableFactor(row.currentFactor),
-      currentBaseUnit: row.currentBaseUnit,
-    }));
-  if (changes.length === 0) return;
+    .map(row => {
+      const orderFactorExact = row.orderFactor == null ? null : String(row.orderFactor);
+      const currentFactorExact = row.currentFactor == null ? null : String(row.currentFactor);
+      return {
+        supplierOrderLineId: Number(row.supplierOrderLineId),
+        articleName: row.articleName,
+        orderPackageName: row.orderPackageName,
+        orderFactor: asNullableFactor(row.orderFactor),
+        orderFactorExact,
+        orderBaseUnit: row.orderBaseUnit,
+        currentPackageName: row.currentPackageName,
+        currentFactor: asNullableFactor(row.currentFactor),
+        currentFactorExact,
+        currentBaseUnit: row.currentBaseUnit,
+      };
+    });
+  const changes: SupplierOrderPackageFactorChange[] = reviewSnapshots.map(({
+    orderFactorExact: _orderFactorExact,
+    currentFactorExact: _currentFactorExact,
+    ...change
+  }) => change);
+  if (changes.length === 0) return [];
 
   const reviewed = input.reviewedPackageFactorChanges ?? [];
   const reviewedByLineId = new Map(reviewed.map(change => [change.supplierOrderLineId, change]));
@@ -246,6 +262,7 @@ export async function requireSupplierOrderPackageFactorReview(
   if (!hasReviewedCurrentChanges) {
     throw new SupplierOrderPackageFactorReviewRequired(changes);
   }
+  return reviewSnapshots;
 }
 
 export async function syncSupplierOrdersForReceipt(

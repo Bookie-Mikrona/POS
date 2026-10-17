@@ -19458,6 +19458,7 @@ components:
         - ustvarjeno
         - postavke
         - vrstaCen
+        - packageChangeReviews
       properties:
         id:
           type: integer
@@ -19503,6 +19504,54 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PrejemnicaOdvisniStrosek"
+        packageChangeReviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrejemnicaPackageChangeReview"
+    PrejemnicaPackageChangeReview:
+      type: object
+      required:
+        - id
+        - receiptId
+        - supplierOrderLineId
+        - articleName
+        - orderPackageName
+        - orderFactor
+        - orderBaseUnit
+        - currentPackageName
+        - currentFactor
+        - currentBaseUnit
+        - actorClerkUserId
+        - actorNatakarId
+        - reviewedAt
+      properties:
+        id:
+          type: integer
+        receiptId:
+          type: integer
+        supplierOrderLineId:
+          type: integer
+        articleName:
+          type: string
+        orderPackageName:
+          type: [string, "null"]
+        orderFactor:
+          type: [number, "null"]
+        orderBaseUnit:
+          type: [string, "null"]
+        currentPackageName:
+          type: [string, "null"]
+        currentFactor:
+          type: [number, "null"]
+        currentBaseUnit:
+          type: [string, "null"]
+        actorClerkUserId:
+          type: string
+        actorNatakarId:
+          type: [integer, "null"]
+        reviewedAt:
+          type: string
+          format: date-time
     SupplierOrderStatus:
       type: string
       enum: [draft, sent, partially_received, received, closed, cancelled]

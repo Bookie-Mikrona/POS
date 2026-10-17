@@ -561,6 +561,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["260-pos-supplier-orders.sql"],
   },
+  {
+    file: "262-pos-supplier-package-change-reviews.sql",
+    classification: "audit",
+    dependsOn: ["261-pos-supplier-order-notes.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

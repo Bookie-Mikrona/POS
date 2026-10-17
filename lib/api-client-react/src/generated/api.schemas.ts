@@ -8100,6 +8100,29 @@ export const PrejemnicaFullVrstaCen = {
   bruto: 'bruto',
 } as const;
 
+export interface PrejemnicaPackageChangeReview {
+  id: number;
+  receiptId: number;
+  supplierOrderLineId: number;
+  articleName: string;
+  /** @nullable */
+  orderPackageName: string | null;
+  /** @nullable */
+  orderFactor: number | null;
+  /** @nullable */
+  orderBaseUnit: string | null;
+  /** @nullable */
+  currentPackageName: string | null;
+  /** @nullable */
+  currentFactor: number | null;
+  /** @nullable */
+  currentBaseUnit: string | null;
+  actorClerkUserId: string;
+  /** @nullable */
+  actorNatakarId: number | null;
+  reviewedAt: string;
+}
+
 export interface PrejemnicaFull {
   id: number;
   /** @nullable */
@@ -8119,6 +8142,7 @@ export interface PrejemnicaFull {
   ustvarjeno: string;
   postavke: PrejemnicaPostavkaPogled[];
   odvisniStroski?: PrejemnicaOdvisniStrosek[];
+  packageChangeReviews: PrejemnicaPackageChangeReview[];
 }
 
 export type SupplierOrderStatus = typeof SupplierOrderStatus[keyof typeof SupplierOrderStatus];

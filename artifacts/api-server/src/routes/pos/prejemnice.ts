@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
-import { artikliTable, companiesTable, counterpartiesTable, db, embalazniPrometiTable, enoteTable, goodsReceiptsTable, invoicesTable, nastavitveTable, prejemniceOdvisniStroskiTable, prejemnicePostavkeTable, prejemniceTable, purchaseSourceDocumentsTable, uvozSejaTable, vatCodeTable, zalogaGibiTable } from "@workspace/db";
+import { artikliTable, companiesTable, counterpartiesTable, db, embalazniPrometiTable, enoteTable, goodsReceiptsTable, invoicesTable, nastavitveTable, posSupplierPackageChangeReviewsTable, prejemniceOdvisniStroskiTable, prejemnicePostavkeTable, prejemniceTable, purchaseSourceDocumentsTable, uvozSejaTable, vatCodeTable, zalogaGibiTable } from "@workspace/db";
 import { ConfirmPrejemnicaBody, ConfirmPrejemnicaResponse } from "@workspace/api-zod";
 import { requireEnota } from "../../middlewares/pos";
 import { broadcastToUnit } from "../../lib/pos-sse";
@@ -259,7 +259,7 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
           izvKolicina: line.sourceQuantity,
         })),
       });
-      await requireSupplierOrderPackageFactorReview(tx, {
+      const approvedPackageChanges = await requireSupplierOrderPackageFactorReview(tx, {
         enotaId,
         supplierOrderLineIds: lines.map(line => line.supplierOrderLineId),
         reviewedPackageFactorChanges,
@@ -268,6 +268,28 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
         receipt.status,
         lines,
       );
+      if (approvedPackageChanges.length > 0) {
+        if (!actor) throw new Error("Potrditve spremembe pakiranja ni mogoče zapisati brez Clerk izvajalca.");
+        const actorNatakarId = Number.isInteger((req as any).posActorNatakarId)
+          ? (req as any).posActorNatakarId as number
+          : null;
+        await tx.insert(posSupplierPackageChangeReviewsTable).values(
+          approvedPackageChanges.map(change => ({
+            enotaId,
+            prejemnicaId: id,
+            supplierOrderLineId: change.supplierOrderLineId,
+            articleName: change.articleName,
+            orderPackageName: change.orderPackageName,
+            orderFactor: change.orderFactorExact,
+            orderBaseUnit: change.orderBaseUnit,
+            currentPackageName: change.currentPackageName,
+            currentFactor: change.currentFactorExact,
+            currentBaseUnit: change.currentBaseUnit,
+            actorClerkUserId: actor,
+            actorNatakarId,
+          })),
+        );
+      }
       await knjizalogaGibiZaUvozPrejemnico(tx as any, id, actor);
       const [confirmed] = await tx.update(prejemniceTable)
         .set({ status: "confirmed" })
@@ -1097,6 +1119,14 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     .select()
     .from(prejemniceOdvisniStroskiTable)
     .where(eq(prejemniceOdvisniStroskiTable.prejemnicaId, id));
+  const packageChangeReviews = await db
+    .select()
+    .from(posSupplierPackageChangeReviewsTable)
+    .where(and(
+      eq(posSupplierPackageChangeReviewsTable.enotaId, tenotaId),
+      eq(posSupplierPackageChangeReviewsTable.prejemnicaId, id),
+    ))
+    .orderBy(desc(posSupplierPackageChangeReviewsTable.reviewedAt), desc(posSupplierPackageChangeReviewsTable.id));
 
   res.json({
     id: prejemnica.id,
@@ -1155,6 +1185,21 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       ...strosek,
       znesek: Number(strosek.znesek),
       ddvStopnja: strosek.ddvStopnja != null ? Number(strosek.ddvStopnja) : null,
+    })),
+    packageChangeReviews: packageChangeReviews.map((review) => ({
+      id: review.id,
+      receiptId: review.prejemnicaId,
+      supplierOrderLineId: review.supplierOrderLineId,
+      articleName: review.articleName,
+      orderPackageName: review.orderPackageName,
+      orderFactor: review.orderFactor != null ? Number(review.orderFactor) : null,
+      orderBaseUnit: review.orderBaseUnit,
+      currentPackageName: review.currentPackageName,
+      currentFactor: review.currentFactor != null ? Number(review.currentFactor) : null,
+      currentBaseUnit: review.currentBaseUnit,
+      actorClerkUserId: review.actorClerkUserId,
+      actorNatakarId: review.actorNatakarId,
+      reviewedAt: review.reviewedAt.toISOString(),
     })),
   });
 });
@@ -1659,6 +1704,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       znesek: Number(strosek.znesek),
       ddvStopnja: strosek.ddvStopnja != null ? Number(strosek.ddvStopnja) : null,
     })),
+    packageChangeReviews: [],
   });
 });
 

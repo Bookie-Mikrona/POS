@@ -5,6 +5,7 @@ const context = vi.hoisted(() => ({
   enotaId: 0,
   userId: "supplier-order-route-test",
   role: "admin",
+  actorNatakarId: 731,
 }));
 
 vi.mock("../../middlewares/pos", () => ({
@@ -13,6 +14,7 @@ vi.mock("../../middlewares/pos", () => ({
     req.enotaId = context.enotaId;
     req.clerkUserId = context.userId;
     req.vloga = context.role;
+    req.posActorNatakarId = context.actorNatakarId;
     next();
   },
 }));
@@ -27,6 +29,7 @@ import {
   counterpartiesTable,
   db,
   enoteTable,
+  posSupplierPackageChangeReviewsTable,
   posSupplierOrderLinesTable,
   posSupplierOrdersTable,
   posSupplierReorderSettingsTable,
@@ -128,6 +131,20 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
   afterAll(async () => {
     if (!companyId) return;
+
+    await db.execute(sql.raw(
+      "ALTER TABLE pos_supplier_package_change_reviews DISABLE TRIGGER pos_supplier_package_change_reviews_append_only",
+    ));
+    try {
+      if (receiptIds.length) {
+        await db.delete(posSupplierPackageChangeReviewsTable)
+          .where(inArray(posSupplierPackageChangeReviewsTable.prejemnicaId, receiptIds));
+      }
+    } finally {
+      await db.execute(sql.raw(
+        "ALTER TABLE pos_supplier_package_change_reviews ENABLE TRIGGER pos_supplier_package_change_reviews_append_only",
+      ));
+    }
 
     await db.execute(sql.raw("ALTER TABLE zaloga_gibi DISABLE TRIGGER zaloga_gibi_history_append_only"));
     try {
@@ -758,6 +775,10 @@ describe("POS supplier ordering and linked receipt flow", () => {
       currentFactor: 7,
       currentBaseUnit: "KOS",
     }]);
+    const unapprovedPackageReviews = await db.select()
+      .from(posSupplierPackageChangeReviewsTable)
+      .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, nameOnlyReceipt.body.id));
+    expect(unapprovedPackageReviews).toHaveLength(0);
 
     const [savedOrderSnapshot] = await db.select({
       packageName: posSupplierOrderLinesTable.nazivPakiranja,
@@ -782,6 +803,60 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .post(`/prejemnice/${nameOnlyReceipt.body.id}/confirm`)
       .send({ reviewedPackageFactorChanges: latestNameWarning.body.packageFactorChanges });
     expect(confirmedNameOnlyReceipt.status, JSON.stringify(confirmedNameOnlyReceipt.body)).toBe(200);
+    const packageReviews = await db.select()
+      .from(posSupplierPackageChangeReviewsTable)
+      .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, nameOnlyReceipt.body.id));
+    expect(packageReviews).toHaveLength(1);
+    expect(packageReviews[0]).toMatchObject({
+      enotaId,
+      prejemnicaId: nameOnlyReceipt.body.id,
+      supplierOrderLineId: nameOnlyLineId,
+      orderPackageName: "paket 7",
+      orderBaseUnit: "KOS",
+      currentPackageName: "transportni zaboj 7 - nova oznaka",
+      currentBaseUnit: "KOS",
+      actorClerkUserId: context.userId,
+      actorNatakarId: 731,
+    });
+    expect(Number(packageReviews[0]!.orderFactor)).toBe(7);
+    expect(Number(packageReviews[0]!.currentFactor)).toBe(7);
+    expect(packageReviews[0]!.reviewedAt).toBeInstanceOf(Date);
+
+    const receiptDetail = await request(app).get(`/prejemnice/${nameOnlyReceipt.body.id}`);
+    expect(receiptDetail.status, JSON.stringify(receiptDetail.body)).toBe(200);
+    expect(receiptDetail.body.packageChangeReviews).toHaveLength(1);
+    expect(receiptDetail.body.packageChangeReviews[0]).toMatchObject({
+      receiptId: nameOnlyReceipt.body.id,
+      supplierOrderLineId: nameOnlyLineId,
+      orderPackageName: "paket 7",
+      currentPackageName: "transportni zaboj 7 - nova oznaka",
+      actorClerkUserId: context.userId,
+      actorNatakarId: 731,
+      reviewedAt: expect.any(String),
+    });
+    const updateReviewError = await db.update(posSupplierPackageChangeReviewsTable)
+      .set({ currentPackageName: "spremenjeno" })
+      .where(eq(posSupplierPackageChangeReviewsTable.id, packageReviews[0]!.id))
+      .then(() => null, error => error as Error & { cause?: unknown });
+    expect(updateReviewError).toBeTruthy();
+    expect(`${updateReviewError?.message} ${(updateReviewError?.cause as Error | undefined)?.message ?? updateReviewError?.cause ?? ""}`)
+      .toContain("append-only");
+    const deleteReviewError = await db.delete(posSupplierPackageChangeReviewsTable)
+      .where(eq(posSupplierPackageChangeReviewsTable.id, packageReviews[0]!.id))
+      .then(() => null, error => error as Error & { cause?: unknown });
+    expect(deleteReviewError).toBeTruthy();
+    expect(`${deleteReviewError?.message} ${(deleteReviewError?.cause as Error | undefined)?.message ?? deleteReviewError?.cause ?? ""}`)
+      .toContain("append-only");
+
+    const repeatedConfirmation = await request(app)
+      .post(`/prejemnice/${nameOnlyReceipt.body.id}/confirm`)
+      .send({});
+    expect(repeatedConfirmation.status).toBe(200);
+    const packageReviewsAfterReplay = await db.select()
+      .from(posSupplierPackageChangeReviewsTable)
+      .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, nameOnlyReceipt.body.id));
+    expect(packageReviewsAfterReplay).toHaveLength(1);
+
     const [orderSnapshotAfterConfirmation] = await db.select({
       packageName: posSupplierOrderLinesTable.nazivPakiranja,
       packageFactor: posSupplierOrderLinesTable.faktorPakiranja,

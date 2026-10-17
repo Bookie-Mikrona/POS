@@ -30,6 +30,7 @@ export * from "./prepared-food";
 export * from "./plate-waste";
 export * from "./prejemnice";
 export * from "./narocila-dobaviteljem";
+export * from "./supplier-package-change-reviews";
 export * from "./izdajnice";
 export * from "./inventure";
 export * from "./zacetne-zaloge";
