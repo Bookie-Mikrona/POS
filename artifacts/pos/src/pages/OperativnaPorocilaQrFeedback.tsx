@@ -381,7 +381,7 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
                         axisLine={false}
                         dx={-10}
                       />
-                      <Tooltip content={<TrendTooltip />} />
+                      <Tooltip filterNull={false} content={<TrendTooltip />} />
                       <Legend wrapperStyle={{ paddingTop: '20px' }} />
                       <Line type="monotone" name="Hrana" dataKey="foodReliable" stroke="#ef4444" strokeWidth={2} legendType="plainline" dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={false} />
                       <Line type="monotone" name="Ambient" dataKey="ambienceReliable" stroke="#3b82f6" strokeWidth={2} strokeDasharray="8 4" legendType="plainline" dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={false} />
@@ -401,6 +401,7 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
                     <span className="h-3 w-3 rounded-full border-2 border-dashed border-amber-500 bg-background" aria-hidden="true" />
                     Manj kot 5 odzivov · majhen vzorec, brez povezovalne črte
                   </span>
+                  <span>Brez odzivov · vrzel brez točke in povezovalne črte</span>
                 </div>
               </CardContent>
             </Card>
@@ -615,7 +616,11 @@ export function TrendTooltip({ active, payload }: {
     <div className="min-w-[190px] rounded-lg border border-border bg-background p-3 text-xs shadow-lg" data-testid="trend-tooltip">
       <p className="font-semibold text-foreground">{slovenianPeriod(row.periodStart, row.periodEnd)}</p>
       <p className="mt-1 text-muted-foreground">{row.responses} odzivov</p>
-      {row.smallSample && (
+      {row.responses === 0 ? (
+        <p className="mt-2 text-muted-foreground" data-testid="trend-tooltip-empty">
+          V tem obdobju ni bilo odzivov.
+        </p>
+      ) : row.smallSample && (
         <p className="mt-2 flex items-start gap-1.5 font-medium text-amber-700 dark:text-amber-300" data-testid="trend-tooltip-small-sample">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           Majhen vzorec – manj kot 5 odzivov

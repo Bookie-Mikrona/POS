@@ -246,6 +246,26 @@ async function loadReport(query: ReportQuery, units: ReportUnit[]): Promise<Repo
     periodStart: string; periodEnd: string; responses: number;
     foodSum: number; ambienceSum: number; serviceSum: number;
   }>();
+  // Enumerate calendar buckets, not elapsed hours: Ljubljana DST must not
+  // skip or duplicate a business date. Weeks start on Monday, as in SQL.
+  const bucket = new Date(`${query.od}T00:00:00Z`);
+  if (query.granularity === "week") {
+    bucket.setUTCDate(bucket.getUTCDate() - (bucket.getUTCDay() + 6) % 7);
+  }
+  const step = query.granularity === "week" ? 7 : 1;
+  while (formatUtcDate(bucket) <= query.do) {
+    const end = new Date(bucket);
+    end.setUTCDate(end.getUTCDate() + step - 1);
+    const bucketStart = formatUtcDate(bucket);
+    const bucketEnd = formatUtcDate(end);
+    const periodStart = bucketStart < query.od ? query.od : bucketStart;
+    const periodEnd = bucketEnd > query.do ? query.do : bucketEnd;
+    trends.set(periodStart, {
+      periodStart, periodEnd,
+      responses: 0, foodSum: 0, ambienceSum: 0, serviceSum: 0,
+    });
+    bucket.setUTCDate(bucket.getUTCDate() + step);
+  }
   const articles = new Map<string, {
     currentSum: number; currentCount: number;
     previousSum: number; previousCount: number;

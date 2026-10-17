@@ -349,7 +349,11 @@ describe("QR feedback operational report privacy and tenant scope", () => {
     expect(aggregate.status).toBe(200);
     GetOperativnaPorocilaQrFeedbackResponse.parse(aggregate.body);
     expect(aggregate.body.totals).toMatchObject({ responses: 0, smallSample: true });
-    expect(aggregate.body.trends).toEqual([]);
+    expect(aggregate.body.trends).toEqual([{
+      periodStart: "2025-01-12", periodEnd: "2025-01-12",
+      responses: 0, foodAverage: null, ambienceAverage: null,
+      serviceAverage: null, smallSample: true,
+    }]);
     expect(aggregate.body.articles).toEqual([]);
     expect(aggregate.body.comments).toEqual({ count: 0, protected: true });
     expect(aggregate.body.comparison.dimensions.food).toMatchObject({ currentAverage: null, difference: null, direction: "unavailable" });
@@ -360,6 +364,61 @@ describe("QR feedback operational report privacy and tenant scope", () => {
     expect(csv.status).toBe(200);
     expect(csv.text).toContain("counts,responses");
     expect(csv.text).not.toContain(`private-comment-${suffix}`);
+  });
+
+  it("keeps daily and Monday-based weekly gaps between rated periods, including partial edge weeks", async () => {
+    const dates = ["2025-02-26", "2025-03-18"];
+    const orders = await db.insert(narocilaTable).values(
+      dates.map(() => ({ enotaId: unitA, status: "zakljuceno" as const })),
+    ).returning({ id: narocilaTable.id });
+    orderIds.push(...orders.map(order => order.id));
+    await db.insert(qrGostPovratneInformacijeTable).values(dates.map((date, index) => ({
+      enotaId: unitA, narociloId: orders[index]!.id,
+      hranaOcena: 5, ambientOcena: 4, storitevOcena: 3,
+      ocenePostavk: {}, komentar: null, consentVersion: "1",
+      consentedAt: new Date(`${date}T12:00:00Z`),
+      createdAt: new Date(`${date}T12:00:00Z`),
+    })));
+    const base = `od=${dates[0]}&do=${dates[1]}`;
+    for (const granularity of ["day", "week"]) {
+      const response = await get(admin, unitA, `/operativna-porocila/qr-feedback?${base}&granularity=${granularity}`);
+      expect(response.status, JSON.stringify(response.body)).toBe(200);
+      const rows = response.body.trends;
+      expect(rows).toHaveLength(granularity === "day" ? 21 : 4);
+      expect(rows[0]).toMatchObject({
+        periodStart: dates[0],
+        periodEnd: granularity === "day" ? dates[0] : "2025-03-02",
+        responses: 1, foodAverage: 5, ambienceAverage: 4, serviceAverage: 3,
+      });
+      expect(rows.at(-1)).toMatchObject({
+        periodStart: granularity === "day" ? dates[1] : "2025-03-17",
+        periodEnd: dates[1],
+        responses: 1, foodAverage: 5, ambienceAverage: 4, serviceAverage: 3,
+      });
+      for (const row of rows.slice(1, -1)) {
+        expect(row).toMatchObject({
+          responses: 0, foodAverage: null, ambienceAverage: null,
+          serviceAverage: null, smallSample: true,
+        });
+      }
+      if (granularity === "day") {
+        expect(rows.map((row: { periodStart: string }) => row.periodStart)).toEqual(
+          Array.from({ length: 21 }, (_, index) =>
+            new Date(Date.UTC(2025, 1, 26 + index)).toISOString().slice(0, 10)),
+        );
+      } else {
+        expect(rows.slice(1, -1).map((row: { periodStart: string; periodEnd: string }) =>
+          [row.periodStart, row.periodEnd])).toEqual([
+          ["2025-03-03", "2025-03-09"],
+          ["2025-03-10", "2025-03-16"],
+        ]);
+      }
+      expect(rows.reduce((sum: number, row: { responses: number }) => sum + row.responses, 0))
+        .toBe(response.body.totals.responses);
+    }
+    const csv = await get(admin, unitA, `/operativna-porocila/qr-feedback/export?${base}&granularity=week`);
+    expect(csv.status).toBe(200);
+    expect(csv.text).toContain("trend,food,2025-03-03,2025-03-09,0,,true");
   });
 
   it("uses each unit's own Ljubljana business-day start hour", async () => {
@@ -428,10 +487,16 @@ describe("QR feedback operational report privacy and tenant scope", () => {
       },
     });
     expect(response.body.totals.responses).toBe(4);
-    expect(response.body.trends).toEqual([
+    expect(response.body.trends).toHaveLength(211);
+    expect(response.body.trends.filter((row: { responses: number }) => row.responses > 0)).toEqual([
       expect.objectContaining({ periodStart: "2026-03-29", periodEnd: "2026-03-29", responses: 2 }),
       expect.objectContaining({ periodStart: "2026-10-25", periodEnd: "2026-10-25", responses: 2 }),
     ]);
+    expect(response.body.trends[1]).toEqual({
+      periodStart: "2026-03-30", periodEnd: "2026-03-30",
+      responses: 0, foodAverage: null, ambienceAverage: null,
+      serviceAverage: null, smallSample: true,
+    });
     expect(response.body.trends.reduce(
       (total: number, period: { responses: number }) => total + period.responses,
       0,

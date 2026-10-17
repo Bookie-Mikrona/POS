@@ -239,6 +239,31 @@ describe("OperativnaPorocilaQrFeedback", () => {
     expect(screen.getByTestId("trend-tooltip-small-sample").textContent).toContain("manj kot 5 odzivov");
   });
 
+  it.each(["day", "week"])("ohrani prazni %s interval med ocenama in pojasni vrzel brez ničelne ocene", (granularity) => {
+    const periods = granularity === "day"
+      ? [["2026-09-01", "2026-09-01"], ["2026-09-02", "2026-09-02"], ["2026-09-03", "2026-09-03"]]
+      : [["2026-09-01", "2026-09-06"], ["2026-09-07", "2026-09-13"], ["2026-09-14", "2026-09-20"]];
+    const trends = periods.map(([periodStart, periodEnd], index) => ({
+      periodStart: periodStart!, periodEnd: periodEnd!,
+      responses: index === 1 ? 0 : 6,
+      foodAverage: index === 1 ? null : 5,
+      ambienceAverage: index === 1 ? null : 4,
+      serviceAverage: index === 1 ? null : 3,
+      smallSample: index === 1,
+    }));
+    const chartData = buildTrendChartData(trends);
+    expect(chartData.map(row => row.foodReliable)).toEqual([5, null, 5]);
+    expect(chartData.map(row => row.ambienceReliable)).toEqual([4, null, 4]);
+    expect(chartData.map(row => row.serviceReliable)).toEqual([3, null, 3]);
+    expect(chartData[1]).toMatchObject({
+      foodSmallSample: null, ambienceSmallSample: null, serviceSmallSample: null,
+    });
+    render(<TrendTooltip active payload={[{ payload: chartData[1] }]} />);
+    expect(screen.getByTestId("trend-tooltip").textContent).toContain("0 odzivov");
+    expect(screen.getByTestId("trend-tooltip-empty").textContent).toBe("V tem obdobju ni bilo odzivov.");
+    expect(screen.queryByTestId("trend-tooltip-small-sample")).toBeNull();
+  });
+
   it("renders honest single-result article state", () => {
     mockUseFeedback.mockReturnValue({
       ...mockUseFeedback(),
