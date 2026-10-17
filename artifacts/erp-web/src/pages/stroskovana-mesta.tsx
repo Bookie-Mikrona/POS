@@ -8,6 +8,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { getListCostCentersQueryKey, useDeleteCostCenter } from "@workspace/api-client-react";
 import {
   Plus, Search, X, Edit2, Trash2, AlertCircle, CheckCircle2,
   ChevronRight, Loader2, TreePine,
@@ -329,7 +330,7 @@ export default function StroskovnaMestaPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [brisanjeOpen, setBrisanjeOpen] = useState(false);
   const [brisanjeSm, setBrisanjeSm] = useState<StroskovnoMesto | null>(null);
-  const [brisanjeLoading, setBrisanjeLoading] = useState(false);
+  const { mutateAsync: deleteCostCenter, isPending: brisanjeLoading } = useDeleteCostCenter();
 
   // Mapa za hitro iskanje nadrejenega po id
   const idMap = useMemo(() => new Map(seznam.map(s => [s.id, s])), [seznam]);
@@ -360,34 +361,21 @@ export default function StroskovnaMestaPage() {
 
   async function handleBrisanje() {
     if (!brisanjeSm || !companyId) return;
-    setBrisanjeLoading(true);
     try {
-      const token = await getToken();
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      const r = await apiFetch(
-        `${BASE}/api/companies/${companyId}/cost-centers/${brisanjeSm.id}`,
-        { method: "DELETE", headers },
-      );
-      if (r.status === 204) {
-        toast({ title: "Stroškovno mesto zbrisano" });
-      } else if (r.ok) {
-        const data = await r.json();
+      const data = await deleteCostCenter({ companyId, id: brisanjeSm.id });
+      if (data) {
         toast({
           title: "Stroškovno mesto deaktivirano",
           description: `SM je v uporabi (${data.razlog}) — zbrisano ni bilo, samo deaktivirano.`,
         });
       } else {
-        const err = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
-        throw new Error((err as any).error ?? `HTTP ${r.status}`);
+        toast({ title: "Stroškovno mesto zbrisano" });
       }
       setBrisanjeOpen(false);
       void naloziSeznam(companyId);
-      qc.invalidateQueries({ queryKey: [`/api/companies/${companyId}/cost-centers`] });
+      qc.invalidateQueries({ queryKey: getListCostCentersQueryKey(companyId) });
     } catch (e) {
       toast({ title: "Napaka", description: e instanceof Error ? e.message : "Napaka pri brisanju", variant: "destructive" });
-    } finally {
-      setBrisanjeLoading(false);
     }
   }
 
