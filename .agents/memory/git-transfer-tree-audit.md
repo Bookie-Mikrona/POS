@@ -21,6 +21,12 @@ Primerjaj tudi vsebino testnih podatkov, ne le imen in pričakovanj testov.
 
 **How to apply:** Po obnovi podobnih ponovljenih blokov zaženi tudi namenske preizkuse prizadetih poročil in PDF-jev; uspešen skupni ukaz ni dokaz za teste, ki jih ta ne vključuje.
 
+Pri obnovi testne datoteke primerjaj tudi seznam testnih primerov s pravilnim staršem in z nameravanimi novimi preizkusi.
+
+**Why:** Samodejna združitev lahko odstrani cele preizkuse in pusti le njihove deklaracije v drugih blokih. Popravek napak prevajalnika zato še ne zagotovi ohranjene regresijske pokritosti.
+
+**How to apply:** Obnovi manjkajoče stare in nove primere ter zaženi celotno prizadeto testno datoteko, ne le izbora novih testov.
+
 Preverjanje mora zajeti tudi podedovane napake iz novo prevzetega starša, ne le trenutnega diff-a.
 
 **Why:** Uspešno lokalno preverjanje pred združitvijo ne zagotavlja pravilnosti pozneje prevzetega izhodišča; avtomatsko združevanje lahko znova odstrani že preverjen popravek.

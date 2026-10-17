@@ -229,9 +229,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
 
   it("tooltip pokaže odzive in opozori samo pri nezanesljivi točki", () => {
     const [reliable, unreliable] = buildTrendChartData(feedbackReport.trends);
-    const { rerender } = render(
-      <TrendTooltip active payload={[{ payload: reliable }]} />,
-    );
+    const { rerender } = render(<TrendTooltip active payload={[{ payload: reliable }]} />);
     expect(screen.getByTestId("trend-tooltip").textContent).toContain("6 odzivov");
     expect(screen.queryByTestId("trend-tooltip-small-sample")).toBeNull();
 
@@ -602,12 +600,9 @@ describe("OperativnaPorocilaQrFeedback", () => {
     renderComponent();
     const btn = screen.getByTestId("button-export-feedback");
     fireEvent.click(btn);
-
     await waitFor(() => {
       expect(mockExportFeedback).toHaveBeenCalledWith({
-        od: "2026-09-01",
-        do: "2026-09-03",
-        granularity: "day"
+        od: "2026-09-01", do: "2026-09-03", granularity: "day",
       });
     });
   });

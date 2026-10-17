@@ -23,6 +23,13 @@ import {
   ResponsiveContainer
 } from "recharts";
 import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
+import { NamedArticleViews } from "@/components/NamedArticleViews";
+import {
+  type ArticleDirection, type ArticleSort, type ArticleSortOrder, type ArticleViewState,
+  ARTICLE_DIRECTION_LABELS, DEFAULT_ARTICLE_VIEW, QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY,
+  readStoredArticleView,
+} from "@/lib/qr-feedback-article-views";
+export { parseStoredArticleView, QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY } from "@/lib/qr-feedback-article-views";
 
 interface Props {
   queryParams: {
@@ -31,17 +38,6 @@ interface Props {
     enotaId?: number;
   };
 }
-
-type ArticleDirection = "improved" | "declined" | "unchanged" | "unavailable";
-type ArticleSort = "difference" | "currentAverage" | "sampleSize";
-type ArticleSortOrder = "ascending" | "descending";
-type ArticleViewState = {
-  version: 1;
-  search: string;
-  sort: ArticleSort;
-  sortOrder: ArticleSortOrder;
-  directions: Record<ArticleDirection, boolean>;
-};
 type TrendRow = {
   periodStart: string;
   periodEnd: string;
@@ -60,82 +56,7 @@ type TrendChartRow = TrendRow & {
   ambienceSmallSample: number | null;
   serviceSmallSample: number | null;
 };
-
-const ARTICLE_DIRECTION_LABELS: Record<ArticleDirection, string> = {
-  improved: "Izboljšani",
-  declined: "Poslabšani",
-  unchanged: "Nespremenjeni",
-  unavailable: "Neprimerljivi",
-};
-export const QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY = "pos.qr-feedback.article-view.v1";
 export const QR_FEEDBACK_GRANULARITY_STORAGE_KEY = "pos.qr-feedback.granularity.v1";
-const ARTICLE_SORTS = new Set<ArticleSort>(["difference", "currentAverage", "sampleSize"]);
-const ARTICLE_SORT_ORDERS = new Set<ArticleSortOrder>(["ascending", "descending"]);
-const DEFAULT_ARTICLE_VIEW: ArticleViewState = {
-  version: 1,
-  search: "",
-  sort: "difference",
-  sortOrder: "descending",
-  directions: {
-    improved: true,
-    declined: true,
-    unchanged: true,
-    unavailable: true,
-  },
-};
-
-export function parseStoredArticleView(raw: string | null): ArticleViewState {
-  if (raw == null) return DEFAULT_ARTICLE_VIEW;
-  try {
-    const parsed = JSON.parse(raw) as Partial<ArticleViewState>;
-    const directions = parsed.directions as Partial<Record<ArticleDirection, unknown>> | undefined;
-    if (
-      parsed.version !== 1
-      || typeof parsed.search !== "string"
-      || typeof parsed.sort !== "string"
-      || !ARTICLE_SORTS.has(parsed.sort as ArticleSort)
-      || (
-        parsed.sortOrder !== undefined
-        && (
-          typeof parsed.sortOrder !== "string"
-          || !ARTICLE_SORT_ORDERS.has(parsed.sortOrder as ArticleSortOrder)
-        )
-      )
-      || directions == null
-      || Object.keys(directions).some(
-        (direction) => !(direction in ARTICLE_DIRECTION_LABELS),
-      )
-      || Object.keys(ARTICLE_DIRECTION_LABELS).some(
-        (direction) => typeof directions[direction as ArticleDirection] !== "boolean",
-      )
-    ) {
-      return DEFAULT_ARTICLE_VIEW;
-    }
-    return {
-      version: 1,
-      search: parsed.search,
-      sort: parsed.sort as ArticleSort,
-      sortOrder: parsed.sortOrder as ArticleSortOrder | undefined ?? "descending",
-      directions: {
-        improved: directions.improved as boolean,
-        declined: directions.declined as boolean,
-        unchanged: directions.unchanged as boolean,
-        unavailable: directions.unavailable as boolean,
-      },
-    };
-  } catch {
-    return DEFAULT_ARTICLE_VIEW;
-  }
-}
-
-function readStoredArticleView(): ArticleViewState {
-  if (typeof window === "undefined") return DEFAULT_ARTICLE_VIEW;
-  try {
-    return parseStoredArticleView(window.localStorage.getItem(QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY));
-  } catch {
-    return DEFAULT_ARTICLE_VIEW;
-  }
-}
 
 function readStoredGranularity(): "day" | "week" {
   try {
@@ -432,6 +353,7 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
               </CardHeader>
               <CardContent className="p-0 flex-1">
                 <div className="border-b border-border/40 p-3 space-y-3">
+                  <NamedArticleViews view={articleView} onApply={setArticleView} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="relative sm:col-span-2">
                       <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
