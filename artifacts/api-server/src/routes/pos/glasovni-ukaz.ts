@@ -140,14 +140,14 @@ export const PosAgentBodySchema = z.object({
   ukaz: z.string().trim().min(1).max(1_000),
   pot: z.string().trim().max(200).optional(),
   narociloId: z.number().int().positive().optional(),
-  courseClarificationToken: z.string().trim().min(1).max(4_000).optional(),
+  courseClarificationToken: z.string().trim().min(1).max(250_000).optional(),
 });
 const CourseClarificationOptionSchema = z.object({
   courseNumber: z.number().int().min(1).max(99),
   courseName: z.string().trim().min(1).max(200),
 }).strict();
 const CourseClarificationResponseSchema = z.object({
-  token: z.string().trim().min(1).max(4_000),
+  token: z.string().trim().min(1).max(250_000),
   options: z.array(CourseClarificationOptionSchema).min(1).max(20),
 }).strict();
 const AgentBaseResponseSchema = z.object({ odgovor: z.string().trim().min(1).max(1_000) });
@@ -632,6 +632,7 @@ type CourseClarificationDraft = {
   assignments: Array<{ postavkaId: number; courseNumber: number }>;
   options: AvailableCourseReference[];
   orderFingerprint: string;
+  targets?: Array<{ postavkaId: number; options: AvailableCourseReference[] }>;
 };
 type ResolvedAgentResponse = AgentResponse | (Extract<AgentResponse, { action: "explain" }> & {
   courseClarificationDraft: CourseClarificationDraft;
@@ -666,12 +667,23 @@ const BatchCourseClarificationTokenPayloadSchema = z.object({
 const CourseClarificationTokenPayloadSchema = z.discriminatedUnion("v", [
   SingleCourseClarificationTokenPayloadSchema,
   BatchCourseClarificationTokenPayloadSchema,
+  BatchCourseClarificationTokenPayloadSchema.omit({ targetPostavkaId: true, options: true }).extend({
+    v: z.literal(3),
+    assignments: BatchCourseClarificationTokenPayloadSchema.shape.assignments.min(0),
+    targets: z.array(z.object({
+      postavkaId: z.number().int().positive(),
+      options: z.array(CourseClarificationOptionSchema).min(1).max(20),
+    }).strict()).min(1).max(30),
+    selections: z.array(z.number().int().min(1).max(99)).max(29),
+  }),
 ]);
 export type CourseClarificationTokenPayload = z.infer<typeof CourseClarificationTokenPayloadSchema>;
+export type MultiCourseClarificationTokenPayload = Extract<CourseClarificationTokenPayload, { v: 3 }>;
 export type BatchCourseClarificationTokenPayload = z.infer<typeof BatchCourseClarificationTokenPayloadSchema>;
 type SignableCourseClarificationPayload =
   | Omit<z.infer<typeof SingleCourseClarificationTokenPayloadSchema>, "v" | "clarificationId" | "expiresAt">
-  | Omit<BatchCourseClarificationTokenPayload, "v" | "clarificationId" | "expiresAt">;
+  | Omit<BatchCourseClarificationTokenPayload, "v" | "clarificationId" | "expiresAt">
+  | Omit<MultiCourseClarificationTokenPayload, "v" | "clarificationId" | "expiresAt">;
 
 export function fingerprintCourseClarificationOrder(order: CanonicalCourseClarificationOrder): string {
   return fingerprintKdsCourseAssignmentOrder(order);
@@ -683,12 +695,17 @@ export function signCourseClarificationToken(
   now = Date.now(),
 ): string | null {
   if (!secret) return null;
-  const encoded = Buffer.from(JSON.stringify({
-    v: "assignments" in payload ? 2 : 1,
+  return encodeCourseClarificationToken({
+    v: "targets" in payload ? 3 : "assignments" in payload ? 2 : 1,
     clarificationId: randomUUID(),
     ...payload,
     expiresAt: now + 2 * 60_000,
-  })).toString("base64url");
+  } as CourseClarificationTokenPayload, secret);
+}
+
+export function encodeCourseClarificationToken(payload: CourseClarificationTokenPayload, secret = process.env.SESSION_SECRET): string | null {
+  if (!secret) return null;
+  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = createHmac("sha256", secret).update(encoded).digest("base64url");
   return `${encoded}.${signature}`;
 }
@@ -721,6 +738,12 @@ export function parseCourseClarificationReply(command: string): number | null {
   return Number.isInteger(value) && value >= 1 && value <= 99 ? value : null;
 }
 
+export function currentCourseClarificationTarget(payload: CourseClarificationTokenPayload) {
+  return payload.v === 3
+    ? payload.targets[payload.selections.length]!
+    : { postavkaId: payload.v === 1 ? payload.postavkaId : payload.targetPostavkaId, options: payload.options };
+}
+
 function sameCourseClarificationOptions(
   expected: AvailableCourseReference[],
   actual: AvailableCourseReference[],
@@ -740,6 +763,7 @@ export function validateCourseClarificationContinuation(input: {
   order: CanonicalCourseClarificationOrder | null;
   currentReferences: AvailableCourseReference[];
 }): { status: "ready"; result: Extract<AgentResponse, { action: "assign_course" | "assign_courses" }> }
+  | { status: "pending"; payload: MultiCourseClarificationTokenPayload }
   | { status: "invalid_selection" }
   | { status: "stale" } {
   const { payload, order } = input;
@@ -751,21 +775,37 @@ export function validateCourseClarificationContinuation(input: {
     || order.id !== payload.narociloId
     || fingerprintCourseClarificationOrder(order) !== payload.orderFingerprint
   ) return { status: "stale" };
-  const targetPostavkaId = payload.v === 1 ? payload.postavkaId : payload.targetPostavkaId;
+  if (payload.v === 3) {
+    const ids = [...payload.assignments, ...payload.targets].map(item => item.postavkaId);
+    if (ids.length > 30 || new Set(ids).size !== ids.length
+      || payload.selections.length >= payload.targets.length) return { status: "stale" };
+    // Recheck ALL options, including already selected and future targets.
+    for (const [index, target] of payload.targets.entries()) {
+      const currentOptions = input.currentReferences.filter(reference =>
+        target.options.some(option => option.courseNumber === reference.courseNumber));
+      if (!order.postavke.some(item => item.id === target.postavkaId && item.parentPostavkaId == null && item.racunId == null)
+        || !sameCourseClarificationOptions(target.options, currentOptions)
+        || (index < payload.selections.length && !target.options.some(option => option.courseNumber === payload.selections[index]))) {
+        return { status: "stale" };
+      }
+    }
+  }
+  const target = currentCourseClarificationTarget(payload);
+  const targetPostavkaId = target.postavkaId;
   const line = order.postavke.find(item =>
     item.id === targetPostavkaId && item.parentPostavkaId == null && item.racunId == null
   );
   const currentOptions = input.currentReferences.filter(reference =>
-    payload.options.some(option => option.courseNumber === reference.courseNumber)
+    target.options.some(option => option.courseNumber === reference.courseNumber)
   );
-  if (!line || !sameCourseClarificationOptions(payload.options, currentOptions)) {
+  if (!line || !sameCourseClarificationOptions(target.options, currentOptions)) {
     return { status: "stale" };
   }
   const courseNumber = parseCourseClarificationReply(input.command);
-  if (!courseNumber || !payload.options.some(option => option.courseNumber === courseNumber)) {
+  if (!courseNumber || !target.options.some(option => option.courseNumber === courseNumber)) {
     return { status: "invalid_selection" };
   }
-  if (payload.v === 2) {
+  if (payload.v !== 1) {
     const storedAssignments = payload.assignments.map(assignment => {
       const storedLine = order.postavke.find(item =>
         item.id === assignment.postavkaId && item.parentPostavkaId == null && item.racunId == null
@@ -773,6 +813,9 @@ export function validateCourseClarificationContinuation(input: {
       return storedLine ? { ...assignment, naziv: storedLine.naziv } : null;
     });
     if (storedAssignments.some(assignment => assignment === null)) return { status: "stale" };
+    if (payload.v === 3 && payload.selections.length + 1 < payload.targets.length) {
+      return { status: "pending", payload: { ...payload, selections: [...payload.selections, courseNumber] } };
+    }
     return {
       status: "ready",
       result: {
@@ -780,6 +823,11 @@ export function validateCourseClarificationContinuation(input: {
         narociloId: payload.narociloId,
         assignments: [
           ...storedAssignments as Array<{ postavkaId: number; courseNumber: number; naziv: string }>,
+          ...(payload.v === 3 ? payload.selections.map((selected, index) => ({
+            postavkaId: payload.targets[index]!.postavkaId,
+            courseNumber: selected,
+            naziv: order.postavke.find(item => item.id === payload.targets[index]!.postavkaId)!.naziv,
+          })) : []),
           { postavkaId: line.id, courseNumber, naziv: line.naziv },
         ],
         odgovor: `Dodeljujem paket postavk; ${line.naziv} hodu ${courseNumber}.`,
@@ -903,21 +951,18 @@ export async function resolveAgentAction(
       ? await (testOverrides.loadCourseReferences ?? loadActiveOrderCourseReferences)(order!, enotaId)
       : [];
     const assignments: Array<{ postavkaId: number; courseNumber: number; naziv: string }> = [];
-    let clarification: { targetPostavkaId: number; options: AvailableCourseReference[]; reference: string } | null = null;
+    const clarifications: Array<{ targetPostavkaId: number; options: AvailableCourseReference[]; reference: string }> = [];
     for (const { assignment, selected } of resolved) {
       const namedCourseName = "courseName" in assignment ? assignment.courseName : null;
       const courseNumber = "courseNumber" in assignment
         ? assignment.courseNumber
         : resolveNamedCourseReference(namedCourseName!, references);
       if (courseNumber === "ambiguous") {
-        if (clarification) {
-          return { action: "explain", odgovor: "V paketu je več dvoumnih imen hodov. Pojasnite jih v ločenih ukazih." };
-        }
-        clarification = {
+        clarifications.push({
           targetPostavkaId: selected.id,
           options: findCourseClarificationOptions(namedCourseName!, references),
           reference: namedCourseName!,
-        };
+        });
         continue;
       }
       if (!courseNumber) {
@@ -936,19 +981,24 @@ export async function resolveAgentAction(
     const uniqueAssignments = [...new Map(assignments.map(assignment => [
       `${assignment.postavkaId}:${assignment.courseNumber}`, assignment,
     ])).values()];
+    const clarification = clarifications[0];
     if (clarification) {
-      if (uniqueAssignments.some(assignment => assignment.postavkaId === clarification.targetPostavkaId)) {
+      const ids = [...uniqueAssignments.map(item => item.postavkaId), ...clarifications.map(item => item.targetPostavkaId)];
+      if (new Set(ids).size !== ids.length) {
         return { action: "explain", odgovor: "Ista postavka je v paketu navedena z dvema različnima izbirama hoda." };
       }
       return {
         action: "explain",
-        odgovor: `Ime hoda "${clarification.reference}" ni enolično. Izberite: ${clarification.options.map(option => `${option.courseName} (${option.courseNumber})`).join(" ali ")}?`,
+        odgovor: `Za postavko "${lines.find(item => item.id === clarification.targetPostavkaId)!.naziv}" ime hoda "${clarification.reference}" ni enolično. Izberite: ${clarification.options.map(option => `${option.courseName} (${option.courseNumber})`).join(" ali ")}?`,
         courseClarificationDraft: {
           kind: "batch",
           narociloId: narociloId!,
           targetPostavkaId: clarification.targetPostavkaId,
           assignments: uniqueAssignments.map(({ postavkaId, courseNumber }) => ({ postavkaId, courseNumber })),
           options: clarification.options,
+          ...(clarifications.length > 1 ? { targets: clarifications.map(item => ({
+            postavkaId: item.targetPostavkaId, options: item.options,
+          })) } : {}),
           orderFingerprint: fingerprintCourseClarificationOrder(order!),
         },
       };
@@ -1544,7 +1594,7 @@ export async function consumeCourseClarificationAssignment(input: {
 }
 
 export async function consumeBatchCourseClarificationAssignments(input: {
-  payload: BatchCourseClarificationTokenPayload;
+  payload: BatchCourseClarificationTokenPayload | MultiCourseClarificationTokenPayload;
   result: Extract<AgentResponse, { action: "assign_courses" }>;
   enotaId: number;
   actorNatakarId: number;
@@ -1656,21 +1706,34 @@ router.post("/ai/agent", async (req: Request, res: Response): Promise<void> => {
     if (continuation.status === "stale") {
       await auditAgent(enotaId, device.id, actorNatakarId, "clarify_course", "stale", {
         narociloId: payload.narociloId,
-        postavkaId: payload.v === 1 ? payload.postavkaId : payload.targetPostavkaId,
-        batch: payload.v === 2,
+        postavkaId: currentCourseClarificationTarget(payload)?.postavkaId,
+        batch: payload.v !== 1,
       });
       res.json({ action: "explain", odgovor: "Naročilo ali razpoložljivi hodi so se med pojasnilom spremenili. Ponovite celoten ukaz." });
       return;
     }
     if (continuation.status === "invalid_selection") {
+      const { options } = currentCourseClarificationTarget(payload);
       res.json({
         action: "explain",
-        odgovor: `Izberite eno od ponujenih številk: ${payload.options.map(option => `${option.courseName} (${option.courseNumber})`).join(" ali ")}.`,
-        clarifications: payload.options.map(option => `${option.courseName} (${option.courseNumber})`),
+        odgovor: `Izberite eno od ponujenih številk: ${options.map(option => `${option.courseName} (${option.courseNumber})`).join(" ali ")}.`,
+        clarifications: options.map(option => `${option.courseName} (${option.courseNumber})`),
         courseClarification: {
           token: body.data.courseClarificationToken,
-          options: payload.options,
+          options,
         },
+      });
+      return;
+    }
+    if (continuation.status === "pending") {
+      const next = continuation.payload;
+      const target = currentCourseClarificationTarget(next);
+      const name = order!.postavke.find(item => item.id === target.postavkaId)!.naziv;
+      const token = encodeCourseClarificationToken(next);
+      res.json({
+        action: "explain",
+        odgovor: `Izbira je shranjena. Za postavko "${name}" izberite naslednji hod. Paket še ni izveden.`,
+        ...(token ? { courseClarification: { token, options: target.options } } : {}),
       });
       return;
     }
@@ -1837,7 +1900,11 @@ router.post("/ai/agent", async (req: Request, res: Response): Promise<void> => {
     if (result.action === "explain" && "courseClarificationDraft" in result) {
       const draft = (result as { courseClarificationDraft: CourseClarificationDraft }).courseClarificationDraft;
       const token = draft.kind === "batch"
-        ? signCourseClarificationToken({
+        ? signCourseClarificationToken(draft.targets ? {
+          enotaId, actorNatakarId, narociloId: draft.narociloId,
+          assignments: draft.assignments, targets: draft.targets, selections: [],
+          orderFingerprint: draft.orderFingerprint,
+        } : {
           enotaId,
           actorNatakarId,
           narociloId: draft.narociloId,
@@ -1922,7 +1989,7 @@ router.post("/ai/agent", async (req: Request, res: Response): Promise<void> => {
       try {
         // Only numeric IDs, courses, and generated pairing groups are retained
         // in audit metadata; spoken/course-reference text never reaches KDS.
-        const assigned = continuationPayload?.v === 2
+        const assigned = continuationPayload && continuationPayload.v !== 1
           ? await consumeBatchCourseClarificationAssignments({
             payload: continuationPayload,
             result,

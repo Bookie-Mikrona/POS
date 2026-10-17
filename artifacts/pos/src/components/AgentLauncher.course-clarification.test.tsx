@@ -185,4 +185,40 @@ describe("CourseClarificationChoices", () => {
       expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["kds"] });
     });
   });
+
+  it("kaže le naslednjo izbiro in osveži POS ter KDS šele po zadnji", async () => {
+    const response = (data: unknown) => ({ ok: true, json: async () => data });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ history: [], memory: [] }))
+      .mockResolvedValueOnce(response({
+        action: "explain", odgovor: "Izberite hod za vino.",
+        courseClarification: { token: "step-1", options: [{ courseNumber: 2, courseName: "Ribji hod" }] },
+      }))
+      .mockResolvedValueOnce(response({
+        action: "explain", odgovor: "Izberite hod za juho. Paket še ni izveden.",
+        courseClarification: { token: "step-2", options: [{ courseNumber: 4, courseName: "Topli hod" }] },
+      }))
+      .mockResolvedValueOnce(response({
+        action: "assign_courses", odgovor: "Celoten paket je izveden.", narociloId: 42, changed: true,
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AgentLauncher />);
+    fireEvent.click(screen.getAllByRole("button")[0]!);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    fireEvent.change(await screen.findByPlaceholderText("Vpišite ukaz..."), {
+      target: { value: "vino k ribjemu hodu, juha k toplemu hodu" },
+    });
+    fireEvent.submit(screen.getByPlaceholderText("Vpišite ukaz...").closest("form")!);
+    fireEvent.click(await screen.findByRole("button", { name: "Ribji hod (2)" }));
+    const next = await screen.findByRole("button", { name: "Topli hod (4)" });
+    expect(screen.queryByRole("button", { name: "Ribji hod (2)" })).toBeNull();
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+    expect(screen.queryByText("Izvedeno:")).toBeNull();
+    fireEvent.click(next);
+    await screen.findByText("Izvedeno:");
+    expect(JSON.parse(fetchMock.mock.calls[2]![1].body)).toMatchObject({ ukaz: "2", courseClarificationToken: "step-1" });
+    expect(JSON.parse(fetchMock.mock.calls[3]![1].body)).toMatchObject({ ukaz: "4", courseClarificationToken: "step-2" });
+    expect(screen.queryByRole("button", { name: "Topli hod (4)" })).toBeNull();
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["kds"] });
+  });
 });

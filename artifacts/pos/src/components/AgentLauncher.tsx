@@ -195,7 +195,7 @@ export function AgentLauncher() {
   }, [history.length, isOpen, naprava?.aiAccessToken, napravaKljuc, user?.enotaId]);
 
   const handleSend = async (question: string) => {
-    if (!question.trim()) return;
+    if (!question.trim() || loading) return;
     const isClarificationReply = /^(?:hod\s*)?\d{1,2}$/iu.test(question.trim());
     const courseClarificationToken = isClarificationReply ? pendingCourseClarification?.token : undefined;
     
@@ -258,7 +258,7 @@ export function AgentLauncher() {
       const data = (await response.json()) as AgentResponse;
       if (data.courseClarification) {
         setPendingCourseClarification(data.courseClarification);
-      } else if (courseClarificationToken) {
+      } else {
         setPendingCourseClarification(null);
       }
 
@@ -551,7 +551,8 @@ export function AgentLauncher() {
                   </div>
                 )}
 
-                {msg.courseClarification && msg.role === "agent" && (
+                {msg.courseClarification && msg.role === "agent"
+                  && msg.courseClarification.token === pendingCourseClarification?.token && (
                   <CourseClarificationChoices
                     clarification={msg.courseClarification}
                     currentToken={pendingCourseClarification?.token ?? null}

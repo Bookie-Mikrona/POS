@@ -29,6 +29,12 @@ Glasovna izbira po imenu hoda sme uporabiti samo aktivno konfiguracijo menija, k
 
 **How to apply:** Najprej preveri polno normalizirano ime, nato samo ozko naštete slovenske sklanjatvene oblike, izpeljane iz konfiguriranega kandidata. Brez substring/edit-distance ujemanja. Pri paketnem ukazu mora biti pred mutacijo enolično razrešena vsaka jed in vsak hod; ena napaka zavrne celoten načrt z natančnim imenom konflikta. Več različnih številk pomeni dvoumnost in nobene spremembe; številčni ukazi ostanejo ločena združljiva pot.
 
+Zaporedna razjasnitev je en sam paket: vsaka ponovno podpisana izbira mora ohraniti prvotno identiteto pojasnila in prvotni rok veljavnosti. Vmesna izbira ni delna dodelitev.
+
+**Why:** Nova identiteta ob vsakem koraku bi dovolila izvedbo različnih vej istega prvotnega ukaza; podaljševanje veljavnosti bi dovolilo neomejeno ohranjanje zastarelega načrta.
+
+**How to apply:** Ohrani izvirne cilje in ločene dovoljene možnosti, dodajaj samo izbire. Pri vsakem koraku preveri tudi že izbrane in še prihodnje možnosti. Vse končne veje morajo deliti isti transakcijski zaklep in dokazilo enkratne porabe.
+
 Ime hoda na odprtem naročilu je nullable, nespremenljiv posnetek na notranji operativni vrstici; številka hoda, zaporedje in ime so ločene vrednosti. KDS, zgodovinski prikaz in audit uporabljajo isti posnetek.
 
 **Why:** Aktivno konfiguracijo je dovoljeno pozneje preimenovati. Če bi odprto naročilo ali KDS znova brala mutable ime, bi se zgodovina spremenila za nazaj; backfill starih vrstic pa bi izmišljal podatek, ki ob naročilu ni bil shranjen.

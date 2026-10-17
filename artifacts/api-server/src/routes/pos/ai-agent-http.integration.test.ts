@@ -229,6 +229,63 @@ afterAll(async () => {
 });
 
 describe("POST /ai/agent protected batch clarification", () => {
+  it("dve zaporedni izbiri pustita POS in KDS nespremenjena do zadnje ter paket izvedeta največ enkrat", async () => {
+    const [original] = await db.select().from(postavkeTable).where(eq(postavkeTable.id, juhaId));
+    const rows = await db.insert(postavkeTable).values([
+      { narociloId: otherOrderId, artikelId: original!.artikelId, ime: "Juha", kolicina: 1, cenaKos: "1", skupaj: "1", davek: "22" },
+      { narociloId: otherOrderId, artikelId: original!.artikelId, ime: "Vino", kolicina: 1, cenaKos: "1", skupaj: "1", davek: "22" },
+      { narociloId: otherOrderId, ime: "Referenca dva", kolicina: 1, cenaKos: "0", skupaj: "0", davek: "22", courseNumber: 2, courseSequence: 2, courseNameSnapshot: "Ribji hod", pairingGroupId: `${run}:other:2` },
+      { narociloId: otherOrderId, ime: "Referenca tri", kolicina: 1, cenaKos: "0", skupaj: "0", davek: "22", courseNumber: 3, courseSequence: 3, courseNameSnapshot: "Ribjemu hod", pairingGroupId: `${run}:other:3` },
+    ]).returning();
+    const [station] = await db.select().from(kdsPostajeTable).where(eq(kdsPostajeTable.enotaId, enotaA));
+    await db.insert(kdsNalogiTable).values(rows.slice(0, 2).map(line => ({
+      enotaId: enotaA, postajaId: station!.id, narociloId: otherOrderId, postavkaId: line.id, stanje: "aktivno" as const,
+    })));
+    const readLines = () => db.select().from(postavkeTable).where(eq(postavkeTable.narociloId, otherOrderId));
+    const readKds = () => db.select().from(kdsNalogiTable).where(eq(kdsNalogiTable.narociloId, otherOrderId));
+    const beforeLines = await readLines();
+    const beforeKds = await readKds();
+    const actorSession = actorToken({ actorId: actorA, shiftId: shiftA, enotaId: enotaA });
+    const initial = await agentRequest({ actorSession, body: {
+      ukaz: "vino k ribjemu hodu, juha k ribjemu hodu", narociloId: otherOrderId,
+    } });
+    expect(initial.status, JSON.stringify(initial.body)).toBe(200);
+    const initialToken = initial.body.courseClarification.token;
+    const initialPayload = verifyCourseClarificationToken(initialToken)!;
+    expect(initialPayload).toMatchObject({ v: 3, assignments: [], selections: [] });
+    const next = await agentRequest({ actorSession, body: {
+      ukaz: "2", narociloId: otherOrderId, courseClarificationToken: initialToken,
+    } });
+    expect(next.status, JSON.stringify(next.body)).toBe(200);
+    expect(next.body.action).toBe("explain");
+    expect(next.body.odgovor).toContain("Juha");
+    const nextToken = next.body.courseClarification.token;
+    expect(verifyCourseClarificationToken(nextToken)).toMatchObject({
+      clarificationId: initialPayload.clarificationId, expiresAt: initialPayload.expiresAt, selections: [2],
+    });
+    expect(await readLines()).toEqual(beforeLines);
+    expect(await readKds()).toEqual(beforeKds);
+    const invalid = await agentRequest({ actorSession, body: {
+      ukaz: "9", narociloId: otherOrderId, courseClarificationToken: nextToken,
+    } });
+    expect(invalid.body.courseClarification.token).toBe(nextToken);
+    const finish = () => agentRequest({ actorSession, body: {
+      ukaz: "3", narociloId: otherOrderId, courseClarificationToken: nextToken,
+    } });
+    const outcomes = await Promise.all([finish(), finish()]);
+    expect(outcomes.filter(response => response.body.action === "assign_courses")).toHaveLength(1);
+    expect(outcomes.every(response => response.status === 200 || response.status === 409)).toBe(true);
+    const assigned = await readLines();
+    expect(assigned.find(row => row.ime === "Vino")!.courseNumber).toBe(2);
+    expect(assigned.find(row => row.ime === "Juha")!.courseNumber).toBe(3);
+    const kds = await readKds();
+    expect(kds.find(row => row.postavkaId === rows[0]!.id)!.courseNumber).toBe(3);
+    expect(kds.find(row => row.postavkaId === rows[1]!.id)!.courseNumber).toBe(2);
+    const audits = await db.select().from(posAiAgentAuditTable).where(eq(posAiAgentAuditTable.enotaId, enotaA));
+    expect(audits.filter(row => row.action === "clarify_course_consumed"
+      && (row.metadata as { clarificationId?: string }).clarificationId === initialPayload.clarificationId)).toHaveLength(1);
+  });
+
   it("preveri zaščite, ne mutira pred pojasnilom in nadaljevanje izvede samo v pravem kontekstu", async () => {
     const body = {
       ukaz: "vino k ribjemu hodu, juha na prvi hod",

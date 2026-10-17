@@ -22,6 +22,7 @@ import {
   redactAgentOrder,
   resolveNamedCourseReference,
   signCourseClarificationToken,
+  encodeCourseClarificationToken,
   validateCourseClarificationContinuation,
   verifyCourseClarificationToken,
   resolveExactAgentEntity,
@@ -431,6 +432,63 @@ describe("operativni POS AI agent contract", () => {
         ],
       },
     });
+  });
+
+  it("zaporedno razjasni več ločenih ciljev z nespremenjenim podpisanim paketom", async () => {
+    const order = {
+      id: 7, nacin: "miza", status: "odprto", miza: 3, strankaIme: null, telefon: null,
+      naslovDostave: null, skupaj: 18,
+      postavke: ["Vino", "Juha", "Solata"].map((naziv, index) => ({
+        id: 9 + index, artikelId: 2 + index, naziv, kolicina: 1, skupaj: 6,
+        opomba: null, parentPostavkaId: null, racunId: null,
+      })),
+    };
+    const fish = [{ courseNumber: 2, courseName: "Ribji hod" }, { courseNumber: 3, courseName: "Ribji posebni hod" }];
+    const warm = [{ courseNumber: 4, courseName: "Topli hod" }, { courseNumber: 5, courseName: "Topli posebni hod" }];
+    const references = [...fish, ...warm];
+    const resolved = await resolveAgentAction("vino k ribjemu hodu, juha k toplemu hodu, solata na prvi hod", 7, 4, {
+      getOrder: async () => order, loadCourseReferences: async () => references,
+    });
+    expect(resolved).toMatchObject({
+      action: "explain", courseClarificationDraft: {
+        assignments: [{ postavkaId: 11, courseNumber: 1 }],
+        targets: [{ postavkaId: 9, options: fish }, { postavkaId: 10, options: warm }],
+      },
+    });
+    const token = signCourseClarificationToken({
+      enotaId: 4, actorNatakarId: 6, narociloId: 7,
+      assignments: [{ postavkaId: 11, courseNumber: 1 }],
+      targets: [{ postavkaId: 9, options: fish }, { postavkaId: 10, options: warm }],
+      selections: [], orderFingerprint: fingerprintCourseClarificationOrder(order),
+    }, "multi-secret", 1_000)!;
+    const payload = verifyCourseClarificationToken(token, "multi-secret", 1_001)!;
+    const input = { payload, command: "3", enotaId: 4, actorNatakarId: 6, requestedNarociloId: 7, order, currentReferences: references };
+    expect(validateCourseClarificationContinuation({ ...input, command: "5" })).toEqual({ status: "invalid_selection" });
+    const pending = validateCourseClarificationContinuation(input);
+    expect(pending.status).toBe("pending");
+    if (pending.status !== "pending") throw new Error("Expected pending selection");
+    expect(pending).not.toHaveProperty("result");
+    const nextToken = encodeCourseClarificationToken(pending.payload, "multi-secret")!;
+    const next = verifyCourseClarificationToken(nextToken, "multi-secret", 1_002)!;
+    expect(next).toMatchObject({ clarificationId: payload.clarificationId, expiresAt: payload.expiresAt, selections: [3] });
+    expect(verifyCourseClarificationToken(`${nextToken}x`, "multi-secret", 1_002)).toBeNull();
+    expect(verifyCourseClarificationToken(nextToken, "multi-secret", 121_001)).toBeNull();
+    const finalInput = { ...input, payload: next, command: "4" };
+    expect(validateCourseClarificationContinuation(finalInput)).toMatchObject({
+      status: "ready", result: { action: "assign_courses", assignments: [
+        { postavkaId: 11, courseNumber: 1 }, { postavkaId: 9, courseNumber: 3 }, { postavkaId: 10, courseNumber: 4 },
+      ] },
+    });
+    for (const overrides of [
+      { enotaId: 5 }, { actorNatakarId: 7 }, { requestedNarociloId: 8 },
+      { order: { ...order, status: "placano" } },
+      { order: { ...order, postavke: order.postavke.slice(1) } },
+      { currentReferences: [...fish, { ...warm[0]!, courseName: "Preimenovan hod" }, warm[1]!] },
+      { currentReferences: [{ ...fish[0]!, courseName: "Spremenjen prejšnji hod" }, fish[1]!, ...warm] },
+    ]) {
+      expect(validateCourseClarificationContinuation({ ...finalInput, ...overrides })).toEqual({ status: "stale" });
+    }
+    expect(order.postavke.every(item => !("courseNumber" in item))).toBe(true);
   });
 
   it("pri paketnem ukazu ohrani razrešene dodelitve in ponudi možnosti samo za dvoumni hod", async () => {
