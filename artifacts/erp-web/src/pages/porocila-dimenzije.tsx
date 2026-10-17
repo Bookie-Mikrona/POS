@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Printer,
   Download,
+  FileSpreadsheet,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -156,6 +157,8 @@ export default function PorocilaAnalitika() {
   const { filters, queried, updateFilters } = useDimensionReportFilters();
   const { dimensionType, dateFrom, dateTo, accountId } = filters;
   const applied = { ...filters, queried };
+  const [excelExporting, setExcelExporting] = useState(false);
+  const [excelError, setExcelError] = useState<string | null>(null);
 
   // Expanded dimension rows (set of row ids)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -199,6 +202,33 @@ export default function PorocilaAnalitika() {
 
   function handlePrint() {
     window.print();
+  }
+
+  async function handleExcelExport() {
+    if (!data || excelExporting) return;
+    setExcelExporting(true);
+    setExcelError(null);
+    try {
+      const options = {
+        rows: data.rows,
+        grandTotalDebit: data.grandTotalDebit,
+        grandTotalCredit: data.grandTotalCredit,
+        grandTotalBalance: data.grandTotalBalance,
+        dimensionLabel: dimOption.label,
+        dateFrom: applied.dateFrom,
+        dateTo: applied.dateTo,
+        accountLabel: applied.accountId
+          ? (accountsData?.accounts ?? []).find((a) => a.id === applied.accountId)?.code ?? applied.accountId
+          : undefined,
+        companyName: activeCompany?.naziv,
+      };
+      const { exportDimensionReportExcel } = await import("@/lib/dimensionReportExcel");
+      await exportDimensionReportExcel(options);
+    } catch {
+      setExcelError("Izvoz v Excel ni uspel. Poskusite znova.");
+    } finally {
+      setExcelExporting(false);
+    }
   }
 
   const dimOption = DIM_OPTIONS.find((d) => d.value === applied.dimensionType) ?? DIM_OPTIONS[0];
@@ -273,7 +303,7 @@ export default function PorocilaAnalitika() {
           </div>
 
           {/* Action */}
-          <div className="flex gap-2 items-end">
+          <div className="flex flex-wrap gap-2 items-end lg:col-span-2">
             <Button
               onClick={handleGenerate}
               disabled={!companyId}
@@ -305,6 +335,17 @@ export default function PorocilaAnalitika() {
                   title="Izvozi v CSV"
                 >
                   <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 print:hidden"
+                  onClick={handleExcelExport}
+                  disabled={excelExporting}
+                  title="Izvozi v Excel"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  {excelExporting ? "Izvažam …" : "Izvozi v Excel"}
                 </Button>
                 <Button
                   variant="outline"
@@ -386,6 +427,14 @@ export default function PorocilaAnalitika() {
           </div>
         </div>
       </div>
+
+      {excelError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Napaka pri izvozu</AlertTitle>
+          <AlertDescription>{excelError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Loading */}
       {isLoading && (
