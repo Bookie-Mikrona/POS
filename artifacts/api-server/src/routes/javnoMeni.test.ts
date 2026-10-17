@@ -2060,4 +2060,103 @@ describe("javni QR meni", () => {
     expect((await supertest(kds).post(`/kds/narocila/${order.body.narociloId}/tecaji/2/fire`).send({ idempotencyKey: "fire_second" })).body)
       .toMatchObject({ ok: true, released: 2 });
   });
+
+  it.each([
+    { naziv: "menijska nealkoholna pijača", taxCategory: "cold_beverage", jeDelMenija: true, davek: "9.50", snapshot: true },
+    { naziv: "samostojna nealkoholna pijača", taxCategory: "cold_beverage", jeDelMenija: false, davek: "22.00", snapshot: false },
+    { naziv: "alkohol z menijsko oznako", taxCategory: "alcoholic", jeDelMenija: true, davek: "22.00", snapshot: false },
+  ])("QR DDV in menijski snapshot: $naziv", async ({ naziv, taxCategory, jeDelMenija, davek, snapshot }) => {
+    const [company] = await db.select({ idZaDdv: companiesTable.idZaDdv })
+      .from(companiesTable).where(eq(companiesTable.id, companyId));
+    await db.update(companiesTable).set({ idZaDdv: "SI12345678" }).where(eq(companiesTable.id, companyId));
+    try {
+      const [artikel] = await db.insert(artikliTable).values({
+        enotaId,
+        ime: `${naziv} ${RUN_ID}`,
+        cena: "3.00",
+        davek: "22.00",
+        taxCategory,
+        // Sladkana pijača ima brez menijskega konteksta 22 % tudi za s seboj.
+        addedSugar: true,
+        jeDelMenija,
+        jeAlkohol: taxCategory === "alcoholic",
+        kategorijaId,
+        prodajniArtikel: true,
+        qrNaVoljo: true,
+        toGo: true,
+        toGoArtikli: [embalazaArtikelId],
+      }).returning({ id: artikliTable.id });
+      await db.insert(artModSkupineTable).values({ artikelId: artikel!.id, skupinaId });
+      const [modifier] = await db.select({ id: modifikatorjiTable.id }).from(modifikatorjiTable)
+        .where(and(eq(modifikatorjiTable.skupinaId, skupinaId), eq(modifikatorjiTable.aktiven, true)));
+      const qrNapravaId = randomUUID();
+      const app = publicApp();
+      const submit = () => supertest(app).post(`/javno/meni/${qrToken}/narocilo`).send({
+        qrNapravaId,
+        postavke: [false, true].map((toGo) => ({
+          artikelId: artikel!.id,
+          kolicina: 1,
+          modifikatorji: [modifier!.id],
+          toGo,
+        })),
+      });
+      const response = await submit();
+      expect(response.status, JSON.stringify(response.body)).toBe(201);
+      const narociloId = response.body.narociloId;
+      const readLines = () => db.select({
+        id: postavkeTable.id,
+        artikelId: postavkeTable.artikelId,
+        modifikatorId: postavkeTable.modifikatorId,
+        parentPostavkaId: postavkeTable.parentPostavkaId,
+        jeEmbalaza: postavkeTable.jeEmbalaza,
+        toGo: postavkeTable.toGo,
+        davek: postavkeTable.davek,
+        jeDelMenija: postavkeTable.jeDelMenija,
+      }).from(postavkeTable).where(eq(postavkeTable.narociloId, narociloId)).orderBy(postavkeTable.id);
+      const saved = await readLines();
+      expect(saved).toHaveLength(5);
+      const parents = saved.filter((line) => line.parentPostavkaId === null);
+      expect(parents).toHaveLength(2);
+      expect(parents.map((line) => line.toGo).sort()).toEqual([false, true]);
+      for (const parent of parents) {
+        expect(parent.artikelId).toBe(artikel!.id);
+        const children = saved.filter((line) => line.parentPostavkaId === parent.id);
+        expect(children).toHaveLength(parent.toGo ? 2 : 1);
+        expect(children).toEqual(expect.arrayContaining([
+          expect.objectContaining({ artikelId: null, modifikatorId: modifier!.id }),
+          ...(parent.toGo ? [expect.objectContaining({
+            artikelId: embalazaArtikelId,
+            modifikatorId: null,
+            jeEmbalaza: true,
+            toGo: true,
+          })] : []),
+        ]));
+      }
+      for (const line of saved) {
+        expect(line).toMatchObject({ davek, jeDelMenija: snapshot });
+      }
+
+      // Nova oddaja bere spremenjeni artikel; stare vrstice morajo ostati nespremenjene.
+      await db.update(artikliTable).set({ jeDelMenija: !jeDelMenija }).where(eq(artikliTable.id, artikel!.id));
+      const next = await submit();
+      expect(next.status, JSON.stringify(next.body)).toBe(201);
+      expect(next.body.narociloId).toBe(narociloId);
+      const afterSubmission = await readLines();
+      expect(afterSubmission).toHaveLength(10);
+      const originalIds = new Set(saved.map((line) => line.id));
+      expect(afterSubmission.filter((line) => originalIds.has(line.id))).toEqual(saved);
+      const newSnapshot = taxCategory !== "alcoholic" && !jeDelMenija;
+      for (const line of afterSubmission.filter((line) => !originalIds.has(line.id))) {
+        expect(line).toMatchObject({ davek: newSnapshot ? "9.50" : "22.00", jeDelMenija: newSnapshot });
+      }
+
+      // Tudi dejanski ponovni izračun DDV v POS mora uporabiti shranjeni kontekst.
+      const recalculated = await supertest(narocilaApp(enotaId))
+        .put(`/narocila/${narociloId}`).send({ toGo: true });
+      expect(recalculated.status, JSON.stringify(recalculated.body)).toBe(200);
+      expect(await readLines()).toEqual(afterSubmission);
+    } finally {
+      await db.update(companiesTable).set({ idZaDdv: company!.idZaDdv }).where(eq(companiesTable.id, companyId));
+    }
+  });
 });
