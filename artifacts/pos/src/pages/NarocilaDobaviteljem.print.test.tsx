@@ -770,6 +770,70 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("keeps a valid offer ranked lowest when stored prices are non-finite", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const [preferred] = originalMappings;
+    const validLowerOffer = {
+      ...preferred,
+      id: 7047,
+      supplierId: "supplier-705",
+      supplierName: "Mlekarna Ugodna",
+      supplierItemName: "Mleko v kartonu",
+      packageName: "karton",
+      packageFactor: 8,
+      lastPackagePrice: 20,
+      lastUnitPrice: 2.5,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    Object.assign(article, {
+      mappings: [
+        preferred,
+        validLowerOffer,
+        {
+          ...preferred,
+          id: 7062,
+          supplierId: "supplier-720",
+          supplierName: "Mlekarna Pokvarjena cena paketa",
+          packageFactor: 6,
+          lastPackagePrice: Number.POSITIVE_INFINITY,
+          lastUnitPrice: 1,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
+        {
+          ...preferred,
+          id: 7063,
+          supplierId: "supplier-721",
+          supplierName: "Mlekarna Pokvarjena cena enote",
+          packageFactor: 6,
+          lastPackagePrice: 24,
+          lastUnitPrice: Number.NaN,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
+      ],
+    });
+
+    try {
+      renderSupplierOrderPage();
+
+      expect(screen.getByTestId("last-unit-price-7047").textContent).toMatch(/2,50\s*€ \/ L/);
+      expect(screen.getByTestId("lowest-unit-price-7047").textContent)
+        .toContain("Najnižja cena / enoto");
+      for (const mappingId of [7062, 7063]) {
+        expect(screen.queryByTestId(`last-unit-price-${mappingId}`)).toBeNull();
+        expect(screen.queryByTestId(`lowest-unit-price-${mappingId}`)).toBeNull();
+        expect(screen.queryByTestId(`supplier-savings-${mappingId}`)).toBeNull();
+      }
+      expect(screen.getByTestId("unavailable-unit-price-7063").textContent)
+        .toContain("Cena na osnovno enoto ni prikazana");
+    } finally {
+      Object.assign(article, { mappings: originalMappings });
+    }
+  });
+
   it("does not show total savings when the suggested base quantity is unavailable", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;

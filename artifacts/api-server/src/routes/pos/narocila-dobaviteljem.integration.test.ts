@@ -1558,7 +1558,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     }
   });
 
-  it("preserves zero prices and omits invalid package comparisons", async () => {
+  it("preserves zero prices and omits invalid or non-finite package comparisons", async () => {
     context.enotaId = enotaId;
     const [comparisonArticle] = await db.insert(artikliTable).values({
       enotaId,
@@ -1638,6 +1638,20 @@ describe("POS supplier ordering and linked receipt flow", () => {
         packagePrice: null,
         unitPrice: null,
       });
+      const nonFinitePackagePriceMappingId = await addMapping({
+        supplierId: comparisonSupplier.id,
+        code: "NAN-PACKAGE",
+        packageFactor: "6",
+        packagePrice: "NaN",
+        unitPrice: "4",
+      });
+      const nonFiniteUnitPriceMappingId = await addMapping({
+        supplierId: comparisonSupplier.id,
+        code: "NAN-UNIT",
+        packageFactor: "6",
+        packagePrice: "24",
+        unitPrice: "NaN",
+      });
 
       const response = await request(app).get("/narocila-dobaviteljem/pregled");
       expect(response.status, JSON.stringify(response.body)).toBe(200);
@@ -1667,6 +1681,16 @@ describe("POS supplier ordering and linked receipt flow", () => {
       expect(mappings.get(missingPriceMappingId)).toMatchObject({
         packageFactor: 4,
         lastPackagePrice: null,
+        lastUnitPrice: null,
+      });
+      expect(mappings.get(nonFinitePackagePriceMappingId)).toMatchObject({
+        packageFactor: 6,
+        lastPackagePrice: null,
+        lastUnitPrice: null,
+      });
+      expect(mappings.get(nonFiniteUnitPriceMappingId)).toMatchObject({
+        packageFactor: 6,
+        lastPackagePrice: 24,
         lastUnitPrice: null,
       });
     } finally {
