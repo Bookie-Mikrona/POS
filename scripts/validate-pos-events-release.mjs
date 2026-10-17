@@ -2,8 +2,6 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { releaseTestManifest } from
-  "../artifacts/api-server/release-tests.manifest.mjs";
 import { releaseTestManifest as erpManifest } from
   "../artifacts/erp-web/release-tests.manifest.mjs";
 import { releaseTestManifest as posManifest } from
@@ -13,7 +11,7 @@ const workspaceDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const apiServerDir = path.join(workspaceDir, "artifacts", "api-server");
+const releasePackages = ["api-server", "erp-web", "pos"];
 const requiredReleaseSuiteIds = Object.freeze([
   "pos-capability-audit",
   "pos-events-integration",
@@ -132,9 +130,10 @@ export function validateReleaseScripts(
   packageJson, requiredScripts, allowedGroupIds = Object.values(requiredScripts),
 ) {
   const scripts = packageJson.scripts ?? {};
-  const allowedCommands = allowedGroupIds.map(
-    (groupId) => `node ../../scripts/validate-pos-events-release.mjs ${groupId}`,
-  );
+  const baseDir = path.join(workspaceDir, "artifacts", packageJson.name.split("/").at(-1));
+  const scriptManifest = Object.fromEntries(allowedGroupIds.map(
+    (groupId) => [groupId, { auxiliaryReason: "Script validation only." }],
+  ));
   for (const [scriptName, command] of Object.entries(scripts)) {
     if (scriptName !== "test:release" && !scriptName.startsWith("test:release:")) {
       continue;
@@ -145,7 +144,9 @@ export function validateReleaseScripts(
         `testno pot; uporabi poimenovano skupino release manifesta.`,
       );
     }
-    if (typeof command !== "string" || !allowedCommands.includes(command.trim())) {
+    try {
+      validateReleaseGroupCommands(scriptManifest, packageJson, baseDir, scriptName);
+    } catch {
       throw new Error(
         `Package script ${packageJson.name}:${scriptName} mora klicati ` +
         `dovoljeno release skupino: ${allowedGroupIds.map((id) => `"${id}"`).join(", ")}.`,
@@ -155,7 +156,13 @@ export function validateReleaseScripts(
 
   for (const [scriptName, groupId] of Object.entries(requiredScripts)) {
     const expected = `node ../../scripts/validate-pos-events-release.mjs ${groupId}`;
-    if (typeof scripts[scriptName] !== "string" || scripts[scriptName].trim() !== expected) {
+    let reached = [];
+    try {
+      reached = validateReleaseGroupCommands(scriptManifest, packageJson, baseDir, scriptName);
+    } catch {
+      // Report the required group below, including when the entry is missing.
+    }
+    if (!reached.includes(groupId)) {
       throw new Error(
         `Package script ${packageJson.name}:${scriptName} mora klicati ` +
         `release skupino "${groupId}": ${expected}`,
@@ -175,12 +182,103 @@ export async function validateFrontendReleasePackages(baseDir = workspaceDir) {
   }
 }
 
-function runVitest(testPaths, cwd = apiServerDir, configArgs = []) {
+// The release graph deliberately supports only sequential pnpm aliases and the
+// manifest runner. Shell conditionals, comments, echo, etc. are not proof that a
+// group executes. New command forms must be supported explicitly, not guessed.
+export function validateReleaseGroupCommands(
+  manifest, packageJson, baseDir, entryScript = "test:release",
+) {
+  const packageName = packageJson.name ?? baseDir;
+  const reached = new Set();
+  const visiting = new Set();
+  const visited = new Set();
+  const fail = (message) => {
+    throw new Error(`Release paket "${packageName}": ${message}`);
+  };
+
+  function visit(scriptId) {
+    if (visiting.has(scriptId)) fail(`cikel package skriptov pri "${scriptId}".`);
+    if (visited.has(scriptId)) return;
+    const command = packageJson.scripts?.[scriptId];
+    if (typeof command !== "string" || !command.trim()) {
+      fail(`manjka izvajalni package skript "${scriptId}".`);
+    }
+    visiting.add(scriptId);
+    for (const part of command.split("&&")) {
+      const alias = /^pnpm run ([\w:-]+)$/.exec(part.trim());
+      if (alias) {
+        visit(alias[1]);
+        continue;
+      }
+      const runner = /^node (\S+) ([\w-]+)(?: --package=([\w-]+))?$/.exec(part.trim());
+      if (
+        !runner ||
+        path.resolve(baseDir, runner[1]) !== fileURLToPath(import.meta.url) ||
+        (runner[3] ?? ({ erp: "erp-web", pos: "pos" }[runner[2]] ?? "api-server")) !== path.basename(baseDir)
+      ) {
+        fail(`nepodprt release ukaz v "${scriptId}": ${part.trim()}`);
+      }
+      if (!Object.hasOwn(manifest, runner[2])) {
+        fail(`skript "${scriptId}" zahteva neznano skupino "${runner[2]}".`);
+      }
+      reached.add(runner[2]);
+    }
+    visiting.delete(scriptId);
+    visited.add(scriptId);
+  }
+
+  visit(entryScript);
+  for (const [groupId, group] of Object.entries(manifest)) {
+    if (Object.hasOwn(group, "auxiliaryReason")) {
+      if (typeof group.auxiliaryReason !== "string" || !group.auxiliaryReason.trim()) {
+        fail(`pomožna skupina "${groupId}" potrebuje neprazen auxiliaryReason.`);
+      }
+    } else if (!reached.has(groupId)) {
+      fail(
+        `skupina "${groupId}" nima izvajalnega ukaza, dosegljivega iz ` +
+        `"test:release". Pomožna skupina zahteva ekspliciten auxiliaryReason.`,
+      );
+    }
+  }
+  return [...reached];
+}
+
+export async function validateWorkspaceReleaseManifests() {
+  const packages = new Map();
+  for (const packageId of releasePackages) {
+    const baseDir = path.join(workspaceDir, "artifacts", packageId);
+    const { releaseTestManifest: manifest } = await import(
+      pathToFileURL(path.join(baseDir, "release-tests.manifest.mjs")).href
+    );
+    const packageJson = JSON.parse(await readFile(path.join(baseDir, "package.json"), "utf8"));
+    const frontend = frontendPackages[packageId];
+    if (frontend) {
+      validateReleaseScripts(packageJson, frontend.requiredScripts, Object.keys(manifest));
+    }
+    const summary = await validateReleaseManifest(
+      manifest, frontend?.requiredSuiteIds ?? requiredReleaseSuiteIds, baseDir,
+    );
+    validateReleaseGroupCommands(manifest, packageJson, baseDir);
+    packages.set(packageId, { manifest, baseDir, summary });
+  }
+  return packages;
+}
+
+function runGroup(group, baseDir) {
+  const vitestConfig = path.basename(baseDir) === "api-server"
+    ? []
+    : ["--config", "vitest.config.ts"];
+  const args = group.runner === "isolated-offline-fiscal"
+    ? ["exec", "tsx", "scripts/run-isolated-offline-fiscal-tests.ts", ...Object.values(group.suites)]
+    : ["exec", "vitest", "run", ...vitestConfig, ...Object.values(group.suites)];
+  if (group.runner && group.runner !== "isolated-offline-fiscal") {
+    throw new Error(`Neznan izvajalnik release testov: ${group.runner}`);
+  }
   return new Promise((resolve, reject) => {
     const child = spawn(
       "pnpm",
-      ["exec", "vitest", "run", ...configArgs, ...testPaths],
-      { cwd, stdio: "inherit" },
+      args,
+      { cwd: baseDir, stdio: "inherit" },
     );
     child.once("error", reject);
     child.once("exit", (code, signal) => {
@@ -194,44 +292,32 @@ function runVitest(testPaths, cwd = apiServerDir, configArgs = []) {
 }
 
 async function main() {
-  const groupId = process.argv[2];
-  await validateFrontendReleasePackages();
-  if (groupId === "--check") {
-    console.log("ERP in POS release manifesta in paketni ukazi so veljavni.");
+  // Validate every package before starting any tests, not just the selected group.
+  const packages = await validateWorkspaceReleaseManifests();
+  if (process.argv[2] === "--check") {
+    console.log(`Release manifesti in izvajalni ukazi so veljavni (${packages.size} paketov).`);
     return;
   }
-  const frontend = Object.entries(frontendPackages).find(
-    ([, config]) => Object.hasOwn(config.manifest, groupId),
-  );
-  const manifest = frontend?.[1].manifest ?? releaseTestManifest;
-  const baseDir = frontend
-    ? path.join(workspaceDir, "artifacts", frontend[0])
-    : apiServerDir;
-  const group = Object.hasOwn(manifest, groupId) ? manifest[groupId] : undefined;
+  const groupId = process.argv[2];
+  const packageId = process.argv[3]?.replace(/^--package=/, "") ??
+    ({ erp: "erp-web", pos: "pos" }[groupId] ?? "api-server");
+  const selected = packages.get(packageId);
+  if (!selected) throw new Error(`Neznan release paket "${packageId}".`);
+  const group = selected.manifest[groupId];
   if (!group) {
     throw new Error(
       `Neznana release testna skupina \"${groupId ?? ""}\". ` +
-      `Dovoljene: ${[
-        ...Object.keys(releaseTestManifest), ...Object.keys(erpManifest),
-        ...Object.keys(posManifest),
-      ].join(", ")}.`,
+      `Dovoljene: ${Object.keys(selected.manifest).join(", ")}.`,
     );
   }
 
-  const summary = await validateReleaseManifest(
-    manifest,
-    frontend?.[1].requiredSuiteIds ?? requiredReleaseSuiteIds,
-    baseDir,
-  );
+  const { summary, baseDir } = selected;
   console.log(
     `Release manifest je veljaven: ${summary.suites} testnih sklopov ` +
     `v ${summary.groups} skupinah.`,
   );
   console.log(`\n=== ${group.label} ===\n`);
-  process.exitCode = await runVitest(
-    Object.values(group.suites), baseDir,
-    frontend ? ["--config", "vitest.config.ts"] : [],
-  );
+  process.exitCode = await runGroup(group, baseDir);
 }
 
 if (

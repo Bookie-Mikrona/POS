@@ -11,6 +11,9 @@ export const releaseTestManifest = Object.freeze({
       "event-transfer-diagnostics": "src/lib/eventTransferDiagnostics.test.ts",
       "event-transfer-loader": "src/lib/loadEventTransferDiagnostics.test.ts",
       "event-transfer-detail": "src/lib/loadEventTransferDetail.test.ts",
+      "pizza-meal-type": "src/routes/pos/artikli.pizza-meal-type.integration.test.ts",
+      "kds-course-assignment": "src/routes/pos/kds-course-assignment.integration.test.ts",
+      "kds-routing": "src/__tests__/kds-routing.test.ts",
       "stripe-adapter-contract": "src/lib/stripeClient.test.ts",
       "stripe-sync-failure-monitor": "src/lib/stripeSyncFailureMonitor.test.ts",
       "public-profile-image-retention": "src/lib/publicProfileImageRetention.test.ts",
@@ -32,6 +35,7 @@ export const releaseTestManifest = Object.freeze({
   }),
   "offline-native": Object.freeze({
     label: "Native offline fiskalna sinhronizacija",
+    runner: "isolated-offline-fiscal",
     suites: Object.freeze({
       "offline-fiscal-native":
         "src/routes/pos/offline-fiscal-sync.native.integration.test.ts",
@@ -39,6 +43,7 @@ export const releaseTestManifest = Object.freeze({
   }),
   "offline-cloud": Object.freeze({
     label: "Cloud-offline fiskalna sinhronizacija",
+    runner: "isolated-offline-fiscal",
     suites: Object.freeze({
       "offline-fiscal-cloud":
         "src/routes/pos/offline-fiscal-sync.cloud-offline.integration.test.ts",

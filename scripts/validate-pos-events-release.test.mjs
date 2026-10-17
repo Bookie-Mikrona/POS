@@ -5,9 +5,11 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import {
   validateFrontendReleasePackages, validateReleaseManifest, validateReleaseScripts,
+  validateReleaseGroupCommands, validateWorkspaceReleaseManifests,
 } from "./validate-pos-events-release.mjs";
 import { releaseTestManifest as erpManifest } from "../artifacts/erp-web/release-tests.manifest.mjs";
 import { releaseTestManifest as posManifest } from "../artifacts/pos/release-tests.manifest.mjs";
+import { fileURLToPath } from "node:url";
 
 let tempDir;
 
@@ -150,7 +152,7 @@ for (const [packageDir, groupId, manifest] of [
   }
 
   test(`${name}: dodatni podukaz sprejme le obstoječo dovoljeno skupino`, () => {
-    const extra = "node ../../scripts/validate-pos-events-release.mjs regression";
+    const extra = `node ../../scripts/validate-pos-events-release.mjs regression --package=${packageDir}`;
     const packageJson = {
       name, scripts: { "test:release": command, "test:release:quick": extra },
     };
@@ -207,5 +209,111 @@ test("skupno preverjanje prebere in zavrne spremenjene ERP in POS package script
     }
   } finally {
     await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+const apiDir = fileURLToPath(new URL("../artifacts/api-server/", import.meta.url));
+const groupCommand = (group) => `node ../../scripts/validate-pos-events-release.mjs ${group}`;
+const fixtureGroup = { suites: { one: "one.test.ts" } };
+const fixturePackage = (scripts) => ({ name: "@workspace/api-server", scripts });
+
+test("sledi podukazom iz test:release", () => {
+  assert.deepEqual(validateReleaseGroupCommands({
+    first: fixtureGroup,
+    second: fixtureGroup,
+  }, fixturePackage({
+    "test:release": "pnpm run release:batch",
+    "release:batch": "pnpm run release:first && pnpm run release:second",
+    "release:first": groupCommand("first"),
+    "release:second": groupCommand("second"),
+  }), apiDir), ["first", "second"]);
+});
+
+test("zavrne novo veljavno skupino, ki nima dosegljivega izvajalnega ukaza", async () => {
+  const manifest = {
+    first: fixtureGroup,
+    orphan: { suites: { two: "two.test.ts" } },
+  };
+  await validateReleaseManifest(manifest, [], tempDir);
+  assert.throws(() => validateReleaseGroupCommands(manifest, fixturePackage({
+    "test:release": groupCommand("first"),
+    // An existing leaf is not enough: it must be called by the release entry.
+    "release:orphan": groupCommand("orphan"),
+  }), apiDir), /Release paket "@workspace\/api-server": skupina "orphan" nima izvajalnega ukaza/);
+});
+
+test("dovoli pomožno skupino samo z eksplicitnim razlogom", () => {
+  const pkg = fixturePackage({ "test:release": groupCommand("first") });
+  assert.deepEqual(validateReleaseGroupCommands({
+    first: fixtureGroup,
+    helper: { ...fixtureGroup, auxiliaryReason: "Samo za ročno diagnostiko." },
+  }, pkg, apiDir), ["first"]);
+
+  for (const auxiliaryReason of ["", "  ", true, null, undefined]) {
+    assert.throws(() => validateReleaseGroupCommands({
+      first: fixtureGroup,
+      helper: { ...fixtureGroup, auxiliaryReason },
+    }, pkg, apiDir), /pomožna skupina "helper".*auxiliaryReason/);
+  }
+  assert.throws(() => validateReleaseGroupCommands({
+    first: fixtureGroup,
+    helper: { ...fixtureGroup, auxiliary: true },
+  }, pkg, apiDir), /skupina "helper" nima izvajalnega ukaza/);
+});
+
+test("pomožna skupina mora še vedno vsebovati veljavne testne datoteke", async () => {
+  await assert.rejects(validateReleaseManifest({
+    helper: {
+      auxiliaryReason: "Ročna diagnostika.",
+      suites: { missing: "missing.test.ts" },
+    },
+  }, [], tempDir), /testna datoteka ne obstaja/);
+});
+
+test("zavrne manjkajoč podukaz, cikel in neznano skupino", () => {
+  for (const [scripts, expected] of [
+    [{}, /manjka izvajalni package skript "test:release"/],
+    [{ "test:release": "pnpm run missing" }, /skript "missing"/],
+    [{
+      "test:release": "pnpm run nested",
+      nested: "pnpm run test:release",
+    }, /cikel/],
+    [{ "test:release": groupCommand("unknown") }, /neznano skupino "unknown"/],
+  ]) {
+    assert.throws(() => validateReleaseGroupCommands(
+      { first: fixtureGroup }, fixturePackage(scripts), apiDir,
+    ), expected);
+  }
+});
+
+test("besedilna omemba, pogojni ukaz in napačen paket niso dokaz dosegljivosti", () => {
+  for (const command of [
+    `echo ${groupCommand("first")}`,
+    `true || ${groupCommand("first")}`,
+    `${groupCommand("first")} # komentar`,
+    `${groupCommand("first")} --package=pos`,
+    "node another-runner.mjs first",
+  ]) {
+    assert.throws(() => validateReleaseGroupCommands(
+      { first: fixtureGroup },
+      fixturePackage({ "test:release": command }),
+      apiDir,
+    ), /nepodprt release ukaz/);
+  }
+});
+
+test("vsi dejanski manifesti so dosegljivi; dodatna skupina v kateremkoli paketu ustavi release", async () => {
+  const packages = await validateWorkspaceReleaseManifests();
+  assert.deepEqual([...packages.keys()], ["api-server", "erp-web", "pos"]);
+  for (const [packageId, { manifest, baseDir }] of packages) {
+    const pkg = JSON.parse(await readFile(path.join(baseDir, "package.json"), "utf8"));
+    assert.throws(() => validateReleaseGroupCommands({
+      ...manifest,
+      "new-without-command": fixtureGroup,
+    }, pkg, baseDir), (error) => {
+      assert.match(error.message, /skupina "new-without-command" nima izvajalnega ukaza/);
+      assert.ok(error.message.includes(pkg.name), packageId);
+      return true;
+    });
   }
 });

@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:release": "pnpm run test:release:erp",
+    "test:release:erp": "node ../../scripts/validate-pos-events-release.mjs erp --package=erp-web",
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "pnpm -w run typecheck:libs && tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --config vitest.config.ts",
-    "test:release": "node ../../scripts/validate-pos-events-release.mjs erp"
+    "test": "vitest run --config vitest.config.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
