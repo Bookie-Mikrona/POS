@@ -1293,18 +1293,18 @@ describe("POS temeljnice po enoti", () => {
     const linesFor = (reference: string) => lines.filter(line => line.entryId === entries.find(entry => entry.reference === reference)?.id);
 
     expect(linesFor(t1Ref)).toEqual(expect.arrayContaining([
-      expect.objectContaining({ accountId: material5AccountId, side: "credit", amount: "100.00" }),
-      expect.objectContaining({ accountId: goods5AccountId, side: "credit", amount: "100.00" }),
-      expect.objectContaining({ accountId: service5AccountId, side: "credit", amount: "100.00" }),
-      expect.objectContaining({ accountId: vat5AccountId, side: "credit", amount: "15.00", vatCodeId: vat5Code!.id }),
+      expect.objectContaining({ accountId: material5AccountId, side: "credit", amount: "100.00", vatCodeId: vat5Code!.id }),
+      expect.objectContaining({ accountId: goods5AccountId, side: "credit", amount: "100.00", vatCodeId: vat5Code!.id }),
+      expect.objectContaining({ accountId: service5AccountId, side: "credit", amount: "100.00", vatCodeId: vat5Code!.id }),
+      expect.objectContaining({ accountId: vat5AccountId, side: "credit", amount: "15.00", vatCodeId: null }),
     ]));
     expect(linesFor(t4Ref)).toEqual(expect.arrayContaining([
-      expect.objectContaining({ accountId: material5AccountId, side: "credit", amount: "100.00" }),
-      expect.objectContaining({ accountId: vat5AccountId, side: "credit", amount: "5.00", vatCodeId: vat5Code!.id }),
+      expect.objectContaining({ accountId: material5AccountId, side: "credit", amount: "100.00", vatCodeId: vat5Code!.id }),
+      expect.objectContaining({ accountId: vat5AccountId, side: "credit", amount: "5.00", vatCodeId: null }),
     ]));
     expect(linesFor(arRef)).toEqual(expect.arrayContaining([
-      expect.objectContaining({ accountId: service5AccountId, side: "credit", amount: "100.00" }),
-      expect.objectContaining({ accountId: vat5AccountId, side: "credit", amount: "5.00", vatCodeId: vat5Code!.id }),
+      expect.objectContaining({ accountId: service5AccountId, side: "credit", amount: "100.00", vatCodeId: vat5Code!.id }),
+      expect.objectContaining({ accountId: vat5AccountId, side: "credit", amount: "5.00", vatCodeId: null }),
     ]));
 
     const [arInvoice] = await db.select({ id: invoicesTable.id })

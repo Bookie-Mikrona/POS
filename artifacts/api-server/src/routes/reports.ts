@@ -547,10 +547,10 @@ router.get(
 
     const { asOf, compareAsOf } = req.query as Record<string, string | undefined>;
 
-        const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
+    let balanceSheetCurrent, balanceSheetCompare = null;
     try {
-      current = await loadBalanceSheet(companyId, asOf);
-      if (compareAsOf) compare = await loadBalanceSheet(companyId, compareAsOf);
+      balanceSheetCurrent = await loadBalanceSheet(companyId, asOf);
+      if (compareAsOf) balanceSheetCompare = await loadBalanceSheet(companyId, compareAsOf);
     } catch (error) {
       res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
       return;
@@ -559,8 +559,8 @@ router.get(
     res.json({
       asOf: asOf ?? null,
       compareAsOf: compareAsOf ?? null,
-      current,
-      compare,
+      current: balanceSheetCurrent,
+      compare: balanceSheetCompare,
     });
   },
 );
@@ -580,11 +580,11 @@ router.get(
       req.query as Record<string, string | undefined>;
 
     // Income statement is period-based — only entries within [dateFrom, dateTo].
-        const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
+    let incomeStatementCurrent, incomeStatementCompare = null;
     try {
-      current = await loadIncomeStatement(companyId, dateFrom, dateTo);
+      incomeStatementCurrent = await loadIncomeStatement(companyId, dateFrom, dateTo);
       if (compareDateFrom || compareDateTo) {
-        compare = await loadIncomeStatement(companyId, compareDateFrom, compareDateTo);
+        incomeStatementCompare = await loadIncomeStatement(companyId, compareDateFrom, compareDateTo);
       }
     } catch (error) {
       res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
@@ -596,8 +596,8 @@ router.get(
       dateTo: dateTo ?? null,
       compareDateFrom: compareDateFrom ?? null,
       compareDateTo: compareDateTo ?? null,
-      current,
-      compare,
+      current: incomeStatementCurrent,
+      compare: incomeStatementCompare,
     });
   },
 );
@@ -731,26 +731,30 @@ router.get(
 
     if (withAccountBreakdown) {
       // Single query that groups by dim + account + side
-    const rows = await db
-      .select({
-        id: reportExportsTable.id,
-        reportType: reportExportsTable.reportType,
-        params: reportExportsTable.params,
-        filename: reportExportsTable.filename,
-        exportedBy: reportExportsTable.exportedBy,
-        exportedAt: reportExportsTable.exportedAt,
-        emailSentTo: reportExportsTable.emailSentTo,
-      })
-      .from(reportExportsTable)
-      .where(and(
-        eq(reportExportsTable.companyId, companyId),
-        gte(reportExportsTable.exportedAt, reportExportCutoff()),
-      ))
-      .orderBy(desc(reportExportsTable.exportedAt))
-      .limit(200);
+      const dimensionAccountTotals = await db
+        .select({
+          dimId: dimTable.id,
+          dimCode: dimTable.code,
+          dimName: dimTable.name,
+          accountId: journalEntryLinesTable.accountId,
+          accountCode: accountsTable.code,
+          accountName: accountsTable.name,
+          side: journalEntryLinesTable.side,
+          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+        })
+        .from(journalEntryLinesTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
+        .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+        .where(and(...allConditions))
+        .groupBy(
+          dimTable.id, dimTable.code, dimTable.name,
+          journalEntryLinesTable.accountId, accountsTable.code, accountsTable.name,
+          journalEntryLinesTable.side,
+        );
 
-      for (const row of rows) {
-      const amount = parseFloat(row.amount);
+      for (const row of dimensionAccountTotals) {
+        const amount = parseFloat(row.total ?? "0");
 
         // Dim-level aggregate
         const dimExisting = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
@@ -774,27 +778,23 @@ router.get(
       }
     } else {
       // Standard query — group by dim + side only
-    const rows = await db
-      .select({
-        id: reportExportsTable.id,
-        reportType: reportExportsTable.reportType,
-        params: reportExportsTable.params,
-        filename: reportExportsTable.filename,
-        exportedBy: reportExportsTable.exportedBy,
-        exportedAt: reportExportsTable.exportedAt,
-        emailSentTo: reportExportsTable.emailSentTo,
-      })
-      .from(reportExportsTable)
-      .where(and(
-        eq(reportExportsTable.companyId, companyId),
-        gte(reportExportsTable.exportedAt, reportExportCutoff()),
-      ))
-      .orderBy(desc(reportExportsTable.exportedAt))
-      .limit(200);
+      const dimensionTotals = await db
+        .select({
+          dimId: dimTable.id,
+          dimCode: dimTable.code,
+          dimName: dimTable.name,
+          side: journalEntryLinesTable.side,
+          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+        })
+        .from(journalEntryLinesTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
+        .where(and(...allConditions))
+        .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
 
-      for (const row of rows) {
+      for (const row of dimensionTotals) {
         const existing = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
-      const amount = parseFloat(row.amount);
+        const amount = parseFloat(row.total ?? "0");
         if (row.side === "debit") existing.debit += amount;
         else existing.credit += amount;
         dimMap.set(row.dimId, existing);
@@ -1134,17 +1134,20 @@ router.post(
           res.status(400).json({ error: "asOf je obvezen za bilanco stanja." });
           return;
         }
-        const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
-        let compare = null;
+        const balanceSheetPdfCurrent = await loadBalanceSheet(companyId, asOf);
+        let balanceSheetPdfCompare = null;
         if (compareAsOf) {
-          compare = await loadBalanceSheet(companyId, compareAsOf);
+          balanceSheetPdfCompare = await loadBalanceSheet(companyId, compareAsOf);
         }
         reportTitle = "BILANCA STANJA";
         subtitle = compareAsOf
           ? `Stanje na dan: ${asOf}  |  Primerjava: ${compareAsOf}`
           : `Stanje na dan: ${asOf}`;
         filename = `bilanca-stanja-${asOf}.pdf`;
-        pdfBuffer = await generateBalanceSheetPdf({ companyName, asOf, compareAsOf: compareAsOf ?? null, current, compare });
+        pdfBuffer = await generateBalanceSheetPdf({
+          companyName, asOf, compareAsOf: compareAsOf ?? null,
+          current: balanceSheetPdfCurrent, compare: balanceSheetPdfCompare,
+        });
 
       } else if (reportType === "income-statement") {
         const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
@@ -1179,25 +1182,13 @@ router.post(
         }
         const report = await loadTrialBalance(companyId, dateFrom, dateTo);
         const q = (searchTerm ?? "").trim().toLocaleLowerCase("sl-SI");
-    const rows = await db
-      .select({
-        id: reportExportsTable.id,
-        reportType: reportExportsTable.reportType,
-        params: reportExportsTable.params,
-        filename: reportExportsTable.filename,
-        exportedBy: reportExportsTable.exportedBy,
-        exportedAt: reportExportsTable.exportedAt,
-        emailSentTo: reportExportsTable.emailSentTo,
-      })
-      .from(reportExportsTable)
-      .where(and(
-        eq(reportExportsTable.companyId, companyId),
-        gte(reportExportsTable.exportedAt, reportExportCutoff()),
-      ))
-      .orderBy(desc(reportExportsTable.exportedAt))
-      .limit(200);
+        const filteredTrialBalanceRows = report.rows.filter(row =>
+          (!accountClass || row.accountCode.startsWith(accountClass)) &&
+          (!q || row.accountCode.toLocaleLowerCase("sl-SI").includes(q) ||
+            row.accountName.toLocaleLowerCase("sl-SI").includes(q)),
+        );
         const sumField = (field: keyof Pick<TrialBalanceRow, "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
-          rows.reduce((sum, row) => sum + Number(row[field]), 0).toFixed(2);
+          filteredTrialBalanceRows.reduce((sum, row) => sum + Number(row[field]), 0).toFixed(2);
         reportTitle = statementView === "bilanca" ? "BILANCA KONTOV"
           : statementView === "zakljucni" ? "ZAKLJUČNI RAČUN" : "BRUTO BILANCA (PREIZKUSNA BILANCA)";
         subtitle = `Obdobje: ${dateFrom ?? ""} – ${dateTo ?? ""}`;
@@ -1208,7 +1199,7 @@ router.post(
           companyName, dateFrom: dateFrom ?? "", dateTo: dateTo ?? "",
           statementView,
           accountClass,
-          rows,
+          rows: filteredTrialBalanceRows,
           totalOpeningBalanceDebit: sumField("openingBalanceDebit"),
           totalOpeningBalanceCredit: sumField("openingBalanceCredit"),
           totalTurnoverDebit: sumField("turnoverDebit"),

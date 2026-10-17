@@ -14,3 +14,9 @@ To pravilo velja tudi za samodejno združevanje ob zaključevanju dela: uspešni
 **Why:** Samodejna združitev sočasnih sprememb iste datoteke je že premaknila veljavne bloke v nepovezane API handlerje, agregacijske in PDF bloke ter pustila nezaključeno kodo zunaj registracije poti. Pri usklajevanju skupne datoteke poročil so bile tudi ponavljajoče se poizvedbe zamenjane z vsebinsko nepovezano poizvedbo, čeprav je bil prvotni lokalni diff omejen na pošiljanje e-pošte ali zgodovino izvozov in je TypeScript prestal.
 
 **How to apply:** Če zaključno preverjanje po sinhronizaciji javi nove napake, primerjaj celoten končni diff z osnovno različico oziroma pravilnim staršem, posebej podobne ponovljene bloke. Obnovi samo nenamerne spremembe in poškodovane bloke ter ponovno preveri končno drevo in sosednje poti.
+
+Preverjanje mora zajeti tudi podedovane napake iz novo prevzetega starša, ne le trenutnega diff-a.
+
+**Why:** Uspešno lokalno preverjanje pred združitvijo ne zagotavlja pravilnosti pozneje prevzetega izhodišča; avtomatsko združevanje lahko znova odstrani že preverjen popravek.
+
+**How to apply:** Primerjaj starša z zadnjo pravilno različico prizadetih blokov, popravek preveri tudi v shranjenem drevesu in pred končnim preverjanjem obnovi deklaracije skupnih knjižnic.

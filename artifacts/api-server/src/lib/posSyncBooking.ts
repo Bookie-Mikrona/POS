@@ -70,6 +70,7 @@ import { createVatLedgerEntries, type EntryMeta, type VatLine } from "./vatLedge
 import { businessDateForInstant, getBusinessDayBounds } from "./pos-business-day";
 import { resolvePosBookingPeriod } from "./posBookingPeriod";
 import { bookingReceiptStatus, loadReceiptTaxGroups, sumReceiptTaxGroups } from "./pos-receipt-tax";
+import { loadPosSalesVatCodes, posRevenueVat } from "./posSalesVat";
 
 import { slovenskiDatumZaSporocilo } from "./slovenian-date-message";
 
@@ -86,9 +87,9 @@ interface SyncLine {
   enotaId?: number;
   /** Stroškovno mesto POS enote za analitiko GLK. */
   costCenterId?: string | null;
-  /** FURS DDV koda (FK na vat_code.id) — nastavi za DDV vrstice da gredo v vat_ledger */
+  /** FURS DDV koda (FK na vat_code.id) na vrstici neto prihodka. */
   vatCodeId?: string | null;
-  /** Znesek DDV za to vrstico (pri DDV vrstici: znesek celotnega DDV) */
+  /** DDV, ki pripada neto osnovi te vrstice. */
   vatAmount?: string | null;
 }
 
@@ -171,14 +172,13 @@ function isBalanced(lines: SyncLine[]): boolean {
 
 /**
  * Sešteje vrstice z istim accountId, stranjo in analitičnimi oznakami v eno vrstico.
- * vatCodeId: ohrani kodo prve vrstice (vse DDV vrstice na istem kontu morajo
- * imeti enako kodo — če ne, bi to bila napaka v konfiguraciji).
- * vatAmount: sešteje (vsaka vrstica nosi cel znesek DDV te stopnje).
+ * Različne DDV kode ostanejo ločene tudi pri istem prihodkovnem kontu.
+ * vatAmount: sešteje DDV pripadajočih neto osnov.
  */
 function mergeLines(lines: SyncLine[]): SyncLine[] {
   const map = new Map<string, SyncLine>();
   for (const l of lines) {
-    const key = `${l.accountId}|${l.side}|${l.partnerId ?? ""}|${l.costCenterId ?? ""}|${l.enotaId ?? ""}`;
+    const key = `${l.accountId}|${l.side}|${l.partnerId ?? ""}|${l.costCenterId ?? ""}|${l.enotaId ?? ""}|${l.vatCodeId ?? ""}`;
     const ex = map.get(key);
     if (ex) {
       ex.amount = ex.amount.plus(l.amount);
@@ -676,6 +676,7 @@ async function syncPosBookingForDayUnlocked(
     return { created: [], skipped: [{ ref: "vse", reason: "POS nastavitve knjiženja niso konfigurirane" }] };
   }
   const categoryRevenueAccounts = await loadCategoryRevenueAccounts(companyId);
+  const salesVatCodes = await loadPosSalesVatCodes(datum);
   const salesFrequency = getEffectiveBookingFrequency(settings, "PRODAJA", datum);
   const consumptionFrequency = getEffectiveBookingFrequency(settings, "PORABA", datum);
 
@@ -1035,6 +1036,7 @@ async function syncPosBookingForDayUnlocked(
         "credit",
         neto,
         `Prihodki kategorije ${row.kategorijaId ?? "brez kategorije"}`,
+        posRevenueVat(salesVatCodes, davekPct, neto, ddv),
       );
 
       if (ddv.abs().gt("0.005")) {
@@ -1052,7 +1054,8 @@ async function syncPosBookingForDayUnlocked(
         return;
       }
       skupajBruto = skupajBruto.plus(employerTipGross);
-      pushSignedLine(lines, tipRevenueAccount, "credit", employerTipGross.minus(employerTipVat), "Napitnine pod nadzorom delodajalca – prihodek");
+      pushSignedLine(lines, tipRevenueAccount, "credit", employerTipGross.minus(employerTipVat), "Napitnine pod nadzorom delodajalca – prihodek",
+        posRevenueVat(salesVatCodes, new Decimal(22), employerTipGross.minus(employerTipVat), employerTipVat));
       ddvPo["22.00"] = (ddvPo["22.00"] ?? new Decimal(0)).plus(employerTipVat);
     }
     if (tipCardFeeExpense.abs().gt("0.005")) {
@@ -1063,12 +1066,6 @@ async function syncPosBookingForDayUnlocked(
       pushSignedLine(lines, settings.tipsCardFeeExpenseAccountId, "debit", tipCardFeeExpense, "Kartična provizija napitnin – strošek delodajalca");
       pushSignedLine(lines, settings.cardAccountId, "credit", tipCardFeeExpense, "Kartična provizija napitnin – zmanjšanje terjatve do izdajatelja");
     }
-
-    const vatCodeMap: Record<string, string | null | undefined> = {
-      "5.00":  settings.vat5VatCodeId,
-      "9.50":  settings.vat95VatCodeId,
-      "22.00": settings.vat22VatCodeId,
-    };
 
     for (const [davekKey, ddvZnesek] of Object.entries(ddvPo)) {
       const tipVat = davekKey === "22.00" && settings.tipsVatAccountId ? employerTipVat : new Decimal(0);
@@ -1082,22 +1079,10 @@ async function syncPosBookingForDayUnlocked(
         });
         return;
       }
-      const vatCodeId = vatCodeMap[davekKey] ?? null;
-      if (vatCodeId == null) {
-        // Vidno opozorilo — NE blokiramo knjiženja (temeljnica nastane brez DDV oznake za to stopnjo)
-        console.warn(
-          `[POS sync] DDV koda za stopnjo ${davekKey}% ni nastavljena v pos_booking_settings ` +
-          `(podjetje ${companyId}, datum ${datum}). ` +
-          `Promet DDV ${regularVat.toFixed(2)} € te stopnje NE bo vpisan v KIR evidenco.`
-        );
-      }
-      pushSignedLine(lines, vatAcc, "credit", regularVat, `Izhodni DDV ${davekKey.replace(".00", "")}%`, { vatCodeId, vatAmount: regularVat.abs().toFixed(2) });
+      pushSignedLine(lines, vatAcc, "credit", regularVat, `Izhodni DDV ${davekKey.replace(".00", "")}%`);
     }
     if (employerTipVat.abs().gt("0.005") && settings.tipsVatAccountId) {
-      pushSignedLine(lines, settings.tipsVatAccountId, "credit", employerTipVat, "DDV napitnin pod nadzorom delodajalca", {
-        vatCodeId: settings.vat22VatCodeId ?? null,
-        vatAmount: employerTipVat.abs().toFixed(2),
-      });
+      pushSignedLine(lines, settings.tipsVatAccountId, "credit", employerTipVat, "DDV napitnin pod nadzorom delodajalca");
     }
 
     // Fallback: brez postavk
@@ -1408,6 +1393,7 @@ async function syncPosBookingForDayUnlocked(
         side: "credit",
         amount: neto,
         desc: `Prihodki kategorije ${row.kategorijaId ?? "brez kategorije"} (lastna/repr)`,
+        ...posRevenueVat(salesVatCodes, davekPct, neto, ddv),
       });
 
       if (ddv.gt("0.005")) {
@@ -1415,12 +1401,6 @@ async function syncPosBookingForDayUnlocked(
         ddvPo[davekKey] = (ddvPo[davekKey] ?? new Decimal(0)).plus(ddv);
       }
     }
-
-    const vatCodeMapT4: Record<string, string | null | undefined> = {
-      "5.00":  settings.vat5VatCodeId,
-      "9.50":  settings.vat95VatCodeId,
-      "22.00": settings.vat22VatCodeId,
-    };
 
     for (const [davekKey, ddvZnesek] of Object.entries(ddvPo)) {
       const vatAcc = vatMap[davekKey] ?? settings.vatLiabilityAccountId;
@@ -1431,21 +1411,11 @@ async function syncPosBookingForDayUnlocked(
         });
         return;
       }
-      const vatCodeId = vatCodeMapT4[davekKey] ?? null;
-      if (vatCodeId == null) {
-        console.warn(
-          `[POS sync T4] DDV koda za stopnjo ${davekKey}% ni nastavljena v pos_booking_settings ` +
-          `(podjetje ${companyId}, datum ${datum}). ` +
-          `DDV ${ddvZnesek.toFixed(2)} € te stopnje NE bo vpisan v KIR evidenco.`
-        );
-      }
       lines.push({
         accountId: vatAcc,
         side: "credit",
         amount: ddvZnesek,
         desc: `Izhodni DDV ${davekKey.replace(".00", "")}% (lastna/repr)`,
-        vatCodeId,
-        vatAmount: ddvZnesek.toFixed(2),
       });
     }
 
@@ -1527,19 +1497,15 @@ async function syncPosBookingForDayUnlocked(
       const vatAccounts: Record<string, string | null | undefined> = {
         "22.00": settings.vat22AccountId, "9.50": settings.vat95AccountId, "5.00": settings.vat5AccountId,
       };
-      const vatCodes: Record<string, string | null | undefined> = {
-        "22.00": settings.vat22VatCodeId, "9.50": settings.vat95VatCodeId, "5.00": settings.vat5VatCodeId,
-      };
       for (const group of groups) {
         const rate = dec(group.davek);
         const revenue = getCategoryRevenueAccount(group.kategorijaId,
           group.vrstaArtikla ?? "storitev", rate, settings, categoryRevenueAccounts);
         const vat = vatAccounts[rate.toFixed(2)];
         if (!revenue || (!dec(group.ddv).isZero() && !vat)) { missing = true; break; }
-        pushSignedLine(lines, revenue, "credit", dec(group.neto), `Prihodki kategorije ${group.kategorijaId ?? "brez kategorije"}`);
-        if (vat) pushSignedLine(lines, vat, "credit", dec(group.ddv), `Izhodni DDV ${rate.toString()}%`, {
-          vatCodeId: vatCodes[rate.toFixed(2)], vatAmount: dec(group.ddv).abs().toFixed(2),
-        });
+        pushSignedLine(lines, revenue, "credit", dec(group.neto), `Prihodki kategorije ${group.kategorijaId ?? "brez kategorije"}`,
+          posRevenueVat(salesVatCodes, rate, dec(group.neto), dec(group.ddv)));
+        if (vat) pushSignedLine(lines, vat, "credit", dec(group.ddv), `Izhodni DDV ${rate.toString()}%`);
       }
       if (missing || !groups.length || !isBalanced(lines)) {
         skipped.push({ ref, reason: "B2B nima popolnih kontov ali usklajenega plačilnega razreza; račun ostane v zbirniku." });
@@ -1781,11 +1747,6 @@ async function syncPosBookingForDayUnlocked(
         "9.50": settings.vat95AccountId,
         "22.00": settings.vat22AccountId,
       };
-      const vatCodeMap: Record<string, string | null | undefined> = {
-        "5.00": settings.vat5VatCodeId,
-        "9.50": settings.vat95VatCodeId,
-        "22.00": settings.vat22VatCodeId,
-      };
       const vatTotals = new Map<string, Decimal>();
       for (const line of preparedLines) {
         if (line.ddv.gt("0.005")) {
@@ -1810,8 +1771,6 @@ async function syncPosBookingForDayUnlocked(
           amount,
           desc: `Izhodni DDV ${rate.replace(".00", "")}%`,
           costCenterId: params.receivable?.costCenterId ?? null,
-          vatCodeId: vatCodeMap[rate] ?? null,
-          vatAmount: amount.toFixed(2),
         });
       }
 
@@ -1878,6 +1837,7 @@ async function syncPosBookingForDayUnlocked(
             amount: l.neto,
             desc: `Prihodki kategorije ${l.kategorijaId ?? "brez kategorije"}`,
             costCenterId: params.receivable!.costCenterId,
+            ...posRevenueVat(salesVatCodes, l.davekPct, l.neto, l.ddv),
           })),
           ...vatJournalLines,
         ]);
@@ -1917,26 +1877,17 @@ async function syncPosBookingForDayUnlocked(
           })),
         );
 
-        // KIR osnova je neto promet, ne znesek kreditne DDV vrstice. Vrstice
-        // gradimo iz pripravljenih prihodkovnih vrstic in DDV seštevkov, ker
-        // imajo DDV temeljnicne vrstice za `amount` namenoma samo DDV znesek.
-        const vatLedgerLines: VatLine[] = [...vatTotals.entries()]
-          .flatMap(([rate, vatAmount], index) => {
-            const vatCodeId = vatCodeMap[rate] ?? null;
-            if (!vatCodeId) return [];
-            const netBase = preparedLines
-              .filter(line => line.davekPct.toFixed(2) === rate)
-              .reduce((sum, line) => sum.plus(line.neto), new Decimal(0));
-            return [{
+        const vatLedgerLines: VatLine[] = journalLines
+          .filter(line => line.vatCodeId)
+          .map((line, index) => ({
               lineId: `pos-ar-${inv.id}-vat-${index}`,
-              vatCodeId,
-              amount: netBase.toFixed(2),
-              vatAmount: vatAmount.toFixed(2),
+              vatCodeId: line.vatCodeId!,
+              amount: line.amount.toFixed(2),
+              vatAmount: line.vatAmount ?? null,
               vatDeductionPercent: "100.00",
               partnerId: params.counterpartyId,
-              description: `Izhodni DDV ${rate.replace(".00", "")}%`,
-            }];
-          });
+              description: line.desc ?? null,
+          }));
         if (vatLedgerLines.length > 0) {
           const entryMeta: EntryMeta = {
             id: entry.id,
@@ -2172,6 +2123,7 @@ async function syncPosBookingForMonthUnlocked(
     return { created, skipped: [{ ref: "vse", reason: "POS nastavitve knjiženja niso konfigurirane" }] };
   }
   const categoryRevenueAccounts = await loadCategoryRevenueAccounts(companyId);
+  const salesVatCodes = await loadPosSalesVatCodes(end);
   const period = await resolvePosBookingPeriod(companyId, start, end);
   if (!period) {
     return { created, skipped: [{ ref: "vse", reason: `Ni odprtega računovodskega obdobja za cel mesec ${slovenskiDatumZaSporocilo(month)}` }] };
@@ -2362,9 +2314,6 @@ async function syncPosBookingForMonthUnlocked(
         const vatAccounts: Record<string, string | null | undefined> = {
           "5.00": settings.vat5AccountId, "9.50": settings.vat95AccountId, "22.00": settings.vat22AccountId,
         };
-        const vatCodes: Record<string, string | null | undefined> = {
-          "5.00": settings.vat5VatCodeId, "9.50": settings.vat95VatCodeId, "22.00": settings.vat22VatCodeId,
-        };
         const vatByRate: Record<string, Decimal> = {};
         let grossLines = new Decimal(0);
         let configurationError = false;
@@ -2388,7 +2337,8 @@ async function syncPosBookingForMonthUnlocked(
             break;
           }
           grossLines = grossLines.plus(gross);
-          pushSignedLine(lines, accountId, "credit", net, `Prihodki kategorije ${row.kategorijaId ?? "brez kategorije"}`);
+          pushSignedLine(lines, accountId, "credit", net, `Prihodki kategorije ${row.kategorijaId ?? "brez kategorije"}`,
+            posRevenueVat(salesVatCodes, rate, net, vat));
           if (vat.abs().gt("0.005")) {
             const key = rate.toFixed(2);
             vatByRate[key] = (vatByRate[key] ?? new Decimal(0)).plus(vat);
@@ -2404,7 +2354,8 @@ async function syncPosBookingForMonthUnlocked(
             continue;
           }
           grossLines = grossLines.plus(employerTipGross);
-          pushSignedLine(lines, tipRevenueAccount, "credit", employerTipGross.minus(employerTipVat), "Napitnine pod nadzorom delodajalca – prihodek");
+          pushSignedLine(lines, tipRevenueAccount, "credit", employerTipGross.minus(employerTipVat), "Napitnine pod nadzorom delodajalca – prihodek",
+            posRevenueVat(salesVatCodes, new Decimal(22), employerTipGross.minus(employerTipVat), employerTipVat));
           vatByRate["22.00"] = (vatByRate["22.00"] ?? new Decimal(0)).plus(employerTipVat);
         }
         if (tipCardFeeExpense.abs().gt("0.005")) {
@@ -2426,13 +2377,10 @@ async function syncPosBookingForMonthUnlocked(
             configurationError = true;
             break;
           }
-          pushSignedLine(lines, accountId, "credit", regularVat, `Izhodni DDV ${rate.replace(".00", "")}%`, { vatCodeId: vatCodes[rate] ?? null, vatAmount: regularVat.abs().toFixed(2) });
+          pushSignedLine(lines, accountId, "credit", regularVat, `Izhodni DDV ${rate.replace(".00", "")}%`);
         }
         if (employerTipVat.abs().gt("0.005") && settings.tipsVatAccountId) {
-          pushSignedLine(lines, settings.tipsVatAccountId, "credit", employerTipVat, "DDV napitnin pod nadzorom delodajalca", {
-            vatCodeId: settings.vat22VatCodeId ?? null,
-            vatAmount: employerTipVat.abs().toFixed(2),
-          });
+          pushSignedLine(lines, settings.tipsVatAccountId, "credit", employerTipVat, "DDV napitnin pod nadzorom delodajalca");
         }
         if (configurationError) continue;
         if (skupaj.abs().gt("0.005") && (revenueRows.length === 0 || grossLines.abs().lte("0.005"))) {
@@ -2531,9 +2479,6 @@ async function syncPosBookingForMonthUnlocked(
         const vatAccounts: Record<string, string | null | undefined> = {
           "5.00": settings.vat5AccountId, "9.50": settings.vat95AccountId, "22.00": settings.vat22AccountId,
         };
-        const vatCodes: Record<string, string | null | undefined> = {
-          "5.00": settings.vat5VatCodeId, "9.50": settings.vat95VatCodeId, "22.00": settings.vat22VatCodeId,
-        };
         const vatByRate: Record<string, Decimal> = {};
         let configurationError = false;
         for (const row of rows) {
@@ -2558,6 +2503,7 @@ async function syncPosBookingForMonthUnlocked(
             side: "credit",
             amount: net,
             desc: `Prihodki kategorije ${row.kategorijaId ?? "brez kategorije"} (lastna/repr)`,
+            ...posRevenueVat(salesVatCodes, rate, net, gross.minus(net)),
           });
           const vat = gross.minus(net);
           if (vat.gt("0.005")) {
@@ -2572,7 +2518,7 @@ async function syncPosBookingForMonthUnlocked(
             configurationError = true;
             break;
           }
-          lines.push({ accountId, side: "credit", amount, desc: `Izhodni DDV ${rate}% (lastna/repr)`, vatCodeId: vatCodes[rate] ?? null, vatAmount: amount.toFixed(2) });
+          lines.push({ accountId, side: "credit", amount, desc: `Izhodni DDV ${rate}% (lastna/repr)` });
         }
         if (!configurationError) {
           const merged = mergeLines(withDimensions(lines));

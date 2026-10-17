@@ -664,6 +664,7 @@ router.post(
         receiptDate: journalEntriesTable.receiptDate,
         reference: journalEntriesTable.reference,
         sourceType: journalEntriesTable.sourceType,
+        createdBy: journalEntriesTable.createdBy,
       })
       .from(journalEntriesTable)
       .where(and(eq(journalEntriesTable.id, id), eq(journalEntriesTable.companyId, companyId)))
@@ -883,8 +884,11 @@ router.post(
             .map((l) => ({
               lineId: l.id,
               vatCodeId: l.vatCodeId!,
-              amount: l.amount,
-              vatAmount: l.vatAmount ?? null,
+              // POS credit revenue is a sale; debit revenue is a refund.
+              amount: entry.createdBy === "pos-sync" && l.side === "debit"
+                ? new Decimal(l.amount).negated().toFixed(2) : l.amount,
+              vatAmount: entry.createdBy === "pos-sync" && l.side === "debit" && l.vatAmount != null
+                ? new Decimal(l.vatAmount).negated().toFixed(2) : l.vatAmount ?? null,
               vatDeductionPercent: l.vatDeductionPercent ?? null,
               partnerId: l.partnerId ?? null,
               description: l.description ?? null,
