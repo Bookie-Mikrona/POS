@@ -164,7 +164,7 @@ export default function PorocilaAnalitika() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   useEffect(() => {
     setExpandedRows(new Set());
-  }, [dimensionType, dateFrom, dateTo, accountId, queried, companyId]);
+  }, [companyId]);
 
   function toggleRow(id: string) {
     setExpandedRows((prev) => {
@@ -194,6 +194,13 @@ export default function PorocilaAnalitika() {
     },
     { query: { enabled: !!companyId && applied.queried } as any },
   );
+
+  const expandableRows = (data?.rows ?? []).filter((row) => (row.accounts?.length ?? 0) > 0);
+  const allExpanded = expandableRows.length > 0 && expandableRows.every((row) => expandedRows.has(row.id));
+
+  function toggleAllRows() {
+    setExpandedRows(allExpanded ? new Set() : new Set(expandableRows.map((row) => row.id)));
+  }
 
   function handleGenerate() {
     updateFilters();
@@ -516,6 +523,20 @@ export default function PorocilaAnalitika() {
               </span>
             )}
           </div>
+
+          {expandableRows.length > 0 && (
+            <div className="flex justify-end print:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleAllRows}
+                aria-expanded={allExpanded}
+              >
+                {allExpanded ? <ChevronDown className="h-4 w-4 mr-2" /> : <ChevronRight className="h-4 w-4 mr-2" />}
+                {allExpanded ? "Strni vse" : "Razširi vse"}
+              </Button>
+            </div>
+          )}
 
           {/* Table */}
           {data.rows.length === 0 ? (

@@ -1,6 +1,6 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import PorocilaAnalitika from "./porocila-dimenzije";
 
 const mocks = vi.hoisted(() => ({
@@ -133,5 +133,100 @@ describe("dimension report URL filters", () => {
     page.rerender(<PorocilaAnalitika />);
     expect(lastRequest()[0]).toBe("company-2");
     expect(lastRequest()[2].query.enabled).toBe(true);
+  });
+});
+
+describe("dimension report expansion", () => {
+  const rows = [
+    {
+      id: "dim-1", code: "SM1", name: "Prva dimenzija",
+      totalDebit: "10", totalCredit: "0", balance: "10",
+      accounts: [
+        { accountId: "acc-1", code: "400", name: "Prvi konto", totalDebit: "6", totalCredit: "0", balance: "6" },
+        { accountId: "acc-2", code: "401", name: "Drugi konto", totalDebit: "4", totalCredit: "0", balance: "4" },
+      ],
+    },
+    {
+      id: "dim-2", code: "SM2", name: "Druga dimenzija",
+      totalDebit: "20", totalCredit: "0", balance: "20",
+      accounts: [
+        { accountId: "acc-3", code: "402", name: "Tretji konto", totalDebit: "20", totalCredit: "0", balance: "20" },
+      ],
+    },
+    {
+      id: "dim-3", code: "SM3", name: "Brez kontov",
+      totalDebit: "0", totalCredit: "0", balance: "0", accounts: [],
+    },
+  ];
+
+  beforeEach(() => {
+    window.history.replaceState(null, "", `${path}?${firstView}`);
+    mocks.report.mockReturnValue({ data: { ...reportData, rows }, isLoading: false, error: null });
+  });
+
+  it("expands and collapses every account with one click, ignoring rows without accounts", () => {
+    render(<PorocilaAnalitika />);
+    expect(screen.queryByText("Prvi konto")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Razširi vse" }));
+    for (const name of ["Prvi konto", "Drugi konto", "Tretji konto"]) {
+      expect(screen.getByText(name)).toBeTruthy();
+    }
+    expect(screen.getByRole("button", { name: "Strni vse" }).getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Strni vse" }));
+    for (const name of ["Prvi konto", "Drugi konto", "Tretji konto"]) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+    expect(screen.getByRole("button", { name: "Razširi vse" }).getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("keeps the toggle in sync with individual row changes and expands a partial selection", () => {
+    render(<PorocilaAnalitika />);
+    fireEvent.click(screen.getByText("Prva dimenzija"));
+    expect(screen.getByText("Prvi konto")).toBeTruthy();
+    expect(screen.queryByText("Tretji konto")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Razširi vse" }));
+    fireEvent.click(screen.getByText("Prva dimenzija"));
+    expect(screen.queryByText("Prvi konto")).toBeNull();
+    expect(screen.getByText("Tretji konto")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Razširi vse" })).toBeTruthy();
+    fireEvent.click(screen.getByText("Prva dimenzija"));
+    expect(screen.getByRole("button", { name: "Strni vse" })).toBeTruthy();
+  });
+
+  it("preserves expansion through rerenders and filter changes until the report is generated again", () => {
+    const page = render(<PorocilaAnalitika />);
+    fireEvent.click(screen.getByRole("button", { name: "Razširi vse" }));
+    page.rerender(<PorocilaAnalitika />);
+    fireEvent.click(screen.getByRole("button", { name: "Tekoče leto" }));
+    expect(screen.getByText("Prvi konto")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Strni vse" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži poročilo" }));
+    expect(screen.queryByText("Prvi konto")).toBeNull();
+    expect(screen.getByRole("button", { name: "Razširi vse" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Razširi vse" }));
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži poročilo" }));
+    expect(screen.queryByText("Tretji konto")).toBeNull();
+  });
+
+  it("clears expansion when switching companies", () => {
+    const page = render(<PorocilaAnalitika />);
+    fireEvent.click(screen.getByRole("button", { name: "Razširi vse" }));
+    mocks.companyId = "company-2";
+    page.rerender(<PorocilaAnalitika />);
+    expect(screen.queryByText("Prvi konto")).toBeNull();
+    expect(screen.getByRole("button", { name: "Razširi vse" })).toBeTruthy();
+  });
+
+  it("does not offer expansion for empty reports or rows with no account breakdown", () => {
+    mocks.report.mockReturnValue({ data: reportData, isLoading: false, error: null });
+    const page = render(<PorocilaAnalitika />);
+    expect(screen.queryByRole("button", { name: "Razširi vse" })).toBeNull();
+    mocks.report.mockReturnValue({
+      data: { ...reportData, rows: [rows[2], { ...rows[2], id: "dim-4", accounts: undefined }] },
+      isLoading: false, error: null,
+    });
+    page.rerender(<PorocilaAnalitika />);
+    expect(screen.queryByRole("button", { name: "Razširi vse" })).toBeNull();
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(3);
   });
 });
