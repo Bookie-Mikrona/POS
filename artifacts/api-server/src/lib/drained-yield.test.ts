@@ -2,12 +2,25 @@ import { describe, expect, it } from "vitest";
 import Decimal from "decimal.js";
 import {
   convertPurchasedQuantity,
+  convertSignedPurchasedQuantity,
   DrainedYieldError,
   normalizeDrainedYield,
   resolveDrainedYield,
 } from "./drained-yield";
 
 describe("drained-yield conversion", () => {
+  it("reverses credit-note quantities and value without changing the positive unit cost", () => {
+    const yieldData = normalizeDrainedYield({ brutoTezaG: 680, netoTezaG: 480 });
+    const result = convertSignedPurchasedQuantity(
+      new Decimal(-5), new Decimal(-10), "H87", "KGM", yieldData,
+    );
+    expect(result.quantity.toString()).toBe("-2.4");
+    expect(result.unitCost.mul(result.quantity).toString()).toBe("-10");
+    expect(result.unitCost.gt(0)).toBe(true);
+    expect(() => convertPurchasedQuantity(
+      new Decimal(-5), new Decimal(-10), "H87", "KGM", yieldData,
+    )).toThrow("ni negativno");
+  });
   it("transfers the full purchase cost to drained stock", () => {
     const yieldData = normalizeDrainedYield({ brutoTezaG: 680, netoTezaG: 480 });
     const result = convertPurchasedQuantity(

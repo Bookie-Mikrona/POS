@@ -22,7 +22,7 @@ vi.mock("../../middlewares/pos", () => ({
 
 import router, { setNormativRevisionLockTestHook } from "./artikli";
 
-const run = `normativ-revision-${Math.random().toString(36).slice(2)}`;
+const run = `Normativ-revision-${Math.random().toString(36).slice(2)}`;
 let companyId = "";
 let enotaId = 0;
 let artikelId = 0;

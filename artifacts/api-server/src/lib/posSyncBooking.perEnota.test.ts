@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, inArray, like } from "drizzle-orm";
+import Decimal from "decimal.js";
 
 import {
   db,
@@ -81,7 +82,7 @@ async function createSale(
       narociloId: order.id,
       stevilkaRacuna: number,
       skupaj: amount,
-      ddv: "1.80",
+      ddv: new Decimal(amount).mul(22).div(122).toFixed(2),
       placilnaNacin: "gotovina",
       status: "poslan",
       datumCas: new Date(`${DATE}T10:00:00+02:00`),

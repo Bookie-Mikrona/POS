@@ -13,11 +13,12 @@ describe("preračun pekača v obrazcu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Recept za pekač" }));
     const quantity = screen.getByLabelText("Za pekač (KGM)") as HTMLInputElement;
     expect(quantity.value).toBe("");
+    fireEvent.change(screen.getByLabelText("Število prodajnih kosov iz pekača"), { target: { value: "8" } });
     fireEvent.change(quantity, { target: { value: "0,96" } });
     fireEvent.change(screen.getByLabelText("Izkoristek (%)"), { target: { value: "80" } });
     expect(screen.getByTestId("batch-preview-0").textContent).toBe("0,15");
     fireEvent.click(screen.getByRole("button", { name: "Uporabi normativ na kos" }));
-    expect(apply).toHaveBeenCalledWith([{ vhodniArtikelId: 1, ime: "Jabolka", kolicina: "0.15" }]);
+    expect(apply).toHaveBeenCalledWith([{ vhodniArtikelId: 1, ime: "Jabolka", kolicina: "0.15" }], 8);
   });
   it("preklic ničesar ne spremeni; ponovni vstop ponastavi količine", () => {
     const apply = vi.fn();

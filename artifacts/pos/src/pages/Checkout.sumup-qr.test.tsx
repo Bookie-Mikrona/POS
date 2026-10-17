@@ -20,6 +20,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import React from "react";
 import Checkout from "./Checkout";
 import {
+  checkoutActorSession,
   CheckoutTestWrapper,
   createCheckoutTestQueryClient,
 } from "./Checkout.test-harness";
@@ -189,6 +190,7 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
 
   beforeEach(() => {
     sessionStorage.clear();
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("qr-actor"));
     qc = createCheckoutTestQueryClient();
     mockCreateRacunMutate.mockReset();
     mockToast.mockReset();

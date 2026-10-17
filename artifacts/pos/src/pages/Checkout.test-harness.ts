@@ -17,6 +17,10 @@ type CheckoutApiClientMockOptions = {
 
 const noop = vi.fn();
 
+export function checkoutActorSession(label: string) {
+  return `${btoa(JSON.stringify({ n: 1, e: 4102444800000 }))}.${label}`;
+}
+
 export const checkoutTestSettings = {
   nazivRestavracije: "Test restavracija",
   naslovRestavracije: "Testna ulica 1",
@@ -35,6 +39,7 @@ export const checkoutTestUser = {
   username: "natakar",
   ime: "Natakar",
   vloga: "natakar",
+  capabilities: ["deposits_tokens"],
   podjetjeDavcna: "12345678",
   imaTrr: true,
   moraZamenjatiGeslo: false,
@@ -152,8 +157,11 @@ export function createCheckoutApiClientMock({
   const spojiNarocili = vi.fn();
   const posljiEmailRacuna = vi.fn();
   const poisciKupca = vi.fn();
+  const blagajne = [{ id: 1, enotaId: 1, aktivna: true, naziv: "Testna blagajna" }];
 
   return {
+    useListBlagajne: () => ({ data: blagajne, isLoading: false }),
+    getListBlagajneQueryKey: () => ["/api/blagajne"],
     getEnotaId: () => enotaId,
     getAuthToken: () => Promise.resolve(authToken),
     useListAktivnaNarocila: () => ({ data: getNarocila(), isLoading: false }),

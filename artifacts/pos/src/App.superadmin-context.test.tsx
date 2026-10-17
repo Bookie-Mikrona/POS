@@ -8,6 +8,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGate, PosDeviceProviders, PosOperationalProviders } from "./App";
 import { NastavitveProvider, useNastavitve } from "@/contexts/NastavitveContext";
 import { HappyHourProvider } from "@/contexts/HappyHourContext";
+import { createPosEventStream } from "@/lib/posEventStream";
+
+vi.mock("@/lib/posEventStream", () => ({
+  createPosEventStream: vi.fn(() => ({ addEventListener: vi.fn(), close: vi.fn() })),
+}));
 
 const state = vi.hoisted(() => ({
   user: { vloga: "superadmin", enotaId: undefined as number | undefined, ime: "Test" },
@@ -85,7 +90,7 @@ describe("non-operational platform context", () => {
       query: expect.objectContaining({ enabled: false }),
     }));
     expect(fetch).not.toHaveBeenCalled();
-    expect(EventSource).not.toHaveBeenCalled();
+    expect(createPosEventStream).not.toHaveBeenCalled();
   });
 
   it("hides cached settings and stops the settings query when the role changes", () => {
@@ -111,7 +116,7 @@ describe("non-operational platform context", () => {
     ));
     expect(state.gateway).toHaveBeenCalled();
     expect(state.device).toHaveBeenCalled();
-    expect(EventSource).toHaveBeenCalledOnce();
+    expect(createPosEventStream).toHaveBeenCalledOnce();
   });
 
   it.each(["superadmin", "admin"])("does not poll Happy Hour without a unit (%s)", async (vloga) => {

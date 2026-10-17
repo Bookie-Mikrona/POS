@@ -35,6 +35,8 @@ const mockToast = vi.hoisted(() => vi.fn());
 
 // ── Moki za @workspace/api-client-react ─────────────────────────────────────
 vi.mock("@workspace/api-client-react", () => ({
+  getAuthToken: async () => null,
+  getEnotaId: () => "1",
   useListZaloge: () => ({ data: [], isLoading: false }),
   useListPrejemnice: () => ({ data: [], isLoading: false }),
   useListIzdajnice: () => ({ data: [], isLoading: false }),
@@ -78,7 +80,6 @@ vi.mock("@workspace/api-client-react", () => ({
   getGetZacetnaZalogaQueryKey: () => ["/api/zacetne-zaloge/detail"],
   getListPartnerjiQueryKey: () => ["/api/partnerji"],
   getListArtikliQueryKey: () => ["/api/artikli"],
-  getEnotaId: () => 1,
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({

@@ -944,7 +944,7 @@ describe("sočasna izdaja računa iz istega potrjenega plačila", () => {
     });
   });
 
-  it("povrne račun, payment attempt in finančne učinke, če recovery completion audit odpove", async () => {
+  it("ob padcu recovery audita povrne finančne učinke, referenco pa zadrži pred ponovno izdajo", async () => {
     const runId = Math.random().toString(36).slice(2, 10).toUpperCase();
     const user = `audit-failure-user-${runId}`;
     const device = `audit-failure-device-${runId}`;
@@ -1137,7 +1137,9 @@ describe("sočasna izdaja računa iz istega potrjenega plačila", () => {
       plans: 0,
       snapshots: 0,
       furs_attempts: 0,
-      terminal_references: 0,
+      // The confirmed provider payment owns its reference before issuance.
+      // A failed receipt must not release it for a second payment attempt.
+      terminal_references: 1,
       tips: 0,
       vouchers: 0,
       stock_movements: 0,
@@ -1161,11 +1163,15 @@ describe("sočasna izdaja računa iz istega potrjenega plačila", () => {
         recoverySelectedAttemptId: selection.body.attemptId,
         recoverySelectionToken: selection.body.selectionToken,
       });
-    expect(retry.status, retry.body).toBe(201);
+    // Receipt rollback must not bypass the global, pre-FURS reservation.
+    // A fresh issuance key cannot safely prove that no external fiscal effect
+    // happened; reconciliation must precede any reuse of this paid reference.
+    expect(retry.status, JSON.stringify(retry.body)).toBe(409);
+    expect(retry.body.error).toBe("Terminalska referenca je že uporabljena pri drugem računu.");
     const issuedAfterRetry = await db.select({ id: racuniTable.id })
       .from(racuniTable)
       .where(eq(racuniTable.cardPaymentAttemptId, paymentAttempt!.id));
-    expect(issuedAfterRetry).toEqual([{ id: retry.body.id }]);
+    expect(issuedAfterRetry).toEqual([]);
   });
 
   it("za delni račun iz SumUp plačila med napravama porabi attempt in postavko natanko enkrat", async () => {

@@ -19,6 +19,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import React from "react";
 import Checkout from "./Checkout";
 import {
+  checkoutActorSession,
   CheckoutTestWrapper as Wrapper,
   createCheckoutTestQueryClient,
 } from "./Checkout.test-harness";
@@ -199,7 +200,7 @@ vi.mock("@/hooks/use-toast", () => ({
 function expectAuthenticatedPost(
   fetchMock: ReturnType<typeof vi.fn>,
   path: string,
-  expectedActorSession = "test-actor-session",
+  expectedActorSession = checkoutActorSession("test-actor-session"),
 ) {
   const call = fetchMock.mock.calls.find(([input]) => String(input).endsWith(path));
   expect(call, `Klik mora poslati POST ${path}.`).toBeDefined();
@@ -236,16 +237,13 @@ async function selectNarociloInKartica() {
  */
 function stubSetTimeoutImmediate() {
   const original = globalThis.setTimeout;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).setTimeout = (fn: TimerHandler, _delay?: number) => {
-    if (typeof fn === "function") {
-      Promise.resolve().then(() => (fn as () => void)());
-    }
-    return 0;
-  };
+  // Accelerate the provider's 2-second polling only. Real timer handles keep
+  // effect cleanup/cancellation functional and prevent polls leaking into the
+  // next test (a Promise microtask cannot be cancelled by clearTimeout).
+  globalThis.setTimeout = ((fn: TimerHandler, delay?: number, ...args: unknown[]) =>
+    original(fn, delay === 2000 ? 0 : delay, ...args)) as typeof setTimeout;
   return () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).setTimeout = original;
+    globalThis.setTimeout = original;
   };
 }
 
@@ -256,7 +254,7 @@ describe("Checkout — terminalska plačila", () => {
 
   beforeEach(() => {
     sessionStorage.clear();
-    sessionStorage.setItem("pos_actor_session", "test-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("test-actor-session"));
     qc = createCheckoutTestQueryClient();
     mockCreateRacunMutate.mockReset();
     mockToast.mockReset();
@@ -272,7 +270,7 @@ describe("Checkout — terminalska plačila", () => {
       vivaTapToPayAktiven: false,
     });
     mockNapravaState.current!.placilniTerminal = null;
-    Object.assign(mockUserState.current!, { capabilities: undefined });
+    Object.assign(mockUserState.current!, { capabilities: ["deposits_tokens"] });
     Object.assign(mockSettingsState.current!, { fursNacin: undefined });
     localStorage.setItem("pos_last_operator_id", "1");
   });
@@ -290,7 +288,7 @@ describe("Checkout — terminalska plačila", () => {
   });
 
   it("pošlje Clerk, enoto in aktivno POS sejo pri X-pregledu ter Z-zaključku", async () => {
-    sessionStorage.setItem("pos_actor_session", "test-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("test-actor-session"));
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/api/x-porocilo?")) {
@@ -326,9 +324,9 @@ describe("Checkout — terminalska plačila", () => {
     expect(xHeaders.get("X-Enota-Id"), "GET /api/x-porocilo mora poslati aktivno enoto.")
       .toBe("1");
     expect(xHeaders.get("X-Pos-Actor-Session"), "GET /api/x-porocilo mora poslati aktivno POS actor sejo.")
-      .toBe("test-actor-session");
+      .toBe(checkoutActorSession("test-actor-session"));
 
-    sessionStorage.setItem("pos_actor_session", "new-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("new-actor-session"));
     fireEvent.click(screen.getByRole("button", { name: "Zaključi dan (Z-poročilo)" }));
     await waitFor(() => {
       expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/api/z-porocilo/zakljuci"))).toBe(true);
@@ -343,13 +341,13 @@ describe("Checkout — terminalska plačila", () => {
     expect(zHeaders.get("X-Enota-Id"), "POST /api/z-porocilo/zakljuci mora poslati aktivno enoto.")
       .toBe("1");
     expect(zHeaders.get("X-Pos-Actor-Session"), "POST /api/z-porocilo/zakljuci mora poslati aktivno POS actor sejo.")
-      .toBe("new-actor-session");
+      .toBe(checkoutActorSession("new-actor-session"));
     expect(zHeaders.get("Content-Type")).toBe("application/json");
     expect(zCall![1]?.credentials).toBe("include");
   });
 
   it("pošlje Clerk, enoto in aktivno POS sejo pri uskladitvi gotovine", async () => {
-    sessionStorage.setItem("pos_actor_session", "test-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("test-actor-session"));
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/api/x-porocilo?")) {
@@ -373,18 +371,18 @@ describe("Checkout — terminalska plačila", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Z-poročilo — dnevni zaključek" }));
     const cashInput = await screen.findByRole("spinbutton", { name: "Prešteta gotovina" });
     fireEvent.change(cashInput, { target: { value: "25" } });
-    sessionStorage.setItem("pos_actor_session", "new-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("new-actor-session"));
     fireEvent.click(screen.getByRole("button", { name: "Potrdi uskladitev" }));
 
     const path = "/api/x-porocilo/uskladitev-gotovine";
     await waitFor(() => {
       expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith(path))).toBe(true);
     });
-    expectAuthenticatedPost(fetchMock, path, "new-actor-session");
+    expectAuthenticatedPost(fetchMock, path, checkoutActorSession("new-actor-session"));
   });
 
   it("pošlje Clerk, enoto in aktivno POS sejo pri poslovni finalizaciji", async () => {
-    sessionStorage.setItem("pos_actor_session", "test-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("test-actor-session"));
     const racunId = 321;
     const finalizationPath = `/api/racuni/${racunId}/poslovna-finalizacija`;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
@@ -419,18 +417,18 @@ describe("Checkout — terminalska plačila", () => {
     render(<Wrapper qc={qc}><Checkout /></Wrapper>);
     fireEvent.click(await screen.findByRole("button", { name: "Z-poročilo — dnevni zaključek" }));
     await screen.findByRole("heading", { name: "Z-poročilo — dnevni zaključek" });
-    sessionStorage.setItem("pos_actor_session", "new-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("new-actor-session"));
     fireEvent.click(screen.getByRole("button", { name: "Zaključi dan (Z-poročilo)" }));
     fireEvent.click(await screen.findByRole("button", { name: "Dokončaj" }));
 
     await waitFor(() => {
       expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith(finalizationPath))).toBe(true);
     });
-    expectAuthenticatedPost(fetchMock, finalizationPath, "new-actor-session");
+    expectAuthenticatedPost(fetchMock, finalizationPath, checkoutActorSession("new-actor-session"));
   });
 
   it("pošlje Clerk, enoto in aktivno POS sejo pri administratorskem odklepu Z-poročila", async () => {
-    sessionStorage.setItem("pos_actor_session", "test-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("test-actor-session"));
     const zId = 987;
     const unlockPath = `/api/z-porocilo/${zId}/odkleni`;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
@@ -496,7 +494,7 @@ describe("Checkout — terminalska plačila", () => {
     render(<Wrapper qc={qc}><Checkout /></Wrapper>);
     fireEvent.click(await screen.findByRole("button", { name: "Z-poročilo — dnevni zaključek" }));
     await screen.findByRole("heading", { name: "Z-poročilo — dnevni zaključek" });
-    sessionStorage.setItem("pos_actor_session", "new-actor-session");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("new-actor-session"));
     fireEvent.click(screen.getByRole("button", { name: "Zaključi dan (Z-poročilo)" }));
     fireEvent.click(await screen.findByRole("button", { name: "Admin odklep" }));
     const reasonInput = await screen.findByPlaceholderText("Npr. Napačen vnos — potrebna storno korekcija");
@@ -518,7 +516,7 @@ describe("Checkout — terminalska plačila", () => {
     await waitFor(() => {
       expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith(unlockPath))).toHaveLength(1);
     });
-    const unlockCall = expectAuthenticatedPost(fetchMock, unlockPath, "new-actor-session");
+    const unlockCall = expectAuthenticatedPost(fetchMock, unlockPath, checkoutActorSession("new-actor-session"));
     expect(JSON.parse(String(unlockCall[1]?.body))).toEqual({
       razlog: "Testni razlog odklepa",
     });
@@ -665,7 +663,7 @@ describe("Checkout — terminalska plačila", () => {
 
   it("ob kliku plačila uporabi actor sejo, ki je veljavna v trenutku potrditve", async () => {
     const restoreSetTimeout = stubSetTimeoutImmediate();
-    sessionStorage.setItem("pos_actor_session", "actor-session-1");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-1"));
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (String(url).includes("/sumup/pay")) {
         return Promise.resolve({
@@ -701,7 +699,7 @@ describe("Checkout — terminalska plačila", () => {
       expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/sumup/pay"))).toBe(false);
       expect(mockCreateRacunMutate).not.toHaveBeenCalled();
 
-      sessionStorage.setItem("pos_actor_session", "actor-session-2");
+      sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-2"));
       await act(async () => {
         fireEvent.click(screen.getByTestId("button-izdaj-racun"));
         for (let i = 0; i < 30; i++) await Promise.resolve();
@@ -709,15 +707,15 @@ describe("Checkout — terminalska plačila", () => {
       window.removeEventListener("pos-actor-session-required", actorRequired);
 
       await waitFor(() => expect(mockCreateRacunMutate).toHaveBeenCalledOnce());
-      expectAuthenticatedPost(fetchMock, "/sumup/pay", "actor-session-2");
+      expectAuthenticatedPost(fetchMock, "/sumup/pay", checkoutActorSession("actor-session-2"));
       const statusCall = fetchMock.mock.calls.find(([input]) => String(input).includes("/sumup/status/"));
       expect(statusCall).toBeDefined();
-      expect(new Headers(statusCall![1]?.headers).get("X-Pos-Actor-Session")).toBe("actor-session-2");
+      expect(new Headers(statusCall![1]?.headers).get("X-Pos-Actor-Session")).toBe(checkoutActorSession("actor-session-2"));
       const sensitivePosts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
       expect(sensitivePosts).not.toHaveLength(0);
       for (const [, init] of sensitivePosts) {
-        expect(new Headers(init?.headers).get("X-Pos-Actor-Session")).toBe("actor-session-2");
-        expect(new Headers(init?.headers).get("X-Pos-Actor-Session")).not.toBe("actor-session-1");
+        expect(new Headers(init?.headers).get("X-Pos-Actor-Session")).toBe(checkoutActorSession("actor-session-2"));
+        expect(new Headers(init?.headers).get("X-Pos-Actor-Session")).not.toBe(checkoutActorSession("actor-session-1"));
       }
     } finally {
       restoreSetTimeout();
@@ -782,7 +780,7 @@ describe("Checkout — terminalska plačila", () => {
       Object.assign(mockUserState.current!, { capabilities: ["simulation"] });
       Object.assign(mockSettingsState.current!, { fursNacin: "simulacija" });
     }
-    sessionStorage.setItem("pos_actor_session", "actor-session-1");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-1"));
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith(payPath)) {
@@ -824,14 +822,14 @@ describe("Checkout — terminalska plačila", () => {
       render(<Wrapper qc={qc}><Checkout /></Wrapper>);
       await selectNarociloInKartica();
       await screen.findByTestId("button-izdaj-racun");
-      sessionStorage.setItem("pos_actor_session", "actor-session-2");
+      sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-2"));
       await act(async () => {
         fireEvent.click(screen.getByTestId("button-izdaj-racun"));
         for (let i = 0; i < 40; i++) await Promise.resolve();
       });
 
       await waitFor(() => expect(mockCreateRacunMutate).toHaveBeenCalledOnce());
-      const payCall = expectAuthenticatedPost(fetchMock, payPath, "actor-session-2");
+      const payCall = expectAuthenticatedPost(fetchMock, payPath, checkoutActorSession("actor-session-2"));
       const payHeaders = new Headers(payCall[1]?.headers);
       const body = JSON.parse(String(payCall[1]?.body)) as Record<string, unknown>;
       expect(body).toMatchObject({ narociloId: 1, znesek: 25 });
@@ -839,7 +837,7 @@ describe("Checkout — terminalska plačila", () => {
       if (statusPath) {
         const statusCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith(statusPath));
         expect(statusCall).toBeDefined();
-        expect(new Headers(statusCall![1]?.headers).get("X-Pos-Actor-Session")).toBe("actor-session-2");
+        expect(new Headers(statusCall![1]?.headers).get("X-Pos-Actor-Session")).toBe(checkoutActorSession("actor-session-2"));
       }
       expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith(payPath))).toHaveLength(1);
       expect((mockCreateRacunMutate.mock.calls[0][0].data as Record<string, unknown>).paymentAttemptId)
@@ -1066,7 +1064,7 @@ describe("Checkout — terminalska plačila", () => {
   });
 
   it("ob potrditvi obnovitve uporabi trenutno actor sejo in izbrano recovery identiteto", async () => {
-    sessionStorage.setItem("pos_actor_session", "actor-session-1");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-1"));
     sessionStorage.setItem(
       "pos.card-payment-attempt.sumup.1",
       JSON.stringify({ key: "actor-race-payment-key-001", znesek: 25 }),
@@ -1101,14 +1099,14 @@ describe("Checkout — terminalska plačila", () => {
     render(<Wrapper qc={qc}><Checkout /></Wrapper>);
     await selectNarociloInKartica();
     const recoveryButton = await screen.findByTestId("button-recover-paid-receipt");
-    sessionStorage.setItem("pos_actor_session", "actor-session-2");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-2"));
     await act(async () => {
       fireEvent.click(recoveryButton);
       for (let i = 0; i < 20; i++) await Promise.resolve();
     });
 
     await waitFor(() => expect(mockCreateRacunMutate).toHaveBeenCalledOnce());
-    expectAuthenticatedPost(fetchMock, "/recovery/select", "actor-session-2");
+    expectAuthenticatedPost(fetchMock, "/recovery/select", checkoutActorSession("actor-session-2"));
     const recoveryPayload = mockCreateRacunMutate.mock.calls[0][0].data as Record<string, unknown>;
     expect(recoveryPayload).toMatchObject({
       paymentAttemptId: "actor-race-payment-key-001",
@@ -1330,8 +1328,9 @@ describe("Checkout — terminalska plačila", () => {
       const card = await screen.findByTestId("card-narocilo-1");
       fireEvent.click(card);
       fireEvent.click(await screen.findByRole("radio", { name: /^bon$/i }));
+      fireEvent.click(screen.getByTestId("button-legacy-voucher-mode"));
 
-      const bonControls = screen.getByText(/Znesek darilnega bona/).parentElement;
+      const bonControls = screen.getByText("Znesek starih bonov (brez kode)").parentElement;
       expect(bonControls).not.toBeNull();
       fireEvent.click(within(bonControls!).getAllByRole("button")[1]);
       fireEvent.click(screen.getByRole("button", { name: /^kartica$/i }));
@@ -1339,7 +1338,9 @@ describe("Checkout — terminalska plačila", () => {
         fireEvent.click(screen.getByTestId("button-izdaj-racun"));
         for (let i = 0; i < 30; i++) await Promise.resolve();
       });
-      await waitFor(() => expect(mockCreateRacunMutate).toHaveBeenCalledOnce());
+      await waitFor(() => expect(mockCreateRacunMutate,
+        JSON.stringify(mockCreateRacunMutate.mock.calls.map(([args]) => args)),
+      ).toHaveBeenCalledOnce());
 
       const paymentRequest = fetchMock.mock.calls.find(([url]) => String(url).includes("/sumup/pay"));
       expect(JSON.parse(paymentRequest?.[1]?.body ?? "{}")).toMatchObject({ narociloId: 1, znesek: 15 });

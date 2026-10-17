@@ -49,6 +49,7 @@ describe("generic purchase article unit compatibility", () => {
             return { rows: [{
               izv_kolicina: "2",
               izv_cena: "20",
+              skupaj: "40",
               rabat_1_odst: "0",
               rabat_2_odst: "0",
             }] };
@@ -74,7 +75,8 @@ describe("generic purchase article unit compatibility", () => {
         zapomni: false,
       });
 
-      const update = new PgDialect().sqlToQuery(writes[2] as any);
+      const update = writes.map(statement => new PgDialect().sqlToQuery(statement as any))
+        .find(statement => statement.sql.includes("UPDATE prejemnice_postavke"))!;
       expect(update.sql).toContain("kolicina =");
       expect(update.sql).toContain("cena_kos =");
       expect(update.sql).toContain("neto_cena =");
@@ -133,6 +135,7 @@ describe("generic purchase article unit compatibility", () => {
             ? [{
               izv_kolicina: "2",
               izv_cena: "20",
+              skupaj: "40",
               rabat_1_odst: "0",
               rabat_2_odst: "0",
             }]
@@ -180,6 +183,7 @@ describe("generic purchase article unit compatibility", () => {
             ? [{
               izv_kolicina: "2",
               izv_cena: "20",
+              skupaj: "40",
               rabat_1_odst: "0",
               rabat_2_odst: "0",
             }]
@@ -214,6 +218,6 @@ describe("generic purchase article unit compatibility", () => {
     // Each operation validates the target and source line, recalculates the
     // receipt line, upserts a supplier mapping, and writes the audit record.
     // No group GTIN or supplier unit/name is copied onto artikli.
-    expect(executed).toHaveLength(10);
+    expect(executed).toHaveLength(12);
   });
 });

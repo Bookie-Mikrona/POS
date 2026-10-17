@@ -218,6 +218,7 @@ afterAll(async () => {
   }
   const invoices = await db.select({ id: invoicesTable.id }).from(invoicesTable)
     .where(inArray(invoicesTable.companyId, [companyId, otherCompanyId]));
+  await db.delete(vatLedgerTable).where(inArray(vatLedgerTable.invoiceId, invoices.map(row => row.id)));
   await db.delete(invoiceLinesTable).where(inArray(invoiceLinesTable.invoiceId, invoices.map(row => row.id)));
   await db.delete(invoicesTable).where(inArray(invoicesTable.id, invoices.map(row => row.id)));
   const entries = await db.select({ id: journalEntriesTable.id }).from(journalEntriesTable)

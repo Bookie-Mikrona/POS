@@ -1,7 +1,23 @@
 import express from "express";
 import supertest from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+
+const isolation = vi.hoisted(() => ({ root: null as any, tx: null as any }));
+vi.mock("@workspace/db", async () => {
+  const actual = await vi.importActual<any>("@workspace/db");
+  isolation.root = actual.db;
+  return {
+    ...actual,
+    db: new Proxy(actual.db, {
+      get(_target, key) {
+        const executor = isolation.tx ?? actual.db;
+        const value = executor[key];
+        return typeof value === "function" ? value.bind(executor) : value;
+      },
+    }),
+  };
+});
 
 vi.mock("@clerk/express", () => ({
   getAuth: (req: express.Request) => ({ userId: req.header("x-test-user") ?? null }),
@@ -38,6 +54,9 @@ let unitAdminRow = 0;
 let protectedParent = 0;
 let protectedRow = 0;
 let protectedIngredient = 0;
+let finishTransaction: (() => void) | undefined;
+let transactionFinished: Promise<void> | undefined;
+const rollback = new Error("Normative access test rollback");
 
 const app = express();
 app.use(express.json());
@@ -96,6 +115,15 @@ async function protectedState() {
 
 describe("spletni predlogi normativa skozi produkcijski POS mount", () => {
   beforeAll(async () => {
+    let ready!: () => void;
+    const started = new Promise<void>(resolve => { ready = resolve; });
+    transactionFinished = isolation.root.transaction(async (tx: any) => {
+      isolation.tx = tx;
+      ready();
+      await new Promise<void>(resolve => { finishTransaction = resolve; });
+      throw rollback;
+    }).catch((error: unknown) => { if (error !== rollback) throw error; });
+    await Promise.race([started, transactionFinished]);
     process.env.POS_NORMATIVE_PROPOSAL_SECRET = "test-normative-access-secret";
     const [company] = await db.insert(companiesTable).values({
       podjetjeDavcna: run,
@@ -131,12 +159,16 @@ describe("spletni predlogi normativa skozi produkcijski POS mount", () => {
   });
 
   afterAll(async () => {
-    await db.execute(sql.raw("ALTER TABLE pos_normative_change_audit DISABLE TRIGGER pos_normative_change_audit_append_only"));
-    await db.delete(posNormativeChangeAuditTable).where(eq(posNormativeChangeAuditTable.sourceTitle, run));
-    await db.execute(sql.raw("ALTER TABLE pos_normative_change_audit ENABLE TRIGGER pos_normative_change_audit_append_only"));
-    if (companyId) await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
-    if (secretBefore === undefined) delete process.env.POS_NORMATIVE_PROPOSAL_SECRET;
-    else process.env.POS_NORMATIVE_PROPOSAL_SECRET = secretBefore;
+    // Roll back the complete fixture, including append-only audit rows and
+    // ingredient references. Never disable database protections for cleanup.
+    try {
+      finishTransaction?.();
+      await transactionFinished;
+    } finally {
+      isolation.tx = null;
+      if (secretBefore === undefined) delete process.env.POS_NORMATIVE_PROPOSAL_SECRET;
+      else process.env.POS_NORMATIVE_PROPOSAL_SECRET = secretBefore;
+    }
   });
 
   it("dovoli adminu in adminu enote v pravi enoti", async () => {

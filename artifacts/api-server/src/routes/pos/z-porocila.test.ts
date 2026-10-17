@@ -142,6 +142,7 @@ async function cleanupZPorocila(enotaId: number, blagajnaId: number) {
   // Ponastavi GT na blagajni
   await db.update(blagajneTable).set({ grandTotal: "0" }).where(eq(blagajneTable.id, blagajnaId));
   // Sentinel enota mora biti med testi brez starih odprtih operativnih zapisov.
+  await db.delete(izmeneTable).where(eq(izmeneTable.enotaId, enotaId));
   await db.delete(narocilaTable)
     .where(and(eq(narocilaTable.enotaId, enotaId), eq(narocilaTable.status, "odprto")));
 }
@@ -169,14 +170,18 @@ function createTestApp(
   return app;
 }
 
-function createActorSessionToken(
+async function createActorSessionToken(
   ctx: { enotaId: number; companyId: string },
   natakarId: number,
-): string {
+): Promise<string> {
+  const [shift] = await db.insert(izmeneTable).values({
+    enotaId: ctx.enotaId, natakariId: natakarId,
+  }).returning({ id: izmeneTable.id });
   const secret = getPosActorSessionSecret();
   if (!secret) throw new Error("POS actor session secret ni konfiguriran za test.");
   const encoded = Buffer.from(JSON.stringify({
     n: natakarId,
+    s: shift.id,
     u: ctx.enotaId,
     c: ctx.companyId,
     e: Date.now() + 60_000,
@@ -288,7 +293,7 @@ describe("Z-poročilo — DB integracijski testi", () => {
     const app = createTestApp(ctx, {
       clerkUserId: "clerk-admin-audit",
     });
-    const actorSessionToken = createActorSessionToken(ctx, ctx.natakarId);
+    const actorSessionToken = await createActorSessionToken(ctx, ctx.natakarId);
 
     for (const body of [{}, { razlog: "" }, { razlog: " \t\n " }]) {
       const response = await supertest(app)
@@ -398,7 +403,7 @@ describe("Z-poročilo — DB integracijski testi", () => {
       ddvPoStopnjah: [],
     }).returning({ id: zPorocilaTable.id });
     const app = createTestApp(ctx, { clerkUserId: failingClerkUserId });
-    const actorSessionToken = createActorSessionToken(ctx, ctx.natakarId);
+    const actorSessionToken = await createActorSessionToken(ctx, ctx.natakarId);
 
     await db.execute(sql.raw(`
       ALTER TABLE pos_actor_audit

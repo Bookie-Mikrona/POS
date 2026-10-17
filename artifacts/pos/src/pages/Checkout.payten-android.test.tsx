@@ -20,6 +20,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import React from "react";
 import Checkout from "./Checkout";
 import {
+  checkoutActorSession,
   CheckoutTestWrapper,
   createCheckoutTestQueryClient,
 } from "./Checkout.test-harness";
@@ -235,7 +236,7 @@ describe("Checkout — Payten Android Software APK callback", () => {
   });
 
   it("legacy URL callback is never trusted or forwarded", async () => {
-    sessionStorage.setItem("pos_actor_session", "actor-session-2");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-2"));
     simulirajPaytenCallback("0");
     sessionStorage.setItem("paytenAndroid_placilo", JSON.stringify({
       placilniNacin: "bon",
@@ -266,7 +267,7 @@ describe("Checkout — Payten Android Software APK callback", () => {
   });
 
   it("pred zagonom APK ustvari trajni Payten poskus in shrani njegov kontekst", async () => {
-    sessionStorage.setItem("pos_actor_session", "actor-session-1");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-1"));
     mockUseSearch.mockReturnValue(`narocilo=${NAROCILO_ID}`);
     render(<CheckoutTestWrapper qc={qc}><Checkout /></CheckoutTestWrapper>);
     await act(async () => {
@@ -279,7 +280,7 @@ describe("Checkout — Payten Android Software APK callback", () => {
       expect(issue).toBeEnabled();
       expect(issue).toHaveTextContent(/Payten APK/i);
     });
-    sessionStorage.setItem("pos_actor_session", "actor-session-2");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-2"));
     fireEvent.click(issue);
     await waitFor(() => {
       expect(mockStartPaytenAndroidPayment).toHaveBeenCalledWith({
@@ -287,7 +288,7 @@ describe("Checkout — Payten Android Software APK callback", () => {
       });
     });
     expect(mockStartPaytenAndroidPayment).toHaveBeenCalledOnce();
-    expect(mockPaytenActorSessions.start).toEqual(["actor-session-2"]);
+    expect(mockPaytenActorSessions.start).toEqual([checkoutActorSession("actor-session-2")]);
     expect(mockConfirmPaytenAndroidPayment).not.toHaveBeenCalled();
     expect(mockCreateRacunMutate).not.toHaveBeenCalled();
     const stored = JSON.parse(localStorage.getItem("paytenBridgePayment") ?? "{}");
@@ -363,7 +364,7 @@ describe("Checkout — Payten Android Software APK callback", () => {
 
   it("reloads native context and issues a pure-card receipt with its exact durable attempt", async () => {
     mockUseSearch.mockReturnValue("");
-    sessionStorage.setItem("pos_actor_session", "actor-session-reload");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-reload"));
     localStorage.setItem("paytenBridgePayment", JSON.stringify({
       paymentAttemptId: "payten-client-attempt-0001", attemptId: "durable-attempt-0001", pollToken: "poll-token",
       expiresAt: new Date(Date.now() + 60_000).toISOString(), narociloId: NAROCILO_ID, provider: "payten", amount: 15,
@@ -383,7 +384,7 @@ describe("Checkout — Payten Android Software APK callback", () => {
 
   it("reload preserves gift-voucher/card split when secondary payment is card", async () => {
     mockUseSearch.mockReturnValue("");
-    sessionStorage.setItem("pos_actor_session", "actor-session-reload");
+    sessionStorage.setItem("pos_actor_session", checkoutActorSession("actor-session-reload"));
     localStorage.setItem("paytenBridgePayment", JSON.stringify({
       paymentAttemptId: "payten-client-attempt-0001", attemptId: "durable-attempt-0001", pollToken: "poll-token",
       expiresAt: new Date(Date.now() + 60_000).toISOString(), narociloId: NAROCILO_ID, provider: "payten", amount: 5,

@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import express from "express";
 import supertest from "supertest";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -43,6 +43,8 @@ function buildApp(activeEnotaId = enotaId) {
 }
 
 beforeAll(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2097-12-31T12:00:00Z"));
   const [company] = await db.insert(companiesTable).values({
     podjetjeDavcna: `SI_PFC_${RUN_ID}`,
     naziv: `Prepared food consumption ${RUN_ID}`,
@@ -90,6 +92,7 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
+  vi.useRealTimers();
   await db.delete(normativiTable).where(eq(normativiTable.artikelId, articleId));
   await db.delete(artikliTable).where(inArray(artikliTable.id, [
     articleId, otherArticleId, regularArticleId, ingredientId, otherIngredientId,
@@ -287,7 +290,7 @@ describe("GET /prepared-food/daily/:date/:articleId/consumption", () => {
       await supertest(app).put(path).send({
         thawedQuantity: 0, preparedQuantity: 27, correctionQuantity: 0, frozenAtEndQuantity: 27,
         preparationBatches: [{ batchCount: 1, piecesPerBatch: 15 }, { batchCount: 1, piecesPerBatch: 12 }],
-      }).expect(200);
+      }).expect(response => expect(response.status, JSON.stringify(response.body)).toBe(200));
       const list = await supertest(app).get(`/prepared-food/daily/${EMPTY_NORM_DATE}`).expect(200);
       const saved = list.body.find((r: { artikelId: number }) => r.artikelId === articleId);
       expect(saved.preparedQuantity).toBe(27);

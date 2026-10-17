@@ -388,11 +388,50 @@ router.post(
 
     if (allPartnerIds.length > 0) {
       const found = await db
-        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
-        .from(vatCodesTable)
+        .select({ id: counterpartiesTable.id })
+        .from(counterpartiesTable)
         .where(and(
-          inArray(vatCodesTable.id, allCompanyVatCodeIds),
-          eq(vatCodesTable.companyId, companyId),
+          inArray(counterpartiesTable.id, allPartnerIds),
+          eq(counterpartiesTable.companyId, companyId),
+        ));
+      if (found.length !== allPartnerIds.length) {
+        res.status(400).json({ error: "Vsaj en partner ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allCostCenterIds.length > 0) {
+      const found = await db
+        .select({ id: costCentersTable.id })
+        .from(costCentersTable)
+        .where(and(
+          inArray(costCentersTable.id, allCostCenterIds),
+          eq(costCentersTable.companyId, companyId),
+        ));
+      if (found.length !== allCostCenterIds.length) {
+        res.status(400).json({ error: "Vsaj eno stroškovno mesto ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allProjectIds.length > 0) {
+      const found = await db
+        .select({ id: projectsTable.id })
+        .from(projectsTable)
+        .where(and(
+          inArray(projectsTable.id, allProjectIds),
+          eq(projectsTable.companyId, companyId),
+        ));
+      if (found.length !== allProjectIds.length) {
+        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allDepartmentIds.length > 0) {
+      const found = await db
+        .select({ id: departmentsTable.id })
+        .from(departmentsTable)
+        .where(and(
+          inArray(departmentsTable.id, allDepartmentIds),
+          eq(departmentsTable.companyId, companyId),
         ));
       if (found.length !== allDepartmentIds.length) {
         res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
@@ -407,45 +446,10 @@ router.post(
           inArray(vatCodesTable.id, allCompanyVatCodeIds),
           eq(vatCodesTable.companyId, companyId),
         ));
-      if (found.length !== allDepartmentIds.length) {
-        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
+      if (found.length !== allCompanyVatCodeIds.length) {
+        res.status(400).json({ error: "Vsaj ena DDV koda ne obstaja ali ne pripada temu podjetju" });
         return;
       }
-    }
-    if (allCompanyVatCodeIds.length > 0) {
-      const found = await db
-        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
-        .from(vatCodesTable)
-        .where(and(
-          inArray(vatCodesTable.id, allCompanyVatCodeIds),
-          eq(vatCodesTable.companyId, companyId),
-        ));
-      if (found.length !== allDepartmentIds.length) {
-        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
-        return;
-      }
-    }
-    if (allCompanyVatCodeIds.length > 0) {
-      const found = await db
-        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
-        .from(vatCodesTable)
-        .where(and(
-          inArray(vatCodesTable.id, allCompanyVatCodeIds),
-          eq(vatCodesTable.companyId, companyId),
-        ));
-      if (found.length !== allDepartmentIds.length) {
-        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
-        return;
-      }
-    }
-    if (allCompanyVatCodeIds.length > 0) {
-      const found = await db
-        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
-        .from(vatCodesTable)
-        .where(and(
-          inArray(vatCodesTable.id, allCompanyVatCodeIds),
-          eq(vatCodesTable.companyId, companyId),
-        ));
       const resolved = resolveCompanyVatCodeLinks(requestedLines, found);
       if (resolved.error !== null) {
         res.status(400).json({ error: resolved.error });

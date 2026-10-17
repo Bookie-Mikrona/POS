@@ -1220,6 +1220,10 @@ export async function knjizalogaGibiZaUvozPrejemnico(
      WHERE pp.prejemnica_id = ${prejemnicaId}
        AND pp.artikel_id IS NOT NULL
        AND pp.vrstica_tip = 'zaloga'
+       -- A packaging credit note reconciles an earlier physical return; it
+       -- must not create that return again when the receipt is confirmed.
+       AND (p.vrsta_dokumenta IS DISTINCT FROM 'DOBROPIS'
+            OR a.povratna_embalaza IS NOT TRUE)
   `);
 
   // Stare gibe ohrani in jih razveljavi, tudi če po novem ni nič uparjeno.

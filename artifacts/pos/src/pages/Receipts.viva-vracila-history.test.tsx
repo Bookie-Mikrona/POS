@@ -56,6 +56,7 @@ const refundStatusCheck = vi.hoisted(() => vi.fn());
 // ── Moki modulov ──────────────────────────────────────────────────────────────
 
 vi.mock("@workspace/api-client-react", () => ({
+  useListPosMonthlyInvoicePartners: () => ({ data: [], isLoading: false }),
   useListRacuni: () => ({ data: dataRef.current, isLoading: false }),
   usePonoviPosiljanjeRacuna: () => ({ mutate: vi.fn(), isPending: false }),
   useStornirajRacun: () => ({ mutate: vi.fn(), isPending: false }),
@@ -106,6 +107,7 @@ vi.mock("@/components/PrintReceiptButton", () => ({
 vi.mock("@/components/PartnerjiSelector", () => ({
   PartnerjiSelector: () => null,
 }));
+vi.mock("@/components/MonthlyInvoicesDialog", () => ({ MonthlyInvoicesDialog: () => null }));
 
 // ── Pomožne funkcije ──────────────────────────────────────────────────────────
 

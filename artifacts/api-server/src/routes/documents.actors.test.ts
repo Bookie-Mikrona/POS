@@ -233,6 +233,7 @@ describe("izvajalec potrditve ali zavrnitve dokumenta", () => {
       .post(`/companies/${companyId}/documents/${documentId}/confirm`)
       .send({
         createInvoice: true,
+        invoiceDate: "2026-08-01",
         lines: [{
           description: "Service",
           quantity: 1,
@@ -245,8 +246,8 @@ describe("izvajalec potrditve ali zavrnitve dokumenta", () => {
       });
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toContain("USD");
-    expect(response.body.error).toContain("Samodejna pretvorba v EUR ni podprta");
+    expect(response.body.code).toBe("EXCHANGE_RATE_REVIEW_REQUIRED");
+    expect(response.body.error).toContain("izrecno potrditi tečaj");
     const [stored] = await db.select({
       status: documentsTable.status,
       linkedInvoiceId: documentsTable.linkedInvoiceId,

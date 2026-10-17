@@ -273,7 +273,7 @@ describe("credit note packaging transactional routes", () => {
       stDokumenta: `CN-${run}`, datumDokumenta: "2026-02-20",
       postavke: [{ artikelId: articleId, kolicina: -5, cenaKos: 1, alergeni: [], alergeniSledi: [], alergeniStatus: "potrjeno_brez", alergeniVir: "etiketa" }],
     });
-    expect(response.status).toBe(201);
+    expect(response.status, JSON.stringify(response.body)).toBe(201);
     expect((await db.select().from(embalazniPrometiTable).where(eq(embalazniPrometiTable.artikelId, articleId))).length).toBe(beforeMovement);
     expect((await db.select().from(zalogaGibiTable).where(eq(zalogaGibiTable.artikelId, articleId))).length).toBe(beforeStock);
     const sourceLessBefore = (await db.select().from(embalazniPrometiTable).where(eq(embalazniPrometiTable.artikelId, articleId))).length;
@@ -331,6 +331,11 @@ describe("credit note packaging transactional routes", () => {
     });
     expect(mixed.status).toBe(201);
     expect((await db.select().from(embalazniPrometiTable).where(eq(embalazniPrometiTable.artikelId, articleId))).length).toBe(packageRowsBefore);
+    // Drafts don't affect inventory. Only explicit receipt confirmation does.
+    expect((await db.select().from(zalogaGibiTable).where(eq(zalogaGibiTable.artikelId, ordinaryArticleId))).length).toBe(ordinaryStockBefore);
+    const confirmedMixed = await request(productionApp).post(`/prejemnice/${mixed.body.id}/confirm`).send({});
+    expect(confirmedMixed.status, JSON.stringify(confirmedMixed.body)).toBe(200);
+    expect((await db.select().from(embalazniPrometiTable).where(eq(embalazniPrometiTable.artikelId, articleId))).length).toBe(packageRowsBefore);
     expect((await db.select().from(zalogaGibiTable).where(eq(zalogaGibiTable.artikelId, ordinaryArticleId))).length).toBe(ordinaryStockBefore + 1);
 
     const packagingNet = async () => (await db.select().from(embalazniPrometiTable)
@@ -346,12 +351,12 @@ describe("credit note packaging transactional routes", () => {
       postavke: [{ artikelId: articleId, kolicina: 3, cenaKos: 1, alergeni: [], alergeniSledi: [], alergeniStatus: "potrjeno_brez", alergeniVir: "etiketa" }],
     });
     expect(ordinary.status).toBe(201);
-    expect(await packagingNet()).toBe(baselinePackagingNet + 3);
-    expect(await stockNet()).toBe(baselineStockNet + 3);
+    expect(await packagingNet()).toBe(baselinePackagingNet);
+    expect(await stockNet()).toBe(baselineStockNet);
 
     const transitions = [
       { vrstaDokumenta: "DOBROPIS", stDokumenta: `TR-${run}-2`, packagingDelta: 0, stockDelta: 0 },
-      { vrstaDokumenta: "DOBAVNICA", stDokumenta: `TR-${run}-3`, packagingDelta: 3, stockDelta: 3 },
+      { vrstaDokumenta: "DOBAVNICA", stDokumenta: `TR-${run}-3`, packagingDelta: 0, stockDelta: 0 },
       { vrstaDokumenta: "DOBROPIS", stDokumenta: `TR-${run}-4`, packagingDelta: 0, stockDelta: 0 },
     ];
     for (const transition of transitions) {
@@ -363,5 +368,9 @@ describe("credit note packaging transactional routes", () => {
       expect(await packagingNet()).toBe(baselinePackagingNet + transition.packagingDelta);
       expect(await stockNet()).toBe(baselineStockNet + transition.stockDelta);
     }
+    const confirmedCreditNote = await request(productionApp).post(`/prejemnice/${ordinary.body.id}/confirm`).send({});
+    expect(confirmedCreditNote.status, JSON.stringify(confirmedCreditNote.body)).toBe(200);
+    expect(await packagingNet()).toBe(baselinePackagingNet);
+    expect(await stockNet()).toBe(baselineStockNet);
   });
 });

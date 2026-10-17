@@ -69,7 +69,7 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((...args: unknown[]) => args),
   inArray: vi.fn((...args: unknown[]) => args),
   isNull: vi.fn((...args: unknown[]) => args),
-  sql: vi.fn(),
+  sql: vi.fn(() => ({ mapWith: vi.fn() })),
 }));
 
 import express from "express";

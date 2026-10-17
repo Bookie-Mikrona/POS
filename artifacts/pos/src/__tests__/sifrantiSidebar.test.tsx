@@ -19,6 +19,10 @@ import React from "react";
 const mockToast = vi.fn();
 const mockWindowOpen = vi.fn();
 
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { vloga: "admin", enotaId: 1, capabilities: [] } }),
+}));
+
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
 }));

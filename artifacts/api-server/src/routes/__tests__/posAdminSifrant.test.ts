@@ -200,7 +200,7 @@ const noRow: unknown[] = [];
 /** Existing cost-center for PATCH/DELETE tests */
 const CC_1 = { id: "cc1", code: "CC01", name: "Test SM", isActive: true, companyId: "cmp1" };
 /** Existing account for PATCH tests */
-const ACC_1 = { id: "acc1", code: "1000", name: "Blagajna", isActive: true, companyId: "cmp1" };
+const ACC_1 = { id: "acc1", code: "1000", name: "Blagajna", type: "asset", isActive: true, companyId: "cmp1" };
 const FOREIGN_PARENT_ID = "bbbbbbbb-0000-0000-0000-000000000002";
 
 function expectCompanyScopedParentLookup(parentId: string) {

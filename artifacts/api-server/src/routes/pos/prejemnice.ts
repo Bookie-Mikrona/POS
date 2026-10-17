@@ -10,7 +10,7 @@ import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
 import { genericArticleUnitMatches } from "../../lib/uvoz/uparjanje";
 import { netoPoRabatih } from "../../lib/uvoz/dto";
 import {
-  convertPurchasedQuantity,
+  convertSignedPurchasedQuantity,
   DrainedYieldError,
   normalizeDrainedYield,
   resolveDrainedYield,
@@ -468,7 +468,7 @@ function preparedDrainedLine(
       };
     }
     const preservedCost = new Decimal(old.skupaj);
-    const converted = convertPurchasedQuantity(
+    const converted = convertSignedPurchasedQuantity(
       sourceQuantity,
       preservedCost,
       sourceUnit,
@@ -525,7 +525,7 @@ function preparedDrainedLine(
       ?? (taxRate ? invoiceNetValue.mul(taxRate).div(100) : new Decimal(0));
     lineValue = capitalizesVat ? invoiceNetValue.plus(vatAmount) : invoiceNetValue;
   }
-  const converted = convertPurchasedQuantity(
+  const converted = convertSignedPurchasedQuantity(
     sourceQuantity,
     lineValue,
     sourceUnit,

@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import {
   artikliTable, companiesTable, db, enoteTable, izmeneTable, narocilaTable,
-  natakariTable, offlineAuthorityBundlesTable, offlineFiscalDevicesTable,
+  natakariTable, nastavitveTable, offlineAuthorityBundlesTable, offlineFiscalDevicesTable,
   offlineFiscalReceiptsTable, poslovniProstoriTable, postavkeTable,
 } from "@workspace/db";
 import * as furs from "../../lib/pos-furs";
@@ -84,6 +84,7 @@ describe("offline fiscal furs-v2 durable DB pipeline", () => {
     companyId = company!.id;
     const [unit] = await db.insert(enoteTable).values({ companyId, ime: `FURS v2 ${operationId}` }).returning();
     enotaId = unit!.id;
+    await db.insert(nastavitveTable).values({ enotaId, kljuc: "offlineFiscalEnabled", vrednost: "true" });
     const [premise] = await db.insert(poslovniProstoriTable).values({ enotaId, prostorId: "PP01" }).returning();
     premiseId = premise!.id;
     const [waiter] = await db.insert(natakariTable).values({
@@ -131,6 +132,7 @@ describe("offline fiscal furs-v2 durable DB pipeline", () => {
       contract: { version: "furs-v2", goldenAttestationSha256: golden.legalCore.authorityBundle.contract.goldenAttestationSha256, authorityVersion: 1 },
       validity: { ...golden.legalCore.authorityBundle.validity, validFrom: new Date(now.getTime() - 60_000).toISOString(), validUntil: new Date(now.getTime() + 86_400_000).toISOString() },
       operator: { waiterId: waiter!.id, name: "Testni Operater", taxNumber: "87654321", shiftId },
+      catalog: [{ ...golden.legalCore.authorityBundle.catalog[0], articleId }],
       authority: { keyId: "integration-authority", algorithm: "RSA-SHA256", publicKeyPem },
     } as Record<string, unknown>;
     delete unsignedBundle.bundleSha256;
@@ -181,7 +183,7 @@ describe("offline fiscal furs-v2 durable DB pipeline", () => {
 
   it("ingests idempotently, retries with fresh XML, and finalizes effects exactly once", async () => {
     const firstIngest = await supertest(app).post("/ingest").send(core);
-    expect(firstIngest.status).toBe(201);
+    expect(firstIngest.status, JSON.stringify(firstIngest.body)).toBe(201);
     receiptId = firstIngest.body.id;
     const replay = await supertest(app).post("/ingest").send(core);
     expect(replay.status).toBe(200);

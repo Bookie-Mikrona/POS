@@ -8,6 +8,10 @@ import type { Nastavitve } from "@workspace/api-client-react";
 const QUERY_KEY = ["/api/nastavitve"] as const;
 const mockUseGetNastavitve = vi.fn();
 
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { vloga: "admin", enotaId: 1 } }),
+}));
+
 vi.mock("@workspace/api-client-react", () => ({
   useGetNastavitve: (opts: unknown) => mockUseGetNastavitve(opts),
   getGetNastavitveQueryKey: () => QUERY_KEY,

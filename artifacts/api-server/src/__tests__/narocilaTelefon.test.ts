@@ -106,7 +106,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
       return dbState.postavke.map((p) => ({ id: p.id }));
     }
     if (selected.length === 1 && selected[0] === "id") return [];
-    if (table === orig.artikliTable && selected.length === 3 && selected.includes("id") && selected.includes("ime") && selected.includes("cena")) {
+    if (table === orig.artikliTable && selected.includes("kategorijaIme") && selected.includes("id") && selected.includes("ime") && selected.includes("cena")) {
       return dbState.toGoArtikli;
     }
     if (table === orig.postavkeTable && selected.includes("artikelDavek") && selected.includes("taxCategory")) {
@@ -196,7 +196,12 @@ vi.mock("@workspace/db", async (importOriginal) => {
           }
           return [];
         };
-        return { returning: commit, then: (resolve: (value: unknown) => unknown) => commit().then(resolve) };
+        const result = {
+          returning: commit,
+          then: (resolve: (value: unknown) => unknown) => commit().then(resolve),
+          onConflictDoNothing: () => result,
+        };
+        return result;
       },
     };
   }
@@ -238,6 +243,7 @@ vi.mock("../lib/pos-sse", () => ({
 }));
 
 vi.mock("../lib/ddv-resolver", () => ({
+  isMenuEligibleTaxCategory: (category: string) => category === "food" || category === "food_drink",
   loadVatRules: vi.fn(async () => []),
   resolveRate: vi.fn(({
     supplyKind,
@@ -282,6 +288,10 @@ vi.mock("../lib/rezervacijeMiz", async (importOriginal) => {
 import narocilaRouter from "../routes/pos/narocila";
 import { lockPosBusinessDay } from "../lib/pos-z-helpers";
 
+// ETA/telephone order tests don't provision KDS stations; that service has its
+// own integration coverage against real station/task fixtures.
+vi.mock("../routes/pos/kds", () => ({ materializirajKdsNaloge: vi.fn(async () => undefined) }));
+
 function app() {
   const result = express();
   result.use(express.json());
@@ -290,6 +300,9 @@ function app() {
     next();
   });
   result.use(narocilaRouter);
+  result.use((error: Error, _req: any, res: any, _next: any) => {
+    res.status(500).json({ error: error.message });
+  });
   return result;
 }
 
@@ -487,18 +500,18 @@ describe("telefonska naročila", () => {
     });
   });
 
-  it("naročilu mize samodejno določi predvideni čas priprave", async () => {
+  it("praznemu naročilu mize še ne določi časa priprave brez postavk", async () => {
     const response = await request(app()).post("/narocila").send({ mizaId: 5 });
 
     expect(response.status).toBe(201);
     expect(response.body).toMatchObject({
       nacin: "miza",
       predvidenPrevzemRocen: false,
-      predvidenPrevzem: "2026-08-23T10:15:00.000Z",
+      predvidenPrevzem: null,
     });
     expect(dbState.order).toMatchObject({
       nacin: "miza",
-      predvidenPrevzem: new Date("2026-08-23T10:15:00.000Z"),
+      predvidenPrevzem: null,
     });
   });
 
@@ -529,7 +542,7 @@ describe("telefonska naročila", () => {
       artikelId: 9,
       kolicina: 1,
     });
-    expect(addResponse.status).toBe(201);
+    expect(addResponse.status, JSON.stringify(addResponse.body)).toBe(201);
     expect(addResponse.body.predvidenPrevzem).toBe(rocniCas);
     expect(addResponse.body.predvidenPrevzemRocen).toBe(true);
   });

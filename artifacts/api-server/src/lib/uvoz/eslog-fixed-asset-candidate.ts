@@ -21,7 +21,7 @@ const EU_COUNTRIES = new Set([
 ]);
 
 const REAL_ESTATE_TERMS =
-  /\b(land|grundstuck\w*|building|gebaude\w*|nepremicn\w*|immobilien\w*|real estate|real-estate|property)\b/i;
+  /\b(land|grundstuck\w*|building|gebaude\w*|nepremicn\w*|immobilie\w*|real estate|real-estate|property)\b/i;
 const FIXED_ASSET_TERMS =
   /\b(anlagevermogen|anlagegut\w*|investitionsgut\w*|sachanlagen|maschine\w*|machinery|machine|equipment|oprem\w*|computer|notebook|laptop|server|fahrzeug\w*|vehicle|device|gerat\w*)\b/i;
 

@@ -20,7 +20,16 @@ vi.mock("@workspace/api-client-react", () => ({
   getGetPreparedFoodAvailabilityQueryKey: () => ["/api/prepared-food/availability"],
   getArtikliCenikPdf: vi.fn(),
   ApiError: class ApiError extends Error {},
-  usePreviewArtikelAlergeniNormativ: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePreviewArtikelAlergeniNormativ: () => ({
+    mutate: (_args: unknown, callbacks: any) => {
+      callbacks.onSuccess?.({
+        potrjen: true, opozorila: [], izvori: [],
+        alergeni: [{ koda: "MLEKO", naziv: "Mleko" }], alergeniSledi: [],
+      });
+      callbacks.onSettled?.();
+    },
+    isPending: false,
+  }),
   useListKategorije: () => ({ data: [{ id: 1, ime: "Hrana", barva: "#22c55e", vrstniRed: 0 }], isLoading: false }),
   useListArtikli: () => ({ data: artikli.current, isLoading: false }),
   useCreateKategorija: () => ({ mutate: vi.fn(), isPending: false }),
@@ -35,7 +44,10 @@ vi.mock("@workspace/api-client-react", () => ({
   useUpdateArtikelNormativi: () => ({ mutate: updateNormativi, isPending: false }),
   useListModSkupine: () => ({ data: [] }),
   useGetArtikelModSkupine: () => ({ data: [] }),
-  useSetArtikelModSkupine: () => ({ mutate: vi.fn(), isPending: false }),
+  useSetArtikelModSkupine: () => ({
+    mutate: (_args: unknown, callbacks: { onSuccess?: () => void }) => callbacks?.onSuccess?.(),
+    isPending: false,
+  }),
   useGetArtikelAlergeniNormativ: () => ({ data: [], isLoading: false }),
   useSetArtikelAlergeniNormativ: () => ({ mutate: vi.fn(), isPending: false }),
   getGetArtikelAlergeniNormativQueryKey: () => ["/api/artikli/alergeni-normativ"],
@@ -65,6 +77,14 @@ vi.mock("@/hooks/useKopirajNormativ", () => ({
   }),
 }));
 vi.mock("@/components/ModifikatorjePanel", () => ({ default: () => null }));
+vi.mock("@/components/AlergenEditor", () => ({
+  AlergeniBadge: () => null,
+  AlergenEditor: ({ value, onChange }: any) => (
+    <button type="button" onClick={() => onChange({
+      ...value, alergeni: [], alergeniSledi: [], alergeniStatus: "potrjeno_brez", alergeniVir: "etiketa",
+    })}>Potrdi alergenski profil</button>
+  ),
+}));
 vi.mock("@/components/ui/select", () => {
   const SelectContext = React.createContext<(value: string) => void>(() => undefined);
   return {
@@ -214,12 +234,15 @@ describe("Menu — čas priprave artikla", () => {
     fireEvent.change(within(dialog).getByPlaceholderText("Npr. Espresso"), {
       target: { value: "Menijska pijača" },
     });
-    fireEvent.click(within(dialog).getAllByTestId("select")[0]!);
+    fireEvent.change(within(dialog).getByLabelText("Kategorija"), { target: { value: "1" } });
+    fireEvent.mouseDown(within(dialog).getByRole("tab", { name: "Cena in DDV" }), { button: 0, ctrlKey: false });
     fireEvent.click(within(dialog).getByText("Topla pijača — 22 %"));
     fireEvent.change(within(dialog).getByPlaceholderText("2.50"), {
       target: { value: "2.00" },
     });
     fireEvent.click(within(dialog).getByRole("checkbox", { name: /del menija/i }));
+    fireEvent.mouseDown(within(dialog).getByRole("tab", { name: "Alergeni" }), { button: 0, ctrlKey: false });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Potrdi alergenski profil" }));
 
     const submit = within(dialog)
       .getAllByRole("button", { name: /dodaj artikel/i })
@@ -244,7 +267,8 @@ describe("Menu — čas priprave artikla", () => {
     fireEvent.change(within(dialog).getByPlaceholderText("Npr. Espresso"), {
       target: { value: "Vroča čokolada" },
     });
-    fireEvent.click(within(dialog).getAllByTestId("select")[0]!);
+    fireEvent.change(within(dialog).getByLabelText("Kategorija"), { target: { value: "1" } });
+    fireEvent.mouseDown(within(dialog).getByRole("tab", { name: "Cena in DDV" }), { button: 0, ctrlKey: false });
     fireEvent.change(within(dialog).getByPlaceholderText("2.50"), {
       target: { value: "3.00" },
     });
@@ -257,6 +281,8 @@ describe("Menu — čas priprave artikla", () => {
       expect(within(dialog).queryByRole("checkbox", { name: /vsebuje dodan sladkor/i })).not.toBeInTheDocument();
       expect(within(dialog).getByText(/dodan sladkor ne vpliva na DDV/i)).toBeInTheDocument();
     });
+    fireEvent.mouseDown(within(dialog).getByRole("tab", { name: "Alergeni" }), { button: 0, ctrlKey: false });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Potrdi alergenski profil" }));
 
     const submit = within(dialog)
       .getAllByRole("button", { name: /dodaj artikel/i })
@@ -276,7 +302,7 @@ describe("Menu — čas priprave artikla", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("ob prvem shranjevanju novega artikla takoj shrani tudi vneseni normativ", async () => {
+  it("ob prvem shranjevanju novega artikla atomsko shrani tudi vneseni normativ", async () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /nov artikel/i }));
     const dialog = screen.getByRole("dialog");
@@ -284,11 +310,13 @@ describe("Menu — čas priprave artikla", () => {
     fireEvent.change(within(dialog).getByPlaceholderText("Npr. Espresso"), {
       target: { value: "Nova jed z normativom" },
     });
-    fireEvent.click(within(dialog).getAllByTestId("select")[0]!);
+    fireEvent.change(within(dialog).getByLabelText("Kategorija"), { target: { value: "1" } });
+    fireEvent.mouseDown(within(dialog).getByRole("tab", { name: "Cena in DDV" }), { button: 0, ctrlKey: false });
     fireEvent.change(within(dialog).getByPlaceholderText("2.50"), {
       target: { value: "8.50" },
     });
 
+    fireEvent.mouseDown(within(dialog).getByRole("tab", { name: "Normativ" }), { button: 0, ctrlKey: false });
     fireEvent.click(within(dialog).getByRole("button", { name: /^Dodaj artikel$/i }));
     const picker = within(dialog).getByPlaceholderText("Izberi artikel");
     fireEvent.focus(picker);
@@ -297,6 +325,9 @@ describe("Menu — čas priprave artikla", () => {
     fireEvent.change(within(dialog).getByPlaceholderText("0"), {
       target: { value: "0,25" },
     });
+    // Await the debounced, confirmed ingredient profile before the atomic create.
+    fireEvent.mouseDown(within(dialog).getByRole("tab", { name: "Alergeni" }), { button: 0, ctrlKey: false });
+    await within(dialog).findByText("Vsi vhodni profili so preverjeni.");
 
     const submit = within(dialog)
       .getAllByRole("button", { name: /dodaj artikel/i })
@@ -305,14 +336,12 @@ describe("Menu — čas priprave artikla", () => {
     fireEvent.click(submit);
 
     await waitFor(() => {
-      expect(updateNormativi).toHaveBeenCalledWith(
-        {
-          id: 99,
-          data: [{ vhodniArtikelId: 11, kolicina: 0.25 }],
-        },
+      expect(createArtikel).toHaveBeenCalledWith(
+        { data: expect.objectContaining({ normativItems: [{ vhodniArtikelId: 11, kolicina: 0.25 }] }) },
         expect.any(Object),
       );
     });
+    expect(updateNormativi).not.toHaveBeenCalled();
   });
 
   it("pri novi pici predlaga 5 minut priprave, ročnega vnosa pa ne prepiše", () => {
@@ -322,21 +351,26 @@ describe("Menu — čas priprave artikla", () => {
     const casPriprave = screen.getByLabelText("Čas priprave (min)");
     expect(casPriprave).toHaveValue(0);
 
-    const jePica = screen.getByRole("checkbox", { name: /je pica/i });
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Cena in DDV" }), { button: 0, ctrlKey: false });
+    const jePica = screen.getByRole("radio", { name: "Pica" });
     fireEvent.click(jePica);
-    expect(casPriprave).toHaveValue(5);
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Osnovno" }), { button: 0, ctrlKey: false });
+    expect(screen.getByLabelText("Čas priprave (min)")).toHaveValue(5);
     expect(screen.getByText(/za pico je predlaganih 5 minut/i)).toBeInTheDocument();
 
-    fireEvent.change(casPriprave, { target: { value: "4" } });
-    fireEvent.click(jePica);
-    fireEvent.click(jePica);
-    expect(casPriprave).toHaveValue(4);
+    fireEvent.change(screen.getByLabelText("Čas priprave (min)"), { target: { value: "4" } });
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Cena in DDV" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("radio", { name: "Hrana" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Pica" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Osnovno" }), { button: 0, ctrlKey: false });
+    expect(screen.getByLabelText("Čas priprave (min)")).toHaveValue(4);
   });
 
   it("v normativu poišče nabavni artikel po običajnem ali nabavnem nazivu", async () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /nov artikel/i }));
     const dialog = screen.getByRole("dialog");
+    fireEvent.mouseDown(within(dialog).getByRole("tab", { name: "Normativ" }), { button: 0, ctrlKey: false });
     fireEvent.click(within(dialog).getByRole("button", { name: /^Dodaj artikel$/i }));
 
     const picker = within(dialog).getByPlaceholderText("Izberi artikel") as HTMLInputElement;
@@ -374,9 +408,9 @@ describe("Menu — čas priprave artikla", () => {
   it("pri pici prikaže določene velikosti in neposredno uredi izbrano ceno", async () => {
     renderPage();
 
-    expect(screen.getByRole("button", { name: /uredi normalna ceno za pica margherita/i })).toHaveTextContent(/Normalna:\s*8.90 €/);
-    expect(screen.getByRole("button", { name: /uredi mala ceno za pica margherita/i })).toHaveTextContent(/Mala:\s*6.50 €/);
-    expect(screen.getByRole("button", { name: /uredi družinska ceno za pica margherita/i })).toHaveTextContent(/Družinska:\s*12.50 €/);
+    expect(screen.getByRole("button", { name: /uredi norm\. ceno za pica margherita/i })).toHaveTextContent(/Norm\.\s*8,90\s*€/);
+    expect(screen.getByRole("button", { name: /uredi mala ceno za pica margherita/i })).toHaveTextContent(/Mala\s*6,50\s*€/);
+    expect(screen.getByRole("button", { name: /uredi druž\. ceno za pica margherita/i })).toHaveTextContent(/Druž\.\s*12,50\s*€/);
 
     fireEvent.click(screen.getByRole("button", { name: /uredi mala ceno za pica margherita/i }));
     const malaCena = screen.getByRole("textbox", { name: /uredi mala ceno za pica margherita/i });
@@ -396,8 +430,8 @@ describe("Menu — čas priprave artikla", () => {
     });
     expect(updateArtikel.mock.calls[0][0].data).not.toHaveProperty("cenaDruzinska");
 
-    fireEvent.click(screen.getByRole("button", { name: /uredi družinska ceno za pica margherita/i }));
-    const druzinskaCena = screen.getByRole("textbox", { name: /uredi družinska ceno za pica margherita/i });
+    fireEvent.click(screen.getByRole("button", { name: /uredi druž\. ceno za pica margherita/i }));
+    const druzinskaCena = screen.getByRole("textbox", { name: /uredi druž\. ceno za pica margherita/i });
     fireEvent.change(druzinskaCena, { target: { value: "13,75" } });
     fireEvent.keyDown(druzinskaCena, { key: "Enter" });
 
@@ -408,19 +442,19 @@ describe("Menu — čas priprave artikla", () => {
     }));
     expect(updateArtikel.mock.calls[1][0].data).not.toHaveProperty("cenaMala");
     expect(updateArtikel.mock.calls[1][0].data).not.toHaveProperty("cena");
-    expect(screen.getByRole("button", { name: /uredi normalna ceno za pica brez dodatnih velikosti/i })).toHaveTextContent(/Normalna:\s*7.50 €/);
+    expect(screen.getByRole("button", { name: /uredi norm\. ceno za pica brez dodatnih velikosti/i })).toHaveTextContent(/Norm\.\s*7,50\s*€/);
     expect(screen.queryByRole("button", { name: /uredi mala ceno za pica brez dodatnih velikosti/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /uredi družinska ceno za pica brez dodatnih velikosti/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /uredi druž\. ceno za pica brez dodatnih velikosti/i })).not.toBeInTheDocument();
   });
 
   it("uporabniku prikaže cene pic brez možnosti neposrednega urejanja", () => {
     authUser.current = { vloga: "uporabnik" };
     renderPage();
 
-    const pizzaRow = screen.getByText("Pica Margherita").closest("tr");
-    expect(pizzaRow).toHaveTextContent(/Normalna:\s*8.90 €/);
-    expect(pizzaRow).toHaveTextContent(/Mala:\s*6.50 €/);
-    expect(pizzaRow).toHaveTextContent(/Družinska:\s*12.50 €/);
+    const pizzaRow = screen.getByText("Pica Margherita").closest("tr")?.nextElementSibling;
+    expect(pizzaRow).toHaveTextContent(/Norm\.\s*8,90\s*€/);
+    expect(pizzaRow).toHaveTextContent(/Mala\s*6,50\s*€/);
+    expect(pizzaRow).toHaveTextContent(/Druž\.\s*12,50\s*€/);
     expect(screen.queryByRole("button", { name: /uredi .*ceno za pica margherita/i })).not.toBeInTheDocument();
     expect(updateArtikel).not.toHaveBeenCalled();
   });

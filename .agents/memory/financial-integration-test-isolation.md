@@ -26,3 +26,9 @@ Pri brskalniških preizkusih nad sintetičnimi podatki preveri prestrezanje muta
 **Why:** Prejšnji POS preizkus je prestregel testni seznam podjetij, ne pa spremembe paketa; zahtevek je prišel do dejanskega strežnika in bil šele tam zavrnjen z 403. Tudi stran nastavitev lahko ob odprtju samodejno registrira napravo.
 
 **How to apply:** Kadar prestrezanje omrežnih zahtev ni zanesljivo, uporabi lokalni fetch stub v brskalniku, preverjen s poskusnim zahtevkom, in dodatno neodvisno omrežno varovalo brez fallbacka za neprestrežene zapise. Preveri tudi samodejne zagonske POST zahteve; ne oslabi dejanske avtorizacije.
+
+Testi globalnih delavcev potrebujejo ločeno začasno bazo s kopijo sheme, ne samo ločenega testnega podjetja. V običajnem celotnem teku morajo ostati vključeni prek izoliranega zagona.
+
+**Why:** Globalni fiskalni delavec lahko obdeluje čakajoče operacije drugih podjetij. Izolacija testnega najemnika sama ne prepreči posega v poslovne podatke; preprosta izključitev testov pa skrije regresije.
+
+**How to apply:** Prekopiraj samo shemo, brez poslovnih vrstic in poverilnic. Ob zaključku odstrani izključno bazo, ki jo je ustvaril isti zaganjalnik, tudi če testi padejo.

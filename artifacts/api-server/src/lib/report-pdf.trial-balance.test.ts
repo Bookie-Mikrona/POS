@@ -127,7 +127,8 @@ describe("PDF bruto bilance", () => {
     async (statementView) => {
     const pdf = await generateTrialBalancePdf({
       companyName: "Mikrona d.o.o.", dateFrom: "2025-01-01", dateTo: "2025-12-31",
-      statementView, accountClass: "0", rows: [],
+      statementView, accountClass: "0",
+      rows: [],
       totalOpeningBalanceDebit: "0", totalOpeningBalanceCredit: "0",
       totalTurnoverDebit: "0", totalTurnoverCredit: "0",
       totalBalanceDebit: "0", totalBalanceCredit: "0",
@@ -142,18 +143,15 @@ describe("PDF bruto bilance", () => {
   it("shows the signed net saldo while preserving the gross closing debit and credit", async () => {
     const rows = [
       {
-        accountId: "1", accountCode: "1100000", accountName: "Transakcijski račun", accountType: "asset",
-        openingBalanceDebit: "0", openingBalanceCredit: "0", turnoverDebit: "0", turnoverCredit: "0",
+        ...fixture.rows[0]!, accountId: "1", accountCode: "1100000", accountName: "Debetni saldo",
         balanceDebit: "23948.52", balanceCredit: "21081.77",
       },
       {
-        accountId: "2", accountCode: "1100001", accountName: "Kreditni saldo", accountType: "asset",
-        openingBalanceDebit: "0", openingBalanceCredit: "0", turnoverDebit: "0", turnoverCredit: "0",
+        ...fixture.rows[0]!, accountId: "2", accountCode: "1100001", accountName: "Kreditni saldo",
         balanceDebit: "0", balanceCredit: "125.00",
       },
       {
-        accountId: "3", accountCode: "1100002", accountName: "Uravnotežen saldo", accountType: "asset",
-        openingBalanceDebit: "0", openingBalanceCredit: "0", turnoverDebit: "0", turnoverCredit: "0",
+        ...fixture.rows[0]!, accountId: "3", accountCode: "1100002", accountName: "Uravnotežen saldo",
         balanceDebit: "50.00", balanceCredit: "50.00",
       },
     ];
@@ -201,9 +199,9 @@ describe("PDF bruto bilance", () => {
     const pdf = await generateTrialBalancePdf({
       companyName: "Mikrona d.o.o.", dateFrom: "2025-01-01", dateTo: "2025-12-31",
       rows,
-      totalOpeningBalanceDebit: "5655.00", totalOpeningBalanceCredit: "5655.00",
-      totalTurnoverDebit: "6825.00", totalTurnoverCredit: "6825.00",
-      totalBalanceDebit: "12480.00", totalBalanceCredit: "12480.00",
+      totalOpeningBalanceDebit: (87 * 65).toFixed(2), totalOpeningBalanceCredit: (87 * 65).toFixed(2),
+      totalTurnoverDebit: (105 * 65).toFixed(2), totalTurnoverCredit: (105 * 65).toFixed(2),
+      totalBalanceDebit: (192 * 65).toFixed(2), totalBalanceCredit: (192 * 65).toFixed(2),
     });
     const { pages, textPages } = inspectPdf(pdf);
     expect(pages).toBe(2);

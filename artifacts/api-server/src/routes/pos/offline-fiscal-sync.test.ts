@@ -6,6 +6,7 @@ import {
   companiesTable,
   db,
   enoteTable,
+  nastavitveTable,
   offlineFiscalDevicesTable,
   pool,
   poslovniProstoriTable,
@@ -80,6 +81,7 @@ beforeAll(async () => {
     ime: `Offline sync HTTP ${runId}`,
   }).returning({ id: enoteTable.id });
   enotaId = unit!.id;
+  await db.insert(nastavitveTable).values({ enotaId, kljuc: "offlineFiscalEnabled", vrednost: "true" });
   const [premise] = await db.insert(poslovniProstoriTable).values({
     enotaId,
     prostorId: `P${runId.slice(0, 8)}`,

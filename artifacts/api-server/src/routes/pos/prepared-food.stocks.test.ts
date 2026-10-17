@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import express from "express";
 import supertest from "supertest";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -43,6 +43,9 @@ function buildApp() {
 }
 
 beforeAll(async () => {
+  // Keep these future-dated ledgers independent of the machine's clock.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2098-12-31T12:00:00Z"));
   const [company] = await db.insert(companiesTable).values({
     podjetjeDavcna: `SI_PFS_${RUN_ID}`,
     naziv: `Prepared food stocks ${RUN_ID}`,
@@ -64,6 +67,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  vi.useRealTimers();
   await db.delete(preparedFoodStocksTable).where(and(
     eq(preparedFoodStocksTable.enotaId, enotaId),
     eq(preparedFoodStocksTable.year, YEAR),

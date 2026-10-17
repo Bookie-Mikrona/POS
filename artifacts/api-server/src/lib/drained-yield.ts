@@ -129,6 +129,24 @@ export function samePurchaseAndStockUnit(
     && purchaseUnit.trim().toLowerCase() === stockUnit.trim().toLowerCase());
 }
 
+/**
+ * Receipt corrections/credit notes can reverse a purchased quantity. Keep the
+ * yield validator strict, convert magnitudes, then restore the movement sign.
+ */
+export function convertSignedPurchasedQuantity(
+  quantity: Decimal,
+  fullLineCost: Decimal,
+  sourceUnit: string | null | undefined,
+  stockUnit: string | null | undefined,
+  yieldData: DrainedYield,
+): { quantity: Decimal; unitCost: Decimal } {
+  const sign = quantity.isNegative() ? -1 : 1;
+  const converted = convertPurchasedQuantity(
+    quantity.abs(), fullLineCost.mul(sign), sourceUnit, stockUnit, yieldData,
+  );
+  return { quantity: converted.quantity.mul(sign), unitCost: converted.unitCost };
+}
+
 export function convertPurchasedQuantity(
   quantity: Decimal,
   fullLineCost: Decimal,
