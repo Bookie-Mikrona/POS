@@ -11,6 +11,7 @@ type DbClient = {
 };
 
 const ids: { companyId?: string; sourceUnitId?: number; targetUnitId?: number; eventId?: number; returnTransferId?: number } = {};
+const testEventIds: number[] = [];
 const suffix = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
 const statusMigration = readFileSync(
   "../../lib/db/src/migrations/131-pos-events-status-integrity.sql",
@@ -189,6 +190,15 @@ afterAll(async () => {
     await deleteTestTransfers(transfers.rows.map(row => row.id as number));
     await pool.query(`DELETE FROM pos_event_units WHERE event_id=$1`, [ids.eventId]);
     await pool.query(`DELETE FROM pos_events WHERE id=$1`, [ids.eventId]);
+  }
+  if (testEventIds.length > 0) {
+    const transfers = await pool.query(
+      `SELECT id FROM pos_stock_transfers WHERE event_id=ANY($1::int[])`,
+      [testEventIds],
+    );
+    await deleteTestTransfers(transfers.rows.map(row => row.id as number));
+    await pool.query(`DELETE FROM pos_event_units WHERE event_id=ANY($1::int[])`, [testEventIds]);
+    await pool.query(`DELETE FROM pos_events WHERE id=ANY($1::int[])`, [testEventIds]);
   }
   if (ids.companyId) {
     const cleanup = await pool.connect();
@@ -861,6 +871,15 @@ describe("celoten tok začasne enote dogodka", () => {
     );
     const [sourceA, sourceB] = sourceArticles.rows.map(row => row.id as number);
     const [targetA, targetB] = targetArticles.rows.map(row => row.id as number);
+    const scopeEvent = await pool.query(
+      `INSERT INTO pos_events (
+         company_id, enota_id, name, type, status, location, starts_at, ends_at
+       ) VALUES ($1,$2,$3,'catering','planned','Testna lokacija',now(),now()+interval '4 hours')
+       RETURNING id`,
+      [ids.companyId, ids.sourceUnitId, `Dogodek osnutka prenosa ${suffix}`],
+    );
+    const scopeEventId = scopeEvent.rows[0].id as number;
+    testEventIds.push(scopeEventId);
     const insertTransferSql = `INSERT INTO pos_stock_transfers (
       company_id, event_id, source_unit_id, target_unit_id,
       direction, status, created_by
@@ -872,10 +891,10 @@ describe("celoten tok začasne enote dogodka", () => {
       ids.companyId, ids.eventId, ids.targetUnitId, ids.sourceUnitId, "return",
     ]);
     const completedScopeDraft = await pool.query(insertTransferSql, [
-      ids.companyId, ids.eventId, ids.sourceUnitId, ids.targetUnitId, "return",
+      ids.companyId, scopeEventId, ids.sourceUnitId, ids.targetUnitId, "return",
     ]);
     const cancelledScopeDraft = await pool.query(insertTransferSql, [
-      ids.companyId, ids.eventId, ids.targetUnitId, ids.sourceUnitId, "outbound",
+      ids.companyId, scopeEventId, ids.targetUnitId, ids.sourceUnitId, "outbound",
     ]);
     const completedId = completedTransfer.rows[0].id as number;
     const cancelledId = cancelledTransfer.rows[0].id as number;
@@ -1972,7 +1991,13 @@ describe("celoten tok začasne enote dogodka", () => {
   });
 
   it("predogleda, pripravi, zaključi in vrne sledljivo zalogo", async () => {
-    const articles = await pool.query(`SELECT id, ime FROM artikli WHERE enota_id=$1 ORDER BY id`, [ids.sourceUnitId]);
+    const articles = await pool.query(
+      `SELECT id, ime
+       FROM artikli
+       WHERE enota_id=$1 AND ime IN ($2, $3)
+       ORDER BY id`,
+      [ids.sourceUnitId, `Sestavina ${suffix}`, `Jed ${suffix}`],
+    );
     const ingredientId = articles.rows.find(row => row.ime.startsWith("Sestavina")).id;
     const articleIds = articles.rows.map(row => row.id);
     const payload = {
