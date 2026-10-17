@@ -19,7 +19,7 @@ const { mockUseFeedback, mockUseComments, mockExportFeedback } = vi.hoisted(() =
 }));
 
 vi.mock("@workspace/api-client-react", async () => {
-  const actual = await importOriginal<typeof import("recharts")>();
+  const actual = await vi.importActual("@workspace/api-client-react");
   return {
     ...actual as object,
     useGetOperativnaPorocilaQrFeedback: mockUseFeedback,
@@ -207,7 +207,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   });
 
   it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", () => {
-    const chartData = buildTrendChartData(trends);
+    const chartData = buildTrendChartData(feedbackReport.trends);
     expect(chartData[0]).toMatchObject({
       foodReliable: 4.5,
       ambienceReliable: 3,
@@ -221,11 +221,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
       ambienceSmallSample: 4,
     });
 
-    const { rerender } = render(
-      <QueryClientProvider client={queryClient}>
-        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
-      </QueryClientProvider>
-    );
+    const { rerender } = render(<svg><SmallSampleDot cx={20} cy={30} /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("stroke")).toBe("#f59e0b");
     rerender(<svg><SmallSampleDot cx={20} cy={30} active /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("r")).toBe("7");
@@ -234,9 +230,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   it("tooltip pokaže odzive in opozori samo pri nezanesljivi točki", () => {
     const [reliable, unreliable] = buildTrendChartData(feedbackReport.trends);
     const { rerender } = render(
-      <QueryClientProvider client={queryClient}>
-        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
-      </QueryClientProvider>
+      <TrendTooltip active payload={[{ payload: reliable }]} />,
     );
     expect(screen.getByTestId("trend-tooltip").textContent).toContain("6 odzivov");
     expect(screen.queryByTestId("trend-tooltip-small-sample")).toBeNull();
@@ -337,7 +331,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   it("razvrsti v obe smeri po razliki, trenutni oceni in velikosti vzorca, null pa ohrani na koncu", async () => {
     renderComponent();
 
-    const visibleNames = screen.getAllByRole("row").map(row => row.querySelector("td")?.textContent);
+    const visibleNames = () => screen.getAllByTestId(/^article-name-/).map(cell => cell.textContent);
     expect(visibleNames()).toEqual(["Espresso", "Kava", "Pizza", "Čaj", "Sladoled"]);
     fireEvent.click(screen.getByTestId("button-article-sort-order"));
     expect(visibleNames()).toEqual(["Čaj", "Espresso", "Kava", "Pizza", "Sladoled"]);
@@ -364,9 +358,84 @@ describe("OperativnaPorocilaQrFeedback", () => {
     fireEvent.click(screen.getByTestId("select-article-sort"));
     fireEvent.click(await screen.findByText("Trenutna ocena"));
     fireEvent.click(screen.getByTestId("button-article-sort-order"));
+    expect(screen.getAllByTestId(/^article-name-/).map(cell => cell.textContent)).toEqual(["Sladoled", "Pizza"]);
+  });
 
-    const visibleNames = screen.getAllByRole("row").map(row => row.querySelector("td")?.textContent);
-    expect(visibleNames).toEqual(["Sladoled", "Pizza"]);
+  it.each([
+    { label: "Ocena", criterion: "currentAverage", selectLabel: "Trenutna ocena", descending: ["Kava", "Pizza", "Sladoled", "Čaj", "Espresso"], ascending: ["Espresso", "Čaj", "Sladoled", "Kava", "Pizza"] },
+    { label: "Premik", criterion: "difference", selectLabel: "Največja sprememba", descending: ["Espresso", "Kava", "Pizza", "Čaj", "Sladoled"], ascending: ["Čaj", "Espresso", "Kava", "Pizza", "Sladoled"] },
+    { label: "Vzorec", criterion: "sampleSize", selectLabel: "Velikost vzorca", descending: ["Espresso", "Čaj", "Kava", "Pizza", "Sladoled"], ascending: ["Sladoled", "Pizza", "Kava", "Čaj", "Espresso"] },
+  ])("glava $label izbere kriterij in nato obrne smer ter uskladi kontroli", ({ label, criterion, selectLabel, descending, ascending }) => {
+    renderComponent();
+    const headerButton = screen.getByRole("button", { name: new RegExp(`^Razvrsti: ${label}\\.`) });
+    const header = headerButton.closest("th")!;
+    const visibleNames = () => screen.getAllByTestId(/^article-name-/).map(cell => cell.textContent);
+    // Select a different column first when the tested one is the default.
+    if (criterion === "difference") {
+      fireEvent.click(screen.getByRole("button", { name: /^Razvrsti: Ocena\./ }));
+    }
+    fireEvent.click(headerButton);
+    expect(visibleNames()).toEqual(descending);
+    expect(header.getAttribute("aria-sort")).toBe("descending");
+    expect(screen.getByTestId("select-article-sort").textContent).toContain(selectLabel);
+    expect(screen.getByTestId("button-article-sort-order").textContent).toContain("Padajoče");
+    expect(headerButton.querySelector(".lucide-arrow-down")).not.toBeNull();
+    expect(screen.getAllByRole("columnheader").filter(cell => cell.hasAttribute("aria-sort"))).toEqual([header]);
+
+    fireEvent.click(headerButton);
+    expect(visibleNames()).toEqual(ascending);
+    expect(header.getAttribute("aria-sort")).toBe("ascending");
+    expect(headerButton.querySelector(".lucide-arrow-up")).not.toBeNull();
+    expect(screen.getByTestId("button-article-sort-order").textContent).toContain("Naraščajoče");
+    expect(JSON.parse(localStorage.getItem(QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY)!)).toMatchObject({
+      sort: criterion,
+      sortOrder: "ascending",
+    });
+  });
+
+  it("obstoječi kontroli, obnova in ponastavitev uskladijo aktivno glavo", async () => {
+    localStorage.setItem(QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY, JSON.stringify({
+      ...parseStoredArticleView(null),
+      sort: "sampleSize",
+      sortOrder: "ascending",
+    }));
+    renderComponent();
+    const sample = screen.getByRole("button", { name: /^Razvrsti: Vzorec\./ }).closest("th")!;
+    const rating = screen.getByRole("button", { name: /^Razvrsti: Ocena\./ }).closest("th")!;
+    const movement = screen.getByRole("button", { name: /^Razvrsti: Premik\./ }).closest("th")!;
+    expect(sample.getAttribute("aria-sort")).toBe("ascending");
+
+    fireEvent.click(screen.getByTestId("select-article-sort"));
+    fireEvent.click(await screen.findByText("Trenutna ocena"));
+    expect(rating.getAttribute("aria-sort")).toBe("ascending");
+    expect(sample.hasAttribute("aria-sort")).toBe(false);
+    fireEvent.click(screen.getByTestId("button-article-sort-order"));
+    expect(rating.getAttribute("aria-sort")).toBe("descending");
+
+    fireEvent.click(screen.getByTestId("button-reset-article-filters"));
+    expect(movement.getAttribute("aria-sort")).toBe("descending");
+    expect(rating.hasAttribute("aria-sort")).toBe(false);
+    fireEvent.click(screen.getByTestId("button-article-sort-order"));
+    fireEvent.click(screen.getByRole("button", { name: /^Razvrsti: Ocena\./ }));
+    expect(rating.getAttribute("aria-sort")).toBe("ascending");
+  });
+
+  it("glave uporabljajo naravne gumbe s fokusom za tipkovnico in ohranijo filtre", () => {
+    renderComponent();
+    for (const label of ["Ocena", "Premik", "Vzorec"]) {
+      const button = screen.getByRole("button", { name: new RegExp(`^Razvrsti: ${label}\\.`) }) as HTMLButtonElement;
+      expect(button.tagName).toBe("BUTTON");
+      expect(button.type).toBe("button");
+      expect(button.tabIndex).toBe(0);
+      button.focus();
+      expect(document.activeElement).toBe(button);
+      expect(button.closest("th")?.getAttribute("scope")).toBe("col");
+    }
+    fireEvent.change(screen.getByTestId("input-article-search"), { target: { value: "a" } });
+    fireEvent.click(screen.getByTestId("filter-article-unavailable"));
+    fireEvent.click(screen.getByRole("button", { name: /^Razvrsti: Vzorec\./ }));
+    expect(screen.getAllByTestId(/^article-name-/).map(cell => cell.textContent)).toEqual(["Čaj", "Kava"]);
+    expect(screen.getByTestId("article-result-count").textContent).toContain("2 od 5");
   });
 
   it("ob vrnitvi obnovi iskanje, smerne filtre in razvrščanje iz lokalnega brskalnika", async () => {

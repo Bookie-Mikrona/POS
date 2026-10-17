@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, MessageSquare, Star, TrendingUp, TrendingDown, Minus, AlertTriangle, AlertCircle, ChevronLeft, ChevronRight, Search, RotateCcw, ArrowDown, ArrowUp } from "lucide-react";
+import { Download, MessageSquare, Star, TrendingUp, TrendingDown, Minus, AlertTriangle, AlertCircle, ChevronLeft, ChevronRight, Search, RotateCcw, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import {
   useGetOperativnaPorocilaQrFeedback,
   getGetOperativnaPorocilaQrFeedbackQueryKey,
@@ -446,7 +446,18 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
                       Noben artikel ne ustreza iskanju in filtrom.
                     </div>
                   ) : (
-                    <ArticleComparisonTable articles={visibleArticles} />
+                    <ArticleComparisonTable
+                      articles={visibleArticles}
+                      sort={articleSort}
+                      sortOrder={articleSortOrder}
+                      onSort={sort => setArticleView(current => ({
+                        ...current,
+                        sort,
+                        sortOrder: current.sort === sort
+                          ? (current.sortOrder === "descending" ? "ascending" : "descending")
+                          : current.sortOrder,
+                      }))}
+                    />
                   )}
                   </div>
                 </CardContent>
@@ -714,9 +725,46 @@ type ArticleComparison = {
   directionReason: string | null;
 };
 
-function ArticleComparisonTable({ articles }: { articles: ArticleComparison[] }) {
+function ArticleComparisonTable({ articles, sort, sortOrder, onSort }: {
+  articles: ArticleComparison[];
+  sort: ArticleSort;
+  sortOrder: ArticleSortOrder;
+  onSort: (sort: ArticleSort) => void;
+}) {
+  const sortableHeader = (criterion: ArticleSort, label: string, description: string) => {
+    const active = sort === criterion;
+    return (
+      <th scope="col" className="px-2 py-1 text-right" aria-sort={active ? sortOrder : undefined}>
+        <Button
+          type="button"
+          variant={active ? "secondary" : "ghost"}
+          size="sm"
+          className="font-semibold"
+          onClick={() => onSort(criterion)}
+          title={description}
+          aria-label={`Razvrsti: ${label}. ${description}`}
+        >
+          {label}
+          {!active
+            ? <ArrowUpDown aria-hidden="true" />
+            : sortOrder === "descending"
+              ? <ArrowDown aria-hidden="true" />
+              : <ArrowUp aria-hidden="true" />}
+        </Button>
+      </th>
+    );
+  };
+
   return (
     <table className="w-full text-sm">
+      <thead className="bg-muted/30 border-b border-border/40">
+        <tr>
+          <th scope="col" className="px-4 py-2 text-left font-semibold">Artikel</th>
+          {sortableHeader("currentAverage", "Ocena", "Trenutna ocena artikla.")}
+          {sortableHeader("difference", "Premik", "Absolutna velikost spremembe ocene.")}
+          {sortableHeader("sampleSize", "Vzorec", "Skupno število ocen v obeh obdobjih.")}
+        </tr>
+      </thead>
       <tbody className="divide-y divide-border/20">
         {articles.map((a) => (
           <tr key={a.articleName} className="hover:bg-muted/30 transition-colors" data-testid={`article-comparison-${a.articleName.replace(/\s+/g, '-').toLowerCase()}`}>
@@ -738,6 +786,9 @@ function ArticleComparisonTable({ articles }: { articles: ArticleComparison[] })
                   {a.directionReason}
                 </div>
               )}
+            </td>
+            <td className="px-4 py-2 text-right text-xs tabular-nums text-muted-foreground">
+              {a.current.count + a.previous.count} ocen
             </td>
           </tr>
         ))}
