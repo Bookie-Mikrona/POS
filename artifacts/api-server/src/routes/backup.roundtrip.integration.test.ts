@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const storageObjects = vi.hoisted(() => new Map<string, Buffer>());
 const failNextSelectOne = vi.hoisted(() => ({ value: false }));
+const loseNextIndex = vi.hoisted(() => ({ value: false }));
 const routeErrors = vi.hoisted(() => [] as unknown[]);
 
 vi.mock("../middlewares/requireAuth", () => ({
@@ -130,9 +131,12 @@ function runBinary(
     const child = spawn(command, args, {
       env,
       cwd,
-      stdio: ["ignore", "ignore", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
     let stderr = "";
+    child.stdout.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString("utf8");
+    });
     child.stderr.on("data", (chunk: Buffer) => {
       stderr += chunk.toString("utf8");
     });
@@ -434,10 +438,9 @@ describe("izolirani backup restore round-trip", () => {
       "../../../../lib/db",
     );
     await runBinary(
-      "pnpm",
-      ["exec", "drizzle-kit", "push", "--config", "./drizzle.config.ts"],
+      "node",
+      ["--import", "tsx", join(libDbDirectory, "scripts/create-backup-roundtrip-schema.mts")],
       { ...process.env, DATABASE_URL: cluster.databaseUrl },
-      libDbDirectory,
     );
 
     ({ default: backupRouter } = await import("./backup"));
@@ -456,6 +459,23 @@ describe("izolirani backup restore round-trip", () => {
       server_port: String(cluster.port),
     });
     await testPool.query(seedSql);
+    await testPool.query(`
+      CREATE TYPE backup_test_mood AS ENUM ('new', 'done');
+      CREATE DOMAIN backup_test_positive AS integer CHECK (VALUE > 0);
+      CREATE TABLE backup_semantic_fixture (
+        id integer PRIMARY KEY, label varchar(30),
+        amount backup_test_positive, mood backup_test_mood,
+        CONSTRAINT backup_fixture_check CHECK (label IN ('one', 'two'))
+      );
+      CREATE INDEX backup_fixture_index ON backup_semantic_fixture (label);
+      CREATE FUNCTION backup_fixture_trigger_fn() RETURNS trigger LANGUAGE plpgsql
+        AS $$ BEGIN RETURN NEW; END $$;
+      CREATE TRIGGER backup_fixture_trigger BEFORE INSERT ON backup_semantic_fixture
+        FOR EACH ROW EXECUTE FUNCTION backup_fixture_trigger_fn();
+      CREATE VIEW backup_fixture_view AS SELECT id, label FROM backup_semantic_fixture;
+      ALTER TABLE backup_semantic_fixture ENABLE ROW LEVEL SECURITY;
+      CREATE POLICY backup_fixture_policy ON backup_semantic_fixture USING (id > 0);
+    `);
 
     app = express();
     app.use((req, _res, next) => {
@@ -504,7 +524,7 @@ describe("izolirani backup restore round-trip", () => {
     const createResponse = await request(app)
       .post("/backup/ustvari")
       .set("x-test-user", "superadmin");
-    expect(createResponse.status).toBe(201);
+    expect(createResponse.status, JSON.stringify(routeErrors)).toBe(201);
     const backupName = createResponse.body.kopija.ime as string;
     const backupObject = Array.from(storageObjects.entries())
       .find(([name]) => name.endsWith(`/bookie-backups/${backupName}`))?.[1];
@@ -584,6 +604,10 @@ describe("izolirani backup restore round-trip", () => {
         failNextSelectOne.value = false;
         return Promise.reject(new Error("simulirana napaka preverjanja po obnovi"));
       }
+      if (loseNextIndex.value && queryText === "SELECT 1") {
+        loseNextIndex.value = false;
+        return originalQuery("DROP INDEX backup_fixture_index").then(() => originalQuery("SELECT 1"));
+      }
       return (originalQuery as (...queryArgs: unknown[]) => Promise<unknown>)(...args);
     };
     failNextSelectOne.value = true;
@@ -599,5 +623,82 @@ describe("izolirani backup restore round-trip", () => {
     expect(failedRestoreResponse.body.error).toContain("zaščitno kopijo");
     expect(await tableSnapshot(testPool)).toEqual(safetySnapshot);
     expect(await sequenceSnapshot(testPool)).toEqual(safetySequences);
+
+    // Simulate an object lost immediately after SQL restore, not a mocked
+    // manifest response: the real catalog validator must initiate recovery.
+    loseNextIndex.value = true;
+    const missingIndexResponse = await request(app)
+      .post("/backup/obnovi")
+      .set("x-test-user", "superadmin")
+      .attach("backup", rollbackSourceObject as Buffer, {
+        filename: rollbackSourceName,
+        contentType: "application/gzip",
+      });
+    expect(missingIndexResponse.status).toBe(500);
+    expect(JSON.stringify(routeErrors)).toContain("backup_fixture_index");
+    expect(await tableSnapshot(testPool)).toEqual(safetySnapshot);
+    expect(await sequenceSnapshot(testPool)).toEqual(safetySequences);
+    expect((await testPool.query("SELECT to_regclass('backup_fixture_index') AS name")).rows[0].name)
+      .toBe("backup_fixture_index");
+  }, 120_000);
+
+  it("po resnični obnovi zazna izgubljen indeks, CHECK in sprožilec ter spremembe ostalih objektov", async () => {
+    const { readSemanticObjects, assertSemanticObjectsRestored } =
+      await import("../lib/backupSemanticManifest");
+    const expected = await readSemanticObjects();
+    expect(expected.map((object) => object.category)).toEqual(
+      [...expected.map((object) => object.category)].sort(),
+    );
+    for (const category of ["indexes", "constraints", "types", "views", "functions", "triggers", "rls", "policies", "extensions"]) {
+      expect(expected.some((object) => object.category === category), category).toBe(true);
+    }
+    const directory = await mkdtemp(join(tmpdir(), "bookie-semantic-test-"));
+    const dumpPath = join(directory, "snapshot.sql");
+    try {
+      await runBinary("pg_dump", [
+        "--dbname", cluster.databaseUrl, "--clean", "--if-exists",
+        "--no-owner", "--no-privileges", "--file", dumpPath,
+      ]);
+      await runBinary("psql", [
+        "--dbname", cluster.databaseUrl, "--single-transaction",
+        "--set", "ON_ERROR_STOP=1", "--file", dumpPath,
+      ]);
+      assertSemanticObjectsRestored(expected, await readSemanticObjects());
+      // Explicit cast relocation is the historical pg_dump/restore regression.
+      await testPool.query(`ALTER TABLE backup_semantic_fixture DROP CONSTRAINT backup_fixture_check;
+        ALTER TABLE backup_semantic_fixture ADD CONSTRAINT backup_fixture_check
+          CHECK (label::text = ANY (ARRAY['one', 'two']::varchar[]::text[]));`);
+      assertSemanticObjectsRestored(expected, await readSemanticObjects());
+      const cases = [
+        ["indexes", "DROP INDEX backup_fixture_index",
+          "CREATE INDEX backup_fixture_index ON backup_semantic_fixture (label)"],
+        ["constraints", "ALTER TABLE backup_semantic_fixture DROP CONSTRAINT backup_fixture_check",
+          "ALTER TABLE backup_semantic_fixture ADD CONSTRAINT backup_fixture_check CHECK (label IN ('one', 'two'))"],
+        ["triggers", "DROP TRIGGER backup_fixture_trigger ON backup_semantic_fixture",
+          "CREATE TRIGGER backup_fixture_trigger BEFORE INSERT ON backup_semantic_fixture FOR EACH ROW EXECUTE FUNCTION backup_fixture_trigger_fn()"],
+        ["constraints", "ALTER TABLE backup_semantic_fixture DROP CONSTRAINT backup_fixture_check; ALTER TABLE backup_semantic_fixture ADD CONSTRAINT backup_fixture_check CHECK (label IN ('one', 'three'))",
+          "ALTER TABLE backup_semantic_fixture DROP CONSTRAINT backup_fixture_check; ALTER TABLE backup_semantic_fixture ADD CONSTRAINT backup_fixture_check CHECK (label IN ('one', 'two'))"],
+        ["functions", "CREATE OR REPLACE FUNCTION backup_fixture_trigger_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$",
+          "CREATE OR REPLACE FUNCTION backup_fixture_trigger_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$"],
+        ["views", "CREATE OR REPLACE VIEW backup_fixture_view AS SELECT id, label FROM backup_semantic_fixture WHERE id > 0",
+          "CREATE OR REPLACE VIEW backup_fixture_view AS SELECT id, label FROM backup_semantic_fixture"],
+        ["rls", "ALTER TABLE backup_semantic_fixture DISABLE ROW LEVEL SECURITY",
+          "ALTER TABLE backup_semantic_fixture ENABLE ROW LEVEL SECURITY"],
+        ["policies", "ALTER POLICY backup_fixture_policy ON backup_semantic_fixture USING (id > 1)",
+          "ALTER POLICY backup_fixture_policy ON backup_semantic_fixture USING (id > 0)"],
+      ];
+      for (const [category, change, repair] of cases) {
+        await testPool.query(change);
+        try {
+          const actual = await readSemanticObjects();
+          expect(() => assertSemanticObjectsRestored(expected, actual), change).toThrow(category);
+        } finally {
+          await testPool.query(repair);
+        }
+      }
+      assertSemanticObjectsRestored(expected, await readSemanticObjects());
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   }, 120_000);
 });

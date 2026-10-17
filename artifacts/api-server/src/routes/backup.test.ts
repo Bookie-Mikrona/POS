@@ -46,6 +46,7 @@ vi.mock("../lib/objectStorage", () => ({
 }));
 
 import backupRouter, {
+  type BackupManifest,
   assertBackupCountersRestored,
   assertBackupManifestCompatible,
   assertBackupStructureRestored,
@@ -53,6 +54,7 @@ import backupRouter, {
   isBackupFileName,
   verifyBackupHeader,
 } from "./backup";
+import { assertSemanticObjectsRestored } from "../lib/backupSemanticManifest";
 
 function makeApp() {
   const app = express();
@@ -61,6 +63,46 @@ function makeApp() {
 }
 
 describe("backup filename validation", () => {
+  it("zavrne tudi pravilno podpisano staro kopijo brez semantičnega manifesta", () => {
+    const previous = process.env.BACKUP_SIGNING_KEY;
+    process.env.BACKUP_SIGNING_KEY = "legacy-manifest-test";
+    try {
+      const legacy = {
+        version: 1, database: "bookie", serverVersion: "16",
+        schemaFingerprint: "a".repeat(64), tables: [], foreignKeys: [], sequences: [],
+      } as unknown as BackupManifest;
+      const header = createBackupHeader("2026-08-22T10:30:00.000Z", "a".repeat(64), legacy);
+      expect(() => verifyBackupHeader(header)).toThrow("starejše kopije");
+      expect(() => assertBackupStructureRestored(legacy, legacy)).toThrow("različice 2");
+    } finally {
+      if (previous === undefined) delete process.env.BACKUP_SIGNING_KEY;
+      else process.env.BACKUP_SIGNING_KEY = previous;
+    }
+  });
+
+  it.each(["indexes", "constraints", "types", "views", "functions", "triggers", "eventTriggers", "rls", "policies", "extensions"])(
+    "zazna izgubo, spremembo in dodatek objekta %s",
+    (category) => {
+      const object = { category, identity: ["public", "example"], properties: { definition: "original" } };
+      expect(() => assertSemanticObjectsRestored([object], [])).toThrow(category);
+      expect(() => assertSemanticObjectsRestored([], [object])).toThrow(category);
+      expect(() => assertSemanticObjectsRestored([object], [{
+        ...object, properties: { definition: "changed" },
+      }])).toThrow(category);
+    },
+  );
+
+  it("primerjava ni odvisna od vrstnega reda objektov ali JSON ključev", () => {
+    const first = { category: "indexes", identity: ["public", "i"], properties: { a: 1, b: " x  y " } };
+    const second = { category: "types", identity: ["public", "t"], properties: { labels: ["a", "b"] } };
+    expect(() => assertSemanticObjectsRestored([first, second], [
+      second, { ...first, properties: { b: " x  y ", a: 1 } },
+    ])).not.toThrow();
+    expect(() => assertSemanticObjectsRestored([first], [
+      { ...first, properties: { a: 1, b: " x y " } },
+    ])).toThrow();
+  });
+
   it("sprejme samo Bookie SQL gzip kopije", () => {
     expect(
       isBackupFileName(
@@ -77,7 +119,8 @@ describe("backup filename validation", () => {
     process.env.BACKUP_SIGNING_KEY = "test-backup-signing-key";
     try {
       const manifest = {
-        version: 1 as const,
+        version: 2 as const,
+        semanticObjects: [],
         database: "bookie",
         serverVersion: "16",
         schemaFingerprint: "a".repeat(64),
@@ -110,7 +153,8 @@ describe("backup filename validation", () => {
 
   it("prepozna razliko v shemi pred obnovo", () => {
     const base = {
-      version: 1 as const,
+      version: 2 as const,
+      semanticObjects: [],
       database: "bookie",
       serverVersion: "16",
       schemaFingerprint: "a".repeat(64),
@@ -146,7 +190,8 @@ describe("backup filename validation", () => {
 
   it("po obnovi sprejme le tekstovno drugačen fingerprint iste strukture", () => {
     const base = {
-      version: 1 as const,
+      version: 2 as const,
+      semanticObjects: [],
       database: "bookie",
       serverVersion: "16",
       schemaFingerprint: "a".repeat(64),
@@ -182,7 +227,8 @@ describe("backup filename validation", () => {
 
   it("prepozna zamaknjen števec zaporedja po obnovi", () => {
     const base = {
-      version: 1 as const,
+      version: 2 as const,
+      semanticObjects: [],
       database: "bookie",
       serverVersion: "16",
       schemaFingerprint: "a".repeat(64),

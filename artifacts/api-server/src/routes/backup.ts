@@ -24,6 +24,11 @@ import multer from "multer";
 import { Router, type IRouter, type Request, type Response } from "express";
 
 import { pool } from "@workspace/db";
+import {
+  readSemanticObjects,
+  assertSemanticObjectsRestored,
+  type SemanticObject,
+} from "../lib/backupSemanticManifest";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import {
@@ -194,7 +199,8 @@ function getBackupSigningKey(): Buffer {
 }
 
 export type BackupManifest = {
-  version: 1;
+  version: 2;
+  semanticObjects: SemanticObject[];
   database: string;
   serverVersion: string;
   schemaFingerprint: string;
@@ -228,14 +234,16 @@ function parseManifestBase64(encoded: string): BackupManifest {
   if (
     !parsed ||
     typeof parsed !== "object" ||
-    (parsed as { version?: unknown }).version !== 1 ||
+    (parsed as { version?: unknown }).version !== 2 ||
+    !Array.isArray((parsed as { semanticObjects?: unknown }).semanticObjects) ||
     typeof (parsed as { schemaFingerprint?: unknown }).schemaFingerprint !== "string" ||
     !Array.isArray((parsed as { tables?: unknown }).tables) ||
     !Array.isArray((parsed as { foreignKeys?: unknown }).foreignKeys) ||
     !Array.isArray((parsed as { sequences?: unknown }).sequences)
   ) {
-    throw new Error("Manifest varnostne kopije je nepopoln ali nezdružljiv.");
+    throw new Error("Manifest varnostne kopije je nepopoln ali nezdružljiv. Obnova zahteva semantični manifest različice 2; starejše kopije zahtevajo ločen, nadzorovan postopek obnove.");
   }
+  assertSemanticManifestVersion(parsed as BackupManifest);
   return parsed as BackupManifest;
 }
 
@@ -252,15 +260,7 @@ function signBackupPayload(
 function createBackupHeader(
   createdAt: string,
   payloadSha256: string,
-  manifest: BackupManifest = {
-    version: 1,
-    database: "",
-    serverVersion: "",
-    schemaFingerprint: "",
-    tables: [],
-    foreignKeys: [],
-    sequences: [],
-  },
+  manifest: BackupManifest,
 ): string {
   const encodedManifest = manifestBase64(manifest);
   const manifestSha256 = createHash("sha256").update(encodedManifest).digest("hex");
@@ -521,7 +521,8 @@ async function readBackupManifest(options: {
   if (!database) throw new Error("Ni bilo mogoče prebrati metapodatkov PostgreSQL baze.");
 
   return {
-    version: 1,
+    version: 2,
+    semanticObjects: await readSemanticObjects(),
     database: database.database,
     serverVersion: database.server_version,
     schemaFingerprint:
@@ -574,6 +575,9 @@ export function assertBackupManifestCompatible(
   backup: BackupManifest,
   current: BackupManifest,
 ): void {
+  assertSemanticManifestVersion(backup);
+  assertSemanticManifestVersion(current);
+  assertSemanticObjectsRestored(backup.semanticObjects, current.semanticObjects);
   const backupMajor = backup.serverVersion.match(/\d+/)?.[0];
   const currentMajor = current.serverVersion.match(/\d+/)?.[0];
   if (
@@ -605,6 +609,9 @@ export function assertBackupStructureRestored(
   backup: BackupManifest,
   restored: BackupManifest,
 ): void {
+  assertSemanticManifestVersion(backup);
+  assertSemanticManifestVersion(restored);
+  assertSemanticObjectsRestored(backup.semanticObjects, restored.semanticObjects);
   const backupMajor = backup.serverVersion.match(/\d+/)?.[0];
   const restoredMajor = restored.serverVersion.match(/\d+/)?.[0];
   if (
@@ -616,6 +623,21 @@ export function assertBackupStructureRestored(
     throw new Error(
       "Obnovljena baza nima pričakovane strukture (tabele, stolpci, relacije ali sekvence se razlikujejo).",
     );
+  }
+}
+
+function assertSemanticManifestVersion(manifest: BackupManifest): void {
+  if (manifest.version !== 2 || !Array.isArray(manifest.semanticObjects)) {
+    throw new Error("Obnova zahteva semantični manifest različice 2; starejše kopije zahtevajo ločen, nadzorovan postopek obnove.");
+  }
+  for (const object of manifest.semanticObjects) {
+    if (!object || typeof object.category !== "string" ||
+      !Array.isArray(object.identity) || object.identity.length === 0 ||
+      !object.identity.every((part) => typeof part === "string") ||
+      !object.properties || typeof object.properties !== "object" ||
+      Array.isArray(object.properties)) {
+      throw new Error("Semantični manifest vsebuje neveljaven objekt.");
+    }
   }
 }
 
