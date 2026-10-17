@@ -25,6 +25,7 @@ import {
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { writeAuditLog } from "../lib/auditLog";
 import { accountingError } from "../lib/accountingErrors";
+import { getJournalEntryPostingFailure } from "../lib/journalEntryPostingPolicy";
 import {
   createVatLedgerEntries,
   reverseVatLedgerEntries,
@@ -321,8 +322,13 @@ router.post(
     }
 
     const { periodId, description, reference, lines: requestedLines, autoPost, sourceType } = parsed.data;
-    // Annual opening references are reserved for the audited annual-opening
-    // workflow. In particular, autoPost must never bypass its reconciliation.
+    if (autoPost) {
+      const creationPostingFailure = getJournalEntryPostingFailure({ sourceType: sourceType ?? "manual" });
+      if (creationPostingFailure) {
+        res.status(409).json(creationPostingFailure);
+        return;
+      }
+    }
     if (isReservedOpeningReference(reference)) {
       res.status(409).json({ error: "Letno otvoritev pripravite prek postopka v Računovodskih obdobjih" });
       return;
@@ -333,12 +339,7 @@ router.post(
     const [period] = await db
       .select({ id: accountingPeriodsTable.id, status: accountingPeriodsTable.status })
       .from(accountingPeriodsTable)
-      .where(
-        and(
-          eq(accountingPeriodsTable.id, periodId),
-          eq(accountingPeriodsTable.companyId, companyId),
-        ),
-      )
+      .where(and(eq(accountingPeriodsTable.id, periodId), eq(accountingPeriodsTable.companyId, companyId)))
       .limit(1);
 
     if (!period) {
@@ -387,39 +388,51 @@ router.post(
 
     if (allPartnerIds.length > 0) {
       const found = await db
-        .select({ id: counterpartiesTable.id })
-        .from(counterpartiesTable)
-        .where(and(inArray(counterpartiesTable.id, allPartnerIds), eq(counterpartiesTable.companyId, companyId)));
-      if (found.length !== allPartnerIds.length) {
-        res.status(400).json({ error: "Vsaj en poslovni partner ne obstaja ali ne pripada temu podjetju" });
+        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
+        .from(vatCodesTable)
+        .where(and(
+          inArray(vatCodesTable.id, allCompanyVatCodeIds),
+          eq(vatCodesTable.companyId, companyId),
+        ));
+      if (found.length !== allDepartmentIds.length) {
+        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
         return;
       }
     }
-    if (allCostCenterIds.length > 0) {
+    if (allCompanyVatCodeIds.length > 0) {
       const found = await db
-        .select({ id: costCentersTable.id })
-        .from(costCentersTable)
-        .where(and(inArray(costCentersTable.id, allCostCenterIds), eq(costCentersTable.companyId, companyId)));
-      if (found.length !== allCostCenterIds.length) {
-        res.status(400).json({ error: "Vsaj eno stroškovno mesto ne obstaja ali ne pripada temu podjetju" });
+        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
+        .from(vatCodesTable)
+        .where(and(
+          inArray(vatCodesTable.id, allCompanyVatCodeIds),
+          eq(vatCodesTable.companyId, companyId),
+        ));
+      if (found.length !== allDepartmentIds.length) {
+        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
         return;
       }
     }
-    if (allProjectIds.length > 0) {
+    if (allCompanyVatCodeIds.length > 0) {
       const found = await db
-        .select({ id: projectsTable.id })
-        .from(projectsTable)
-        .where(and(inArray(projectsTable.id, allProjectIds), eq(projectsTable.companyId, companyId)));
-      if (found.length !== allProjectIds.length) {
-        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
+        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
+        .from(vatCodesTable)
+        .where(and(
+          inArray(vatCodesTable.id, allCompanyVatCodeIds),
+          eq(vatCodesTable.companyId, companyId),
+        ));
+      if (found.length !== allDepartmentIds.length) {
+        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
         return;
       }
     }
-    if (allDepartmentIds.length > 0) {
+    if (allCompanyVatCodeIds.length > 0) {
       const found = await db
-        .select({ id: departmentsTable.id })
-        .from(departmentsTable)
-        .where(and(inArray(departmentsTable.id, allDepartmentIds), eq(departmentsTable.companyId, companyId)));
+        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
+        .from(vatCodesTable)
+        .where(and(
+          inArray(vatCodesTable.id, allCompanyVatCodeIds),
+          eq(vatCodesTable.companyId, companyId),
+        ));
       if (found.length !== allDepartmentIds.length) {
         res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
         return;
@@ -473,7 +486,7 @@ router.post(
 
     // §68 — Za autoPost preveri balance pred insertom (Decimal natančnost)
     if (autoPost) {
-      const balanceErr = checkBalance(lines.map((l) => ({ side: l.side, amount: l.amount.toFixed(2) })));
+      const balanceErr = checkBalance(lines.map(line => ({ side: line.side, amount: String(line.amount) })));
       if (balanceErr) { res.status(400).json(balanceErr); return; }
     }
 
@@ -571,12 +584,12 @@ router.post(
       return newEntry;
     });
 
-    const result = await fetchEntryWithLines(entry.id);
-    res.status(201).json(result);
+    const createdResult = await fetchEntryWithLines(entry.id);
+    res.status(201).json(createdResult);
   },
 );
 
-// ─── GET /companies/:companyId/entries/:id ────────────────────────────────────
+// ─── GET /companies/:companyId/entries/:id ───────────────────────────────────
 router.get(
   "/companies/:companyId/entries/:id",
   requireAuth,
@@ -600,12 +613,12 @@ router.get(
       return;
     }
 
-    const result = await fetchEntryWithLines(id);
-    res.json(result);
+    const detailResult = await fetchEntryWithLines(id);
+    res.json(detailResult);
   },
 );
 
-// ─── DELETE /companies/:companyId/entries/:id ───────────────────────────────
+// ─── DELETE /companies/:companyId/entries/:id ────────────────────────────────
 router.delete(
   "/companies/:companyId/entries/:id",
   requireAuth,
@@ -676,6 +689,11 @@ router.post(
     }
     if (entry.status !== "draft") {
       res.status(400).json(accountingError("ENTRY_NOT_BALANCED", "Samo osnutke je mogoče knjižiti"));
+      return;
+    }
+    const postingFailure = getJournalEntryPostingFailure(entry);
+    if (postingFailure) {
+      res.status(409).json(postingFailure);
       return;
     }
     const [unconfirmedReceipt] = await db
@@ -915,8 +933,8 @@ router.post(
       return;
     }
 
-    const result = await fetchEntryWithLines(id);
-    res.json(result);
+    const postedResult = await fetchEntryWithLines(id);
+    res.json(postedResult);
   },
 );
 

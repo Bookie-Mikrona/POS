@@ -534,33 +534,42 @@ async function loadIncomeStatement(companyId: string, dateFrom: string | undefin
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-// GET /companies/:companyId/reports/balance-sheet
-router.get(
-  "/companies/:companyId/reports/balance-sheet",
-  requireAuth,
-  async (req: Request, res: Response): Promise<void> => {
-    const authReq = req as AuthenticatedRequest;
-    const companyId = extractParam(req.params.companyId);
+async function getBalanceSheetReport(req: Request, res: Response): Promise<void> {
+  const companyId = extractParam(req.params.companyId);
+  if (!await resolveAccess((req as AuthenticatedRequest).clerkUserId, companyId, res)) return;
+  const { asOf, compareAsOf } = req.query as Record<string, string | undefined>;
+  try {
+    const current = await loadBalanceSheet(companyId, asOf);
+    const compare = compareAsOf ? await loadBalanceSheet(companyId, compareAsOf) : null;
+    res.json({ asOf: asOf ?? null, compareAsOf: compareAsOf ?? null, current, compare });
+  } catch (error) {
+    res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+}
 
-    const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
-    if (!ok) return;
+async function getIncomeStatementReport(req: Request, res: Response): Promise<void> {
+  const companyId = extractParam(req.params.companyId);
+  if (!await resolveAccess((req as AuthenticatedRequest).clerkUserId, companyId, res)) return;
+  const { dateFrom, dateTo, compareDateFrom, compareDateTo } =
+    req.query as Record<string, string | undefined>;
+  try {
+    const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
+    const compare = compareDateFrom || compareDateTo
+      ? await loadIncomeStatement(companyId, compareDateFrom, compareDateTo)
+      : null;
+    res.json({
+      dateFrom: dateFrom ?? null, dateTo: dateTo ?? null,
+      compareDateFrom: compareDateFrom ?? null, compareDateTo: compareDateTo ?? null,
+      current, compare,
+    });
+  } catch (error) {
+    res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+}
 
-    const { asOf, compareAsOf } = req.query as Record<string, string | undefined>;
+router.get("/companies/:companyId/reports/balance-sheet", requireAuth, getBalanceSheetReport);
+router.get("/companies/:companyId/reports/income-statement", requireAuth, getIncomeStatementReport);
 
-    let balanceSheetCurrent: Awaited<ReturnType<typeof loadBalanceSheet>>;
-    let balanceSheetCompare: Awaited<ReturnType<typeof loadBalanceSheet>> | null = null;
-    const authReq = req as AuthenticatedRequest;
-    const companyId = extractParam(req.params.companyId);
-
-    const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
-    if (!ok) return;
-
-    const { dateFrom, dateTo, compareDateFrom, compareDateTo } =
-      req.query as Record<string, string | undefined>;
-
-    // Income statement is period-based — only entries within [dateFrom, dateTo].
-    let incomeStatementCurrent: Awaited<ReturnType<typeof loadIncomeStatement>>;
-    let incomeStatementCompare: Awaited<ReturnType<typeof loadIncomeStatement>> | null = null;
 type DimensionType = "costCenter" | "project" | "department";
 
 interface AccountBreakdownRow {
@@ -686,134 +695,93 @@ router.get(
       { dimId: string; accountId: string; code: string; name: string; debit: number; credit: number }
     >();
 
-    if (withAccountBreakdown) {
-      const accountDimensionRows = await db
-        .select({
-          dimId: dimTable.id,
-          dimCode: dimTable.code,
-          dimName: dimTable.name,
-          accountId: journalEntryLinesTable.accountId,
-          accountCode: accountsTable.code,
-          accountName: accountsTable.name,
-          side: journalEntryLinesTable.side,
-          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
-        })
-        .from(journalEntryLinesTable)
-        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
-        .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
-        .where(and(...allConditions))
-        .groupBy(
-          dimTable.id, dimTable.code, dimTable.name,
-          journalEntryLinesTable.accountId, accountsTable.code, accountsTable.name,
-          journalEntryLinesTable.side,
-        );
-      const amount = parseFloat(row.amount);
-        if (row.side === "debit") existing.debit += amount;
-        else existing.credit += amount;
-        dimMap.set(row.dimId, existing);
-      }
-    }
+    // A single line-level aggregate supplies both views so their totals agree.
+    const dimensionAccountTotals = await db
+      .select({
+        dimId: dimTable.id,
+        dimCode: dimTable.code,
+        dimName: dimTable.name,
+        accountId: journalEntryLinesTable.accountId,
+        accountCode: accountsTable.code,
+        accountName: accountsTable.name,
+        side: journalEntryLinesTable.side,
+        total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+      })
+      .from(journalEntryLinesTable)
+      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+      .innerJoin(dimTable, and(eq(dimTable.id, dimFkCol), eq(dimTable.companyId, companyId)))
+      .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+      .where(and(...allConditions))
+      .groupBy(
+        dimTable.id, dimTable.code, dimTable.name,
+        journalEntryLinesTable.accountId, accountsTable.code, accountsTable.name,
+        journalEntryLinesTable.side,
+      );
 
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
+    for (const aggregate of dimensionAccountTotals) {
+      const amount = Number(aggregate.total);
+      const dim = dimMap.get(aggregate.dimId) ?? {
+        code: aggregate.dimCode, name: aggregate.dimName, debit: 0, credit: 0,
+      };
+      if (aggregate.side === "debit") dim.debit += amount;
+      else dim.credit += amount;
+      dimMap.set(aggregate.dimId, dim);
 
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
-
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
-        const dimExisting = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
-        if (row.side === "debit") dimExisting.debit += amount;
-        else dimExisting.credit += amount;
-        dimMap.set(row.dimId, dimExisting);
-
-        // Account-level aggregate
-        const key = `${row.dimId}::${row.accountId}`;
-        const accExisting = accountMap.get(key) ?? {
-          dimId: row.dimId,
-          accountId: row.accountId,
-          code: row.accountCode,
-          name: row.accountName,
-          debit: 0,
-          credit: 0,
+      if (withAccountBreakdown) {
+        const key = `${aggregate.dimId}::${aggregate.accountId}`;
+        const account = accountMap.get(key) ?? {
+          dimId: aggregate.dimId, accountId: aggregate.accountId,
+          code: aggregate.accountCode, name: aggregate.accountName, debit: 0, credit: 0,
         };
-        if (row.side === "debit") accExisting.debit += amount;
-        else accExisting.credit += amount;
-        accountMap.set(key, accExisting);
-      }
-    } else {
-      const dimensionRows = await db
-        .select({
-          dimId: dimTable.id,
-          dimCode: dimTable.code,
-          dimName: dimTable.name,
-          side: journalEntryLinesTable.side,
-          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
-        })
-        .from(journalEntryLinesTable)
-        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
-        .where(and(...allConditions))
-        .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
-        const existing = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
-      const amount = parseFloat(row.amount);
-        if (row.side === "debit") existing.debit += amount;
-        else existing.credit += amount;
-        dimMap.set(row.dimId, existing);
+        if (aggregate.side === "debit") account.debit += amount;
+        else account.credit += amount;
+        accountMap.set(key, account);
       }
     }
 
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
+    // Untagged details use exactly the report's tenant/date/account/status scope.
+    const untaggedLines = await db
+      .select({
+        lineId: journalEntryLinesTable.id,
+        entryId: journalEntriesTable.id,
+        entryDate: journalEntriesTable.entryDate,
+        reference: journalEntriesTable.reference,
+        entryDescription: journalEntriesTable.description,
+        description: journalEntryLinesTable.description,
+        accountCode: accountsTable.code,
+        accountName: accountsTable.name,
+        side: journalEntryLinesTable.side,
+        amount: journalEntryLinesTable.amount,
+      })
+      .from(journalEntryLinesTable)
+      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+      .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+      .where(and(...jeConditions, isNull(dimFkCol), ...lineConditions))
+      .orderBy(journalEntriesTable.entryDate, journalEntriesTable.id,
+        journalEntryLinesTable.sequence, journalEntryLinesTable.id);
+    const untaggedDebit = untaggedLines.reduce((sum, line) =>
+      sum + (line.side === "debit" ? Number(line.amount) : 0), 0);
+    const untaggedCredit = untaggedLines.reduce((sum, line) =>
+      sum + (line.side === "credit" ? Number(line.amount) : 0), 0);
 
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
-
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
-      const amount = parseFloat(row.amount);
-        if (row.side === "debit") existing.debit += amount;
-        else existing.credit += amount;
-        dimMap.set(row.dimId, existing);
+    const reportRows: DimensionReportRow[] = Array.from(dimMap, ([id, dim]) => {
+      const reportRow: DimensionReportRow = {
+        id, code: dim.code, name: dim.name,
+        totalDebit: dim.debit.toFixed(2), totalCredit: dim.credit.toFixed(2),
+        balance: (dim.debit - dim.credit).toFixed(2),
+      };
+      if (withAccountBreakdown) {
+        reportRow.accounts = Array.from(accountMap.values())
+          .filter(account => account.dimId === id)
+          .map(account => ({
+            accountId: account.accountId, code: account.code, name: account.name,
+            totalDebit: account.debit.toFixed(2), totalCredit: account.credit.toFixed(2),
+            balance: (account.debit - account.credit).toFixed(2),
+          }))
+          .sort((a, b) => a.code.localeCompare(b.code));
       }
-    }
-
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
-
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
-
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
+      return reportRow;
+    }).sort((a, b) => a.code.localeCompare(b.code));
     const grandTotalDebit = reportRows.reduce((s, r) => s + parseFloat(r.totalDebit), 0);
     const grandTotalCredit = reportRows.reduce((s, r) => s + parseFloat(r.totalCredit), 0);
 
@@ -1348,61 +1316,3 @@ router.get(
 );
 
 export default router;
-    const untaggedLines = await db
-      .select({
-        lineId: journalEntryLinesTable.id,
-        entryId: journalEntriesTable.id,
-        entryDate: journalEntriesTable.entryDate,
-        reference: journalEntriesTable.reference,
-        entryDescription: journalEntriesTable.description,
-        description: journalEntryLinesTable.description,
-        accountCode: accountsTable.code,
-        accountName: accountsTable.name,
-        side: journalEntryLinesTable.side,
-        amount: journalEntryLinesTable.amount,
-      })
-      .from(journalEntryLinesTable)
-      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-      .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
-      .where(and(...untaggedConditions))
-      .orderBy(
-        journalEntriesTable.entryDate,
-        journalEntriesTable.id,
-        journalEntryLinesTable.sequence,
-        journalEntryLinesTable.id,
-      );
-
-    let untaggedCredit = 0;
-
-    const reportRows: DimensionReportRow[] = Array.from(dimMap.entries())
-      .map(([id, dim]) => {
-        const row: DimensionReportRow = {
-          id,
-          code: dim.code,
-          name: dim.name,
-          totalDebit: dim.debit.toFixed(2),
-          totalCredit: dim.credit.toFixed(2),
-          balance: (dim.debit - dim.credit).toFixed(2),
-        };
-
-        if (withAccountBreakdown) {
-          // Collect account sub-rows for this dimension, sorted by account code
-          const accRows: AccountBreakdownRow[] = Array.from(accountMap.values())
-            .filter((a) => a.dimId === id)
-            .map((a) => ({
-              accountId: a.accountId,
-              code: a.code,
-              name: a.name,
-              totalDebit: a.debit.toFixed(2),
-              totalCredit: a.credit.toFixed(2),
-              balance: (a.debit - a.credit).toFixed(2),
-            }))
-            .sort((a, b) => a.code.localeCompare(b.code));
-          row.accounts = accRows;
-        }
-
-        return row;
-      })
-      .sort((a, b) => a.code.localeCompare(b.code));
-
-    let untaggedDebit = 0;

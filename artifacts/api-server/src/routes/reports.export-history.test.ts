@@ -1,6 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { REPORT_EXPORT_RETENTION_DAYS } from "../lib/reportExportRetention";
 
 const state = vi.hoisted(() => ({
   getUserList: vi.fn(),
@@ -26,7 +27,6 @@ vi.mock("@workspace/db", async (importOriginal) => ({
 }));
 
 import router from "./reports";
-import { REPORT_EXPORT_RETENTION_DAYS } from "../lib/reportExportRetention";
 
 const app = express();
 app.use(router);
