@@ -62,6 +62,13 @@ const statusClass: Record<SupplierOrderStatus, string> = {
 const hasInternalNoteWithoutSupplierInstructions = (
   order: Pick<SupplierOrderSummary, "internalNotes" | "supplierNotes">,
 ) => Boolean(order.internalNotes?.trim()) && !order.supplierNotes?.trim();
+function focusIfAvailable(target: HTMLElement | null, fallback: HTMLElement | null = null) {
+  if (target?.isConnected) {
+    target.focus();
+    return;
+  }
+  if (fallback?.isConnected) fallback.focus();
+}
 const formatQty = (value: number | null | undefined, digits = 2) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { maximumFractionDigits: digits }).format(value);
 const formatDate = (value?: string | null) =>
@@ -353,6 +360,9 @@ export default function NarocilaDobaviteljem() {
   const refetchActiveOrders = missingSupplierInstructionsOnly ? refetchMissingInstructions : refetchOrders;
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [expandedReceiptLineId, setExpandedReceiptLineId] = useState<number | null>(null);
+  const orderDetailsTriggerRef = useRef<HTMLElement | null>(null);
+  const orderDetailsDialogRef = useRef<HTMLElement | null>(null);
+  const orderDetailsWasOpenRef = useRef(false);
   const { data: orderDetail, isLoading: detailLoading, isError: detailError, refetch: refetchDetail } =
     useGetSupplierOrder(selectedOrderId ?? 0, {
       query: { enabled: selectedOrderId !== null, queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0) },
@@ -391,11 +401,22 @@ export default function NarocilaDobaviteljem() {
   const [settingTarget, setSettingTarget] = useState("");
   const [settingMapping, setSettingMapping] = useState("");
   const [orderEditor, setOrderEditor] = useState<SupplierOrderEditorState | null>(null);
+  const newOrderButtonRef = useRef<HTMLButtonElement | null>(null);
+  const orderEditorTriggerRef = useRef<HTMLElement | null>(null);
+  const orderEditorFallbackTriggerRef = useRef<HTMLElement | null>(null);
+  const orderEditorDialogRef = useRef<HTMLElement | null>(null);
+  const orderEditorWasOpenRef = useRef(false);
+  const suppressOrderEditorFocusRestoreRef = useRef(false);
   const [discardOrderEditorPromptOpen, setDiscardOrderEditorPromptOpen] = useState(false);
+  const discardOrderEditorPromptTriggerRef = useRef<HTMLElement | null>(null);
+  const discardOrderEditorPromptWasOpenRef = useRef(false);
+  const orderEditorCancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const orderEditorBaseline = useRef<string | null>(null);
   const pendingInternalNavigationRef = useRef<(() => void) | null>(null);
   const [closeReason, setCloseReason] = useState("");
   const [closeDialog, setCloseDialog] = useState(false);
+  const closeDialogTriggerRef = useRef<HTMLElement | null>(null);
+  const closeDialogWasOpenRef = useRef(false);
   const [packageReview, setPackageReview] = useState<{
     order: SupplierOrderDetail;
     lines: SupplierOrderDetail["lines"];
@@ -405,8 +426,70 @@ export default function NarocilaDobaviteljem() {
   const hasUnsavedOrderEditorChanges = Boolean(
     orderEditor && orderEditorBaseline.current !== JSON.stringify(orderEditor),
   );
+  const orderEditorOpen = orderEditor !== null;
 
-  const openOrderEditor = (editor: SupplierOrderEditorState) => {
+  useEffect(() => {
+    if (selectedOrderId !== null) {
+      orderDetailsWasOpenRef.current = true;
+      orderDetailsDialogRef.current?.focus();
+      return;
+    }
+    if (orderDetailsWasOpenRef.current) {
+      orderDetailsWasOpenRef.current = false;
+      focusIfAvailable(orderDetailsTriggerRef.current, newOrderButtonRef.current);
+    }
+  }, [selectedOrderId]);
+
+  useEffect(() => {
+    if (orderEditorOpen) {
+      if (!orderEditorWasOpenRef.current) orderEditorDialogRef.current?.focus();
+      orderEditorWasOpenRef.current = true;
+      return;
+    }
+    if (orderEditorWasOpenRef.current) {
+      orderEditorWasOpenRef.current = false;
+      if (suppressOrderEditorFocusRestoreRef.current) {
+        suppressOrderEditorFocusRestoreRef.current = false;
+        return;
+      }
+      focusIfAvailable(orderEditorTriggerRef.current, orderEditorFallbackTriggerRef.current);
+    }
+  }, [orderEditorOpen]);
+
+  useEffect(() => {
+    if (discardOrderEditorPromptOpen) {
+      discardOrderEditorPromptWasOpenRef.current = true;
+      return;
+    }
+    if (discardOrderEditorPromptWasOpenRef.current) {
+      discardOrderEditorPromptWasOpenRef.current = false;
+      focusIfAvailable(
+        discardOrderEditorPromptTriggerRef.current,
+        orderEditorCancelButtonRef.current ?? orderEditorDialogRef.current,
+      );
+    }
+  }, [discardOrderEditorPromptOpen]);
+
+  useEffect(() => {
+    if (closeDialog) {
+      closeDialogWasOpenRef.current = true;
+      return;
+    }
+    if (closeDialogWasOpenRef.current) {
+      closeDialogWasOpenRef.current = false;
+      focusIfAvailable(closeDialogTriggerRef.current, orderDetailsDialogRef.current);
+    }
+  }, [closeDialog]);
+
+  const openOrderEditor = (
+    editor: SupplierOrderEditorState,
+    trigger?: HTMLElement | null,
+    fallbackTrigger?: HTMLElement | null,
+  ) => {
+    const activeElement = document.activeElement;
+    orderEditorTriggerRef.current = trigger
+      ?? (activeElement instanceof HTMLElement ? activeElement : null);
+    orderEditorFallbackTriggerRef.current = fallbackTrigger ?? newOrderButtonRef.current;
     orderEditorBaseline.current = JSON.stringify(editor);
     setDiscardOrderEditorPromptOpen(false);
     setOrderEditor(editor);
@@ -426,9 +509,14 @@ export default function NarocilaDobaviteljem() {
     closeOrderEditor();
     pendingNavigation?.();
   };
-  const requestCloseOrderEditor = () => {
+  const requestCloseOrderEditor = (trigger?: HTMLElement | null) => {
     if (!orderEditor || createOrder.isPending || updateOrder.isPending) return;
     if (orderEditorBaseline.current !== JSON.stringify(orderEditor)) {
+      const activeElement = document.activeElement;
+      discardOrderEditorPromptTriggerRef.current = trigger
+        ?? (activeElement instanceof HTMLElement && orderEditorDialogRef.current?.contains(activeElement)
+          ? activeElement
+          : orderEditorCancelButtonRef.current ?? orderEditorDialogRef.current);
       setDiscardOrderEditorPromptOpen(true);
       return;
     }
@@ -444,6 +532,8 @@ export default function NarocilaDobaviteljem() {
         else navigateTo(to, options);
       };
       pendingInternalNavigationRef.current = continueNavigation;
+      discardOrderEditorPromptTriggerRef.current = orderEditorCancelButtonRef.current
+        ?? orderEditorDialogRef.current;
       setDiscardOrderEditorPromptOpen(true);
       return true;
     });
@@ -528,15 +618,19 @@ export default function NarocilaDobaviteljem() {
       await refreshLists();
     } catch (error) { showError(error, "Nastavitev ni bilo mogoče shraniti."); }
   };
-  const startNewOrder = (supplierId?: string) => {
+  const startNewOrder = (supplierId?: string, trigger?: HTMLElement | null) => {
     const supplier = supplierId
       ? articles.flatMap(article => article.mappings).find(mapping => mapping.supplierId === supplierId)
       : undefined;
-    openOrderEditor({ supplierId: supplierId ?? "", date: "", internalNotes: "", supplierNotes: "", rows: [] });
+    openOrderEditor(
+      { supplierId: supplierId ?? "", date: "", internalNotes: "", supplierNotes: "", rows: [] },
+      trigger,
+      newOrderButtonRef.current,
+    );
     setActiveView("suggestions");
     if (supplier) setNotice({ text: `Sestavljate osnutek za ${supplier.supplierName}.` });
   };
-  const prepareSuggestedOrder = (supplierId: string) => {
+  const prepareSuggestedOrder = (supplierId: string, trigger?: HTMLElement | null) => {
     const supplierArticles = suggestedBySupplier.get(supplierId) ?? [];
     const mappingsByArticle = supplierArticles.flatMap(article => {
       const mapping = article.mappings.find(item => item.id === article.preferredMappingId && item.active) ??
@@ -557,14 +651,14 @@ export default function NarocilaDobaviteljem() {
     });
     if (!rows.length) {
       setNotice({ text: "Za tega dobavitelja ni postavk z določeno prednostno povezavo. Dodajte jih ročno.", error: true });
-      startNewOrder(supplierId);
+      startNewOrder(supplierId, trigger);
       return;
     }
     const mapping = mappingsByArticle[0]?.mapping;
-    openOrderEditor({ supplierId, date: "", internalNotes: "", supplierNotes: "", rows });
+    openOrderEditor({ supplierId, date: "", internalNotes: "", supplierNotes: "", rows }, trigger);
     setNotice({ text: `Predlog vključuje ${rows.length} artiklov${mapping ? ` za ${mapping.supplierName}` : ""}.` });
   };
-  const editSelectedOrder = () => {
+  const editSelectedOrder = (trigger?: HTMLElement | null) => {
     if (!orderDetail) return;
     openOrderEditor({
       id: orderDetail.id,
@@ -577,7 +671,7 @@ export default function NarocilaDobaviteljem() {
         packageQuantity: line.packageQuantity,
         unitPrice: line.unitPrice ?? undefined,
       })),
-    });
+    }, trigger, orderDetailsTriggerRef.current);
     setSelectedOrderId(null);
   };
   const requestPrintOrder = () => {
@@ -614,7 +708,11 @@ export default function NarocilaDobaviteljem() {
       const result = orderEditor.id
         ? await updateOrder.mutateAsync({ id: orderEditor.id, data })
         : await createOrder.mutateAsync({ data });
+      suppressOrderEditorFocusRestoreRef.current = true;
       closeOrderEditor();
+      orderDetailsTriggerRef.current = orderEditorFallbackTriggerRef.current
+        ?? orderEditorTriggerRef.current
+        ?? newOrderButtonRef.current;
       setSelectedOrderId(result.id);
       setActiveView("orders");
       setNotice({ text: `Osnutek ${result.number} je shranjen. Naročilo samo ne spremeni zaloge ali računovodstva.` });
@@ -706,7 +804,7 @@ export default function NarocilaDobaviteljem() {
   const toggleArticle = (id: number) => setArticleSelection(current =>
     current.includes(id) ? current.filter(value => value !== id) : [...current, id],
   );
-  const startSelectedSuggested = () => {
+  const startSelectedSuggested = (trigger?: HTMLElement | null) => {
     const selected = suggestions.filter(article => articleSelection.includes(article.articleId));
     const firstMapping = selected.flatMap(article => article.mappings)
       .find(mapping => mapping.active && selected.some(article =>
@@ -725,7 +823,7 @@ export default function NarocilaDobaviteljem() {
       return;
     }
     setArticleSelection([]);
-    prepareSuggestedOrder(supplierId);
+    prepareSuggestedOrder(supplierId, trigger);
   };
 
   const busy = saveSettings.isPending || createOrder.isPending || updateOrder.isPending ||
@@ -748,7 +846,7 @@ export default function NarocilaDobaviteljem() {
           <Button variant="outline" className="border-[#cfc5b4] bg-[#fffefa] text-[#314a44]" onClick={() => { void refetchDashboard(); void refetchOrders(); void refetchMissingInstructions(); }}>
             <RefreshCw className="mr-2 h-4 w-4" /> Osveži
           </Button>
-          <Button className="bg-[#285d50] text-white hover:bg-[#204b41]" onClick={() => startNewOrder()}>
+          <Button ref={newOrderButtonRef} className="bg-[#285d50] text-white hover:bg-[#204b41]" onClick={event => startNewOrder(undefined, event.currentTarget)}>
             <Plus className="mr-2 h-4 w-4" /> Novo naročilo
           </Button>
         </div>
@@ -791,7 +889,7 @@ export default function NarocilaDobaviteljem() {
             <p className="mt-0.5 text-xs text-[#77817b]">Količina naročila upošteva odprte količine iz že obstoječih naročil.</p>
           </div>
           <div className="orders-no-print flex gap-2">
-            {articleSelection.length > 0 && <Button size="sm" variant="outline" onClick={startSelectedSuggested} className="border-[#c9d7cf] text-[#285d50]">
+            {articleSelection.length > 0 && <Button size="sm" variant="outline" onClick={event => startSelectedSuggested(event.currentTarget)} className="border-[#c9d7cf] text-[#285d50]">
               <ShoppingCart className="mr-1.5 h-4 w-4" /> Pripravi izbrane ({articleSelection.length})
             </Button>}
             <Button size="sm" variant="outline" className="border-[#ded6c7]" onClick={() => setActiveView("orders")}><ClipboardList className="mr-1.5 h-4 w-4" /> Seznam naročil</Button>
@@ -1006,7 +1104,7 @@ export default function NarocilaDobaviteljem() {
           <div className="flex flex-wrap gap-2">
             {[...suggestedBySupplier.entries()].map(([supplierId, supplierArticles]) => {
               const supplierName = supplierArticles[0]?.mappings.find(mapping => mapping.supplierId === supplierId)?.supplierName ?? "Dobavitelj";
-              return <Button key={supplierId} size="sm" variant="outline" className="h-8 border-[#cdd9d0] bg-[#fffefa] text-[#285d50]" onClick={() => prepareSuggestedOrder(supplierId)}>
+              return <Button key={supplierId} size="sm" variant="outline" className="h-8 border-[#cdd9d0] bg-[#fffefa] text-[#285d50]" onClick={event => prepareSuggestedOrder(supplierId, event.currentTarget)}>
                 <Plus className="mr-1 h-3.5 w-3.5" /> Osnutek · {supplierName} ({supplierArticles.length})
               </Button>;
             })}
@@ -1056,7 +1154,7 @@ export default function NarocilaDobaviteljem() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf3ed] text-[#416c5e]"><FileText className="h-6 w-6" /></div>
           <h3 className="mt-3 font-bold text-[#28453f]">{activeOrderSearch ? "Ni zadetkov za iskanje" : missingSupplierInstructionsOnly ? "Ni naročil z interno opombo brez navodila" : "Za ta filter ni naročil"}</h3>
           <p className="mt-1 text-sm text-[#748079]">{activeOrderSearch ? "Preverite številko naročila ali naziv dobavitelja oziroma spremenite izbrane filtre." : missingSupplierInstructionsOnly ? "Za izbrani status ni naročil z interno opombo in praznim navodilom za dobavitelja." : "Ustvarite osnutek iz predlogov ali dodajte naročilo ročno."}</p>
-          {!missingSupplierInstructionsOnly && <Button className="mt-4 bg-[#285d50] text-white hover:bg-[#204b41]" onClick={() => startNewOrder()}><Plus className="mr-2 h-4 w-4" /> Novo naročilo</Button>}
+          {!missingSupplierInstructionsOnly && <Button className="mt-4 bg-[#285d50] text-white hover:bg-[#204b41]" onClick={event => startNewOrder(undefined, event.currentTarget)}><Plus className="mr-2 h-4 w-4" /> Novo naročilo</Button>}
         </div> : <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-sm">
             <thead className="bg-[#f7f4ec] text-[10px] font-bold uppercase tracking-[.13em] text-[#76817a]"><tr><th className="px-5 py-3">Številka</th><th className="px-3 py-3">Dobavitelj</th><th className="px-3 py-3">Ustvarjeno</th><th className="px-3 py-3">Predvidena dostava</th><th className="px-3 py-3 text-center">Postavke</th><th className="px-3 py-3">Status</th><th className="px-5 py-3 text-right">Odpri</th></tr></thead>
@@ -1067,7 +1165,10 @@ export default function NarocilaDobaviteljem() {
               <td className="px-3 py-3 text-[#6b7770]">{formatDate(order.expectedDeliveryDate)}</td>
               <td className="px-3 py-3 text-center data-mono text-[#50645b]">{order.lineCount}</td>
               <td className="px-3 py-3"><StatusPill status={order.status} /></td>
-              <td className="orders-no-print px-5 py-3 text-right"><Button variant="ghost" size="sm" data-testid={`button-open-supplier-order-${order.id}`} className="text-[#285d50]" onClick={() => setSelectedOrderId(order.id)}>Podrobnosti <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Button></td>
+              <td className="orders-no-print px-5 py-3 text-right"><Button variant="ghost" size="sm" data-testid={`button-open-supplier-order-${order.id}`} className="text-[#285d50]" onClick={event => {
+                orderDetailsTriggerRef.current = event.currentTarget;
+                setSelectedOrderId(order.id);
+              }}>Podrobnosti <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Button></td>
             </tr>)}</tbody>
           </table>
         </div>}
@@ -1103,13 +1204,26 @@ export default function NarocilaDobaviteljem() {
       className="fixed inset-0 z-[90] flex items-center justify-center bg-[#172a25]/50 p-3"
       onMouseDown={event => { if (event.target === event.currentTarget) requestCloseOrderEditor(); }}
     >
-      <section role="dialog" aria-modal="true" aria-labelledby="order-editor-title" className="max-h-[94dvh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#ddd4c4] bg-[#fffefa] shadow-2xl">
+      <section
+        ref={orderEditorDialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-editor-title"
+        onKeyDownCapture={event => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          requestCloseOrderEditor();
+        }}
+        className="max-h-[94dvh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#ddd4c4] bg-[#fffefa] shadow-2xl"
+      >
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur">
           <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#628174]">{orderEditor.id ? "Uredi osnutek" : "Nov osnutek"}</p><h2 id="order-editor-title" className="mt-1 text-xl font-bold text-[#203d39]">Naročilo dobavitelju</h2></div>
           <button
             type="button"
             data-testid="button-close-supplier-order-editor"
-            onClick={requestCloseOrderEditor}
+            onClick={event => requestCloseOrderEditor(event.currentTarget)}
             disabled={createOrder.isPending || updateOrder.isPending}
             aria-label="Zapri"
             className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8] disabled:opacity-50"
@@ -1207,11 +1321,23 @@ export default function NarocilaDobaviteljem() {
           </p>
           <p className="rounded-lg bg-[#f2f4ed] px-3 py-2 text-xs leading-relaxed text-[#66746b]">Po shranjevanju lahko naročilo pregledate in natisnete; v izpisu bo samo shranjeno navodilo dobavitelju. Shranjevanje ali označitev kot poslano ne spremeni zaloge in ne ustvari računovodske knjižbe.</p>
         </div>
-        <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur"><Button type="button" variant="outline" data-testid="button-cancel-supplier-order-editor" disabled={createOrder.isPending || updateOrder.isPending} onClick={requestCloseOrderEditor}>Prekliči</Button><Button disabled={busy} onClick={() => void saveOrderDraft()} className="bg-[#285d50] text-white hover:bg-[#204b41]">{busy ? "Shranjujem…" : "Shrani osnutek"}</Button></div>
+        <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur"><Button ref={orderEditorCancelButtonRef} type="button" variant="outline" data-testid="button-cancel-supplier-order-editor" disabled={createOrder.isPending || updateOrder.isPending} onClick={event => requestCloseOrderEditor(event.currentTarget)}>Prekliči</Button><Button disabled={busy} onClick={() => void saveOrderDraft()} className="bg-[#285d50] text-white hover:bg-[#204b41]">{busy ? "Shranjujem…" : "Shrani osnutek"}</Button></div>
       </section>
     </div>}
     {orderEditor && discardOrderEditorPromptOpen && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#172a25]/60 p-3">
-      <section role="alertdialog" aria-modal="true" aria-labelledby="unsaved-order-editor-title" aria-describedby="unsaved-order-editor-description" className="w-full max-w-md rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl">
+      <section
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="unsaved-order-editor-title"
+        aria-describedby="unsaved-order-editor-description"
+        onKeyDownCapture={event => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          continueEditingOrder();
+        }}
+        className="w-full max-w-md rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl"
+      >
         <h2 id="unsaved-order-editor-title" className="text-lg font-bold text-[#203d39]">Osnutek ima neshranjene spremembe</h2>
         <p id="unsaved-order-editor-description" className="mt-2 text-sm leading-relaxed text-[#68756e]">Če zaprete urejevalnik, se bodo vaše spremembe izgubile.</p>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -1222,13 +1348,26 @@ export default function NarocilaDobaviteljem() {
     </div>}
 
     {selectedOrderId !== null && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#172a25]/50 p-3" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedOrderId(null); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="max-h-[94dvh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#ddd4c4] bg-[#fffefa] shadow-2xl">
+      <section
+        ref={orderDetailsDialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-detail-title"
+        onKeyDownCapture={event => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          setSelectedOrderId(null);
+        }}
+        className="max-h-[94dvh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#ddd4c4] bg-[#fffefa] shadow-2xl"
+      >
         {detailLoading ? <div className="space-y-4 p-8"><div className="h-7 w-52 animate-pulse rounded bg-[#eee9de]" /><div className="h-20 animate-pulse rounded-xl bg-[#f1eee6]" /><div className="h-48 animate-pulse rounded-xl bg-[#f1eee6]" /></div>
         : detailError || !orderDetail ? <div className="p-8 text-center"><AlertCircle className="mx-auto h-8 w-8 text-rose-700" /><h2 className="mt-3 font-bold text-[#203d39]">Podrobnosti niso na voljo</h2><p className="mt-1 text-sm text-[#758078]">Naročila ni bilo mogoče naložiti.</p><Button variant="outline" className="mt-4" onClick={() => void refetchDetail()}>Poskusi znova</Button></div>
         : <>
           <div className="flex flex-col gap-3 border-b border-[#eee8dc] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
             <div><div className="flex flex-wrap items-center gap-2"><h2 id="order-detail-title" className="data-mono text-xl font-bold text-[#203d39]">{orderDetail.number}</h2><StatusPill status={orderDetail.status} /></div><p className="mt-1 text-sm text-[#66746b]">{orderDetail.supplierName} <span className="mx-1.5 text-[#b7b9ae]">·</span> ustvarjeno {formatDate(orderDetail.createdAt)}</p></div>
-            <div className="orders-no-print flex flex-wrap gap-2"><Button ref={printButtonRef} size="sm" variant="outline" data-testid={`button-print-supplier-order-${orderDetail.id}`} onClick={requestPrintOrder}><Printer className="mr-1.5 h-3.5 w-3.5" /> Natisni / PDF</Button>{orderDetail.status === "draft" && <Button size="sm" variant="outline" onClick={editSelectedOrder}>Uredi osnutek</Button>}<button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]" data-testid="button-close-supplier-order-detail"><X className="h-4 w-4" /></button></div>
+            <div className="orders-no-print flex flex-wrap gap-2"><Button ref={printButtonRef} size="sm" variant="outline" data-testid={`button-print-supplier-order-${orderDetail.id}`} onClick={requestPrintOrder}><Printer className="mr-1.5 h-3.5 w-3.5" /> Natisni / PDF</Button>{orderDetail.status === "draft" && <Button size="sm" variant="outline" onClick={event => editSelectedOrder(event.currentTarget)}>Uredi osnutek</Button>}<button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]" data-testid="button-close-supplier-order-detail"><X className="h-4 w-4" /></button></div>
           </div>
           <div className="space-y-4 p-5">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -1318,7 +1457,14 @@ export default function NarocilaDobaviteljem() {
           <div className="orders-no-print sticky bottom-0 flex flex-wrap justify-between gap-2 border-t border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur">
             <div className="flex flex-wrap gap-2">
               {orderDetail.status === "draft" && <Button variant="outline" disabled={busy} onClick={() => void performOrderAction("cancel")} className="border-rose-200 text-rose-800 hover:bg-rose-50">Prekliči naročilo</Button>}
-              {["sent", "partially_received"].includes(orderDetail.status) && <Button variant="outline" onClick={() => setCloseDialog(true)}>Zapri z razlogom</Button>}
+              {["sent", "partially_received"].includes(orderDetail.status) && <Button
+                variant="outline"
+                data-testid="button-open-close-order-dialog"
+                onClick={event => {
+                  closeDialogTriggerRef.current = event.currentTarget;
+                  setCloseDialog(true);
+                }}
+              >Zapri z razlogom</Button>}
             </div>
             <div className="flex flex-wrap gap-2">
               {orderDetail.status === "draft" && <Button disabled={busy} onClick={() => void performOrderAction("send")} className="bg-[#285d50] text-white hover:bg-[#204b41]"><Send className="mr-2 h-4 w-4" /> Označi kot poslano</Button>}
@@ -1384,14 +1530,25 @@ export default function NarocilaDobaviteljem() {
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button variant="outline" data-testid="button-dismiss-supplier-order-print-warning" onClick={() => setPrintWarningOpen(false)}>Nazaj na naročilo</Button>
-          {orderDetail.status === "draft" && <Button variant="outline" data-testid="button-edit-supplier-order-from-print-warning" onClick={() => { setPrintWarningOpen(false); editSelectedOrder(); }}>Uredi osnutek</Button>}
+          {orderDetail.status === "draft" && <Button variant="outline" data-testid="button-edit-supplier-order-from-print-warning" onClick={event => { setPrintWarningOpen(false); editSelectedOrder(event.currentTarget); }}>Uredi osnutek</Button>}
           <Button data-testid="button-continue-supplier-order-print" onClick={continuePrintOrder} className="bg-[#285d50] text-white hover:bg-[#204b41]">Nadaljuj s tiskom</Button>
         </div>
       </section>
     </div>}
 
     {closeDialog && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#172a25]/55 p-3" onMouseDown={event => { if (event.target === event.currentTarget) setCloseDialog(false); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="close-order-title" className="w-full max-w-md rounded-2xl border border-[#ddd4c4] bg-[#fffefa] p-5 shadow-2xl">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="close-order-title"
+        onKeyDownCapture={event => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          setCloseDialog(false);
+        }}
+        className="w-full max-w-md rounded-2xl border border-[#ddd4c4] bg-[#fffefa] p-5 shadow-2xl"
+      >
         <h2 id="close-order-title" className="text-lg font-bold text-[#203d39]">Zapri naročilo</h2>
         <p className="mt-1 text-sm leading-relaxed text-[#758078]">Nedobavljena odprta količina se zaključi z navedenim razlogom. Že potrjeni prevzemi ostanejo evidentirani.</p>
         <label className="mt-4 block text-xs font-semibold text-[#5f7068]">Razlog zaprtja<Input autoFocus value={closeReason} onChange={event => setCloseReason(event.target.value)} maxLength={500} placeholder="Npr. dobavitelj ne more dobaviti preostanka" className="mt-1.5 border-[#dcd4c6]" /></label>

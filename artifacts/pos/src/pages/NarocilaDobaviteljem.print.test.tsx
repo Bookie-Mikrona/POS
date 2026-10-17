@@ -1508,6 +1508,102 @@ describe("supplier order print view", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
+  it("returns focus to the order row after closing an editor whose details trigger unmounted", () => {
+    renderSupplierOrderPage();
+    const editor = openSavedDraftEditor();
+    const orderRowOpener = screen.getByTestId("button-open-supplier-order-704");
+
+    dismissOrderEditor("cancel-button");
+
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+    expect(document.activeElement).toBe(orderRowOpener);
+    expect(mocks.mutation).not.toHaveBeenCalled();
+    expect(editor.isConnected).toBe(false);
+  });
+
+  it("closes order details with Escape and restores focus to the row opener", () => {
+    renderSupplierOrderPage();
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    const opener = screen.getByTestId("button-open-supplier-order-704");
+    fireEvent.click(opener);
+
+    const details = screen.getByRole("dialog", { name: "N-2026-0704" });
+    expect(document.activeElement).toBe(details);
+    fireEvent.keyDown(details, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "N-2026-0704" })).toBeNull();
+    expect(document.activeElement).toBe(opener);
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("closes a clean order editor with Escape and restores focus to its opener", () => {
+    renderSupplierOrderPage();
+    const opener = screen.getByRole("button", { name: "Novo naročilo" });
+    const editor = openNewOrderEditor();
+
+    expect(document.activeElement).toBe(editor);
+    fireEvent.keyDown(editor, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+    expect(document.activeElement).toBe(opener);
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("uses Escape in the unsaved-changes prompt to continue editing without discarding", () => {
+    renderSupplierOrderPage();
+    const editor = openNewOrderEditor();
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(supplierNotes, { target: { value: "Dostavite pred 12. uro." } });
+    const promptOpener = screen.getByTestId("button-close-supplier-order-editor");
+    fireEvent.click(promptOpener);
+
+    const prompt = screen.getByRole("alertdialog");
+    expect(document.activeElement).toBe(screen.getByTestId("button-continue-supplier-order-editor"));
+    fireEvent.keyDown(prompt, { key: "Escape" });
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Naročilo dobavitelju" })).toBe(editor);
+    expect(supplierNotes.value).toBe("Dostavite pred 12. uro.");
+    expect(document.activeElement).toBe(promptOpener);
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("uses Escape in a dirty editor to ask before discarding its changes", () => {
+    renderSupplierOrderPage();
+    const editor = openNewOrderEditor();
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(supplierNotes, { target: { value: "Dostavite pred 12. uro." } });
+
+    fireEvent.keyDown(editor, { key: "Escape" });
+
+    expect(screen.getByRole("alertdialog").textContent).toMatch(/neshranjene spremembe/i);
+    expect(screen.getByRole("dialog", { name: "Naročilo dobavitelju" })).toBe(editor);
+    expect(supplierNotes.value).toBe("Dostavite pred 12. uro.");
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("closes the order-reason dialog with Escape and restores focus without closing the order", () => {
+    const originalStatus = mocks.order.status;
+    mocks.order.status = "sent";
+    try {
+      renderSupplierOrderPage();
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      const opener = screen.getByTestId("button-open-close-order-dialog");
+      fireEvent.click(opener);
+
+      const closeDialog = screen.getByRole("dialog", { name: "Zapri naročilo" });
+      fireEvent.keyDown(closeDialog, { key: "Escape" });
+
+      expect(screen.queryByRole("dialog", { name: "Zapri naročilo" })).toBeNull();
+      expect(screen.getByRole("dialog", { name: "N-2026-0704" })).toBeTruthy();
+      expect(document.activeElement).toBe(opener);
+      expect(mocks.mutation).not.toHaveBeenCalled();
+    } finally {
+      mocks.order.status = originalStatus;
+    }
+  });
+
   it("warns about changed saved-draft instructions and keeps them when continuing", () => {
     renderSupplierOrderPage();
     openSavedDraftEditor();
