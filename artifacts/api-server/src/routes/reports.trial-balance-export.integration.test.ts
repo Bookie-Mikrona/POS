@@ -71,6 +71,24 @@ describe("trial balance filtered PDF export", () => {
         }
 
         const base = `/companies/${company.id}/reports`;
+        // An omitted or empty lower bound means all recorded movements up to dateTo.
+        for (const dateFilter of [{ dateTo: "2026-06-30" }, { dateFrom: "", dateTo: "2026-06-30" }, {}]) {
+          const cumulativeResponse = await request(app).get(`${base}/trial-balance`).query(dateFilter);
+          expect(cumulativeResponse.status, JSON.stringify(cumulativeResponse.body)).toBe(200);
+          const cumulative = cumulativeResponse.body;
+          expect(cumulative.totalOpeningBalanceDebit).toBe("0.00");
+          expect(cumulative.totalOpeningBalanceCredit).toBe("0.00");
+          expect(cumulative.totalTurnoverDebit).toBe("121.20");
+          expect(cumulative.totalTurnoverCredit).toBe("121.20");
+          expect(cumulative.totalBalanceDebit).toBe("121.20");
+          expect(cumulative.totalBalanceCredit).toBe("121.20");
+          const response = await request(app).post(`${base}/export`)
+            .send({ reportType: "trial-balance", ...dateFilter }).expect(200);
+          const extracted = spawnSync("pdftotext", ["-layout", "-", "-"], { input: response.body, encoding: "utf8" });
+          expect(extracted.status, extracted.stderr).toBe(0);
+          expect(extracted.stdout).toContain("Ni začetnega datuma");
+          expect(extracted.stdout).toContain("Kumulativni promet");
+        }
         const dates = { dateFrom: "2026-06-01", dateTo: "2026-06-30" };
         const table = (await request(app).get(`${base}/trial-balance`).query(dates).expect(200)).body;
         for (const filters of [

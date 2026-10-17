@@ -547,29 +547,8 @@ router.get(
 
     const { asOf, compareAsOf } = req.query as Record<string, string | undefined>;
 
-    let balanceSheetCurrent, balanceSheetCompare = null;
-    try {
-      balanceSheetCurrent = await loadBalanceSheet(companyId, asOf);
-      if (compareAsOf) balanceSheetCompare = await loadBalanceSheet(companyId, compareAsOf);
-    } catch (error) {
-      res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
-      return;
-    }
-
-    res.json({
-      asOf: asOf ?? null,
-      compareAsOf: compareAsOf ?? null,
-      current: balanceSheetCurrent,
-      compare: balanceSheetCompare,
-    });
-  },
-);
-
-// GET /companies/:companyId/reports/income-statement
-router.get(
-  "/companies/:companyId/reports/income-statement",
-  requireAuth,
-  async (req: Request, res: Response): Promise<void> => {
+    let balanceSheetCurrent: Awaited<ReturnType<typeof loadBalanceSheet>>;
+    let balanceSheetCompare: Awaited<ReturnType<typeof loadBalanceSheet>> | null = null;
     const authReq = req as AuthenticatedRequest;
     const companyId = extractParam(req.params.companyId);
 
@@ -580,30 +559,8 @@ router.get(
       req.query as Record<string, string | undefined>;
 
     // Income statement is period-based — only entries within [dateFrom, dateTo].
-    let incomeStatementCurrent, incomeStatementCompare = null;
-    try {
-      incomeStatementCurrent = await loadIncomeStatement(companyId, dateFrom, dateTo);
-      if (compareDateFrom || compareDateTo) {
-        incomeStatementCompare = await loadIncomeStatement(companyId, compareDateFrom, compareDateTo);
-      }
-    } catch (error) {
-      res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
-      return;
-    }
-
-    res.json({
-      dateFrom: dateFrom ?? null,
-      dateTo: dateTo ?? null,
-      compareDateFrom: compareDateFrom ?? null,
-      compareDateTo: compareDateTo ?? null,
-      current: incomeStatementCurrent,
-      compare: incomeStatementCompare,
-    });
-  },
-);
-
-// ── Dimensions report ─────────────────────────────────────────────────────────
-
+    let incomeStatementCurrent: Awaited<ReturnType<typeof loadIncomeStatement>>;
+    let incomeStatementCompare: Awaited<ReturnType<typeof loadIncomeStatement>> | null = null;
 type DimensionType = "costCenter" | "project" | "department";
 
 interface AccountBreakdownRow {
@@ -729,6 +686,7 @@ router.get(
       { dimId: string; accountId: string; code: string; name: string; debit: number; credit: number }
     >();
 
+    if (withAccountBreakdown) {
       const accountDimensionRows = await db
         .select({
           dimId: dimTable.id,
@@ -750,44 +708,30 @@ router.get(
           journalEntryLinesTable.accountId, accountsTable.code, accountsTable.name,
           journalEntryLinesTable.side,
         );
-
-    if (withAccountBreakdown) {
-      // Single query that groups by dim + account + side
-      const dimensionAccountTotals = await db
-        .select({
-          dimId: dimTable.id,
-          dimCode: dimTable.code,
-          dimName: dimTable.name,
-          accountId: journalEntryLinesTable.accountId,
-          accountCode: accountsTable.code,
-          accountName: accountsTable.name,
-          side: journalEntryLinesTable.side,
-          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
-        })
-        .from(journalEntryLinesTable)
-        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
-        .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
-        .where(and(...allConditions))
-        .groupBy(
-          dimTable.id, dimTable.code, dimTable.name,
-          journalEntryLinesTable.accountId, accountsTable.code, accountsTable.name,
-          journalEntryLinesTable.side,
-        );
-
-      for (const row of dimensionAccountTotals) {
       const amount = parseFloat(row.amount);
+        if (row.side === "debit") existing.debit += amount;
+        else existing.credit += amount;
+        dimMap.set(row.dimId, existing);
+      }
+    }
 
-        const row: DimensionReportRow = {
-          id,
-          code: dim.code,
-          name: dim.name,
-          totalDebit: dim.debit.toFixed(2),
-          totalCredit: dim.credit.toFixed(2),
-          balance: (dim.debit - dim.credit).toFixed(2),
-        };
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
 
-        // Dim-level aggregate
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
+
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
         const dimExisting = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
         if (row.side === "debit") dimExisting.debit += amount;
         else dimExisting.credit += amount;
@@ -803,7 +747,11 @@ router.get(
           debit: 0,
           credit: 0,
         };
-
+        if (row.side === "debit") accExisting.debit += amount;
+        else accExisting.credit += amount;
+        accountMap.set(key, accExisting);
+      }
+    } else {
       const dimensionRows = await db
         .select({
           dimId: dimTable.id,
@@ -817,48 +765,55 @@ router.get(
         .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
         .where(and(...allConditions))
         .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
-        if (row.side === "debit") accExisting.debit += amount;
-        else accExisting.credit += amount;
-        accountMap.set(key, accExisting);
-      }
-    } else {
-      // Standard query — group by dim + side only
-      const dimensionTotals = await db
-        .select({
-          dimId: dimTable.id,
-          dimCode: dimTable.code,
-          dimName: dimTable.name,
-          side: journalEntryLinesTable.side,
-          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
-        })
-        .from(journalEntryLinesTable)
-        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
-        .where(and(...allConditions))
-        .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
-
-      for (const row of dimensionTotals) {
         const existing = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
       const amount = parseFloat(row.amount);
+        if (row.side === "debit") existing.debit += amount;
+        else existing.credit += amount;
+        dimMap.set(row.dimId, existing);
+      }
+    }
 
-        const row: DimensionReportRow = {
-          id,
-          code: dim.code,
-          name: dim.name,
-          totalDebit: dim.debit.toFixed(2),
-          totalCredit: dim.credit.toFixed(2),
-          balance: (dim.debit - dim.credit).toFixed(2),
-        };
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
+
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
+
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
       const amount = parseFloat(row.amount);
+        if (row.side === "debit") existing.debit += amount;
+        else existing.credit += amount;
+        dimMap.set(row.dimId, existing);
+      }
+    }
 
-        const row: DimensionReportRow = {
-          id,
-          code: dim.code,
-          name: dim.name,
-          totalDebit: dim.debit.toFixed(2),
-          totalCredit: dim.credit.toFixed(2),
-          balance: (dim.debit - dim.credit).toFixed(2),
-        };
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
+
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
+
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
     const grandTotalDebit = reportRows.reduce((s, r) => s + parseFloat(r.totalDebit), 0);
     const grandTotalCredit = reportRows.reduce((s, r) => s + parseFloat(r.totalCredit), 0);
 
@@ -989,7 +944,7 @@ async function loadTrialBalance(companyId: string, dateFrom?: string, dateTo?: s
   if (opening && (!dateFrom || !dateTo || dateFrom.slice(0, 4) !== dateTo.slice(0, 4))) {
     throw new Error("Za uvožena zgodovinska leta izberite datuma znotraj istega koledarskega leta.");
   }
-  const isHistoricalYearStart = opening?.start === dateFrom;
+  const isHistoricalYearStart = Boolean(opening && opening.start === dateFrom);
   const openingDateTo = dateFrom ? dayBefore(dateFrom) : undefined;
   const [openingMap, turnoverMap, balanceMap] = await Promise.all([
     isHistoricalYearStart
@@ -1168,11 +1123,10 @@ router.post(
         }
         const report = await loadTrialBalance(companyId, dateFrom, dateTo);
         const q = (searchTerm ?? "").trim().toLocaleLowerCase("sl-SI");
-        const filteredTrialBalanceRows = report.rows.filter(row =>
+        const filteredTrialBalanceRows = report.rows.filter((row) =>
           (!accountClass || row.accountCode.startsWith(accountClass)) &&
           (!q || row.accountCode.toLocaleLowerCase("sl-SI").includes(q) ||
-            row.accountName.toLocaleLowerCase("sl-SI").includes(q)),
-        );
+            row.accountName.toLocaleLowerCase("sl-SI").includes(q)));
         const sumField = (field: keyof Pick<TrialBalanceRow, "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
           filteredTrialBalanceRows.reduce((sum, row) => sum + Number(row[field]), 0).toFixed(2);
         reportTitle = statementView === "bilanca" ? "BILANCA KONTOV"
@@ -1394,7 +1348,45 @@ router.get(
 );
 
 export default router;
+    const untaggedLines = await db
+      .select({
+        lineId: journalEntryLinesTable.id,
+        entryId: journalEntriesTable.id,
+        entryDate: journalEntriesTable.entryDate,
+        reference: journalEntriesTable.reference,
+        entryDescription: journalEntriesTable.description,
+        description: journalEntryLinesTable.description,
+        accountCode: accountsTable.code,
+        accountName: accountsTable.name,
+        side: journalEntryLinesTable.side,
+        amount: journalEntryLinesTable.amount,
+      })
+      .from(journalEntryLinesTable)
+      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+      .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+      .where(and(...untaggedConditions))
+      .orderBy(
+        journalEntriesTable.entryDate,
+        journalEntriesTable.id,
+        journalEntryLinesTable.sequence,
+        journalEntryLinesTable.id,
+      );
 
+    let untaggedCredit = 0;
+
+    const reportRows: DimensionReportRow[] = Array.from(dimMap.entries())
+      .map(([id, dim]) => {
+        const row: DimensionReportRow = {
+          id,
+          code: dim.code,
+          name: dim.name,
+          totalDebit: dim.debit.toFixed(2),
+          totalCredit: dim.credit.toFixed(2),
+          balance: (dim.debit - dim.credit).toFixed(2),
+        };
+
+        if (withAccountBreakdown) {
+          // Collect account sub-rows for this dimension, sorted by account code
           const accRows: AccountBreakdownRow[] = Array.from(accountMap.values())
             .filter((a) => a.dimId === id)
             .map((a) => ({
@@ -1406,3 +1398,11 @@ export default router;
               balance: (a.debit - a.credit).toFixed(2),
             }))
             .sort((a, b) => a.code.localeCompare(b.code));
+          row.accounts = accRows;
+        }
+
+        return row;
+      })
+      .sort((a, b) => a.code.localeCompare(b.code));
+
+    let untaggedDebit = 0;

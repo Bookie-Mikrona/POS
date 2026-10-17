@@ -1371,6 +1371,11 @@ function TrialBalanceTab() {
   }
 
   const isAnnual = /^\d{4}-01-01$/.test(appliedFrom) && appliedTo === `${appliedFrom.slice(0, 4)}-12-31`;
+  const hasOpeningDate = Boolean(appliedFrom);
+  const openingNotice = "Ni začetnega datuma";
+  const periodLabel = hasOpeningDate
+    ? `Obdobje: ${appliedFrom} – ${appliedTo || "brez omejitve"}`
+    : `Kumulativno od začetka evidence${appliedTo ? ` do ${appliedTo}` : ""}`;
 
   const filtered: TrialBalanceRow[] = React.useMemo(() => {
     if (!data) return [];
@@ -1424,9 +1429,9 @@ function TrialBalanceTab() {
       const headerRows: (string | number)[][] = [
         [companyName],
         ["Bruto bilanca (preizkusna bilanca)"],
-        [`Obdobje: ${appliedFrom} – ${appliedTo}`],
+        [hasOpeningDate ? periodLabel : `${periodLabel}. ${openingNotice}.`],
         [],
-        ["Šifra", "Naziv konta", "Tip", "Začetni saldo B", "Začetni saldo D", "Promet breme", "Promet dobro", "Skupaj breme", "Skupaj dobro", "Neto saldo (breme − dobro)"],
+        ["Šifra", "Naziv konta", "Tip", hasOpeningDate ? "Začetni saldo B" : openingNotice, hasOpeningDate ? "Začetni saldo D" : openingNotice, "Promet breme", "Promet dobro", "Skupaj breme", "Skupaj dobro", "Neto saldo (breme − dobro)"],
       ];
 
       // Export the same account set currently visible on screen.
@@ -1434,8 +1439,8 @@ function TrialBalanceTab() {
         row.accountCode,
         row.accountName,
         ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType,
-        parseFloat(row.openingBalanceDebit || "0"),
-        parseFloat(row.openingBalanceCredit || "0"),
+        hasOpeningDate ? parseFloat(row.openingBalanceDebit || "0") : "—",
+        hasOpeningDate ? parseFloat(row.openingBalanceCredit || "0") : "—",
         parseFloat(row.turnoverDebit || "0"),
         parseFloat(row.turnoverCredit || "0"),
         parseFloat(row.balanceDebit || "0"),
@@ -1450,7 +1455,7 @@ function TrialBalanceTab() {
       const totalCredit = filtered.reduce((s, r) => s + parseFloat(r.turnoverCredit || "0"), 0);
       const totalBalDebit = filtered.reduce((s, r) => s + parseFloat(r.balanceDebit || "0"), 0);
       const totalBalCredit = filtered.reduce((s, r) => s + parseFloat(r.balanceCredit || "0"), 0);
-      const totalsRow: (string | number)[] = ["", "SKUPAJ", "", totalObD, totalObC, totalDebit, totalCredit, totalBalDebit, totalBalCredit, trialBalanceNet(totalBalDebit, totalBalCredit)];
+      const totalsRow: (string | number)[] = ["", "SKUPAJ", "", hasOpeningDate ? totalObD : "—", hasOpeningDate ? totalObC : "—", totalDebit, totalCredit, totalBalDebit, totalBalCredit, trialBalanceNet(totalBalDebit, totalBalCredit)];
 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Bruto bilanca");
@@ -1727,6 +1732,15 @@ function TrialBalanceTab() {
             />
           )}
           {statementView === "standard" && <>
+          {!hasOpeningDate && (
+            <Alert className="mb-3">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{openingNotice}</AlertTitle>
+              <AlertDescription>
+                {periodLabel}. Začetni saldo ni določen; prikazani so kumulativni promet, skupni zneski in neto saldo.
+              </AlertDescription>
+            </Alert>
+          )}
           <p className="mb-2 text-xs text-muted-foreground">
             Skupaj ohranja bruto seštevke otvoritve in prometa. Neto saldo = skupaj breme − skupaj dobro; pozitiven je v breme, negativen v dobro.
           </p>
@@ -1737,10 +1751,10 @@ function TrialBalanceTab() {
                   <th className="text-left px-3 py-2 font-semibold w-24">Šifra</th>
                   <th className="text-left px-3 py-2 font-semibold">Naziv konta</th>
                   <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
-                    Začetni saldo
+                    {hasOpeningDate ? "Začetni saldo" : openingNotice}
                   </th>
                   <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
-                    Promet v obdobju
+                    {hasOpeningDate ? "Promet v obdobju" : "Kumulativni promet"}
                   </th>
                   <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
                     Skupaj — breme/dobro
@@ -1775,10 +1789,10 @@ function TrialBalanceTab() {
                       </span>
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 text-muted-foreground">
-                      {parseFloat(row.openingBalanceDebit ?? "0") !== 0 ? fmtZ(row.openingBalanceDebit ?? "") : ""}
+                      {!hasOpeningDate ? "—" : parseFloat(row.openingBalanceDebit ?? "0") !== 0 ? fmtZ(row.openingBalanceDebit ?? "") : ""}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
-                      {parseFloat(row.openingBalanceCredit ?? "0") !== 0 ? fmtZ(row.openingBalanceCredit ?? "") : ""}
+                      {!hasOpeningDate ? "—" : parseFloat(row.openingBalanceCredit ?? "0") !== 0 ? fmtZ(row.openingBalanceCredit ?? "") : ""}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 text-blue-700 dark:text-blue-400">
                       {parseFloat(row.turnoverDebit) !== 0 ? fmtZ(row.turnoverDebit) : ""}
@@ -1812,10 +1826,10 @@ function TrialBalanceTab() {
                       Skupaj
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums border-l border-border/50 text-muted-foreground">
-                      {fmt(totals.openingBalanceDebit)}
+                      {hasOpeningDate ? fmt(totals.openingBalanceDebit) : "—"}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                      {fmt(totals.openingBalanceCredit)}
+                      {hasOpeningDate ? fmt(totals.openingBalanceCredit) : "—"}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums border-l border-border/50 text-blue-700 dark:text-blue-400">
                       {fmt(totals.turnoverDebit)}
@@ -1845,7 +1859,7 @@ function TrialBalanceTab() {
               {statementView === "standard" ? "Bruto bilanca (preizkusna bilanca)"
                 : statementView === "bilanca" ? "Bilanca kontov" : "Zaključni račun"}
             </p>
-            <p className="text-xs text-muted-foreground">Obdobje: {appliedFrom} – {appliedTo}</p>
+            <p className="text-xs text-muted-foreground">{periodLabel}</p>
           </div>
         </div>
       )}

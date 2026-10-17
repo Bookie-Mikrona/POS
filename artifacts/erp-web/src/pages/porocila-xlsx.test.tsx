@@ -47,6 +47,52 @@ const praznaPoizvedba = {
 };
 
 describe("Bruto bilanca – XLSX karakterizacija", () => {
+  it("brez začetnega datuma označi začetne salde, ohrani kumulativo v XLSX in obnovi običajni prikaz", async () => {
+    state.useGetBalanceSheet.mockReturnValue(praznaPoizvedba);
+    state.useGetIncomeStatement.mockReturnValue(praznaPoizvedba);
+    state.useGetTrialBalance.mockReturnValue({
+      data: { rows: [{
+        accountId: "1", accountCode: "1100000", accountName: "Banka", accountType: "asset",
+        openingBalanceDebit: "0", openingBalanceCredit: "0",
+        turnoverDebit: "123.45", turnoverCredit: "23.45",
+        balanceDebit: "123.45", balanceCredit: "23.45",
+      }], totalTurnoverDebit: "123.45", totalTurnoverCredit: "23.45" },
+      isFetching: false, isError: false, error: null,
+    });
+    render(<Porocila />);
+    const tab = screen.getByRole("tab", { name: "Bilanca kontov / zaključni račun" });
+    fireEvent.mouseDown(tab, { button: 0, ctrlKey: false });
+    fireEvent.click(tab);
+    fireEvent.change(screen.getByLabelText("Datum od"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži" }));
+    expect(screen.getByRole("columnheader", { name: "Ni začetnega datuma" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Kumulativni promet" })).toBeInTheDocument();
+    const cells = within(screen.getByText("1100000").closest("tr")!).getAllByRole("cell");
+    expect(cells[2]).toHaveTextContent("—");
+    expect(cells[3]).toHaveTextContent("—");
+    expect(cells[8]).toHaveTextContent("100,00");
+    const totals = within(screen.getByText("Skupaj", { selector: "td" }).closest("tr")!).getAllByRole("cell");
+    expect(totals[1]).toHaveTextContent("—");
+    expect(totals[2]).toHaveTextContent("—");
+    fireEvent.click(screen.getByRole("button", { name: "Izvozi XLSX" }));
+    await waitFor(() => expect(downloadState.blob).not.toBeNull());
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await downloadState.blob!.arrayBuffer() as unknown as Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0]);
+    const sheet = workbook.getWorksheet("Bruto bilanca")!;
+    expect(sheet.getCell("A3").value).toContain("Kumulativno od začetka evidence");
+    expect(sheet.getCell("D5").value).toBe("Ni začetnega datuma");
+    expect(sheet.getCell("D6").value).toBe("—");
+    expect(sheet.getCell("E6").value).toBe("—");
+    expect(sheet.getCell("D8").value).toBe("—");
+    expect(sheet.getCell("F8").value).toBe(123.45);
+    expect(sheet.getCell("H8").value).toBe(123.45);
+    expect(sheet.getCell("J8").value).toBe(100);
+    fireEvent.change(screen.getByLabelText("Datum od"), { target: { value: "2026-01-01" } });
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži" }));
+    expect(screen.getByRole("columnheader", { name: "Začetni saldo" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Ni začetnega datuma" })).not.toBeInTheDocument();
+  });
+
   beforeEach(() => {
     downloadState.blob = null;
     downloadState.filename = "";
@@ -202,6 +248,7 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
         (_unused, columnIndex) => sheet.getCell(rowNumber, columnIndex + 1).value ?? "",
       );
     const rows = Array.from({ length: 9 }, (_unused, rowIndex) => rowValues(rowIndex + 1));
+
     expect(rows[0]).toEqual(["Karakterizacija d.o.o.", "", "", "", "", "", "", "", "", ""]);
     expect(rows[1]?.[0]).toBe("Bruto bilanca (preizkusna bilanca)");
     expect(rows[2]?.[0]).toMatch(/^Obdobje: \d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2}$/);

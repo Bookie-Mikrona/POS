@@ -816,7 +816,10 @@ export async function generateTrialBalancePdf(opts: {
   const { companyName, dateFrom, dateTo, rows } = opts;
   const reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)" +
     (opts.accountClass ? ` — Razred ${opts.accountClass}` : "");
-  const subtitle = `Obdobje: ${dateFrom} - ${dateTo} · Neto saldo: + breme / − dobro`;
+  const hasOpeningDate = Boolean(dateFrom);
+  const subtitle = hasOpeningDate
+    ? `Obdobje: ${dateFrom} - ${dateTo} · Neto saldo: + breme / − dobro`
+    : `Kumulativno od začetka evidence${dateTo ? ` do ${dateTo}` : ""} · Ni začetnega datuma · Neto saldo: + breme / − dobro`;
 
   // A4 ležeče za 8-stolpčno postavitev
   const PAGE_W_L = 841.89;
@@ -885,8 +888,8 @@ export async function generateTrialBalancePdf(opts: {
     doc.text("Šifra",       COL_CODE + 2, hY + 3, { width: 50,                          lineBreak: false });
     doc.text("Naziv konta", COL_NAME + 2, hY + 3, { width: NAME_W,                      lineBreak: false });
     // Skupinska oznaka stolpcev
-    doc.text("Začetni saldo",    COL_OB_D,   hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
-    doc.text("Promet v obdobju", COL_PROM_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
+    doc.text(hasOpeningDate ? "Začetni saldo" : "Ni začetnega datuma", COL_OB_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
+    doc.text(hasOpeningDate ? "Promet v obdobju" : "Kumulativni promet", COL_PROM_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
     doc.text("Skupaj — breme/dobro", COL_SAL_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
     doc.text("Neto saldo", COL_NET, hY + 3, { width: NUM_W_L, align: "center", lineBreak: false });
     // Pod-oznake
@@ -936,8 +939,8 @@ export async function generateTrialBalancePdf(opts: {
 
     // Začetni saldo (siva)
     doc.font("DejaVuSans").fontSize(7).fillColor(COLOR_MUTED);
-    if (od !== 0) doc.text(fmtNum(od), COL_OB_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
-    if (oc !== 0) doc.text(fmtNum(oc), COL_OB_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    if (!hasOpeningDate || od !== 0) doc.text(hasOpeningDate ? fmtNum(od) : "—", COL_OB_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    if (!hasOpeningDate || oc !== 0) doc.text(hasOpeningDate ? fmtNum(oc) : "—", COL_OB_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
 
     // Promet (modra)
     doc.fillColor("#1d4ed8");
@@ -960,8 +963,8 @@ export async function generateTrialBalancePdf(opts: {
   doc.font("DejaVuSans-Bold").fontSize(8).fillColor(COLOR_PRIMARY)
     .text("SKUPAJ", COL_CODE + 2, y + 4, { width: 200, lineBreak: false });
   doc.fillColor(COLOR_MUTED);
-  doc.text(fmtNum(opts.totalOpeningBalanceDebit),  COL_OB_D,   y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
-  doc.text(fmtNum(opts.totalOpeningBalanceCredit), COL_OB_C,   y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  doc.text(hasOpeningDate ? fmtNum(opts.totalOpeningBalanceDebit) : "—", COL_OB_D, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  doc.text(hasOpeningDate ? fmtNum(opts.totalOpeningBalanceCredit) : "—", COL_OB_C, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
   doc.fillColor("#1d4ed8");
   doc.text(fmtNum(opts.totalTurnoverDebit),        COL_PROM_D, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
   doc.text(fmtNum(opts.totalTurnoverCredit),       COL_PROM_C, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
