@@ -40,6 +40,7 @@ const reportData = {
   untaggedDebit: "0",
   untaggedCredit: "0",
   untaggedBalance: "0",
+  untaggedLines: [],
 };
 
 function lastRequest() {
@@ -57,6 +58,75 @@ beforeEach(() => {
   }));
 });
 afterEach(cleanup);
+
+describe("untagged journal lines", () => {
+  function showUntagged(count: number) {
+    window.history.replaceState(null, "", `${path}?${firstView}`);
+    mocks.report.mockReturnValue({
+      data: {
+        ...reportData,
+        // Zero net (and even zero debit/credit totals) must not hide actual lines.
+        untaggedLines: Array.from({ length: count }, (_, index) => ({
+          lineId: `line-${index}`,
+          entryId: `entry-${index}`,
+          entryDate: "2025-06-15",
+          reference: index === 0 ? null : `TEM-${index}`,
+          entryDescription: `Temeljnica ${index}`,
+          description: `Vrstica ${index}`,
+          accountCode: "400",
+          accountName: "Stroški",
+          side: index % 2 === 0 ? "debit" : "credit",
+          amount: "125.50",
+        })),
+      },
+      isLoading: false,
+      error: null,
+    });
+  }
+
+  it("shows at most 20 lines initially, expands all and collapses again", () => {
+    showUntagged(21);
+    render(<PorocilaAnalitika />);
+    const table = screen.getByRole("table", { name: "Knjižbe brez dimenzije" });
+    expect(within(table).getAllByRole("row")).toHaveLength(21); // header + 20
+    expect(screen.queryByText("Vrstica 20")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži vse" }));
+    expect(within(table).getAllByRole("row")).toHaveLength(22);
+    expect(screen.getByText("Vrstica 20")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži manj" }));
+    expect(within(table).getAllByRole("row")).toHaveLength(21);
+  });
+
+  it("shows dates, account, separate debit/credit and direct journal links even for zero totals", () => {
+    showUntagged(2);
+    render(<PorocilaAnalitika />);
+    const table = screen.getByRole("table", { name: "Knjižbe brez dimenzije" });
+    const rows = within(table).getAllByRole("row");
+    expect(within(rows[1]).getByText("15.06.2025")).toBeTruthy();
+    expect(within(rows[1]).getByText("400 — Stroški")).toBeTruthy();
+    expect(within(rows[1]).getAllByRole("cell").slice(-2).map(cell => cell.textContent)).toEqual(["125,50", "—"]);
+    expect(within(rows[2]).getAllByRole("cell").slice(-2).map(cell => cell.textContent)).toEqual(["—", "125,50"]);
+    expect(screen.getByRole("link", { name: "Odpri temeljnico Temeljnica 0" }).getAttribute("href")).toBe("/temeljnice?id=entry-0");
+    expect(screen.getByRole("link", { name: "Odpri temeljnico TEM-1" }).getAttribute("href")).toBe("/temeljnice?id=entry-1");
+    expect(screen.queryByRole("button", { name: "Prikaži vse" })).toBeNull();
+  });
+
+  it("resets expansion when the report dimension changes", () => {
+    showUntagged(21);
+    render(<PorocilaAnalitika />);
+    fireEvent.click(screen.getByRole("button", { name: "Prikaži vse" }));
+    fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value: "department" } });
+    expect(screen.queryByText("Vrstica 20")).toBeNull();
+    expect(screen.getByRole("button", { name: "Prikaži vse" })).toBeTruthy();
+  });
+
+  it("does not show a warning for an empty untagged list", () => {
+    showUntagged(0);
+    render(<PorocilaAnalitika />);
+    expect(screen.queryByRole("table", { name: "Knjižbe brez dimenzije" })).toBeNull();
+    expect(screen.queryByText(/Poročilo ni popolno/)).toBeNull();
+  });
+});
 
 describe("dimension report URL filters", () => {
   it("automatically generates a shared view and restores controls on reload", () => {

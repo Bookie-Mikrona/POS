@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   report: {
     rows: [{ id: "1", code: "001", name: "Kuhinja", totalDebit: "10.50", totalCredit: "0", balance: "10.50" }],
     grandTotalDebit: "10.50", grandTotalCredit: "0", grandTotalBalance: "10.50",
-    untaggedDebit: "0", untaggedCredit: "0", untaggedBalance: "0",
+    untaggedDebit: "0", untaggedCredit: "0", untaggedBalance: "0", untaggedLines: [],
   },
 }));
 

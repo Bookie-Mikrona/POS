@@ -656,6 +656,18 @@ interface DimensionReportResponse {
   untaggedCredit: string;
   /** Net balance (debit - credit) of untagged lines */
   untaggedBalance: string;
+  untaggedLines: {
+    lineId: string;
+    entryId: string;
+    entryDate: string;
+    reference: string | null;
+    entryDescription: string;
+    description: string | null;
+    accountCode: string;
+    accountName: string;
+    side: "debit" | "credit";
+    amount: string;
+  }[];
 }
 
 // GET /companies/:companyId/reports/dimensions
@@ -810,29 +822,42 @@ router.get(
     }
 
     // ── Untagged lines aggregation ────────────────────────────────────────────
-    // Count lines that match the same date/company/account filters but have
-    // NO dimension tag. These are excluded from the report above, and their
-    // total gives the accountant a sense of how much is missing.
+    // Use the same date/company/account filters and selected dimension as the
+    // report. Derive totals from these exact lines so the detail always reconciles.
     const untaggedConditions = [
       ...jeConditions,
       isNull(dimFkCol),
       ...lineConditions,
     ];
 
-    const untaggedRows = await db
+    const untaggedLines = await db
       .select({
+        lineId: journalEntryLinesTable.id,
+        entryId: journalEntriesTable.id,
+        entryDate: journalEntriesTable.entryDate,
+        reference: journalEntriesTable.reference,
+        entryDescription: journalEntriesTable.description,
+        description: journalEntryLinesTable.description,
+        accountCode: accountsTable.code,
+        accountName: accountsTable.name,
         side: journalEntryLinesTable.side,
-        total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+        amount: journalEntryLinesTable.amount,
       })
       .from(journalEntryLinesTable)
       .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+      .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
       .where(and(...untaggedConditions))
-      .groupBy(journalEntryLinesTable.side);
+      .orderBy(
+        journalEntriesTable.entryDate,
+        journalEntriesTable.id,
+        journalEntryLinesTable.sequence,
+        journalEntryLinesTable.id,
+      );
 
     let untaggedDebit = 0;
     let untaggedCredit = 0;
-    for (const row of untaggedRows) {
-      const amount = parseFloat(row.total ?? "0");
+    for (const row of untaggedLines) {
+      const amount = parseFloat(row.amount);
       if (row.side === "debit") untaggedDebit += amount;
       else untaggedCredit += amount;
     }
@@ -883,6 +908,7 @@ router.get(
       untaggedDebit: untaggedDebit.toFixed(2),
       untaggedCredit: untaggedCredit.toFixed(2),
       untaggedBalance: (untaggedDebit - untaggedCredit).toFixed(2),
+      untaggedLines,
     };
 
     res.json(response);

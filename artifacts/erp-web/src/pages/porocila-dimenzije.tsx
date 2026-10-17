@@ -1,5 +1,6 @@
 import { formatDatum } from "@/lib/utils";
 import React, { useEffect, useState } from "react";
+import { Link } from "wouter";
 import {
   Layers,
   FolderOpen,
@@ -162,6 +163,10 @@ export default function PorocilaAnalitika() {
 
   // Expanded dimension rows (set of row ids)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [showAllUntagged, setShowAllUntagged] = useState(false);
+  useEffect(() => {
+    setShowAllUntagged(false);
+  }, [dimensionType, dateFrom, dateTo, accountId, queried, companyId]);
   useEffect(() => {
     setExpandedRows(new Set());
   }, [companyId]);
@@ -463,11 +468,11 @@ export default function PorocilaAnalitika() {
       )}
 
       {/* Untagged lines warning */}
-      {data && applied.queried && (parseFloat(data.untaggedDebit) !== 0 || parseFloat(data.untaggedCredit) !== 0) && (
+      {data && applied.queried && data.untaggedLines.length > 0 && (
         <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle className="font-semibold">Poročilo ni popolno — obstajajo knjižbe brez dimenzije</AlertTitle>
-          <AlertDescription className="space-y-1">
+          <AlertDescription className="space-y-3">
             <p>
               V izbranem obdobju je{" "}
               <strong>
@@ -475,11 +480,65 @@ export default function PorocilaAnalitika() {
               </strong>{" "}
               neto salda iz vrstic, ki niso označene z dimenzijo{" "}
               <strong>{DIM_OPTIONS.find((d) => d.value === applied.dimensionType)?.label ?? applied.dimensionType}</strong>.
-              Te vrstice so izključene iz zgornjega poročila.
+              Te vrstice so izključene iz poročila.
             </p>
             <p className="text-xs opacity-80">
               Debet brez dimenzije: {fmt(data.untaggedDebit)} EUR · Kredit brez dimenzije: {fmt(data.untaggedCredit)} EUR
             </p>
+            <Table aria-label="Knjižbe brez dimenzije">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Temeljnica</TableHead>
+                  <TableHead>Konto / opis vrstice</TableHead>
+                  <TableHead className="text-right">Debet (EUR)</TableHead>
+                  <TableHead className="text-right">Kredit (EUR)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(showAllUntagged ? data.untaggedLines : data.untaggedLines.slice(0, 20)).map((line) => (
+                  <TableRow key={line.lineId}>
+                    <TableCell className="whitespace-nowrap">{formatDatum(line.entryDate)}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/temeljnice?id=${encodeURIComponent(line.entryId)}`}
+                        className="font-medium underline underline-offset-2"
+                        aria-label={`Odpri temeljnico ${line.reference || line.entryDescription}`}
+                      >
+                        {line.reference || line.entryDescription}
+                      </Link>
+                      {line.reference && <div className="text-xs">{line.entryDescription}</div>}
+                    </TableCell>
+                    <TableCell>
+                      <div>{line.accountCode} — {line.accountName}</div>
+                      {line.description && <div className="text-xs">{line.description}</div>}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      {line.side === "debit" ? fmt(line.amount) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      {line.side === "credit" ? fmt(line.amount) : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {data.untaggedLines.length > 20 && (
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span>
+                  Prikazanih {showAllUntagged ? data.untaggedLines.length : 20} od {data.untaggedLines.length} vrstic.
+                </span>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-inherit print:hidden"
+                  onClick={() => setShowAllUntagged((value) => !value)}
+                  aria-expanded={showAllUntagged}
+                >
+                  {showAllUntagged ? "Prikaži manj" : "Prikaži vse"}
+                </Button>
+              </div>
+            )}
           </AlertDescription>
         </Alert>
       )}

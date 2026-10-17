@@ -28,6 +28,19 @@ export interface DimensionReportRow {
   accounts?: AccountBreakdownRow[];
 }
 
+export interface UntaggedDimensionLine {
+  lineId: string;
+  entryId: string;
+  entryDate: string;
+  reference: string | null;
+  entryDescription: string;
+  description: string | null;
+  accountCode: string;
+  accountName: string;
+  side: "debit" | "credit";
+  amount: string;
+}
+
 export interface DimensionReportResponse {
   dimensionType: DimensionType;
   dateFrom: string | null;
@@ -43,6 +56,8 @@ export interface DimensionReportResponse {
   untaggedCredit: string;
   /** Net balance (debit - credit) of untagged lines */
   untaggedBalance: string;
+  /** Individual lines missing the selected dimension, in date/entry/line order. */
+  untaggedLines: UntaggedDimensionLine[];
 }
 
 export interface GetDimensionReportParams {
