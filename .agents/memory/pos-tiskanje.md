@@ -15,11 +15,11 @@ Pri tiskanju uporabi potrjena pravila za konkretno napravo, ne splošnega privze
 
 ## Brskalniki za tiskane PDF-je
 
-V tem Replitovem Linux okolju se WebKitGTK WebDriver lahko zažene, vendar MiniBrowser ob prvi navigaciji pade z `EGL_BAD_PARAMETER`, tudi pod Xvfb. Ustvarjena WebDriver seja zato še ne pomeni, da je WebKit izris preverjen; Safari/WebKit preveri na delujočem WebKit okolju, najbolje v Safariju na macOS.
+V tem Replitovem Linux okolju Safari ni na voljo. WebKitGTK WebDriver lahko ustvari sejo MiniBrowser, vendar njegov ukaz WebDriver `/print` vrne `unknown command`; seja ali uspešno odprta stran zato še ne pomeni, da je PDF tiskanje preverjeno. Nekatere headless nastavitve lahko še vedno naletijo na `EGL_BAD_PARAMETER`.
 
-**Why:** Headless WebKitGTK v razpoložljivem okolju ni uspel prikazati strani, zato njegovega PDF izpisa ni bilo mogoče zanesljivo preveriti.
+**Why:** Razpoložljivi WebKitGTK runner ne izpiše PDF-ja prek WebDriverja, Safari pa ni nameščen; Chromium in Firefox ne dokazujeta Safari-jevega izpisa.
 
-**How to apply:** Če je treba potrditi Safari/WebKit tiskanje, uporabi resničen Safari ali drug delujoč WebKit runner; Chromium in Firefox ne štejeta kot dokaz za WebKit.
+**How to apply:** Safari/WebKit tiskanje potrdi na macOS z resničnim Safarijem ali drugim WebKit runnerjem, ki zna izpisati PDF, in preveri dejanski PDF. Pri WebKit diagnostiki uporabi allowlist okolja in ne izpisuj surovih dnevnikov procesa, saj lahko vsebujejo podedovane spremenljivke okolja.
 
 ## Besedilno preverjanje PDF-jev z ovitimi celicami
 
