@@ -989,7 +989,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     }
   });
 
-  it("returns comparable package prices per base unit and omits invalid factors or missing prices", async () => {
+  it("preserves zero prices and omits invalid package comparisons", async () => {
     context.enotaId = enotaId;
     const [comparisonArticle] = await db.insert(artikliTable).values({
       enotaId,
@@ -1048,6 +1048,13 @@ describe("POS supplier ordering and linked receipt flow", () => {
         packagePrice: "20",
         unitPrice: "2.5",
       });
+      const zeroPriceMappingId = await addMapping({
+        supplierId: comparisonSupplier.id,
+        code: "FREE",
+        packageFactor: "6",
+        packagePrice: "0",
+        unitPrice: "0",
+      });
       const invalidFactorMappingId = await addMapping({
         supplierId: comparisonSupplier.id,
         code: "ZERO",
@@ -1077,6 +1084,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
         packageFactor: 8,
         lastPackagePrice: 20,
         lastUnitPrice: 2.5,
+      });
+      expect(mappings.get(zeroPriceMappingId)).toMatchObject({
+        packageFactor: 6,
+        lastPackagePrice: 0,
+        lastUnitPrice: 0,
       });
       expect(mappings.get(invalidFactorMappingId)).toMatchObject({
         packageFactor: 0,

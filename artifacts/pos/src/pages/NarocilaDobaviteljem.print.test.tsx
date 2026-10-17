@@ -423,6 +423,83 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("keeps a valid zero package and unit price in the lowest-price comparison", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const [preferred] = originalMappings;
+    const zeroPriceOffer = {
+      ...preferred,
+      id: 7054,
+      supplierId: "supplier-712",
+      supplierName: "Mlekarna Brezplačno",
+      supplierItemName: "Promocijsko mleko",
+      packageName: "promocijski zaboj",
+      packageFactor: 6,
+      lastPackagePrice: 0,
+      lastUnitPrice: 0,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    Object.assign(article, { mappings: [preferred, zeroPriceOffer] });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      expect(screen.getByTestId("last-price-source-7054").textContent).toMatch(/0,00/);
+      expect(screen.getByTestId("last-unit-price-7054").textContent).toMatch(/0,00\s*€ \/ L/);
+      expect(screen.getByTestId("lowest-unit-price-7054").textContent).toContain("Najnižja cena / enoto");
+    } finally {
+      Object.assign(article, { mappings: originalMappings });
+    }
+  });
+
+  it("hides comparable prices and lowest badges when the article has no base unit", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const originalBaseUnit = article.baseUnit;
+    const [preferred] = originalMappings;
+    const alternative = {
+      ...preferred,
+      id: 7055,
+      supplierId: "supplier-713",
+      supplierName: "Mlekarna Druga",
+      packageFactor: 8,
+      lastPackagePrice: 20,
+      lastUnitPrice: 2.5,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    Object.assign(article, { baseUnit: null, mappings: [preferred, alternative] });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      for (const mappingId of [preferred.id, alternative.id]) {
+        expect(screen.queryByTestId(`last-unit-price-${mappingId}`)).toBeNull();
+        expect(screen.queryByTestId(`lowest-unit-price-${mappingId}`)).toBeNull();
+        expect(screen.getByTestId(`unavailable-unit-price-${mappingId}`).textContent)
+          .toContain("osnovna enota ni določena");
+      }
+      expect(screen.queryByTestId("supplier-savings-7055")).toBeNull();
+    } finally {
+      Object.assign(article, { baseUnit: originalBaseUnit, mappings: originalMappings });
+    }
+  });
+
   it("does not show savings when the preferred offer has no valid unit price", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;
