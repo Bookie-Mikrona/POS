@@ -41,6 +41,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BankStatementDetail } from "@/components/bank-statement-detail";
+import { bankImportDimensionWarnings } from "@/lib/bank-import-dimensions";
 
 // ─── Types mirrored from backend ─────────────────────────────────────────────
 
@@ -578,6 +579,14 @@ export default function BancniIzpis() {
   const skippedCount = [...decisions.values()].filter(d => d.kind === "skip").length;
   const pendingCount = [...decisions.values()].filter(d => d.kind === "pending").length;
   const duplicateCount = suggestions.filter(s => s.duplicateOf).length;
+  const dimensionWarnings = new Map(suggestions.map(item => [
+    item.transaction.id,
+    bankImportDimensionWarnings(
+      decisions.get(item.transaction.id) ?? { kind: "pending" },
+      bankAccountId, accounts, invoices, reconcilablePayments, autoPost,
+    ),
+  ]));
+  const hasMissingDimensions = [...dimensionWarnings.values()].some(warnings => warnings.length > 0);
 
   // ─── Step 3: Confirm ──────────────────────────────────────────────────────
 
@@ -589,6 +598,10 @@ export default function BancniIzpis() {
     // were fetched. Either way, block and force a reset.
     if (!wizardCompanyIdRef.current || activeCompany.id !== wizardCompanyIdRef.current) {
       setShowCompanyChangedDialog(true);
+      return;
+    }
+    if (hasMissingDimensions) {
+      setConfirmError("Uvoz ni dovoljen: preverite opozorila o obveznih dimenzijah pri transakcijah.");
       return;
     }
     for (const item of suggestions) {
@@ -1210,12 +1223,24 @@ export default function BancniIzpis() {
               <Button variant="outline" size="sm" onClick={() => setStep("upload")} disabled={confirming}>
                 <ChevronLeft className="mr-1 h-3 w-3" /> Nazaj
               </Button>
-              <Button size="sm" onClick={handleConfirm} disabled={matchedCount === 0 || confirming}>
+              <Button size="sm" onClick={handleConfirm} disabled={matchedCount === 0 || confirming || hasMissingDimensions}>
                 {confirming && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
                 Potrdi {matchedCount} transakcij <ChevronRight className="ml-1 h-3 w-3" />
               </Button>
             </div>
           </div>
+
+          {hasMissingDimensions && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Manjkajo obvezne dimenzije</AlertTitle>
+              <AlertDescription>
+                Pred potrditvijo preverite označene transakcije in izberite manjkajočega partnerja.
+                Stroškovnega mesta in projekta pri uvozu plačil ni mogoče vnesti.
+                Transakcije, ki ju zahtevajo, preskočite in vnesite s potrebnimi dimenzijami v temeljnici.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Transaction rows */}
           <div className="space-y-3">
@@ -1233,6 +1258,7 @@ export default function BancniIzpis() {
                 invoiceAccountId={decisions.get(item.transaction.id)?.kind === "matched"
                   ? invoices.find(invoice => invoice.id === (decisions.get(item.transaction.id) as Extract<MatchDecision, { kind: "matched" }>).invoiceId)?.arApAccountId ?? ""
                   : ""}
+                dimensionWarnings={dimensionWarnings.get(item.transaction.id)}
               />
             ))}
           </div>
@@ -1241,7 +1267,7 @@ export default function BancniIzpis() {
             <Button variant="outline" onClick={() => setStep("upload")} disabled={confirming}>
               <ChevronLeft className="mr-2 h-4 w-4" /> Nazaj na uvoz
             </Button>
-            <Button onClick={handleConfirm} disabled={matchedCount === 0 || confirming}>
+            <Button onClick={handleConfirm} disabled={matchedCount === 0 || confirming || hasMissingDimensions}>
               {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Potrdi {matchedCount} transakcij
             </Button>
@@ -1386,6 +1412,7 @@ export function TransactionReviewRow({
   accounts,
   defaultAccountId,
   invoiceAccountId,
+  dimensionWarnings = [],
 }: {
   item: TransactionWithSuggestions;
   decision: MatchDecision;
@@ -1396,6 +1423,7 @@ export function TransactionReviewRow({
   accounts: Array<{ id: string; code: string; name: string }>;
   defaultAccountId: string;
   invoiceAccountId: string;
+  dimensionWarnings?: string[];
 }) {
   const tx = item.transaction;
   const isInbound = tx.amount > 0;
@@ -1405,13 +1433,23 @@ export function TransactionReviewRow({
 
   // Duplicate transactions get amber border even when skipped, to stay visually distinct
   const statusColor =
-    (decision.kind === "matched" || decision.kind === "reconcile" || decision.kind === "standalone") ? "border-green-500 bg-green-50"
+    dimensionWarnings.length > 0 ? "border-destructive bg-destructive/5"
+    : (decision.kind === "matched" || decision.kind === "reconcile" || decision.kind === "standalone") ? "border-green-500 bg-green-50"
     : decision.kind === "skip" && duplicateOf ? "border-amber-400 bg-amber-50/40"
     : decision.kind === "skip" ? "border-muted bg-muted/20"
     : "border-amber-400 bg-amber-50";
 
   return (
     <div className={`border-2 rounded-lg p-4 transition-colors ${statusColor}`}>
+      {dimensionWarnings.length > 0 && (
+        <Alert variant="destructive" role="alert" className="mb-3">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Preverite obvezne dimenzije</AlertTitle>
+          <AlertDescription>
+            <ul>{dimensionWarnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
+          </AlertDescription>
+        </Alert>
+      )}
       {decision.kind === "matched" && (
         <p className="text-sm mb-3">
           Protikonto računa: {accounts.find(account => account.id === invoiceAccountId)
