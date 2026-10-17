@@ -10,6 +10,8 @@ import { createServer as createViteServer } from "vite";
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const posRoot = path.resolve(testsDir, "..");
+const longOrderNumber = "N-2026-0948-IZREDNO-DOLGA-ŠTEVILKA-NAROČILA-Z-LOKACIJO-RESTAVRACIJA-TRG-REPUBLIKE-001234567890";
+const longSupplierName = "Preizkusni dobavitelj za gostinske obrate – lokalna in sezonska živila, pijače ter oskrba več poslovnih enot z ločenimi dostavami za osrednjo kuhinjo";
 const originalEnv = {
   PORT: process.env.PORT,
   BASE_PATH: process.env.BASE_PATH,
@@ -98,24 +100,6 @@ function connectDevTools(webSocketUrl) {
         socket.send(JSON.stringify({ id, method, params }));
       });
     },
-    waitForEvent(method, timeoutMs = 30_000) {
-      return new Promise((resolve, reject) => {
-        const listeners = eventListeners.get(method) ?? new Set();
-        const onEvent = params => {
-          clearTimeout(timeout);
-          listeners.delete(onEvent);
-          if (listeners.size === 0) eventListeners.delete(method);
-          resolve(params);
-        };
-        const timeout = setTimeout(() => {
-          listeners.delete(onEvent);
-          if (listeners.size === 0) eventListeners.delete(method);
-          reject(new Error(`Timed out waiting for Chromium event ${method}.`));
-        }, timeoutMs);
-        listeners.add(onEvent);
-        eventListeners.set(method, listeners);
-      });
-    },
     onEvent(method, listener) {
       const listeners = eventListeners.get(method) ?? new Set();
       listeners.add(listener);
@@ -181,6 +165,17 @@ function readWords(markup) {
       .replace(/&quot;/g, "\"")
       .replace(/&apos;/g, "'"),
   }));
+}
+
+function readBlocks(markup) {
+  return [...markup.matchAll(/<block\b([^>]*)>([\s\S]*?)<\/block>/g)].map(match => {
+    const words = readWords(match[2]);
+    return {
+      ...readAttributes(match[1]),
+      words,
+      text: words.map(word => word.text).join(" "),
+    };
+  });
 }
 
 function stopProcessGroup(child) {
@@ -388,9 +383,8 @@ async function main() {
       };
       const removePageErrorListener = devTools.onEvent("Runtime.exceptionThrown", exceptionListener);
 
-      const pageLoaded = devTools.waitForEvent("Page.loadEventFired");
-      await devTools.send("Page.navigate", { url });
-      await pageLoaded;
+      const navigation = await devTools.send("Page.navigate", { url });
+      assert(!navigation.errorText, `Chromium could not navigate to the print fixture: ${navigation.errorText}`);
 
       const renderDeadline = Date.now() + 30_000;
       let rendered = false;
@@ -483,7 +477,7 @@ async function main() {
       assert(rowLine.includes(decimalToken(amount)), `${articleName} is missing its line amount.`);
     }
 
-    const longRowNumber = 15;
+    const longRowNumber = 12;
     const paddedLongRowNumber = String(longRowNumber).padStart(3, "0");
     const longArticleName = `POSTAVKA-${paddedLongRowNumber} Izredno dolg naziv artikla za mleko polnomastno v gostinskem pakiranju z dodatno oznako kakovosti in podrobnim opisom`;
     const longSupplierItemName = "Dobaviteljev artikel mleko polnomastno za profesionalne kuhinje z dodatnim opisom pakiranja in enote za večje gostinske obrate";
@@ -521,6 +515,48 @@ async function main() {
     const boundingBoxes = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-bbox-layout", pdfPath, "-"]);
     const pdfPages = [...boundingBoxes.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)];
     assert.equal(pdfPages.length, pageCount, "PDF text geometry page count differs from pdfinfo.");
+
+    const firstPage = pdfPages[0];
+    assert(firstPage, "The printed PDF has no first page.");
+    const headerBlocks = readBlocks(firstPage[2]);
+    const longOrderBlock = headerBlocks.find(block =>
+      compactText(block.text) === compactText(longOrderNumber));
+    const longSupplierBlock = headerBlocks.find(block =>
+      compactText(block.text) === compactText(longSupplierName));
+    const createdBlock = headerBlocks.find(block =>
+      block.words.some(word => word.text === "Ustvarjeno"));
+    const deliveryBlock = headerBlocks.find(block =>
+      compactText(block.text).includes("22.okt.2026"));
+    assert(longOrderBlock, "The complete long order number is missing from the first-page PDF geometry.");
+    assert(longSupplierBlock, "The complete long supplier name is missing from the first-page PDF geometry.");
+    assert(createdBlock, "The creation date is missing from the first-page PDF geometry.");
+    assert(deliveryBlock, "The expected delivery date is missing from the first-page PDF geometry.");
+    assert(
+      compactText(pages[0]).includes(compactText(longOrderNumber)),
+      "The long order number is not fully visible on the first PDF page.",
+    );
+    const orderNumberBounds = Object.fromEntries(
+      ["xMin", "yMin", "xMax", "yMax"].map(key => [key, Number(longOrderBlock[key])]),
+    );
+    const supplierNameBounds = Object.fromEntries(
+      ["xMin", "yMin", "xMax", "yMax"].map(key => [key, Number(longSupplierBlock[key])]),
+    );
+    const createdDateBounds = Object.fromEntries(
+      ["xMin", "yMin", "xMax", "yMax"].map(key => [key, Number(createdBlock[key])]),
+    );
+    const deliveryDateBounds = Object.fromEntries(
+      ["xMin", "yMin", "xMax", "yMax"].map(key => [key, Number(deliveryBlock[key])]),
+    );
+    assert(orderNumberBounds.yMax - orderNumberBounds.yMin > 30, "The long order number did not wrap onto multiple lines.");
+    assert(supplierNameBounds.yMax - supplierNameBounds.yMin > 20, "The long supplier name did not wrap onto multiple lines.");
+    assert(
+      orderNumberBounds.xMax <= createdDateBounds.xMin,
+      "The long order number extends into the creation-date column.",
+    );
+    assert(
+      supplierNameBounds.xMax <= deliveryDateBounds.xMin,
+      "The long supplier name extends into the expected-delivery column.",
+    );
 
     const longRowMarkup = pdfPages[longRowPageIndex];
     assert(longRowMarkup, "Long row has no PDF geometry page.");

@@ -4,11 +4,13 @@ import { SupplierOrderPrintView } from "../../src/pages/NarocilaDobaviteljem";
 import "../../src/index.css";
 
 const lineCount = 55;
+const longOrderNumber = "N-2026-0948-IZREDNO-DOLGA-ŠTEVILKA-NAROČILA-Z-LOKACIJO-RESTAVRACIJA-TRG-REPUBLIKE-001234567890";
+const longSupplierName = "Preizkusni dobavitelj za gostinske obrate – lokalna in sezonska živila, pijače ter oskrba več poslovnih enot z ločenimi dostavami za osrednjo kuhinjo";
 const lines: SupplierOrderDetail["lines"] = Array.from({ length: lineCount }, (_, index) => {
   const number = index + 1;
   const paddedNumber = String(number).padStart(3, "0");
   const unitPrice = (number % 9) + 1.25;
-  const isLongRow = number === 15;
+  const isLongRow = number === 12;
 
   return {
     id: number,
@@ -41,9 +43,9 @@ const noteParagraphs = Array.from({ length: 100 }, (_, index) => {
 
 const order: SupplierOrderDetail = {
   id: 948,
-  number: "N-2026-0948",
+  number: longOrderNumber,
   supplierId: "supplier-print-test",
-  supplierName: "Preizkusni dobavitelj",
+  supplierName: longSupplierName,
   status: "draft",
   createdAt: "2026-10-17T10:00:00.000Z",
   expectedDeliveryDate: "2026-10-22",
