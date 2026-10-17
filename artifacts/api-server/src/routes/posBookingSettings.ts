@@ -31,6 +31,7 @@ import {
   SmallEquipmentExpenseAccountUnavailableError,
 } from "../lib/seedSmallEquipmentExpenseAccount";
 import { UpdatePosBookingSettingsBody } from "@workspace/api-zod";
+import { posAccountDimensionWarning } from "../lib/posAccountDimensions";
 
 const router: IRouter = Router();
 
@@ -788,9 +789,29 @@ router.put(
       return savedSettings;
     });
 
+    const savedCategoryAccounts = await getCategoryRevenueAccounts(companyId);
+    const selectedAccountIds = [...new Set([
+      ...ACCOUNT_FIELDS.map((field) => upserted[field]),
+      ...savedCategoryAccounts.map((mapping) => mapping.accountId),
+    ].filter((id): id is string => typeof id === "string"))];
+    const selectedAccounts = selectedAccountIds.length
+      ? await db.select({
+        code: accountsTable.code,
+        requiresPartner: accountsTable.requiresPartner,
+        requiresCostCenter: accountsTable.requiresCostCenter,
+        requiresProject: accountsTable.requiresProject,
+      }).from(accountsTable).where(and(
+        eq(accountsTable.companyId, companyId),
+        inArray(accountsTable.id, selectedAccountIds),
+      ))
+      : [];
+    const warnings = selectedAccounts
+      .map((account) => posAccountDimensionWarning(account))
+      .filter((warning): warning is string => warning !== null);
     res.json({
       ...upserted,
-      categoryRevenueAccounts: await getCategoryRevenueAccounts(companyId),
+      categoryRevenueAccounts: savedCategoryAccounts,
+      warnings,
     });
   },
 );

@@ -1377,6 +1377,8 @@ export interface PosBookingExpenseAccountOption {
 
 export interface PosBookingSettings {
   companyId: string;
+  /** Opozorila za izbrane konte z obveznimi dimenzijami; shranjevanje ostane dovoljeno. */
+  warnings?: string[];
   /** Prihodkovni konti vseh aktivnih POS kategorij podjetja */
   categoryRevenueAccounts?: PosCategoryRevenueAccount[];
   /**

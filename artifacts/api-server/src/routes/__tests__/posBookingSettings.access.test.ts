@@ -166,6 +166,25 @@ describe("POS dostop do nastavitev knjiženja", () => {
     expect(syncMock).toHaveBeenCalledWith("cmp-1", "2026-08-19");
   });
 
+  it("shrani konto z obveznimi dimenzijami in vrne opozorila, ne napake", async () => {
+    const accountId = "11111111-1111-4111-8111-111111111111";
+    reset(
+      [{ role: "accountant" }], [],
+      [{ id: accountId, code: "1000000", type: "asset" }],
+      [],
+      [],
+      [{ code: "1000000", requiresPartner: true, requiresCostCenter: true, requiresProject: true }],
+    );
+    const response = await request(app)
+      .put("/companies/cmp-1/pos-booking-settings")
+      .set("Authorization", "Bearer accountant")
+      .send({ cashAccountId: accountId });
+    expect(response.status).toBe(200);
+    expect(state.inserted).toMatchObject({ cashAccountId: accountId });
+    expect(response.body.warnings).toHaveLength(1);
+    expect(response.body.warnings[0]).toContain("Konto 1000000 zahteva partnerja, stroškovno mesto, projekt");
+  });
+
   it("izrecno pripravi konto drobnega inventarja z enakimi pravicami kot shranjevanje", async () => {
     reset([], [{ vloga: "admin" }]);
 

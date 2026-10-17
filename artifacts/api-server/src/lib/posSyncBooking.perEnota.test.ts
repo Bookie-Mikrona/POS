@@ -431,6 +431,27 @@ describe("POS temeljnice po enoti", () => {
     ).toEqual(new Set([...costCenters.map(center => center.id), null]));
   });
 
+  it("opozori na manjkajoče dimenzije dejanskih vrstic in ohrani osnutke", async () => {
+    await db.update(accountsTable).set({
+      requiresPartner: true, requiresCostCenter: true, requiresProject: true,
+    }).where(eq(accountsTable.id, defaultRevenueAccountId));
+    try {
+      const result = await syncPosBookingForDay(companyId, DATE);
+      const warnings = result.skipped.filter((item) => item.reason.includes("zahteva"));
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings.some((item) => item.reason.includes("partnerja, stroškovno mesto, projekt"))).toBe(true);
+      expect(warnings.some((item) => item.reason.includes("zahteva partnerja, projekt"))).toBe(true);
+      for (const warning of warnings) {
+        expect(result.created).toContain(warning.ref);
+        expect(warning.reason).toContain("Osnutek je ustvarjen");
+      }
+    } finally {
+      await db.update(accountsTable).set({
+        requiresPartner: false, requiresCostCenter: false, requiresProject: false,
+      }).where(eq(accountsTable.id, defaultRevenueAccountId));
+    }
+  });
+
   it("ponovni sync nadomesti osnutke iste enote namesto podvajanja", async () => {
     const result = await syncPosBookingForDay(companyId, DATE);
 

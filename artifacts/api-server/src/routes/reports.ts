@@ -729,6 +729,28 @@ router.get(
       { dimId: string; accountId: string; code: string; name: string; debit: number; credit: number }
     >();
 
+      const accountDimensionRows = await db
+        .select({
+          dimId: dimTable.id,
+          dimCode: dimTable.code,
+          dimName: dimTable.name,
+          accountId: journalEntryLinesTable.accountId,
+          accountCode: accountsTable.code,
+          accountName: accountsTable.name,
+          side: journalEntryLinesTable.side,
+          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+        })
+        .from(journalEntryLinesTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
+        .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+        .where(and(...allConditions))
+        .groupBy(
+          dimTable.id, dimTable.code, dimTable.name,
+          journalEntryLinesTable.accountId, accountsTable.code, accountsTable.name,
+          journalEntryLinesTable.side,
+        );
+
     if (withAccountBreakdown) {
       // Single query that groups by dim + account + side
       const dimensionAccountTotals = await db
@@ -754,7 +776,16 @@ router.get(
         );
 
       for (const row of dimensionAccountTotals) {
-        const amount = parseFloat(row.total ?? "0");
+      const amount = parseFloat(row.amount);
+
+        const row: DimensionReportRow = {
+          id,
+          code: dim.code,
+          name: dim.name,
+          totalDebit: dim.debit.toFixed(2),
+          totalCredit: dim.credit.toFixed(2),
+          balance: (dim.debit - dim.credit).toFixed(2),
+        };
 
         // Dim-level aggregate
         const dimExisting = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
@@ -772,6 +803,20 @@ router.get(
           debit: 0,
           credit: 0,
         };
+
+      const dimensionRows = await db
+        .select({
+          dimId: dimTable.id,
+          dimCode: dimTable.code,
+          dimName: dimTable.name,
+          side: journalEntryLinesTable.side,
+          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+        })
+        .from(journalEntryLinesTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
+        .where(and(...allConditions))
+        .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
         if (row.side === "debit") accExisting.debit += amount;
         else accExisting.credit += amount;
         accountMap.set(key, accExisting);
@@ -794,56 +839,8 @@ router.get(
 
       for (const row of dimensionTotals) {
         const existing = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
-        const amount = parseFloat(row.total ?? "0");
-        if (row.side === "debit") existing.debit += amount;
-        else existing.credit += amount;
-        dimMap.set(row.dimId, existing);
-      }
-    }
-
-    // ── Untagged lines aggregation ────────────────────────────────────────────
-    // Use the same date/company/account filters and selected dimension as the
-    // report. Derive totals from these exact lines so the detail always reconciles.
-    const untaggedConditions = [
-      ...jeConditions,
-      isNull(dimFkCol),
-      ...lineConditions,
-    ];
-
-    const untaggedLines = await db
-      .select({
-        lineId: journalEntryLinesTable.id,
-        entryId: journalEntriesTable.id,
-        entryDate: journalEntriesTable.entryDate,
-        reference: journalEntriesTable.reference,
-        entryDescription: journalEntriesTable.description,
-        description: journalEntryLinesTable.description,
-        accountCode: accountsTable.code,
-        accountName: accountsTable.name,
-        side: journalEntryLinesTable.side,
-        amount: journalEntryLinesTable.amount,
-      })
-      .from(journalEntryLinesTable)
-      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
-      .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
-      .where(and(...untaggedConditions))
-      .orderBy(
-        journalEntriesTable.entryDate,
-        journalEntriesTable.id,
-        journalEntryLinesTable.sequence,
-        journalEntryLinesTable.id,
-      );
-
-    let untaggedDebit = 0;
-    let untaggedCredit = 0;
-    for (const row of untaggedLines) {
       const amount = parseFloat(row.amount);
-      if (row.side === "debit") untaggedDebit += amount;
-      else untaggedCredit += amount;
-    }
 
-    const reportRows: DimensionReportRow[] = Array.from(dimMap.entries())
-      .map(([id, dim]) => {
         const row: DimensionReportRow = {
           id,
           code: dim.code,
@@ -852,27 +849,16 @@ router.get(
           totalCredit: dim.credit.toFixed(2),
           balance: (dim.debit - dim.credit).toFixed(2),
         };
+      const amount = parseFloat(row.amount);
 
-        if (withAccountBreakdown) {
-          // Collect account sub-rows for this dimension, sorted by account code
-          const accRows: AccountBreakdownRow[] = Array.from(accountMap.values())
-            .filter((a) => a.dimId === id)
-            .map((a) => ({
-              accountId: a.accountId,
-              code: a.code,
-              name: a.name,
-              totalDebit: a.debit.toFixed(2),
-              totalCredit: a.credit.toFixed(2),
-              balance: (a.debit - a.credit).toFixed(2),
-            }))
-            .sort((a, b) => a.code.localeCompare(b.code));
-          row.accounts = accRows;
-        }
-
-        return row;
-      })
-      .sort((a, b) => a.code.localeCompare(b.code));
-
+        const row: DimensionReportRow = {
+          id,
+          code: dim.code,
+          name: dim.name,
+          totalDebit: dim.debit.toFixed(2),
+          totalCredit: dim.credit.toFixed(2),
+          balance: (dim.debit - dim.credit).toFixed(2),
+        };
     const grandTotalDebit = reportRows.reduce((s, r) => s + parseFloat(r.totalDebit), 0);
     const grandTotalCredit = reportRows.reduce((s, r) => s + parseFloat(r.totalCredit), 0);
 
@@ -1407,3 +1393,15 @@ router.get(
 );
 
 export default router;
+
+          const accRows: AccountBreakdownRow[] = Array.from(accountMap.values())
+            .filter((a) => a.dimId === id)
+            .map((a) => ({
+              accountId: a.accountId,
+              code: a.code,
+              name: a.name,
+              totalDebit: a.debit.toFixed(2),
+              totalCredit: a.credit.toFixed(2),
+              balance: (a.debit - a.credit).toFixed(2),
+            }))
+            .sort((a, b) => a.code.localeCompare(b.code));

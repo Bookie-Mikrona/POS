@@ -8,6 +8,7 @@ import type { CompanyWithRole, RoleAssignment, TipAllocation, TipPolicy } from "
 
 // Lightweight authenticated fetch — vključi Clerk JWT iz cookie/header,
 // ki ga Vite proxy posreduje API strežniku.
+import { PosAccountDimensionWarning, type AccountDimensions } from "@/components/pos-account-dimension-warning";
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   if (!res.ok) {
@@ -1200,7 +1201,7 @@ function UjpTab() {
 
 // ── POS Knjiženje ─────────────────────────────────────────────────────────────
 
-interface AccountOption {
+interface AccountOption extends AccountDimensions {
   id: string;
   code: string;
   name: string;
@@ -1218,6 +1219,7 @@ interface PosCategoryRevenueAccountData {
 }
 
 interface PosBookingSettingsData {
+  warnings?: string[];
   categoryRevenueAccounts: PosCategoryRevenueAccountData[];
   // T1 debet — plačila
   cashAccountId: string | null;
@@ -1935,8 +1937,11 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       }),
-    onSuccess: () => {
+    onSuccess: (response) => {
       setSaved(true);
+      if (response.warnings?.length) {
+        toast({ title: "Nastavitve so shranjene z opozorili", description: response.warnings.join("\n") });
+      }
       void qc.invalidateQueries({ queryKey: ["pos-booking-settings", companyId] });
       setTimeout(() => setSaved(false), 3000);
     },
@@ -2114,6 +2119,7 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
       <div className="min-w-0 space-y-1.5">
         <Label className="text-sm font-medium">{label}</Label>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        <PosAccountDimensionWarning account={selected} />
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -2204,6 +2210,7 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
       <div className="min-w-0 space-y-1.5">
         <Label className="text-sm font-medium">{label}</Label>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        <PosAccountDimensionWarning account={selected} />
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button

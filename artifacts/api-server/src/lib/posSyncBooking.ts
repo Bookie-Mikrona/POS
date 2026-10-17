@@ -42,6 +42,7 @@ import { and, eq, inArray, isNull, lt, lte, gte, not, notInArray, sql, isNotNull
 import {
   db,
   pool,
+  accountsTable,
   posBookingSettingsTable,
   posCategoryRevenueAccountsTable,
   accountingPeriodsTable,
@@ -73,6 +74,7 @@ import { bookingReceiptStatus, loadReceiptTaxGroups, sumReceiptTaxGroups } from 
 import { loadPosSalesVatCodes, posRevenueVat } from "./posSalesVat";
 
 import { slovenskiDatumZaSporocilo } from "./slovenian-date-message";
+import { posAccountDimensionWarning } from "./posAccountDimensions";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -492,7 +494,30 @@ async function insertEntry(
   ref: string,
   lines: SyncLine[],
   receiptSources?: Array<{ prejemnicaId: number; netAmount: Decimal }>,
+  skipped?: SyncResult["skipped"],
 ): Promise<string> {
+  if (skipped && lines.length) {
+    const accounts = await db.select({
+      id: accountsTable.id,
+      code: accountsTable.code,
+      requiresPartner: accountsTable.requiresPartner,
+      requiresCostCenter: accountsTable.requiresCostCenter,
+      requiresProject: accountsTable.requiresProject,
+    }).from(accountsTable).where(and(
+      eq(accountsTable.companyId, companyId),
+      inArray(accountsTable.id, [...new Set(lines.map((line) => line.accountId))]),
+    ));
+    const byId = new Map(accounts.map((account) => [account.id, account]));
+    const warnings = new Set<string>();
+    for (const line of lines) {
+      const account = byId.get(line.accountId);
+      const warning = account && posAccountDimensionWarning(account, line);
+      if (warning) warnings.add(warning);
+    }
+    for (const warning of warnings) {
+      skipped.push({ ref, reason: `Opozorilo: ${warning} Osnutek je ustvarjen; dopolnite manjkajoče dimenzije.` });
+    }
+  }
   return db.transaction(async tx => {
     const [entry] = await tx
       .insert(journalEntriesTable)
@@ -1118,7 +1143,7 @@ async function syncPosBookingForDayUnlocked(
       ));
     }
     await deleteExistingUnitDrafts(companyId, datum, enota.id, "PRODAJA");
-    const salesEntryId = await insertEntry(companyId, period.id, datum, `Dnevna prodaja POS — ${datum}`, prodajaRef, merged);
+    const salesEntryId = await insertEntry(companyId, period.id, datum, `Dnevna prodaja POS — ${datum}`, prodajaRef, merged, undefined, skipped);
     if (period.id && subvencija.gt("0.005") && settings.subsidyReceivableAccountId && settings.subsidyCounterpartyId) {
       const [existingSspInvoice] = await db.select({ id: invoicesTable.id })
         .from(invoicesTable)
@@ -1276,7 +1301,7 @@ async function syncPosBookingForDayUnlocked(
     }
 
     await deleteExistingUnitDrafts(companyId, datum, enota.id, "PORABA");
-    await insertEntry(companyId, period.id, datum, `POS poraba blaga/materiala — ${datum}`, porabaRef, merged);
+    await insertEntry(companyId, period.id, datum, `POS poraba blaga/materiala — ${datum}`, porabaRef, merged, undefined, skipped);
     created.push(porabaRef);
     })();
 
@@ -1430,7 +1455,7 @@ async function syncPosBookingForDayUnlocked(
     }
 
     await deleteExistingUnitDrafts(companyId, datum, enota.id, "LASTREPR");
-    await insertEntry(companyId, period.id, datum, `POS lastna poraba / reprezentanca — ${datum}`, lastReprRef, merged);
+    await insertEntry(companyId, period.id, datum, `POS lastna poraba / reprezentanca — ${datum}`, lastReprRef, merged, undefined, skipped);
     created.push(lastReprRef);
     })();
   }
@@ -2398,7 +2423,7 @@ async function syncPosBookingForMonthUnlocked(
         // deleteMonthlySalesDraft briše SSP draft invoice PRED journal entryjem
         // (FK invoices.linked_entry_id → journal_entries.id nima ON DELETE CASCADE).
         await deleteMonthlySalesDraft(companyId, month, enota.id);
-        const entryId = await insertEntry(companyId, period.id, end, `Mesečna prodaja POS — ${month}`, prodajaRef, merged);
+        const entryId = await insertEntry(companyId, period.id, end, `Mesečna prodaja POS — ${month}`, prodajaRef, merged, undefined, skipped);
         const subsidy = dec(sales.subvencija);
         const sspInvoiceNumber = `POS-SSP-${month}-E${enota.id}`;
         if (period.id && subsidy.gt("0.005") && settings.subsidyReceivableAccountId && settings.subsidyCounterpartyId) {
@@ -2526,7 +2551,7 @@ async function syncPosBookingForMonthUnlocked(
             skipped.push({ ref: lastReprRef, reason: "Mesečna T4 temeljnica ni uravnotežena" });
           } else {
             await deleteExistingMonthlyDraft(companyId, month, enota.id, "LASTREPR");
-            await insertEntry(companyId, period.id, end, `POS lastna poraba / reprezentanca — ${month}`, lastReprRef, merged);
+            await insertEntry(companyId, period.id, end, `POS lastna poraba / reprezentanca — ${month}`, lastReprRef, merged, undefined, skipped);
             created.push(lastReprRef);
           }
         }
@@ -2608,7 +2633,7 @@ async function syncPosBookingForMonthUnlocked(
           skipped.push({ ref: porabaRef, reason: "Mesečna temeljnica porabe ni uravnotežena" });
         } else {
           await deleteExistingMonthlyDraft(companyId, month, enota.id, "PORABA");
-          await insertEntry(companyId, period.id, end, `POS poraba blaga/materiala — ${month}`, porabaRef, merged);
+          await insertEntry(companyId, period.id, end, `POS poraba blaga/materiala — ${month}`, porabaRef, merged, undefined, skipped);
           created.push(porabaRef);
         }
       }

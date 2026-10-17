@@ -18190,6 +18190,7 @@ export const getPosBookingSettingsResponseDrobniInventarExpenseAccountOptionsIte
 
 export const GetPosBookingSettingsResponse = zod.object({
   "companyId": zod.string(),
+  "warnings": zod.array(zod.string()).optional().describe('Opozorila za izbrane konte z obveznimi dimenzijami; shranjevanje ostane dovoljeno.'),
   "categoryRevenueAccounts": zod.array(zod.object({
   "categoryId": zod.number(),
   "categoryName": zod.string(),
@@ -18239,6 +18240,7 @@ export const updatePosBookingSettingsResponseDrobniInventarExpenseAccountOptions
 
 export const UpdatePosBookingSettingsResponse = zod.object({
   "companyId": zod.string(),
+  "warnings": zod.array(zod.string()).optional().describe('Opozorila za izbrane konte z obveznimi dimenzijami; shranjevanje ostane dovoljeno.'),
   "categoryRevenueAccounts": zod.array(zod.object({
   "categoryId": zod.number(),
   "categoryName": zod.string(),

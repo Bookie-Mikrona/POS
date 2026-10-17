@@ -12858,6 +12858,10 @@ components:
       required: [companyId]
       properties:
         companyId: { type: string }
+        warnings:
+          type: array
+          description: Opozorila za izbrane konte z obveznimi dimenzijami; shranjevanje ostane dovoljeno.
+          items: { type: string }
         categoryRevenueAccounts:
           type: array
           description: Prihodkovni konti vseh aktivnih POS kategorij podjetja
