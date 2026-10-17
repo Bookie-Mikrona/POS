@@ -207,7 +207,8 @@ def test_pdf_chapter_titles_match_pos_manual_navigation() -> None:
 
 
 def test_published_manual_matches_versioned_pdf() -> None:
-    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "12.10.2026"
+    assert generator.MANUAL_VERSION == "8.15"
+    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "17.10.2026"
     assert generator.OUTPUT.exists()
     assert generator.PUBLIC_OUTPUT.read_bytes() == generator.OUTPUT.read_bytes()
 

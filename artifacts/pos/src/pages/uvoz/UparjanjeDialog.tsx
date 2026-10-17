@@ -1,9 +1,9 @@
 // artifacts/web/src/pos/uvoz/UparjanjeDialog.tsx
 //
-// Zaslon za uparjanje uvoženih postavk.
+// Zaslon za seznanjanje uvoženih postavk z nabavnimi artikli.
 //
-// Sestra obstoječega "Uredi prejemnico", ne njegova zamenjava. Ko so
-// vse postavke uparjene, se odpre obstoječi zaslon, napolnjen s podatki.
+// Dopolnilo obstoječemu zaslonu "Uredi prejemnico". Ko so vse postavke
+// seznanjene, se odpre obstoječi zaslon, napolnjen s podatki.
 //
 // Razredi CSS so pisani v slogu Tailwinda; prilagodi jih svojemu
 // oblikovnemu sistemu. Barva poudarka sledi oranžni z obstoječega zaslona.
@@ -285,7 +285,7 @@ export function UparjanjeDialog(l: Lastnosti) {
     l.onNovArtikel(pripraviPostavkoZaNovArtikel(postavka, pakiranje));
   }, [l, pakiranje, postavka]);
 
-  // Uparjanje mora biti izvedljivo brez miške — kdor prevzema blago,
+  // Seznanjanje mora biti izvedljivo brez miške — kdor prevzema blago,
   // ima pogosto eno roko na dobavnici.
   useEffect(() => {
     const naTipko = (e: KeyboardEvent) => {
@@ -382,7 +382,7 @@ export function UparjanjeDialog(l: Lastnosti) {
         {/* povzetek: prikažemo SAMO postavke, ki potrebujejo odločitev */}
         <div className="flex shrink-0 items-center gap-4 border-b bg-neutral-50 px-6 py-2 text-sm">
           <span className="text-emerald-700">
-            ✓ {l.steviloUparjenih} postavk samodejno povezanih
+            ✓ Samodejno seznanjene postavke: {l.steviloUparjenih}
           </span>
           <span className="text-amber-700">
             ⚠ {skupaj} {skupaj === 1 ? 'postavka potrebuje' : 'postavk potrebuje'} vašo odločitev
@@ -481,7 +481,7 @@ export function UparjanjeDialog(l: Lastnosti) {
             </div>
           ))}
 
-          <p className="my-3 text-center text-sm text-neutral-400">↓ povežem z</p>
+          <p className="my-3 text-center text-sm text-neutral-400">↓ Seznanjanje z nabavnim artiklom</p>
 
           {kandidati.some(k => k.jeSkupinskiNabavniArtikel) && (
             <div className="mb-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
@@ -703,7 +703,7 @@ export function UparjanjeDialog(l: Lastnosti) {
 /**
  * Ko dobavitelj zmanjša karton s 24 na 20 kosov ob nespremenjeni ceni
  * kartona, je to 20-odstotna podražitev, ki je z gledanjem računa ni
- * mogoče opaziti. Zato dobi lastno vprašanje in se ne upari tiho.
+ * mogoče opaziti. Zato dobi lastno vprašanje in se ne seznani tiho.
  */
 export function PakiranjeSpremenjeno(p: {
   artikelNaziv: string;

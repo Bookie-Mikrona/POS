@@ -1264,9 +1264,9 @@ potrditvi.
    izvirnikom in dejanskim štetjem. Neujemajoče se ali dvoumne vrstice so
    navedene za ročno preverjanje; neprepoznane številčne vrednosti ostanejo
    prazne.
-4. Pri ujemanju preverite tudi mersko enoto. Sistem uparja natisnjeni ID ali
-   natančen naziv skupaj z enoto; ne sprejemajte podobnega naziva kot dokaz
-   pravilnega artikla.
+4. Pri seznanjanju preverite tudi mersko enoto. Sistem pri seznanjanju upošteva
+   natisnjeni ID ali natančen naziv skupaj z enoto; podobnega naziva ne sprejmite
+   kot dokaz pravilnega artikla.
 5. Pri drobnem inventarju preverite količine; cenovni in vrednostni stolpci se
    za ta obseg ne uporabljajo.
 6. Pred potrditvijo preverite izbrani datum in opombo. Datum iz OCR je samo

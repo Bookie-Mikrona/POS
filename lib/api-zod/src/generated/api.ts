@@ -10850,7 +10850,7 @@ export const CreatePrejemnicaResponse = zod.object({
 
 
 /**
- * @summary Ročno uparjanje uvožene prejemnice
+ * @summary Ročno seznanjanje postavke uvožene prejemnice z nabavnim artiklom
  */
 export const MatchImportedReceiptLineParams = zod.object({
   "id": zod.coerce.number()

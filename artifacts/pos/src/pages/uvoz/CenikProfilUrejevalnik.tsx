@@ -325,11 +325,11 @@ export function CenikProfilUrejevalnik(l: Lastnosti) {
       {/* Predogled povezovanja */}
       {predogled && (
         <div className="rounded border bg-neutral-50 p-3 text-xs">
-          <p className="mb-2 font-medium text-sm">Predogled povezovanja</p>
+          <p className="mb-2 font-medium text-sm">Predogled seznanjanja</p>
           <div className="flex gap-4 text-neutral-600">
-            <span>✓ Samodejno: <strong className="text-green-700">{predogled.samodejno}</strong></span>
+            <span>✓ Samodejno seznanjene postavke: <strong className="text-green-700">{predogled.samodejno}</strong></span>
             <span>? Pregled: <strong className="text-amber-700">{predogled.zaPotrditev}</strong></span>
-            <span>✕ Brez ujemanja: <strong className="text-neutral-500">{predogled.brezZadetka}</strong></span>
+            <span>✕ Artikel ni najden: <strong className="text-neutral-500">{predogled.brezZadetka}</strong></span>
           </div>
         </div>
       )}

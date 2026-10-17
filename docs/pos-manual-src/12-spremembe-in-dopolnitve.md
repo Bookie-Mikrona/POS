@@ -176,8 +176,8 @@ vloge, enote in dejanski dostop so pojasnjeni v poglavju 09.
 ## 8. Povzetek trenutne dokumentacije
 
 Ta dodatek združuje slovar, kontrolne sezname, učne in predajne pripomočke
-ter sklice na podrobne postopke. Priročnik je izdaja **v8.14**, datirana
-**12.10.2026**. To je različica dokumentacije, ne številka različice POS
+ter sklice na podrobne postopke. Priročnik je izdaja **v8.15**, datirana
+**17.10.2026**. To je različica dokumentacije, ne številka različice POS
 aplikacije.
 
 Seznam funkcij in zaslonov se lahko razlikuje glede na vlogo uporabnika,
@@ -1781,6 +1781,10 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-47cfbfb45934 package=lite -->
 ## 39. Kratka zgodovina dokumentacije
+
+**17.10.2026 — priročnik v8.15.** Izrazje za povezavo postavk prejemnice z
+nabavnimi artikli je usklajeno. Vsebinski postopki niso spremenjeni, inventar
+postopkov pa ni bil ponovno pregledan.
 
 **12.10.2026 — priročnik v8.14.** Poslovni mesec in leto sledita začetni
 uri enote; letni prenos zalog in zamrznjenih pripravljenih jedi je mogoč šele po

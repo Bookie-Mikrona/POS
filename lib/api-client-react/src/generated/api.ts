@@ -20060,7 +20060,7 @@ export const getMatchImportedReceiptLineUrl = (id: number,) => {
 }
 
 /**
- * @summary Ročno uparjanje uvožene prejemnice
+ * @summary Ročno seznanjanje postavke uvožene prejemnice z nabavnim artiklom
  */
 export const matchImportedReceiptLine = async (id: number,
     uparjanjeUvoznePostavkeInput: UparjanjeUvoznePostavkeInput, options?: RequestInit): Promise<MatchImportedReceiptLine200> => {
@@ -20110,7 +20110,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type MatchImportedReceiptLineMutationError = ErrorType<void>
 
     /**
- * @summary Ročno uparjanje uvožene prejemnice
+ * @summary Ročno seznanjanje postavke uvožene prejemnice z nabavnim artiklom
  */
 export const useMatchImportedReceiptLine = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchImportedReceiptLine>>, TError,{id: number;data: BodyType<UparjanjeUvoznePostavkeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -8,7 +8,7 @@
 // Potek:
 //   1. upload    — nalaganje CSV/XLSX in izbira dobavitelja
 //   2. profil    — izbira ali kreiranje cenik-profila
-//   3. predogled — pregled uparjanja s primerjavo starih/novih cen
+//   3. predogled — pregled seznanjanja s primerjavo starih in novih cen
 //   4. rezultat  — povzetek shranjenega
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -191,7 +191,7 @@ export default function UvozCenikPage() {
         }));
 
       if (vrsticeZaPotrdi.length === 0) {
-        setNapaka('Ni vrstic z ujemanjem — ni česa shraniti.');
+        setNapaka('Ni seznanjenih vrstic — ni česa shraniti.');
         setNalaga(false);
         return;
       }
@@ -207,7 +207,7 @@ export default function UvozCenikPage() {
         throw new Error(d.sporocilo ?? `Napaka ${r.status}`);
       }
       const d = await r.json() as Rezultat;
-      // Preskočene = vrstice brez ujemanja
+      // Preskočene = vrstice brez seznanjenega nabavnega artikla
       setRezultat({
         ustvarjenih: d.ustvarjenih,
         posodobljenih: d.posodobljenih,
@@ -390,9 +390,9 @@ export default function UvozCenikPage() {
             {/* Povzetek */}
             <div className="grid grid-cols-4 gap-3">
               <StatKartica oznaka="Skupaj vrstic"     vrednost={predogled.vrstic}     barva="neutral" />
-              <StatKartica oznaka="Samodejno povezano" vrednost={predogled.samodejno}  barva="green" />
+              <StatKartica oznaka="Samodejno seznanjene postavke" vrednost={predogled.samodejno}  barva="green" />
               <StatKartica oznaka="Že shranjeno"       vrednost={predogled.posodobitev} barva="blue" />
-              <StatKartica oznaka="Brez ujemanja"      vrednost={predogled.brezZadetka} barva="amber" />
+              <StatKartica oznaka="Artikel ni najden"  vrednost={predogled.brezZadetka} barva="amber" />
             </div>
 
             {predogled.napake.length > 0 && (
@@ -402,7 +402,7 @@ export default function UvozCenikPage() {
             )}
 
             <p className="text-sm text-neutral-500">
-              Vrstice <strong>brez ujemanja</strong> ({predogled.brezZadetka}) bodo preskočene —
+              Vrstice, za katere ni bil najden nabavni artikel ({predogled.brezZadetka}), bodo preskočene —
               cenik ne ustvarja novih artiklov.
             </p>
 
@@ -439,7 +439,7 @@ export default function UvozCenikPage() {
                           <td className="border-b px-3 py-1.5">
                             {v.artikelNaziv
                               ? <span className="text-green-700">{v.artikelNaziv}</span>
-                              : <span className="text-neutral-400">— brez ujemanja</span>}
+                              : <span className="text-neutral-400">— artikel ni najden</span>}
                           </td>
                           <td className="border-b px-3 py-1.5">
                             {v.metoda
@@ -503,7 +503,7 @@ export default function UvozCenikPage() {
               </div>
               <div className="rounded-xl border bg-white p-5 shadow-sm">
                 <p className="text-3xl font-bold text-neutral-400">{rezultat.preskocenih}</p>
-                <p className="mt-1 text-sm text-neutral-500">Preskočenih (brez ujemanja)</p>
+                <p className="mt-1 text-sm text-neutral-500">Preskočenih (artikel ni najden)</p>
               </div>
             </div>
             <div className="flex gap-3">

@@ -5465,7 +5465,7 @@ paths:
       operationId: matchImportedReceiptLine
       tags:
         - prejemnice
-      summary: Ročno uparjanje uvožene prejemnice
+      summary: Ročno seznanjanje postavke uvožene prejemnice z nabavnim artiklom
       parameters:
         - name: id
           in: path
@@ -5480,7 +5480,7 @@ paths:
               $ref: "#/components/schemas/UparjanjeUvoznePostavkeInput"
       responses:
         "200":
-          description: Postavka je uspešno uparjena
+          description: Postavka je uspešno seznanjena z nabavnim artiklom
           content:
             application/json:
               schema:

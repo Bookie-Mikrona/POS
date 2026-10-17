@@ -461,7 +461,7 @@ export function UvozPrejemniceDialog({
     }));
     const stUpar = (data.uparjenih as number) ?? 0;
 
-    // Če so vse postavke samodejno uparjene, ni treba prikazati zaslona za uparjanje.
+    // Če so vse postavke samodejno seznanjene, ni treba prikazati zaslona za ročno izbiro.
     if (neuparjeneList.length === 0) {
       if (data.vrstaDokumenta === 'RACUN') {
         toast({
@@ -475,7 +475,7 @@ export function UvozPrejemniceDialog({
       }
       toast({
         title: 'Uvoz uspešen',
-        description: `${stUpar} artikel${stUpar === 1 ? '' : 'ov'} samodejno prepoznanih. Sledi knjiženje.`,
+        description: `Samodejno seznanjenih postavk: ${stUpar}. Sledi knjiženje.`,
       });
       setBookingPreviewId(data.prejemnicaId as number);
       return;
@@ -499,8 +499,8 @@ export function UvozPrejemniceDialog({
     setStUparjenih(stUpar);
     setKorak('uparjanje');
     toast({
-      title: 'Potrebna je potrditev povezav',
-      description: `${stUpar} ${stUpar === 1 ? 'artikel je samodejno povezan' : 'artiklov je samodejno povezanih'}, ${neuparjeneList.length} ${neuparjeneList.length === 1 ? 'vrstica pa potrebuje' : 'vrstice pa potrebujejo'} ročno potrditev.`,
+      title: 'Potrebno je ročno seznanjanje postavk',
+      description: `Samodejno seznanjenih postavk: ${stUpar}. Postavk brez izbranega artikla: ${neuparjeneList.length}.`,
     });
   }, [base, dobaviteljiMap, toast, onUvozDone, resetState, onClose, nabavniArtikli]);
 
@@ -1174,7 +1174,7 @@ export function UvozPrejemniceDialog({
       }
       toast({
         title: 'Uvoz uspešen',
-        description: `${noviSt} artikel${noviSt === 1 ? ' usklajen' : 'ov usklajenih'}. Sledi knjiženje.`,
+        description: `Seznanjenih postavk: ${noviSt}. Sledi knjiženje.`,
       });
       setBookingPreviewId(izid?.prejemnicaId ?? null);
     } else {
@@ -1218,7 +1218,7 @@ export function UvozPrejemniceDialog({
     }
     toast({
       title: 'Uvoz uspešen',
-      description: `${stUparjenih} artikel${stUparjenih === 1 ? ' usklajen' : 'ov usklajenih'}. Sledi knjiženje.`,
+      description: `Seznanjenih postavk: ${stUparjenih}. Sledi knjiženje.`,
     });
     setBookingPreviewId(izid?.prejemnicaId ?? null);
   }, [stUparjenih, toast, izid, onUvozDone, zapri]);
@@ -1254,7 +1254,7 @@ export function UvozPrejemniceDialog({
     );
   }
 
-  // ─── Prikaz: uparjanje ─────────────────────────────────────────────────
+  // ─── Prikaz: seznanjanje ───────────────────────────────────────────────
 
   if (korak === 'uparjanje' && izid) {
     const dobaviteljPrikazniNaziv = shranjeniKupci
