@@ -1,0 +1,182 @@
+rešitev pri nabavi artiklov z dobaviteljevimi šiframi, ean kodami, itd za seznanjanje in povezavo nabavnih artiklov z dobaviteljevimi (pairing) tudi v primeru, ko laho en artikel dobavlja več dobaviteljev. iskanje najugodnejših dobaviteljev, ifd
+
+Povezovanje (angl. pairing ali mapping) internih nabavnih artiklov z dobaviteljevimi šiframi je ena ključnih funkcionalnosti naprednih POS in ERP sistemov v gostinstvu in trgovini. Zlasti takrat, ko isti artikel (npr. Mleko 3,5% m.m. 1L) dobavlja več različnih dobaviteljev pod različnimi šiframi, EAN kodami in cenami, je ustrezna podatkovna struktura nujna.
+
+Spodaj je podroben pregled, kako je ta problem sistemsko rešen v sodobnih programskih rešitvah:
+
+1. Arhitektura baze podatkov: Relacija "Eden proti Mnogim" (1 : N)
+Namesto da bi bil dobaviteljev podatek (šifra ali EAN) zapisan neposredno v osrednji kartici artikla, sistem uporablja ločeno tabelo povezav (katalog dobaviteljev).
+
+[ Interni Nabavni Artikel ] ─── (1 : N) ───< [ Katalog Dobaviteljevih Artiklov ]
+(npr. ID: 10042 - Mleko 3,5%)                   ├─ Dobavitelj A (Šifra: A-991, EAN: 383..., Cena: 0.95 €)
+                                                ├─ Dobavitelj B (Šifra: B-004, EAN: 383..., Cena: 0.92 €)
+                                                └─ Dobavitelj C (Šifra: MET-88, EAN: 383..., Cena: 0.98 €)
+Podatki v povezovalni tabeli:
+ID internih artikla (povezava na vaš interni šifrant)
+
+ID dobavitelja
+
+Šifra artikla pri dobavitelju (koda, ki jo dobavitelj zahteva na naročilnici)
+
+EAN / GTIN koda (lahko je enaka ali specifična za embalažo)
+
+Naziv artikla pri dobavitelju (za izpis na naročilnici)
+
+Faktor pretvorbe enot (npr. interno vodite na litre, dobavitelj prodaja v kartonih po 12L -> faktor = 12)
+
+Zadnja nabavna cena / Pogodbena cena
+
+Oznaka "Primarni dobavitelj" (Main Supplier)
+
+2. Postopek seznanjanja in povezovanja (Pairing / Mapping)
+Povezovanje se v praksi izvaja na tri načine:
+
+Ročno seznanjanje ob vnosu prevzemnice / e-računa:
+Ko od novega dobavitelja prejmete e-račun ali prevzemnico in sistem ne prepozna njegove šifre/EAN kode, vas pozove: »Artikel 'Mleko Alpsko 1L' (Šifra dobavitelja: D123) ni povezan. Izberite interni artikel.« Uporabnik izbere obstoječi interni artikel ali ustvari novega. Sistem si povezavo za naprej zapamti.
+
+Množično uvažanje cenikov (Excel / CSV / XML):
+Ob prejemu novega cenika od dobavitelja program ponudi vmesnik za poravnavo (mapping wizard), kjer na podlagi EAN kod ali opisov avtomatsko ali polavtomatsko poveže artikle.
+
+Avtomatsko povezovanje preko EAN kode:
+Če imajo artikli standardizirane EAN/GTIN črtne kode, sistem samodejno zazna ujemanje in predlaga povezavo.
+
+3. Iskanje in izbira najugodnejšega dobavitelja
+Ko je baza povezav vzpostavljena, POS/ERP sistem omogoča pametno primerjavo cen in optimizacijo nabave:
+
+A. Primerjalna analiza cen (Supplier Price Comparison)
+Pri sestavljanju naročila ali pregledu artikla sistem prikaže matriko dobaviteljev:
+
+Prikaz vseh dobaviteljev, ki ponujajo določen artikel.
+
+Aktualna cena, veljavni popusti ali pogodbene cene.
+
+Preračunana cena na osnovno enoto mere (npr. cena na kg ali liter, ne glede na velikost pakiranja).
+
+Rok dobave (dobavni rok v dneh) in minimalna količina naročila (MOQ - Minimum Order Quantity).
+
+B. Samodejna izbira najugodnejšega dobavitelja (Best Price Sourcing)
+Ob generiranju avtomatskega naročila (ko zaloga pade pod minimum) lahko program ponudi možnosti:
+
+Optimizacija po najnižji ceni: Sistem avtomatsko razdeli naročilo tako, da vsak artikel naroči pri dobavitelju z najnižjo ceno.
+
+Optimizacija po minimalnem številu dobaviteljev: Ker vsak dostavitelj zahteva minimalni znesek naročila ali ima stroške dostave, sistem preračuna celotno košarico in predlaga optimalno kombinacijo (da npr. ne naročate pri 5 različnih dobaviteljih za male zneske).
+
+4. Upravljanje pretvorbenih enot (Embalaža vs. Osnovna enota)
+Pogost izziv v gostinstvu je razlika med nabavno in skladiščno enoto:
+
+Interna enota za normativ: Liter (L), Kilogram (kg), Kos (kos).
+
+Dobavitelj A: Prodaja v gajbicah po 20 steklenic (0,5L) -> Faktor = 10L.
+
+Dobavitelj B: Prodaja v sodih po 30L -> Faktor = 30L.
+
+Dober POS program v povezovalni tabeli preračuna vse cene na osnovno enoto (npr. cena na L ali kg). Le tako je primerjava cen med različnimi dobavitelji ter pakiranji realna in točna.
+
+Povzetek prednosti ureditve
+Popolna prilagodljivost: En interni artikel ima neomejeno število dobaviteljskih šifer in EAN kod.
+
+Prihranek denarja: Takojšen vpogled, kateri dobavitelj ima trenutno najnižjo ceno za določeno surovino.
+
+Natančnost pri naročanju: Na izvozni naročilnici ali e-dokumentu za dobavitelja se vedno izpiše njegova šifra in njegov naziv artikla, kar preprečuje napake pri dostavi.
+
+bolj podrobno
+
+Tehnična in podatkovna arhitektura rešitve
+Za popolno razumevanje, kako napredni POS in ERP sistemi rešujejo problem seznanjanja (pairing/mapping) ter izbire najugodnejšega dobavitelja, si poglejmo podrobno podatkovno strukturo, algoritem izračuna cen in potek dela (workflow).
+
+1. Podatkovni model (Relacijska shema)
+Osnova sistema je ločitev interne definicije surovine od dobaviteljevih specifičnih podatkov. V bazi podatkov to pomeni tri ključne tabele:
+
+Tabela 1: INTERNI_ARTIKEL (Surovina/Nabavni artikel)
+Predstavlja vašo interno evidenco skladišča in osnovo za normative jedi/pijač.
+
+id_artikel (Primarni ključ, npr. 10042)
+
+naziv (npr. Mleko 3,5% m.m.)
+
+osnovna_enota (npr. L, KG, KOS)
+
+kategorija_id (npr. Mlečni izdelki)
+
+min_zaloga, opt_zaloga
+
+Tabela 2: DOBAVITELJ
+id_dobavitelj (npr. SUP-001)
+
+naziv_dobavitelja (npr. Ljubljanske Mlekarne d.o.o.)
+
+min_znesek_narocila (npr. 150.00 EUR – meja za brezplačno dostavo)
+
+rok_dostave_dni (npr. 1)
+
+Tabela 3: DOBAVITELJ_ARTIKEL_POVEZAVA (Povezovalna tabela 1:N)
+To je osrednje mesto za pairing. Vsak interni artikel ima lahko neomejeno vnosov v tej tabeli.
+
+id_povezava (Primarni ključ)
+
+id_artikel (Tuj ključ na INTERNI_ARTIKEL)
+
+id_dobavitelj (Tuj ključ na DOBAVITELJ)
+
+sifra_dobavitelja (Koda artikla pri dobavitelju, npr. LM-9021)
+
+ean_koda (EAN/GTIN črtna koda za skeniranje ob prevzemu)
+
+naziv_pri_dobavitelju (Točno ime artikla, ki se izpiše na naročilnici)
+
+pakiranje_enota (npr. Karton 12L, Zaboj, Sod 30L)
+
+faktor_pretvorbe (Koliko osnovnih enot vsebuje pakiranje dobavitelja; npr. če je osnovna enota L, pakiranje pa 12L karton, je faktor = 12.00)
+
+zadnja_nabavna_cena (Cena za celotno pakiranje dobavitelja)
+
+pogodbena_cena (Dogovorjena cena z rabatom)
+
+je_primarni (Flag/Oznaka: TRUE/FALSE)
+
+2. Izračun in normalizacija cene za primerjavo
+Ker dobavitelji prodajajo artikle v različnih pakiranjih (npr. en v plastenkah po 1L, drugi v kartonih po 12L, tretji v kontejnerjih), sistem ne more neposredno primerjati cene pakiranja.
+
+Sistem izvede normalizacijo cene na osnovno enoto:
+
+Primerjalna cena na osn. enoto= 
+Faktor pretvorbe
+Pogodbena ali nabavna cena pakiranja
+​
+ 
+Primer iz praxe:
+Dobavitelj	Pakiranje dobavitelja	Cena pakiranja	Faktor pretvorbe	Preračunana cena za 1L
+Dobavitelj A	Plastenka 1 L	1,05 €	1,00	1,05 € / L
+Dobavitelj B	Karton (12 × 1 L)	11,40 €	12,00	0,95 € / L (Najugodnejši)
+Dobavitelj C	Zaboj (20 × 1 L)	19,60 €	20,00	0,98 € / L
+Sistem uporabniku samodejno poudari Dobavitelja B kot najugodnejšo izbiro na enoto mere, hkrati pa opozori na minimalno količino nakupa (12 L).
+
+3. Avtomatiziran potek dela (Workflow) ob obdelavi e-računa / prevzemnice
+Ko prejmete e-račun (npr. v formatu e-SLOG XML) ali prevzamete blago s skenerjem, poteka avtomatsko seznanjanje po naslednjem postopku:
+
+[ Prejem e-računa / Skeniranje EAN ]
+                 │
+                 ▼
+     Ali EAN ali Šifra dobavitelja 
+     že obstaja v tabeli POVEZAVA?
+         ├── DA ──> Avtomatsko uveljavi povezavo + Osveži zadnjo nabavno ceno.
+         │
+         └── NE ──> Prikaže se okno za SEZNANJANJE (Pairing Wizard):
+                      1. Predlog ujemanja po imenu (Fuzzy matching).
+                      2. Ročna izbira obstoječega internih artikla ali kreiranje novega.
+                      3. Shranitev povezave (EAN/Šifra) za vsa bodoča naročila.
+4. Algoritmi za optimizacijo nabave (Pametna košarica)
+Ko sistem zazna, da je treba naročiti surovine (zaradi padca pod minimalno zalogo ali na podlagi vnesenega tedenskega plana), ponudi tri načine generiranja naročilnic:
+
+Strogi algoritem najnižje cene (Cenovna optimizacija):
+Sistem razdeli manjkajoče artikle in ustvari ločene naročilnice za vsakega dobavitelja, ki ima najnižjo preračunano ceno na enoto.
+
+Optimizacija z upoštevanjem minimalnega naročila (MOQ & Free Shipping):
+Če naročilo pri najcenejšem dobavitelju ne dosega njegovega minimalnega zneska za brezplačno dostavo (npr. 150 €), algoritem predlaga:
+
+Dodatno dopolnitev zalog hitro obratnih artiklov pri tem dobavitelju.
+
+Preusmeritev naročila k drugemu dobavitelju, kjer je skupna košarica cenovno ugodnejša zaradi brezplačne prevoznine.
+
+Consolidirana nabava (Primarni dobavitelj):
+Vse artikle naroči pri enem glavno izbranem dobavitelju (Primarni dobavitelj), ne glede na posamična odstopanja v ceni, da se zmanjša število dostav in administrativno delo.

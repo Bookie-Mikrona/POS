@@ -15,7 +15,10 @@ import {
   zalogeTable,
 } from "@workspace/db";
 import { requireEnota, type PosRequest } from "../../middlewares/pos";
-import { SupplierOrderReceiptConflict } from "../../lib/pos-supplier-orders";
+import {
+  getLatestSupplierPriceReceipts,
+  SupplierOrderReceiptConflict,
+} from "../../lib/pos-supplier-orders";
 
 const router: IRouter = Router();
 
@@ -372,6 +375,11 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
         eq(counterpartiesTable.companyId, companyId),
       ))
     : [];
+  const lastPriceReceipts = await getLatestSupplierPriceReceipts(
+    db,
+    enotaId,
+    mappingRows.map(mapping => mapping.id),
+  );
   const mappingsByArticle = new Map<number, typeof mappingRows>();
   for (const mapping of mappingRows) {
     const items = mappingsByArticle.get(mapping.articleId) ?? [];
@@ -417,6 +425,7 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
         packageName: mapping.packageName,
         packageFactor: Number(mapping.packageFactor),
         lastPackagePrice: nullableNumber(mapping.lastPackagePrice),
+        lastPriceReceipt: lastPriceReceipts.get(mapping.id) ?? null,
         active: mapping.active,
       })),
     };

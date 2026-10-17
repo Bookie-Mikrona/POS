@@ -53,6 +53,13 @@ const formatQty = (value: number | null | undefined, digits = 2) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { maximumFractionDigits: digits }).format(value);
 const formatDate = (value?: string | null) =>
   value ? new Intl.DateTimeFormat("sl-SI", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)) : "—";
+const formatReceiptDate = (value: string) =>
+  new Intl.DateTimeFormat("sl-SI", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${value.slice(0, 10)}T00:00:00.000Z`));
 const formatMoney = (value: number | null | undefined) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(value);
 
@@ -497,7 +504,16 @@ export default function NarocilaDobaviteljem() {
                     <div className="mt-0.5 text-[10px] text-[#949a94]">prag / cilj</div>
                   </td>
                   <td className="px-3 py-3">
-                    {mapping ? <><div className="font-medium text-[#40574f]">{mapping.supplierName}</div><div className="text-xs text-[#858d87]">{mapping.packageName ?? "pakiranje"} · {formatQty(mapping.packageFactor)} {article.baseUnit ?? ""}</div></> : <span className="text-xs text-orange-800">Ni aktivne povezave</span>}
+                    {mapping ? <>
+                      <div className="font-medium text-[#40574f]">{mapping.supplierName}</div>
+                      <div className="text-xs text-[#858d87]">{mapping.packageName ?? "pakiranje"} · {formatQty(mapping.packageFactor)} {article.baseUnit ?? ""}</div>
+                      {mapping.lastPackagePrice != null && <div className="mt-1 space-y-0.5 text-xs text-[#68756e]" data-testid={`last-price-source-${mapping.id}`}>
+                        <div>Zadnja cena: {formatMoney(mapping.lastPackagePrice)} / pak.</div>
+                        {mapping.lastPriceReceipt
+                          ? <div>Vir: prejemnica št. {mapping.lastPriceReceipt.receiptNumber} · {formatReceiptDate(mapping.lastPriceReceipt.date)}</div>
+                          : <div>Vir prejemnice ni zabeležen.</div>}
+                      </div>}
+                    </> : <span className="text-xs text-orange-800">Ni aktivne povezave</span>}
                   </td>
                   <td className="px-3 py-3 text-right">
                     {article.hasSuggestion && article.suggestedBaseQuantity != null ? <><strong className="data-mono text-[#285d50]">{formatQty(article.suggestedBaseQuantity)} {article.baseUnit}</strong><div className="mt-0.5 text-xs text-[#77817b]">{article.suggestedPackageQuantity != null ? `${formatQty(article.suggestedPackageQuantity)} ${mapping?.packageName ?? "pak."}` : "osnovna enota"}</div></> : <span className="text-xs text-[#969d97]">Nastavite cilj</span>}

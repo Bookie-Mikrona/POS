@@ -217,6 +217,64 @@ export async function syncSupplierOrdersForReceipt(
   }
 }
 
+export type SupplierPriceReceiptSource = {
+  date: string;
+  receiptNumber: string;
+};
+
+export async function getLatestSupplierPriceReceipts(
+  tx: typeof db | any,
+  enotaId: number,
+  mappingIds: number[],
+): Promise<Map<number, SupplierPriceReceiptSource>> {
+  const scopedMappingIds = [...new Set(mappingIds)]
+    .filter(id => Number.isInteger(id) && id > 0);
+  if (scopedMappingIds.length === 0) return new Map();
+
+  const result = await tx.execute(sql`
+    SELECT DISTINCT ON (order_line.supplier_mapping_id)
+      order_line.supplier_mapping_id AS "mappingId",
+      TO_CHAR(receipt.datum, 'YYYY-MM-DD') AS "date",
+      COALESCE(
+        NULLIF(BTRIM(receipt.stevilka), ''),
+        'ID-' || receipt.id::text
+      ) AS "receiptNumber"
+    FROM prejemnice_postavke receipt_line
+    JOIN prejemnice receipt
+      ON receipt.id = receipt_line.prejemnica_id
+     AND receipt.enota_id = ${enotaId}
+    JOIN pos_supplier_order_lines order_line
+      ON order_line.id = receipt_line.supplier_order_line_id
+     AND order_line.enota_id = ${enotaId}
+    JOIN artikel_dobavitelj mapping
+      ON mapping.id = order_line.supplier_mapping_id
+     AND mapping.enota_id = ${enotaId}
+    WHERE order_line.supplier_mapping_id IN (
+      ${sql.join(scopedMappingIds.map(id => sql`${id}`), sql`, `)}
+    )
+      AND receipt.status = 'confirmed'
+      AND receipt_line.neto_cena IS NOT NULL
+      AND (
+        receipt_line.izv_cena IS NOT NULL
+        OR COALESCE(receipt_line.neto_znesek, 0) > 0
+        OR COALESCE(receipt_line.cena_kos, 0) > 0
+      )
+    ORDER BY
+      order_line.supplier_mapping_id,
+      receipt.datum DESC,
+      receipt.id DESC,
+      receipt_line.id DESC
+  `);
+  return new Map((result.rows as Array<{
+    mappingId: number | string;
+    date: string;
+    receiptNumber: string;
+  }>).map(row => [
+    Number(row.mappingId),
+    { date: row.date, receiptNumber: row.receiptNumber },
+  ]));
+}
+
 export async function syncSupplierOrders(
   tx: typeof db | any,
   enotaId: number,

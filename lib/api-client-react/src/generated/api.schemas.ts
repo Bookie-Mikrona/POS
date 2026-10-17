@@ -8094,6 +8094,14 @@ export const SupplierOrderStatus = {
   cancelled: 'cancelled',
 } as const;
 
+/**
+ * @nullable
+ */
+export type SupplierItemMappingLastPriceReceipt = {
+  date: string;
+  receiptNumber: string;
+} | null;
+
 export interface SupplierItemMapping {
   id: number;
   supplierId: string;
@@ -8107,6 +8115,8 @@ export interface SupplierItemMapping {
   packageFactor: number;
   /** @nullable */
   lastPackagePrice?: number | null;
+  /** @nullable */
+  lastPriceReceipt: SupplierItemMappingLastPriceReceipt;
   active: boolean;
 }
 

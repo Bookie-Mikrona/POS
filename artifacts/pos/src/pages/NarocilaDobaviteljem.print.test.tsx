@@ -36,6 +36,35 @@ const mocks = vi.hoisted(() => ({
       unitPrice: 18,
     }],
   },
+  dashboard: {
+    articles: [{
+      articleId: 7043,
+      articleName: "Mleko 3,5 %",
+      purchaseName: "Mleko polnomastno",
+      baseUnit: "L",
+      onHand: 2,
+      reorderPoint: 5,
+      targetStock: 17,
+      openOrderQuantity: 0,
+      suggestedBaseQuantity: 15,
+      suggestedPackageQuantity: 3,
+      preferredMappingId: 7042,
+      hasSuggestion: true,
+      mappings: [{
+        id: 7042,
+        supplierId: "supplier-704",
+        supplierName: "Mlekarna Planika",
+        supplierItemName: "Mleko polnomastno",
+        supplierCode: "ML-01",
+        packageName: "zaboj",
+        packageFactor: 6,
+        lastPackagePrice: 22.5,
+        lastPriceReceipt: { date: "2026-10-17", receiptNumber: "26100001" },
+        active: true,
+      }],
+    }],
+    orders: [],
+  },
 }));
 
 vi.mock("@workspace/api-client-react", async () => {
@@ -44,7 +73,7 @@ vi.mock("@workspace/api-client-react", async () => {
   return {
     ...actual as any,
     useGetSupplierOrderDashboard: () => ({
-      data: { articles: [], orders: [] },
+      data: mocks.dashboard,
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
@@ -122,5 +151,22 @@ describe("supplier order print view", () => {
     expect(print).toHaveBeenCalledOnce();
     expect(mocks.markSent).not.toHaveBeenCalled();
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("shows the date and receipt reference for the latest supplier price", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    const source = screen.getByTestId("last-price-source-7042");
+    expect(source.textContent).toContain("22,50");
+    expect(source.textContent).toContain("26100001");
+    expect(source.textContent).toContain("17.");
+    expect(source.textContent).toContain("2026");
   });
 });

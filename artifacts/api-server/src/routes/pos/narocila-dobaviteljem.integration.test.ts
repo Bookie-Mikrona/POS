@@ -255,6 +255,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const [stockWithDraftReceipt] = await db.select().from(zalogeTable).where(eq(zalogeTable.artikelId, articleId));
     expect(Number(stockWithDraftReceipt.kolicina)).toBe(2);
     expect(await getMappingPrice()).toEqual({ packagePrice: 18, unitPrice: 3 });
+    const dashboardWithDraftReceipt = await request(app).get("/narocila-dobaviteljem/pregled");
+    const mappingWithDraftReceipt = dashboardWithDraftReceipt.body.articles
+      .find((row: any) => row.articleId === articleId).mappings
+      .find((mapping: any) => mapping.id === mappingId);
+    expect(mappingWithDraftReceipt.lastPriceReceipt).toBeNull();
     const firstReceiptDetail = await request(app).get(`/prejemnice/${firstReceiptId}`);
     expect(firstReceiptDetail.status).toBe(200);
     const originalReceiptLine = firstReceiptDetail.body.postavke[0];
@@ -286,6 +291,10 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .find((row: any) => row.articleId === articleId).mappings
       .find((mapping: any) => mapping.id === mappingId);
     expect(mappingAfterFirstReceipt.lastPackagePrice).toBe(21);
+    expect(mappingAfterFirstReceipt.lastPriceReceipt).toEqual({
+      date: "2026-10-17",
+      receiptNumber: firstReceiptDetail.body.stevilka,
+    });
     const firstOrderAfterPartialReceipt = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
     expect(firstOrderAfterPartialReceipt.body.lines[0].unitPrice).toBe(20);
     const [firstReceiptLineSnapshot] = await db.select({
@@ -311,6 +320,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .find((row: any) => row.articleId === articleId).mappings
       .find((mapping: any) => mapping.id === mappingId);
     expect(mappingAfterSecondReceipt.lastPackagePrice).toBe(22.5);
+    const secondReceiptDetail = await request(app).get(`/prejemnice/${secondReceiptId}`);
+    expect(mappingAfterSecondReceipt.lastPriceReceipt).toEqual({
+      date: "2026-10-17",
+      receiptNumber: secondReceiptDetail.body.stevilka,
+    });
     const completed = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
     expect(completed.body).toMatchObject({
       status: "received",
