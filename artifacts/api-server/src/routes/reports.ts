@@ -570,6 +570,8 @@ async function getIncomeStatementReport(req: Request, res: Response): Promise<vo
 router.get("/companies/:companyId/reports/balance-sheet", requireAuth, getBalanceSheetReport);
 router.get("/companies/:companyId/reports/income-statement", requireAuth, getIncomeStatementReport);
 
+// ── Dimensions report ─────────────────────────────────────────────────────────
+
 type DimensionType = "costCenter" | "project" | "department";
 
 interface AccountBreakdownRow {

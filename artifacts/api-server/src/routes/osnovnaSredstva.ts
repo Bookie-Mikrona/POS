@@ -1259,12 +1259,16 @@ router.patch(
     }
 
     const [existingD] = await db
-      .select({ id: osDoknjizbeTable.id })
+      .select({ id: osDoknjizbeTable.id, seq: osDoknjizbeTable.seq })
       .from(osDoknjizbeTable)
       .where(and(eq(osDoknjizbeTable.id, doknjizbaId), eq(osDoknjizbeTable.sredstvoId, sredstvoId)))
       .limit(1);
     if (!existingD) {
       res.status(404).json({ error: "Doknjižba ni najdena" });
+      return;
+    }
+    if (existingD.seq === 0) {
+      res.status(400).json({ error: "Osnovni nakup uredite prek obrazca Uredi osnovno sredstvo, ne kot dograditev." });
       return;
     }
 
