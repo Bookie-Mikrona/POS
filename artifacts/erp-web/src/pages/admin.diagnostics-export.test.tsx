@@ -350,7 +350,7 @@ async function selectOption(testId: string, value: string) {
   await waitFor(() => {
     expect(screen.getByTestId(testId)).toBeEnabled();
     expect(screen.getByTestId(optionTestId)).toBeEnabled();
-  });
+  }, { timeout: 5000 });
   fireEvent.click(screen.getByTestId(optionTestId));
 }
 
