@@ -7901,6 +7901,37 @@ export interface PrejemnicaUrediVnos {
   postavke?: PrejemnicaPostavkaInput[];
 }
 
+export interface SupplierOrderPackageFactorChange {
+  supplierOrderLineId: number;
+  articleName: string;
+  /** @nullable */
+  orderFactor: number | null;
+  /** @nullable */
+  currentFactor: number | null;
+}
+
+export interface ConfirmPrejemnicaBody {
+  reviewedPackageFactorChanges?: SupplierOrderPackageFactorChange[];
+}
+
+export type ConfirmPrejemnicaResponseStatus = typeof ConfirmPrejemnicaResponseStatus[keyof typeof ConfirmPrejemnicaResponseStatus];
+
+
+export const ConfirmPrejemnicaResponseStatus = {
+  confirmed: 'confirmed',
+} as const;
+
+export interface ConfirmPrejemnicaResponse {
+  id: number;
+  status: ConfirmPrejemnicaResponseStatus;
+}
+
+export interface ConfirmPrejemnicaErrorResponse {
+  code: string;
+  error: string;
+  packageFactorChanges?: SupplierOrderPackageFactorChange[];
+}
+
 export interface InventuraPostavkaInput {
   artikelId: number;
   steviloNajdeno: number;

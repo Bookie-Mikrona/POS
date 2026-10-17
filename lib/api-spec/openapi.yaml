@@ -5730,6 +5730,41 @@ paths:
       responses:
         "204":
           description: Deleted
+  /prejemnice/{id}/confirm:
+    post:
+      operationId: confirmPrejemnica
+      tags:
+        - prejemnice
+      summary: Potrdi prejemnico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmPrejemnicaBody"
+      responses:
+        "200":
+          description: Prejemnica je potrjena
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfirmPrejemnicaResponse"
+        "400":
+          description: Neveljaven ID ali zahteva za pregled pakiranja
+        "404":
+          description: Prejemnica ni najdena
+        "409":
+          description: Prejemnice ni mogoče potrditi ali je potrebno ponovno pregledati pakiranje
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfirmPrejemnicaErrorResponse"
   /inventure:
     get:
       operationId: listInventure
@@ -19087,6 +19122,39 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PrejemnicaPostavkaInput"
+    ConfirmPrejemnicaBody:
+      type: object
+      properties:
+        reviewedPackageFactorChanges:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupplierOrderPackageFactorChange"
+    SupplierOrderPackageFactorChange:
+      type: object
+      required: [supplierOrderLineId, articleName, orderFactor, currentFactor]
+      properties:
+        supplierOrderLineId: { type: integer }
+        articleName: { type: string }
+        orderFactor: { type: [number, "null"] }
+        currentFactor: { type: [number, "null"] }
+    ConfirmPrejemnicaResponse:
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: integer }
+        status:
+          type: string
+          enum: [confirmed]
+    ConfirmPrejemnicaErrorResponse:
+      type: object
+      required: [code, error]
+      properties:
+        code: { type: string }
+        error: { type: string }
+        packageFactorChanges:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupplierOrderPackageFactorChange"
     InventuraUrediVnos:
       type: object
       properties:

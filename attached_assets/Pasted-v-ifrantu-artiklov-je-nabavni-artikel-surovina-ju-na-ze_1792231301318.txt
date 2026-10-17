@@ -1,0 +1,109 @@
+v šifrantu artiklov je nabavni artikel - surovina jušna zelenjava enota mere kg (por, koleraba, koren zelene, itd.), ali artikel sveže začimbe v kg (lovor, majaron, rožmarin, itd), ki pa jih nabavljamo pri različnih dobaviteljih. Združujejo pa se avtomatsko v en artikel, zato zaloga posamezne surovine ni znana. kako se to reši v šifrantu, da lahko v naročilu vnašamo posamezne surovine in ne skupinske?
+
+Problem, ki ga opisujete, je zelo pogost v gostinstvu: zbirni/skupinski artikli (npr. Jušna zelenjava ali Sveže začimbe) onemogočajo natančno vodenje zalog in neposredno naročanje posameznih komponent, saj dobavitelj ne prodaja "1 kg jušne zelenjave", ampak "0,3 kg pora, 0,5 kg korenja, 0,2 kg zelene".
+
+Za rešitev tega izziva se v POS in ERP sistemih uporabljajo trije uveljavljeni pristopi v šifrantu in normativih:
+
+Rešitev 1: Dvo-nivojska struktura (Razčlenitev v šifrantu na posamezne surovine + Set/Polizdelek) — PRIPOROČENO
+To je najbolj profesionalna in analitično čista rešitev.
+
+A. V šifrantu nabavnih artiklov (surovin):
+Namesto enega zbirnega artikla v šifrant ustvarite posamezne realne surovine:
+
+Por (kg)
+
+Koleraba (kg)
+
+Koren zelene (kg)
+
+Korenje (kg)
+
+Lovor (kg)
+
+Majaron (kg)
+
+Rožmarin (kg)
+
+Vsaka od teh surovin ima svojo zalogo, svojo EAN/šifro dobavitelja in se posamično vnaša na naročilnice ter prevzemnice.
+
+B. V šifrantu polizdelkov / normativov:
+Ustvari se polizdelek ali set »Jušna zelenjava (mešanica)«, ki nima svoje fizikalne zaloge, ampak ima definiran normativ iz posameznih surovin (npr. za 1 kg mešanice):
+
+0,30 kg Por
+
+0,30 kg Korenje
+
+0,20 kg Koleraba
+
+0,20 kg Koren zelene
+
+Prednost te rešitve:
+Naročanje: Kuhinja ali nabava pri dobavitelju naroča točno določeno zelenjavo/začimbo (por, rožmarin itd.).
+
+Kuhanje / Normativi: V receptu za govejo juho kuhar kot sestavino navede le polizdelek »Jušna zelenjava – 0,15 kg«. Sistem ob prodaji juhe avtomatsko razknjiži ustrezne deleže pora, korenja, kolerabe in zelene.
+
+Rešitev 2: Paketni artikli z dinamično sestavo (Kombinirani artikli / Sub-items)
+Če dobavitelj sam prodaja predpripravljen pakiran paket (npr. »Paket Jušna zelenjava 1 kg«), vi pa želite imeti nadzor nad sestavinami:
+
+V šifrantu artiklov ustvarite artikel vrste Kombinirani / Paketni artikel (Jušna zelenjava paket).
+
+Ob vnosu naročila ali prevzemnice sistem omogoča:
+
+Da naročite celoten paket ali pa razstavite paket na osnovne komponente po definiranih odstotkih/razmerjih.
+
+Ob prevzemu prevzemnica samodejno porazdeli nabavno vrednost in količino na posamezne kartice surovin (Por, Koleraba, Zelena).
+
+Rešitev 3: Predlogi za naročanje prek "Skupine artiklov" (Kategorizacija)
+Če ne želite spreminjati obstoječih receptur, ampak želite le olajšati vnos naročil:
+
+V šifrantu ustvarite posamezne surovine (Lovor, Majaron, Rožmarin).
+
+Vsem tem artiklom dodelite isto Nabavno kategorijo / Skupino (npr. 02-05 Sveže začimbe).
+
+Pri kreiranju naročila za dobavitelja v programu izberete filtriranje po skupini »Sveže začimbe«. Program na ekran izpiše vse posamične začimbe s trenutno zalogo, uporabnik pa le vnese želene količine za vsako začimbo posebej.
+
+Primerjalni povzetek delovanja
+Postopek	Staro stanje (Zbirni artikel)	Novo stanje (Razčlenjeni artikli)
+Šifrant	1 artikel: Jušna zelenjava	Posamezni artikli: Por, Koleraba, Zelena, Korenje
+Naročanje	Naroči se "5 kg jušne zelenjave" (dobavitelj ne ve, česa koliko)	Naroči se točno: 2 kg Pora, 1 kg Kolerabe, 2 kg Korenja
+Prevzem	Enostaven, a brez vpogleda v strukturo zaloge	Točen vnos po artiklih in dejanskih cenah dobavitelja
+Poraba / Recept	Razknjiži se "Jušna zelenjava"	Razknjižijo se posamezne surovine (neposredno ali prek polizdelka)
+S prehodom na posamične surovine v šifrantu ter uporabo polizdelkov za mešanice boste ohranili enostavnost vnošenja receptov, hkrati pa pridobili popoln nadzor nad zalogo in naročanjem pri različnih dobaviteljih.
+
+problem je v prevelikem razdrobljenem načinu vodenja zalog - preveliko število artiklov, zato je bila uvedba skupin. drobljenje in uvajanje zalog po posameznih artiklih skupine zato odpade. najdi drugo rešitev.
+
+Če se želite izogniti administrativnemu bremenu in preveliki razdrobljenosti zalog (t. i. "mikro-menedžmentu" vsake posamezne zelenjave ali začimbe), hkrati pa želite omogočiti normalno naročanje in povezovanje z dobavitelji, obstaja elegantna sistemska rešitev: Mnogi proti Enemu (Many-to-One) Mapping z zbirnim vodenjem zalog.
+
+To pomeni, da zaloge ostanejo združene na enem samem artiklu (Jušna zelenjava ali Sveže začimbe), vendar sistem kljub temu omogoča natančno naročanje in obdelavo dobaviteljevih računov.
+
+Kako deluje rešitev: Zbirni artikel z več dobaviteljskimi vhodi
+1. V šifrantu zalog (Skladišče)
+Imate samo en interni artikel:
+
+ID: 5001 - Jušna zelenjava (Enota mere: kg, Zaloga: npr. 15 kg).
+
+Nič kasnejšega drobljenja na por, korenje ali zeleno. Vse je združeno na tej eni kartici.
+
+2. V povezovalni tabeli (Dobaviteljski šifrant)
+Tukaj se zgodi čarovnija sistema. Več različnih dobaviteljevih artiklov je povezanih na isti en interni artikel:
+
+Dobavitelj	Šifra pri dobavitelju	Naziv pri dobavitelju	Povezano na interni artikel
+Dobavitelj A	POR-01	Por sveži 1kg	Jušna zelenjava
+Dobavitelj A	KOR-02	Korenje oprano 5kg	Jušna zelenjava
+Dobavitelj B	ZEL-99	Gomoljna zelena 1kg	Jušna zelenjava
+3. Kako poteka naročanje in prevzem?
+Naročanje: Ko delavec v kuhinji sestavlja naročilo, lahko vidi seznam dobaviteljevih artiklov (lahko naroči točno Por ali Korenje, tako kot piše na dobaviteljevem ceniku), da točno ve, kaj kupuje.
+
+Prevzem e-računa (e-SLOG) ali dobavnice:
+Ko dobavitelj pripelje robo in pošlje e-račun, na katerem sta postavki Por (2 kg) in Korenje (3 kg), program te postavke prepozna, ker sta obe programsko povezani na isti interni artikel Jušna zelenjava.
+
+Kaj naredi sistem? Avtomatski prevzem prišteje skupno količino (2 kg + 3 kg = 5 kg) neposredno na zalogo enotnega artikla Jušna zelenjava.
+
+Vrednosti (cene) se seštejejo, zato ima vaš zbirni artikel vedno točno povprečno nabavno ceno glede na to, kaj ste dejansko tisti teden kupili.
+
+Prednosti tega pristopa za vas
+Brez razdrobljenosti: V skladišču in na inventuri imate še naprej le en artikel (Jušna zelenjava), kar vam prihrani ogromno časa.
+
+Natančnost pri dobaviteljih: Na naročilnici in e-računu so še vedno prava imena in šifre dobavitelja, zato pri dostavi ne prihaja do zmede.
+
+Poenostavljeni normativi: V receptih za juhe ali omake še naprej piše le Jušna zelenjava (0,2 kg), kar pomeni, da se recepture nič ne spreminjajo.

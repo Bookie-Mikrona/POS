@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { artikliTable, companiesTable, counterpartiesTable, db, embalazniPrometiTable, enoteTable, goodsReceiptsTable, invoicesTable, nastavitveTable, prejemniceOdvisniStroskiTable, prejemnicePostavkeTable, prejemniceTable, purchaseSourceDocumentsTable, uvozSejaTable, vatCodeTable, zalogaGibiTable } from "@workspace/db";
+import { ConfirmPrejemnicaBody, ConfirmPrejemnicaResponse } from "@workspace/api-zod";
 import { requireEnota } from "../../middlewares/pos";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
@@ -36,6 +37,8 @@ import {
 } from "../../lib/prejemnica-alergeni";
 import {
   getLinkedSupplierOrderIdsForReceipt,
+  requireSupplierOrderPackageFactorReview,
+  SupplierOrderPackageFactorReviewRequired,
   SupplierOrderReceiptConflict,
   syncSupplierOrders,
   syncSupplierOrdersForReceipt,
@@ -204,6 +207,17 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
   const enotaId = (req as any).enotaId as number;
   const actor = (req as any).clerkUserId as string | null;
   if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "Neveljaven ID prejemnice" }); return; }
+  const parsedBody = ConfirmPrejemnicaBody.safeParse(req.body ?? {});
+  if (!parsedBody.success) {
+    res.status(400).json({ error: parsedBody.error.message });
+    return;
+  }
+  const reviewedPackageFactorChanges = parsedBody.data.reviewedPackageFactorChanges ?? [];
+  if (new Set(reviewedPackageFactorChanges.map(change => change.supplierOrderLineId)).size
+    !== reviewedPackageFactorChanges.length) {
+    res.status(400).json({ error: "Ista sprememba pakiranja ne sme biti potrjena večkrat." });
+    return;
+  }
   try {
     const result = await db.transaction(async (tx) => {
       await tx.execute(sql`SELECT id FROM prejemnice WHERE id = ${id} AND enota_id = ${enotaId} FOR UPDATE`);
@@ -245,6 +259,11 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
           izvKolicina: line.sourceQuantity,
         })),
       });
+      await requireSupplierOrderPackageFactorReview(tx, {
+        enotaId,
+        supplierOrderLineIds: lines.map(line => line.supplierOrderLineId),
+        reviewedPackageFactorChanges,
+      });
       assertPosReceiptCanBeConfirmed(
         receipt.status,
         lines,
@@ -258,8 +277,16 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
     });
     if (!result) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
     broadcastToUnit(enotaId, "update", { type: "zaloge" });
-    res.json({ id: result.id, status: result.status });
+    res.json(ConfirmPrejemnicaResponse.parse({ id: result.id, status: result.status }));
   } catch (error) {
+    if (error instanceof SupplierOrderPackageFactorReviewRequired) {
+      res.status(409).json({
+        code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED",
+        error: error.message,
+        packageFactorChanges: error.changes,
+      });
+      return;
+    }
     if (error instanceof PosReceiptNotReady) {
       res.status(409).json({ code: "RECEIPT_NOT_READY", error: error.message });
       return;

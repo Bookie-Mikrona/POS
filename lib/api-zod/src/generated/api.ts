@@ -11503,6 +11503,28 @@ export const DeletePrejemnicaResponse = zod.void()
 
 
 /**
+ * @summary Potrdi prejemnico
+ */
+export const ConfirmPrejemnicaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ConfirmPrejemnicaBody = zod.object({
+  "reviewedPackageFactorChanges": zod.array(zod.object({
+  "supplierOrderLineId": zod.number(),
+  "articleName": zod.string(),
+  "orderFactor": zod.number().nullable(),
+  "currentFactor": zod.number().nullable()
+})).optional()
+})
+
+export const ConfirmPrejemnicaResponse = zod.object({
+  "id": zod.number(),
+  "status": zod.enum(['confirmed'])
+})
+
+
+/**
  * @summary Seznam inventur
  */
 export const ListInventureResponseItem = zod.object({

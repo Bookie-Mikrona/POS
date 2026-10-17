@@ -89,6 +89,7 @@ vi.mock("@workspace/api-client-react", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   window.history.replaceState({}, "", "/");
   mockGetPrejemnica.mockClear();
   mockGetPrejemnica.mockReturnValue({ data: undefined, isLoading: true, isError: false });
@@ -216,6 +217,70 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Prejemnice ni mogoče odpreti. Preverite povezavo, izbrano enoto in dovoljenja.",
     );
+  });
+
+  it("zahteva pregled spremenjenih faktorjev in pri ponovnem preverjanju pokaže najnovejši faktor", async () => {
+    const firstChanges = [{
+      supplierOrderLineId: 781,
+      articleName: "Mleko",
+      orderFactor: 6,
+      currentFactor: 8,
+    }];
+    const latestChanges = [{
+      supplierOrderLineId: 781,
+      articleName: "Mleko",
+      orderFactor: 6,
+      currentFactor: 9,
+    }];
+    const responses = [
+      { status: 409, body: { code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED", packageFactorChanges: firstChanges } },
+      { status: 409, body: { code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED", packageFactorChanges: latestChanges } },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/zaloge/zadnje-nabavne")) {
+        return { status: 200, ok: true, json: async () => [] } as Response;
+      }
+      const next = responses.shift() ?? { status: 500, body: { error: "Nepričakovan zahtevek" } };
+      return { status: next.status, ok: next.status < 400, json: async () => next.body } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockGetPrejemnica.mockReturnValue({
+      data: {
+        id: 4211,
+        stevilka: "26100011",
+        datum: "2026-10-17",
+        status: "draft",
+        vrstaCen: "neto",
+        postavke: [],
+        odvisniStroski: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+    window.history.pushState({}, "", "/zaloge?prejemnica=4211");
+
+    renderZaloge();
+
+    const receiptDialog = await screen.findByRole("dialog");
+    fireEvent.click(within(receiptDialog).getByRole("button", { name: "Potrdi prejemnico" }));
+    const confirmDialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Potrdi prejemnico" }));
+
+    expect(await screen.findByRole("heading", { name: "Preveri spremenjeno pakiranje" })).toBeInTheDocument();
+    expect(screen.getByText("V naročilu: 6 enot / pakiranje")).toBeInTheDocument();
+    expect(screen.getByText("Trenutno pri dobavitelju: 8 enot / pakiranje")).toBeInTheDocument();
+    expect(screen.getByText(/Pregled ne prepiše shranjenih posnetkov/)).toBeInTheDocument();
+
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Pregledal/a sem — potrdi prejemnico" }));
+    await waitFor(() => {
+      const confirmCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("/confirm"));
+      expect(confirmCalls).toHaveLength(2);
+      expect(JSON.parse(String(confirmCalls[1][1]?.body))).toEqual({
+        reviewedPackageFactorChanges: firstChanges,
+      });
+    });
+    expect(await screen.findByText("Trenutno pri dobavitelju: 9 enot / pakiranje")).toBeInTheDocument();
   });
 });
 

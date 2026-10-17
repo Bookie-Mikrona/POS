@@ -43,6 +43,7 @@ import {
   getListArtikliQueryKey,
   getEnotaId,
   type Partner,
+  type SupplierOrderPackageFactorChange,
   type AlergenKoda,
   type AlergenStatus,
   type AlergenVir,
@@ -556,6 +557,8 @@ const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
 };
 
 const fmt = (n: number, d = 2) => n.toLocaleString("sl-SI", { minimumFractionDigits: d, maximumFractionDigits: d });
+const formatPackageFactor = (factor: number | null) =>
+  factor == null ? "ni določeno" : factor.toLocaleString("sl-SI", { maximumFractionDigits: 6 });
 
 const fmtDatum = (d: string | Date) =>
   new Date(d).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -2016,18 +2019,41 @@ function EditPrejemnicaDialog({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [packageFactorChanges, setPackageFactorChanges] = useState<SupplierOrderPackageFactorChange[] | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [bookingPreviewId, setBookingPreviewId] = useState<number | null>(null);
   const status = (data as any)?.status as "draft" | "confirmed" | undefined;
   const isConfirmed = status === "confirmed";
-  const confirmPrejemnica = async () => {
+  const confirmPrejemnica = async (
+    reviewedChanges: SupplierOrderPackageFactorChange[] = packageFactorChanges ?? [],
+  ) => {
+    setIsConfirming(true);
     try {
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       const enotaId = localStorage.getItem("pos_enota_id") || localStorage.getItem("enotaId");
       const response = await fetch(`${base}/api/prejemnice/${id}/confirm`, {
         method: "POST", credentials: "include",
-        headers: enotaId ? { "X-Enota-Id": enotaId } : {},
+        headers: {
+          "Content-Type": "application/json",
+          ...(enotaId ? { "X-Enota-Id": enotaId } : {}),
+        },
+        body: JSON.stringify({ reviewedPackageFactorChanges: reviewedChanges }),
       });
-      if (!response.ok) throw new Error("Potrditev prejemnice ni uspela.");
+      const responseBody = await response.json().catch(() => null) as {
+        code?: string;
+        error?: string;
+        packageFactorChanges?: SupplierOrderPackageFactorChange[];
+      } | null;
+      if (response.status === 409
+        && responseBody?.code === "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED"
+        && Array.isArray(responseBody.packageFactorChanges)
+        && responseBody.packageFactorChanges.length > 0) {
+        setPackageFactorChanges(responseBody.packageFactorChanges);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(responseBody?.error || "Potrditev prejemnice ni uspela.");
+      }
       toast({ title: "Prejemnica potrjena", description: "Promet zaloge in embalaže je bil ustvarjen." });
       await Promise.all([
         queryClient.refetchQueries({ queryKey: getGetPrejemnicaQueryKey(id) }),
@@ -2036,9 +2062,12 @@ function EditPrejemnicaDialog({
       ]);
       await queryClient.invalidateQueries({ predicate: q => q.queryKey.some(k => String(k).toLowerCase().includes("embal")) });
       setConfirmOpen(false);
+      setPackageFactorChanges(null);
       setBookingPreviewId(id);
     } catch (error) {
       toast({ title: "Potrditev ni uspela", description: (error as Error).message, variant: "destructive" });
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -2974,25 +3003,55 @@ function EditPrejemnicaDialog({
             {updatePrejemnica.isPending ? "Shranjujem..." : <>Shrani <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
           </Button>}
           {status === "draft" && (
-            <Button onClick={() => setConfirmOpen(true)}>Potrdi prejemnico</Button>
+            <Button onClick={() => { setPackageFactorChanges(null); setConfirmOpen(true); }}>Potrdi prejemnico</Button>
           )}
           {isConfirmed && (
             <Button onClick={() => setBookingPreviewId(id)}>Pripravi računovodski osnutek</Button>
           )}
         </DialogFooter>
       </DialogContent>
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog open={confirmOpen} onOpenChange={(open) => {
+        setConfirmOpen(open);
+        if (!open) setPackageFactorChanges(null);
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Potrdi prejemnico?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {packageFactorChanges ? "Preveri spremenjeno pakiranje" : "Potrdi prejemnico?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Šele potrditev vpliva na zalogo in evidenco embalaže. Po potrditvi postavk prejemnice ni več mogoče urejati.
+              {packageFactorChanges
+                ? "Pakiranje se je od nastanka naročila spremenilo. Pregled ne prepiše shranjenih posnetkov; potrditev bo uporabila količine in pakiranje, shranjene na prejemnici."
+                : "Šele potrditev vpliva na zalogo in evidenco embalaže. Po potrditvi postavk prejemnice ni več mogoče urejati."}
             </AlertDialogDescription>
+            {packageFactorChanges && (
+              <div className="space-y-2 pt-2" data-testid="package-factor-review-list">
+                {packageFactorChanges.map(change => (
+                  <div
+                    key={change.supplierOrderLineId}
+                    className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
+                  >
+                    <div className="font-medium">{change.articleName}</div>
+                    <div className="mt-1 grid gap-1 text-muted-foreground sm:grid-cols-2">
+                      <span>V naročilu: {formatPackageFactor(change.orderFactor)} enot / pakiranje</span>
+                      <span>Trenutno pri dobavitelju: {formatPackageFactor(change.currentFactor)} enot / pakiranje</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Prekliči</AlertDialogCancel>
-            <AlertDialogAction onClick={(event) => { event.preventDefault(); void confirmPrejemnica(); }}>
-              Potrdi prejemnico
+            <AlertDialogCancel disabled={isConfirming}>Prekliči</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isConfirming}
+              onClick={(event) => { event.preventDefault(); void confirmPrejemnica(); }}
+            >
+              {isConfirming
+                ? "Preverjam..."
+                : packageFactorChanges
+                  ? "Pregledal/a sem — potrdi prejemnico"
+                  : "Potrdi prejemnico"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

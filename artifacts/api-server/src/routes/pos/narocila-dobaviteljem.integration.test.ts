@@ -327,7 +327,39 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const editedReceipt = await request(app).get(`/prejemnice/${firstReceiptId}`);
     expect(editedReceipt.body.postavke[0].supplierOrderLineId).toBe(lineId);
     expect(await getMappingPrice()).toEqual({ packagePrice: 18, unitPrice: 3 });
-    const firstConfirmation = await request(app).post(`/prejemnice/${firstReceiptId}/confirm`).send({});
+    const packageFactorWarning = await request(app)
+      .post(`/prejemnice/${firstReceiptId}/confirm`)
+      .send({});
+    expect(packageFactorWarning.status, JSON.stringify(packageFactorWarning.body)).toBe(409);
+    expect(packageFactorWarning.body).toMatchObject({
+      code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED",
+      packageFactorChanges: [{
+        supplierOrderLineId: lineId,
+        articleName: `Order article ${run}`,
+        orderFactor: 6,
+        currentFactor: 8,
+      }],
+    });
+    const receiptAfterFactorWarning = await request(app).get(`/prejemnice/${firstReceiptId}`);
+    expect(receiptAfterFactorWarning.body.status).toBe("draft");
+    expect(receiptAfterFactorWarning.body.postavke[0]).toMatchObject({
+      supplierOrderLineId: lineId,
+      kolicina: 6,
+      enotVPaketu: 1,
+    });
+    const orderAfterFactorWarning = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
+    expect(orderAfterFactorWarning.body).toMatchObject({
+      status: "sent",
+      lines: [{ packageFactor: 6, currentPackageFactor: 8 }],
+    });
+    const [stockAfterFactorWarning] = await db.select().from(zalogeTable)
+      .where(eq(zalogeTable.artikelId, articleId));
+    expect(Number(stockAfterFactorWarning.kolicina)).toBe(2);
+    expect(await getMappingPrice()).toEqual({ packagePrice: 18, unitPrice: 3 });
+
+    const firstConfirmation = await request(app).post(`/prejemnice/${firstReceiptId}/confirm`).send({
+      reviewedPackageFactorChanges: packageFactorWarning.body.packageFactorChanges,
+    });
     expect(firstConfirmation.status, JSON.stringify(firstConfirmation.body)).toBe(200);
     expect(await getMappingPrice()).toEqual({ packagePrice: 28, unitPrice: 3.5 });
     const dashboardAfterFirstReceipt = await request(app).get("/narocila-dobaviteljem/pregled");
@@ -350,12 +382,14 @@ describe("POS supplier ordering and linked receipt flow", () => {
       invoiceUnitPrice: prejemnicePostavkeTable.izvCena,
       inventoryUnitPrice: prejemnicePostavkeTable.netoCena,
       supplierOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+      packageFactor: prejemnicePostavkeTable.enotVPaketu,
       stockQuantity: prejemnicePostavkeTable.kolicina,
     }).from(prejemnicePostavkeTable)
       .where(eq(prejemnicePostavkeTable.prejemnicaId, firstReceiptId));
     expect(Number(firstReceiptLineSnapshot.invoiceUnitPrice)).toBe(3.5);
     expect(Number(firstReceiptLineSnapshot.inventoryUnitPrice)).toBe(3.5);
     expect(firstReceiptLineSnapshot.supplierOrderLineId).toBe(lineId);
+    expect(Number(firstReceiptLineSnapshot.packageFactor)).toBe(1);
     expect(Number(firstReceiptLineSnapshot.stockQuantity)).toBe(6);
     const partial = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
     expect(partial.body).toMatchObject({
@@ -365,7 +399,16 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const secondReceiptId = await createReceipt(3.75);
     expect(await getMappingPrice()).toEqual({ packagePrice: 28, unitPrice: 3.5 });
-    const secondConfirmation = await request(app).post(`/prejemnice/${secondReceiptId}/confirm`).send({});
+    const secondFactorWarning = await request(app).post(`/prejemnice/${secondReceiptId}/confirm`).send({});
+    expect(secondFactorWarning.status, JSON.stringify(secondFactorWarning.body)).toBe(409);
+    expect(secondFactorWarning.body.packageFactorChanges).toMatchObject([{
+      supplierOrderLineId: lineId,
+      orderFactor: 6,
+      currentFactor: 8,
+    }]);
+    const secondConfirmation = await request(app).post(`/prejemnice/${secondReceiptId}/confirm`).send({
+      reviewedPackageFactorChanges: secondFactorWarning.body.packageFactorChanges,
+    });
     expect(secondConfirmation.status, JSON.stringify(secondConfirmation.body)).toBe(200);
     expect(await getMappingPrice()).toEqual({ packagePrice: 30, unitPrice: 3.75 });
     const dashboardAfterSecondReceipt = await request(app).get("/narocila-dobaviteljem/pregled");

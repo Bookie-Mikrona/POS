@@ -22,6 +22,20 @@ export class SupplierOrderReceiptConflict extends Error {
   }
 }
 
+export type SupplierOrderPackageFactorChange = {
+  supplierOrderLineId: number;
+  articleName: string;
+  orderFactor: number | null;
+  currentFactor: number | null;
+};
+
+export class SupplierOrderPackageFactorReviewRequired extends Error {
+  constructor(readonly changes: SupplierOrderPackageFactorChange[]) {
+    super("Velikost pakiranja se je spremenila. Pred potrditvijo prejemnice preglejte oba faktorja.");
+    this.name = "SupplierOrderPackageFactorReviewRequired";
+  }
+}
+
 export async function validateSupplierOrderReceiptLines(
   tx: typeof db | any,
   input: {
@@ -136,6 +150,77 @@ export async function validateSupplierOrderReceiptLines(
   }
 
   return [...new Set<number>(rows.map((row: any) => Number(row.narociloId)))];
+}
+
+export async function requireSupplierOrderPackageFactorReview(
+  tx: typeof db | any,
+  input: {
+    enotaId: number;
+    supplierOrderLineIds: Array<number | string | null | undefined>;
+    reviewedPackageFactorChanges?: SupplierOrderPackageFactorChange[];
+  },
+): Promise<void> {
+  const ids = [...new Set(input.supplierOrderLineIds
+    .map(value => Number(value))
+    .filter(id => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
+  if (ids.length === 0) return;
+
+  const result = await tx.execute(sql`
+    SELECT
+      order_line.id AS "supplierOrderLineId",
+      article.ime AS "articleName",
+      order_line.faktor_pakiranja::text AS "orderFactor",
+      mapping.enot_v_paketu::text AS "currentFactor",
+      order_line.faktor_pakiranja IS DISTINCT FROM mapping.enot_v_paketu AS changed
+    FROM pos_supplier_order_lines order_line
+    JOIN artikel_dobavitelj mapping
+      ON mapping.id = order_line.supplier_mapping_id
+     AND mapping.enota_id = ${input.enotaId}
+    JOIN artikli article
+      ON article.id = order_line.artikel_id
+     AND article.enota_id = ${input.enotaId}
+    WHERE order_line.id IN (
+      ${sql.join(ids.map(id => sql`${id}`), sql`, `)}
+    )
+      AND order_line.enota_id = ${input.enotaId}
+    ORDER BY mapping.id, order_line.id
+    FOR UPDATE OF mapping
+  `);
+
+  const asNullableFactor = (value: unknown): number | null => {
+    if (value == null || value === "") return null;
+    const factor = Number(value);
+    return Number.isFinite(factor) ? factor : null;
+  };
+  const changes = (result.rows as Array<{
+    supplierOrderLineId: number | string;
+    articleName: string;
+    orderFactor: number | string | null;
+    currentFactor: number | string | null;
+    changed: boolean;
+  }>)
+    .filter(row => Boolean(row.changed))
+    .map(row => ({
+      supplierOrderLineId: Number(row.supplierOrderLineId),
+      articleName: row.articleName,
+      orderFactor: asNullableFactor(row.orderFactor),
+      currentFactor: asNullableFactor(row.currentFactor),
+    }));
+  if (changes.length === 0) return;
+
+  const reviewed = input.reviewedPackageFactorChanges ?? [];
+  const reviewedByLineId = new Map(reviewed.map(change => [change.supplierOrderLineId, change]));
+  const hasReviewedCurrentChanges = reviewedByLineId.size === reviewed.length
+    && reviewed.length === changes.length
+    && changes.every(change => {
+      const acknowledgement = reviewedByLineId.get(change.supplierOrderLineId);
+      return acknowledgement !== undefined
+        && acknowledgement.orderFactor === change.orderFactor
+        && acknowledgement.currentFactor === change.currentFactor;
+    });
+  if (!hasReviewedCurrentChanges) {
+    throw new SupplierOrderPackageFactorReviewRequired(changes);
+  }
 }
 
 export async function syncSupplierOrdersForReceipt(

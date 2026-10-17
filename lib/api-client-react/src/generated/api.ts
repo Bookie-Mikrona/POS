@@ -67,6 +67,9 @@ import type {
   CompanyWithRole,
   ConfirmCreditNotePackagingBody,
   ConfirmDocumentBody,
+  ConfirmPrejemnicaBody,
+  ConfirmPrejemnicaErrorResponse,
+  ConfirmPrejemnicaResponse,
   ConflictResponse,
   CounterpartyAccountTemplatesResponse,
   CounterpartyRecord,
@@ -21016,6 +21019,78 @@ export const useDeletePrejemnica = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeletePrejemnicaMutationOptions(options));
+    }
+
+export const getConfirmPrejemnicaUrl = (id: number,) => {
+
+
+
+
+  return `/api/prejemnice/${id}/confirm`
+}
+
+/**
+ * @summary Potrdi prejemnico
+ */
+export const confirmPrejemnica = async (id: number,
+    confirmPrejemnicaBody?: ConfirmPrejemnicaBody, options?: RequestInit): Promise<ConfirmPrejemnicaResponse> => {
+
+  return customFetch<ConfirmPrejemnicaResponse>(getConfirmPrejemnicaUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(confirmPrejemnicaBody)
+  }
+);}
+
+
+
+
+
+export const getConfirmPrejemnicaMutationOptions = <TError = ErrorType<void | ConfirmPrejemnicaErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmPrejemnica>>, TError,{id: number;data?: BodyType<ConfirmPrejemnicaBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmPrejemnica>>, TError,{id: number;data?: BodyType<ConfirmPrejemnicaBody>}, TContext> => {
+
+const mutationKey = ['confirmPrejemnica'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmPrejemnica>>, {id: number;data?: BodyType<ConfirmPrejemnicaBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  confirmPrejemnica(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmPrejemnicaMutationResult = NonNullable<Awaited<ReturnType<typeof confirmPrejemnica>>>
+    export type ConfirmPrejemnicaMutationBody = BodyType<ConfirmPrejemnicaBody> | undefined
+    export type ConfirmPrejemnicaMutationError = ErrorType<void | ConfirmPrejemnicaErrorResponse>
+
+    /**
+ * @summary Potrdi prejemnico
+ */
+export const useConfirmPrejemnica = <TError = ErrorType<void | ConfirmPrejemnicaErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmPrejemnica>>, TError,{id: number;data?: BodyType<ConfirmPrejemnicaBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmPrejemnica>>,
+        TError,
+        {id: number;data?: BodyType<ConfirmPrejemnicaBody>},
+        TContext
+      > => {
+      return useMutation(getConfirmPrejemnicaMutationOptions(options));
     }
 
 export const getListInventureUrl = () => {
