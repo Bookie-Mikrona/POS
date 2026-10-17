@@ -664,7 +664,7 @@ export default function NarocilaDobaviteljem() {
                                   aria-label={`Odpri prejemnico št. ${supplierMapping.lastPriceReceipt.receiptNumber}`}
                                   onClick={() => {
                                     const sourceReceipt = supplierMapping.lastPriceReceipt;
-                                    if (sourceReceipt) navigate(`/zaloge?prejemnica=${sourceReceipt.receiptId}`);
+                                    if (sourceReceipt) navigate(`/zaloge?prejemnica=${sourceReceipt.receiptId}&nacin=ogled`);
                                   }}
                                   className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
                                 >

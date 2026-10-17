@@ -1828,6 +1828,161 @@ function EditIzdajnicaDialog({
   );
 }
 
+function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void }) {
+  const { data, isLoading, isError } = useGetPrejemnica(id);
+  const receipt = data as any;
+  const postavke = Array.isArray(receipt?.postavke) ? receipt.postavke : [];
+  const odvisniStroski = Array.isArray(receipt?.odvisniStroski) ? receipt.odvisniStroski : [];
+  const currency = receipt?.valuta || "EUR";
+  const summaryFields = [
+    { id: "supplier", label: "Dobavitelj", value: receipt?.dobaviteljNaziv || "–" },
+    { id: "receipt-date", label: "Datum prejema", value: receipt?.datum ? fmtDatum(receipt.datum) : "–" },
+    { id: "document-number", label: "Številka dokumenta", value: receipt?.stDokumenta || "–" },
+    { id: "document-date", label: "Datum dokumenta", value: receipt?.datumDokumenta ? fmtDatumDoc(receipt.datumDokumenta) : "–" },
+    { id: "due-date", label: "Datum zapadlosti", value: receipt?.datumZapadlosti ? fmtDatumDoc(receipt.datumZapadlosti) : "–" },
+    { id: "price-basis", label: "Cenovna osnova", value: receipt?.vrstaCen === "bruto" ? "Bruto" : "Neto" },
+    { id: "cash-payment", label: "Plačano z gotovino", value: receipt?.placanoZGotovino ? "Da" : "Ne" },
+    { id: "tax-base", label: "Osnova DDV", value: receipt?.ddvOsnova == null ? "–" : `${fmt(Number(receipt.ddvOsnova))} ${currency}` },
+    { id: "tax-amount", label: "Znesek DDV", value: receipt?.ddvZnesek == null ? "–" : `${fmt(Number(receipt.ddvZnesek))} ${currency}` },
+    { id: "total", label: "Skupaj", value: `${fmt(Number(receipt?.skupajVrednost ?? 0))} ${currency}` },
+  ];
+
+  return (
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-prejemnica-readonly">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            Pregled prejemnice{receipt?.stevilka ? ` št. ${receipt.stevilka}` : ""}
+            {receipt && (
+              <Badge variant={receipt.status === "confirmed" ? "default" : "secondary"}>
+                {receipt.status === "confirmed" ? "Potrjena" : "Osnutek"}
+              </Badge>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="py-8 text-center text-muted-foreground">Nalaganje prejemnice…</div>
+        ) : isError || !receipt ? (
+          <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            Prejemnice ni mogoče odpreti. Preverite povezavo, izbrano enoto in dovoljenja.
+          </div>
+        ) : (
+          <div className="space-y-5 overflow-y-auto pr-1">
+            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {summaryFields.map(({ id: fieldId, label, value }) => (
+                <div key={fieldId} className="min-w-0 rounded-md border bg-muted/20 p-3">
+                  <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+                  <dd className="mt-1 break-words text-sm font-semibold" data-testid={`text-receipt-view-${fieldId}`}>
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            {receipt.opomba && (
+              <section className="space-y-1">
+                <h3 className="text-sm font-medium">Opomba</h3>
+                <p className="whitespace-pre-wrap rounded-md border bg-muted/20 p-3 text-sm">{receipt.opomba}</p>
+              </section>
+            )}
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold">Postavke</h3>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Artikel</TableHead>
+                      <TableHead className="text-right">Količina</TableHead>
+                      <TableHead className="text-right">Cena / kos</TableHead>
+                      <TableHead className="text-right">DDV %</TableHead>
+                      <TableHead className="text-right">DDV</TableHead>
+                      <TableHead className="text-right">Znesek</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {postavke.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                          Prejemnica nima postavk.
+                        </TableCell>
+                      </TableRow>
+                    ) : postavke.map((line: any, index: number) => (
+                      <TableRow key={line.id ?? `${line.artikelId}-${index}`} data-testid={`receipt-view-line-${line.id ?? index}`}>
+                        <TableCell className="min-w-[12rem]">
+                          <div className="font-medium">{line.artikelIme || line.imeZaNabavo || line.izvNaziv || "–"}</div>
+                          {line.izvNaziv && line.izvNaziv !== line.artikelIme && (
+                            <div className="text-xs text-muted-foreground">{line.izvNaziv}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {Number(line.kolicina ?? 0).toLocaleString("sl-SI", { maximumFractionDigits: 4 })}
+                          {line.enotaMere ? ` ${line.enotaMere}` : ""}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmt(Number(line.cenaKos ?? 0))} {currency}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {line.ddvStopnja == null ? "–" : `${fmt(Number(line.ddvStopnja), 1)} %`}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {line.ddvZnesek == null ? "–" : `${fmt(Number(line.ddvZnesek))} ${currency}`}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-medium">
+                          {fmt(Number(line.skupaj ?? 0))} {currency}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+
+            {odvisniStroski.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">Odvisni/ostali stroški</h3>
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Strošek</TableHead>
+                        <TableHead className="text-right">DDV %</TableHead>
+                        <TableHead>Obravnava</TableHead>
+                        <TableHead className="text-right">Znesek</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {odvisniStroski.map((cost: any, index: number) => (
+                        <TableRow key={cost.id ?? `${cost.naziv}-${index}`}>
+                          <TableCell>{cost.naziv || "–"}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {cost.ddvStopnja == null ? "–" : `${fmt(Number(cost.ddvStopnja), 1)} %`}
+                          </TableCell>
+                          <TableCell>{cost.obravnava === "zaloga" ? "Vrednost zaloge" : "Ločen strošek"}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {fmt(Number(cost.znesek ?? 0))} {currency}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" data-testid="button-close-receipt-view" onClick={onClose}>
+            Zapri
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function EditPrejemnicaDialog({
   id, nabavniArtikli, zaloge, jeDdvZavezanec, companyId, onClose, onSaved,
 }: {
@@ -3829,8 +3984,10 @@ export default function Zaloge() {
 
   // ── Prejemnica edit ────────────────────────────────────────────────
   const [editPrejId, setEditPrejId] = useState<number | null>(null);
+  const [viewPrejId, setViewPrejId] = useState<number | null>(null);
   useEffect(() => {
-    const rawReceiptId = new URLSearchParams(receiptSearch).get("prejemnica");
+    const params = new URLSearchParams(receiptSearch);
+    const rawReceiptId = params.get("prejemnica");
     if (rawReceiptId === null) return;
 
     const receiptId = Number(rawReceiptId);
@@ -3844,7 +4001,13 @@ export default function Zaloge() {
     }
 
     setActiveTab("prejemnice");
-    setEditPrejId(receiptId);
+    if (params.get("nacin") === "ogled") {
+      setEditPrejId(null);
+      setViewPrejId(receiptId);
+    } else {
+      setViewPrejId(null);
+      setEditPrejId(receiptId);
+    }
   }, [receiptSearch, toast]);
 
   // ── Prejemnica delete ──────────────────────────────────────────────
@@ -5280,6 +5443,12 @@ export default function Zaloge() {
             void queryClient.refetchQueries({ queryKey: getListZalogeQueryKey() });
             void queryClient.refetchQueries({ queryKey: getListPrejemniceQueryKey() });
           }}
+        />
+      )}
+      {viewPrejId != null && (
+        <ViewPrejemnicaDialog
+          id={viewPrejId}
+          onClose={() => setViewPrejId(null)}
         />
       )}
 

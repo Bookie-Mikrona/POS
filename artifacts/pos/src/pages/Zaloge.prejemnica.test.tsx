@@ -32,7 +32,11 @@ const mockPrejemnica = {
 // ── Hoisted mock funkcije ───────────────────────────────────────────────────
 const mockDeleteMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
-const mockGetPrejemnica = vi.hoisted(() => vi.fn(() => ({ data: undefined, isLoading: true, isError: false })));
+const mockGetPrejemnica = vi.hoisted(() => vi.fn((): { data: any; isLoading: boolean; isError: boolean } => ({
+  data: undefined,
+  isLoading: true,
+  isError: false,
+})));
 
 // ── Moki za @workspace/api-client-react ─────────────────────────────────────
 vi.mock("@workspace/api-client-react", () => ({
@@ -135,6 +139,72 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     expect(await screen.findByText("Uredi prejemnico")).toBeInTheDocument();
     await waitFor(() => expect(mockGetPrejemnica).toHaveBeenCalledWith(4207));
     expect(screen.getByRole("tab", { name: "Prejemnice", hidden: true })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("odpre zadnjo prejemnico v načinu samo za ogled brez možnosti spreminjanja", async () => {
+    const receipt = {
+      id: 4209,
+      stevilka: "26100009",
+      datum: "2026-10-16",
+      stDokumenta: "INV-42",
+      valuta: "EUR",
+      dobaviteljNaziv: "Mlekarna Planika",
+      status: "confirmed",
+      vrstaCen: "neto",
+      placanoZGotovino: false,
+      ddvOsnova: "15.50",
+      ddvZnesek: "0.00",
+      skupajVrednost: "15.50",
+      postavke: [{
+        id: 1,
+        artikelId: 909,
+        artikelIme: "Mleko polnomastno",
+        enotaMere: "L",
+        kolicina: "2",
+        cenaKos: "7.75",
+        skupaj: "15.50",
+        ddvStopnja: "0",
+        ddvZnesek: "0.00",
+      }],
+      odvisniStroski: [{
+        naziv: "Prevoz",
+        znesek: "2.00",
+        ddvStopnja: "0",
+        obravnava: "strosek",
+      }],
+    };
+    mockGetPrejemnica.mockReturnValue({ data: receipt, isLoading: false, isError: false });
+    window.history.pushState({}, "", "/zaloge?prejemnica=4209&nacin=ogled");
+
+    renderZaloge();
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: /Pregled prejemnice št\. 26100009/ })).toBeInTheDocument();
+    expect(within(dialog).getByText("Mlekarna Planika")).toBeInTheDocument();
+    expect(within(dialog).getByText("Mleko polnomastno")).toBeInTheDocument();
+    expect(within(dialog).getByTestId("text-receipt-view-total")).toHaveTextContent("15,50 EUR");
+    expect(within(dialog).getByText("Prevoz")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /shrani|potrdi prejemnico|pripravi računovodski osnutek/i }))
+      .not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Zapri" })).toBeInTheDocument();
+    expect(mockGetPrejemnica).toHaveBeenCalledWith(4209);
+  });
+
+  it("pri nedostopni prejemnici v načinu samo za ogled pokaže napako brez urejevalnika", async () => {
+    mockGetPrejemnica.mockReturnValue({ data: undefined, isLoading: false, isError: true });
+    window.history.pushState({}, "", "/zaloge?prejemnica=4210&nacin=ogled");
+
+    renderZaloge();
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Prejemnice ni mogoče odpreti. Preverite povezavo, izbrano enoto in dovoljenja.",
+    );
+    expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /shrani|potrdi prejemnico|pripravi računovodski osnutek/i }))
+      .not.toBeInTheDocument();
+    expect(mockGetPrejemnica).toHaveBeenCalledWith(4210);
   });
 
   it("pokaže jasno sporočilo, ko prejemnice ni mogoče naložiti", async () => {

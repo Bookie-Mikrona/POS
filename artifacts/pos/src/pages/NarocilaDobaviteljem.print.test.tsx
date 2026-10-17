@@ -288,7 +288,7 @@ describe("supplier order print view", () => {
     expect(source.textContent).toContain("2026");
 
     fireEvent.click(screen.getByTestId("last-price-receipt-7042"));
-    expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7044");
+    expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7044&nacin=ogled");
   });
 
   it("compares supplier prices by base unit and omits prices with invalid or missing package factors", () => {
