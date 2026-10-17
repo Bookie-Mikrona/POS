@@ -1163,21 +1163,28 @@ describe("supplier order print view", () => {
   it("shows used and remaining supplier-instruction characters after typing and copying a note", () => {
     renderSupplierOrderPage();
     openNewOrderEditor();
-    const counter = screen.getByTestId("supplier-note-character-count");
+    const supplierCounter = screen.getByTestId("supplier-note-character-count");
+    const internalCounter = screen.getByTestId("internal-note-character-count");
     const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
     const internalNote = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
     const typedInstructions = "Dostavite pred 10. uro.";
 
-    expect(counter.textContent).toBe("0 / 2000 znakov · preostalo 2000");
+    expect(supplierCounter.textContent).toBe("0 / 2000 znakov · preostalo 2000");
+    expect(internalCounter.textContent).toBe("0 / 2000 znakov · preostalo 2000");
     fireEvent.change(supplierNotes, { target: { value: typedInstructions } });
-    expect(counter.textContent).toBe(`${typedInstructions.length} / 2000 znakov · preostalo ${2000 - typedInstructions.length}`);
+    expect(supplierCounter.textContent).toBe(`${typedInstructions.length} / 2000 znakov · preostalo ${2000 - typedInstructions.length}`);
+    expect(internalCounter.textContent).toBe("0 / 2000 znakov · preostalo 2000");
 
     const noteToCopy = "Pokličite ob prihodu.";
     fireEvent.change(internalNote, { target: { value: noteToCopy } });
+    expect(internalCounter.textContent).toBe(`${noteToCopy.length} / 2000 znakov · preostalo ${2000 - noteToCopy.length}`);
+    expect(supplierCounter.textContent).toBe(`${typedInstructions.length} / 2000 znakov · preostalo ${2000 - typedInstructions.length}`);
+
     fireEvent.click(screen.getByTestId("button-copy-internal-to-supplier"));
     const combinedInstructions = `${typedInstructions}\n\n${noteToCopy}`;
     expect(supplierNotes.value).toBe(combinedInstructions);
-    expect(counter.textContent).toBe(`${combinedInstructions.length} / 2000 znakov · preostalo ${2000 - combinedInstructions.length}`);
+    expect(supplierCounter.textContent).toBe(`${combinedInstructions.length} / 2000 znakov · preostalo ${2000 - combinedInstructions.length}`);
+    expect(internalCounter.textContent).toBe(`${noteToCopy.length} / 2000 znakov · preostalo ${2000 - noteToCopy.length}`);
   });
 
   it("does not truncate existing supplier instructions when the copied note would exceed the limit", () => {

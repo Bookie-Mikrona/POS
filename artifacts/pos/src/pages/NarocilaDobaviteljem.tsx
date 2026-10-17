@@ -1125,6 +1125,14 @@ export default function NarocilaDobaviteljem() {
               <label className="block text-xs font-semibold text-[#5f7068]">Interna opomba · samo za zaposlene
                 <textarea value={orderEditor.internalNotes} onChange={event => setOrderEditor({ ...orderEditor, internalNotes: event.target.value })} maxLength={MAX_ORDER_NOTE_LENGTH} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Besedilo ostane v aplikaciji in se ne natisne." />
               </label>
+              <p
+                role="status"
+                aria-live="polite"
+                data-testid="internal-note-character-count"
+                className="mt-1 text-right text-[11px] text-[#77817b]"
+              >
+                {orderEditor.internalNotes.length} / {MAX_ORDER_NOTE_LENGTH} znakov · preostalo {MAX_ORDER_NOTE_LENGTH - orderEditor.internalNotes.length}
+              </p>
               <Button
                 type="button"
                 variant="outline"
