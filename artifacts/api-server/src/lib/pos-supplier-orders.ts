@@ -1,5 +1,6 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import {
+  artikelDobaviteljTable,
   db,
   posSupplierOrderLinesTable,
   posSupplierOrdersTable,
@@ -143,7 +144,10 @@ export async function syncSupplierOrdersForReceipt(
   receiptId: number,
 ): Promise<void> {
   const linkedLines = await tx
-    .select({ orderId: posSupplierOrderLinesTable.narociloId })
+    .select({
+      orderId: posSupplierOrderLinesTable.narociloId,
+      supplierMappingId: posSupplierOrderLinesTable.supplierMappingId,
+    })
     .from(prejemnicePostavkeTable)
     .innerJoin(
       posSupplierOrderLinesTable,
@@ -153,7 +157,64 @@ export async function syncSupplierOrdersForReceipt(
       eq(prejemnicePostavkeTable.prejemnicaId, receiptId),
       eq(posSupplierOrderLinesTable.enotaId, enotaId),
     ));
+  const mappingIds = [...new Set<number>(linkedLines
+    .map((row: any) => row.supplierMappingId == null ? null : Number(row.supplierMappingId))
+    .filter((id: number | null): id is number => id !== null))]
+    .sort((a, b) => a - b);
+  for (const mappingId of mappingIds) {
+    await tx.execute(sql`
+      SELECT id
+      FROM artikel_dobavitelj
+      WHERE id = ${mappingId} AND enota_id = ${enotaId}
+      FOR UPDATE
+    `);
+  }
   await syncSupplierOrders(tx, enotaId, linkedLines.map((row: any) => row.orderId));
+  if (mappingIds.length > 0) {
+    await tx.execute(sql`
+      WITH affected_mappings AS (
+        SELECT DISTINCT order_line.supplier_mapping_id
+        FROM prejemnice_postavke receipt_line
+        JOIN pos_supplier_order_lines order_line
+          ON order_line.id = receipt_line.supplier_order_line_id
+         AND order_line.enota_id = ${enotaId}
+        WHERE receipt_line.prejemnica_id = ${receiptId}
+          AND order_line.supplier_mapping_id IS NOT NULL
+      ),
+      latest_confirmed_price AS (
+        SELECT DISTINCT ON (order_line.supplier_mapping_id)
+          order_line.supplier_mapping_id,
+          receipt_line.neto_cena AS unit_price
+        FROM prejemnice_postavke receipt_line
+        JOIN prejemnice receipt
+          ON receipt.id = receipt_line.prejemnica_id
+         AND receipt.enota_id = ${enotaId}
+        JOIN pos_supplier_order_lines order_line
+          ON order_line.id = receipt_line.supplier_order_line_id
+         AND order_line.enota_id = ${enotaId}
+        JOIN affected_mappings affected
+          ON affected.supplier_mapping_id = order_line.supplier_mapping_id
+        WHERE receipt.status = 'confirmed'
+          AND receipt_line.neto_cena IS NOT NULL
+          AND (
+            receipt_line.izv_cena IS NOT NULL
+            OR COALESCE(receipt_line.neto_znesek, 0) > 0
+            OR COALESCE(receipt_line.cena_kos, 0) > 0
+          )
+        ORDER BY
+          order_line.supplier_mapping_id,
+          receipt.datum DESC,
+          receipt.id DESC,
+          receipt_line.id DESC
+      )
+      UPDATE artikel_dobavitelj mapping
+      SET zadnja_cena_enota = latest.unit_price,
+          zadnja_cena_paket = latest.unit_price * mapping.enot_v_paketu
+      FROM latest_confirmed_price latest
+      WHERE mapping.id = latest.supplier_mapping_id
+        AND mapping.enota_id = ${enotaId}
+    `);
+  }
 }
 
 export async function syncSupplierOrders(

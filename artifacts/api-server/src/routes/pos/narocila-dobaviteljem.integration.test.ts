@@ -98,6 +98,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       enotVPaketu: "6",
       nazivPaketa: "zaboj",
       zadnjaCenaPaket: "18",
+      zadnjaCenaEnota: "3",
       aktivno: true,
     }).returning({ id: artikelDobaviteljTable.id });
     mappingId = mapping.id;
@@ -173,7 +174,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       supplierId,
       expectedDeliveryDate: "2026-11-05",
       notes: "Prvo naročilo",
-      lines: [{ supplierMappingId: mappingId, packageQuantity: 2, unitPrice: 18 }],
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 2, unitPrice: 20 }],
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     orderIds.push(created.body.id);
@@ -188,8 +189,20 @@ describe("POS supplier ordering and linked receipt flow", () => {
         orderedBaseQuantity: 12,
         receivedBaseQuantity: 0,
         openBaseQuantity: 12,
+        unitPrice: 20,
       }],
     });
+    const getMappingPrice = async () => {
+      const [mapping] = await db.select({
+        packagePrice: artikelDobaviteljTable.zadnjaCenaPaket,
+        unitPrice: artikelDobaviteljTable.zadnjaCenaEnota,
+      }).from(artikelDobaviteljTable).where(eq(artikelDobaviteljTable.id, mappingId));
+      return {
+        packagePrice: Number(mapping.packagePrice),
+        unitPrice: Number(mapping.unitPrice),
+      };
+    };
+    expect(await getMappingPrice()).toEqual({ packagePrice: 18, unitPrice: 3 });
     const [stockBeforeSend] = await db.select().from(zalogeTable).where(eq(zalogeTable.artikelId, articleId));
     expect(Number(stockBeforeSend.kolicina)).toBe(2);
 
@@ -206,22 +219,26 @@ describe("POS supplier ordering and linked receipt flow", () => {
     });
 
     const lineId = created.body.lines[0].id as number;
-    const createReceipt = async () => {
+    const createReceipt = async (
+      pricePerBaseUnit = 3,
+      linkedSupplierOrderLineId: number | null = lineId,
+    ) => {
+      const lineAmount = pricePerBaseUnit * 6;
       const response = await request(app).post("/prejemnice").send({
         dobaviteljId: supplierId,
         datum: "2026-10-17",
         vrstaCen: "neto",
         vrstaDokumenta: "DOBAVNICA",
-        brutoSkupaj: 18,
+        brutoSkupaj: lineAmount,
         postavke: [{
           artikelId: articleId,
-          supplierOrderLineId: lineId,
+          ...(linkedSupplierOrderLineId == null ? {} : { supplierOrderLineId: linkedSupplierOrderLineId }),
           kolicina: 6,
-          cenaKos: 3,
-          skupaj: 18,
+          cenaKos: pricePerBaseUnit,
+          skupaj: lineAmount,
           enotVPaketu: 1,
           izvKolicina: 6,
-          izvCena: 3,
+          izvCena: pricePerBaseUnit,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
@@ -229,13 +246,15 @@ describe("POS supplier ordering and linked receipt flow", () => {
       });
       expect(response.status, JSON.stringify(response.body)).toBe(201);
       receiptIds.push(response.body.id);
-      expect(response.body.postavke[0].supplierOrderLineId).toBe(lineId);
+      expect(response.body.postavke[0].supplierOrderLineId)
+        .toBe(linkedSupplierOrderLineId);
       return response.body.id as number;
     };
 
-    const firstReceiptId = await createReceipt();
+    const firstReceiptId = await createReceipt(3.5);
     const [stockWithDraftReceipt] = await db.select().from(zalogeTable).where(eq(zalogeTable.artikelId, articleId));
     expect(Number(stockWithDraftReceipt.kolicina)).toBe(2);
+    expect(await getMappingPrice()).toEqual({ packagePrice: 18, unitPrice: 3 });
     const firstReceiptDetail = await request(app).get(`/prejemnice/${firstReceiptId}`);
     expect(firstReceiptDetail.status).toBe(200);
     const originalReceiptLine = firstReceiptDetail.body.postavke[0];
@@ -258,24 +277,59 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(noOpEdit.status, JSON.stringify(noOpEdit.body)).toBe(200);
     const editedReceipt = await request(app).get(`/prejemnice/${firstReceiptId}`);
     expect(editedReceipt.body.postavke[0].supplierOrderLineId).toBe(lineId);
+    expect(await getMappingPrice()).toEqual({ packagePrice: 18, unitPrice: 3 });
     const firstConfirmation = await request(app).post(`/prejemnice/${firstReceiptId}/confirm`).send({});
     expect(firstConfirmation.status, JSON.stringify(firstConfirmation.body)).toBe(200);
+    expect(await getMappingPrice()).toEqual({ packagePrice: 21, unitPrice: 3.5 });
+    const dashboardAfterFirstReceipt = await request(app).get("/narocila-dobaviteljem/pregled");
+    const mappingAfterFirstReceipt = dashboardAfterFirstReceipt.body.articles
+      .find((row: any) => row.articleId === articleId).mappings
+      .find((mapping: any) => mapping.id === mappingId);
+    expect(mappingAfterFirstReceipt.lastPackagePrice).toBe(21);
+    const firstOrderAfterPartialReceipt = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
+    expect(firstOrderAfterPartialReceipt.body.lines[0].unitPrice).toBe(20);
+    const [firstReceiptLineSnapshot] = await db.select({
+      invoiceUnitPrice: prejemnicePostavkeTable.izvCena,
+      inventoryUnitPrice: prejemnicePostavkeTable.netoCena,
+    }).from(prejemnicePostavkeTable)
+      .where(eq(prejemnicePostavkeTable.prejemnicaId, firstReceiptId));
+    expect(Number(firstReceiptLineSnapshot.invoiceUnitPrice)).toBe(3.5);
+    expect(Number(firstReceiptLineSnapshot.inventoryUnitPrice)).toBe(3.5);
     const partial = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
     expect(partial.body).toMatchObject({
       status: "partially_received",
       lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 6, openBaseQuantity: 6 }],
     });
 
-    const secondReceiptId = await createReceipt();
+    const secondReceiptId = await createReceipt(3.75);
+    expect(await getMappingPrice()).toEqual({ packagePrice: 21, unitPrice: 3.5 });
     const secondConfirmation = await request(app).post(`/prejemnice/${secondReceiptId}/confirm`).send({});
     expect(secondConfirmation.status, JSON.stringify(secondConfirmation.body)).toBe(200);
+    expect(await getMappingPrice()).toEqual({ packagePrice: 22.5, unitPrice: 3.75 });
+    const dashboardAfterSecondReceipt = await request(app).get("/narocila-dobaviteljem/pregled");
+    const mappingAfterSecondReceipt = dashboardAfterSecondReceipt.body.articles
+      .find((row: any) => row.articleId === articleId).mappings
+      .find((mapping: any) => mapping.id === mappingId);
+    expect(mappingAfterSecondReceipt.lastPackagePrice).toBe(22.5);
     const completed = await request(app).get(`/narocila-dobaviteljem/${created.body.id}`);
     expect(completed.body).toMatchObject({
       status: "received",
-      lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 12, openBaseQuantity: 0 }],
+      lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 12, openBaseQuantity: 0, unitPrice: 20 }],
     });
+    const [firstReceiptLineAfterSecondPrice] = await db.select({
+      invoiceUnitPrice: prejemnicePostavkeTable.izvCena,
+      inventoryUnitPrice: prejemnicePostavkeTable.netoCena,
+    }).from(prejemnicePostavkeTable)
+      .where(eq(prejemnicePostavkeTable.prejemnicaId, firstReceiptId));
+    expect(Number(firstReceiptLineAfterSecondPrice.invoiceUnitPrice)).toBe(3.5);
+    expect(Number(firstReceiptLineAfterSecondPrice.inventoryUnitPrice)).toBe(3.5);
     const [stockAfterReceipts] = await db.select().from(zalogeTable).where(eq(zalogeTable.artikelId, articleId));
     expect(Number(stockAfterReceipts.kolicina)).toBe(14);
+
+    const unlinkedReceiptId = await createReceipt(5, null);
+    const unlinkedConfirmation = await request(app).post(`/prejemnice/${unlinkedReceiptId}/confirm`).send({});
+    expect(unlinkedConfirmation.status, JSON.stringify(unlinkedConfirmation.body)).toBe(200);
+    expect(await getMappingPrice()).toEqual({ packagePrice: 22.5, unitPrice: 3.75 });
   });
 
   it("does not let a non-administrator manage purchase orders", async () => {
