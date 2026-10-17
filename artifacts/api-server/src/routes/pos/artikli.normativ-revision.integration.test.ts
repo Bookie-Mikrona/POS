@@ -374,6 +374,106 @@ describe("optimistični zaklep običajnega normativa (HTTP + PostgreSQL)", () =>
     }]);
   });
 
+  it.each(["article-update", "normativ-update"] as const)(
+    "pri sočasnem celovitem in ločenem PUT zahtevku zmaga samo %s",
+    async (winningOperation) => {
+      const originalName = `${run}-cross-route-${winningOperation}`;
+      const [owner] = await db.insert(artikliTable).values({
+        enotaId, ime: originalName, cena: "10", davek: "9.5",
+      }).returning({ id: artikliTable.id });
+      const ownerId = owner!.id;
+      await db.insert(normativiTable).values({
+        artikelId: ownerId,
+        vhodniArtikelId: firstIngredientId,
+        kolicina: "1",
+        vrstniRed: 0,
+      });
+      const opened = await supertest(app)
+        .get(`/artikli/${ownerId}/normativi`)
+        .set("x-test-enota", String(enotaId));
+      expect(opened.status).toBe(200);
+      const revision = opened.body.normativRevision as number;
+      expect(revision).toEqual(expect.any(Number));
+
+      const combinedName = `${originalName}-renamed`;
+      const combinedItem = { vhodniArtikelId: firstIngredientId, kolicina: 31 };
+      const standaloneItem = { vhodniArtikelId: secondIngredientId, kolicina: 32 };
+      const barrier = createBarrier(2);
+      const arrivals: string[] = [];
+      let releaseLoser!: () => void;
+      const winnerFinished = new Promise<void>((resolve) => { releaseLoser = resolve; });
+      setNormativRevisionLockTestHook(async ({ artikelId: arrivedId, operation }) => {
+        arrivals.push(`${operation}:${arrivedId}`);
+        // Both transactions must reach the pre-lock barrier before either can write.
+        await barrier();
+        // Choose the winner without sleeps, exercising both possible atomic outcomes.
+        if (operation !== winningOperation) await winnerFinished;
+      });
+
+      let responses: Awaited<ReturnType<typeof saveArticleFor>>[];
+      try {
+        const candidates = [
+          {
+            operation: "article-update",
+            request: saveArticleFor(ownerId, {
+              ime: combinedName,
+              cena: 25,
+              normativUpdate: { expectedRevision: revision, items: [combinedItem] },
+            }),
+          },
+          {
+            operation: "normativ-update",
+            request: saveNormativFor(ownerId, {
+              expectedRevision: revision,
+              items: [standaloneItem],
+            }),
+          },
+        ];
+        responses = await Promise.all(candidates.map(candidate => {
+          const pending = Promise.resolve(candidate.request);
+          return candidate.operation === winningOperation
+            ? pending.finally(releaseLoser)
+            : pending;
+        }));
+      } finally {
+        releaseLoser();
+        setNormativRevisionLockTestHook();
+      }
+
+      expect(arrivals.sort()).toEqual([
+        `article-update:${ownerId}`,
+        `normativ-update:${ownerId}`,
+      ]);
+      const combinedWins = winningOperation === "article-update";
+      expect(responses.map(response => response.status)).toEqual(
+        combinedWins ? [200, 409] : [409, 204],
+      );
+      expect(responses[combinedWins ? 1 : 0]!.body).toEqual(
+        expect.objectContaining({ code: "NORMATIVE_STALE" }),
+      );
+
+      const [storedArticle] = await db.select({
+        ime: artikliTable.ime,
+        cena: artikliTable.cena,
+        normativRevision: artikliTable.normativRevision,
+      }).from(artikliTable).where(eq(artikliTable.id, ownerId));
+      expect(storedArticle).toEqual({
+        ime: combinedWins ? combinedName : originalName,
+        cena: combinedWins ? "25.00" : "10.00",
+        normativRevision: revision + 1,
+      });
+      const winnerItem = combinedWins ? combinedItem : standaloneItem;
+      const storedNormativ = await db.select({
+        vhodniArtikelId: normativiTable.vhodniArtikelId,
+        kolicina: normativiTable.kolicina,
+      }).from(normativiTable).where(eq(normativiTable.artikelId, ownerId));
+      expect(storedNormativ).toEqual([{
+        vhodniArtikelId: winnerItem.vhodniArtikelId,
+        kolicina: `${winnerItem.kolicina}.0000`,
+      }]);
+    },
+  );
+
   it("zavrne PUT brez revizije odjemalca", async () => {
     const response = await save({ items: [] });
     expect(response.status).toBe(400);
