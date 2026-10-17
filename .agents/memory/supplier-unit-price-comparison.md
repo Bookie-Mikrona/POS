@@ -10,3 +10,9 @@ Use the stored last price per base unit (`zadnjaCenaEnota`) for supplier compari
 **Why:** Reconstructing old prices from the current factor would alter the historical record; the confirmed receipt's net unit price is the stable amount to compare over time.
 
 **How to apply:** Before showing an offer comparison, require valid nonnegative recorded prices and a positive finite current factor. Use the stored unit price for ranking; do not claim a historical package price belongs to the current package size without a matching snapshot. For history, keep each confirmed receipt's stored unit price and date together with its reference.
+
+For the supplier reorder comparison, mark a price stale at 90 or more calendar days, using the current `Europe/Ljubljana` date. If no dated source receipt exists, show its age as unknown rather than fresh; retain the price for context instead of removing it from comparison.
+
+**Why:** The user selected the 90-day threshold. A stored price without a dated receipt cannot establish freshness, but it may still be useful as historical context.
+
+**How to apply:** Apply the threshold only to comparable prices. Keep the receipt link and date visible for stale entries, and handle missing or invalid dates as unknown.

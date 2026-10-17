@@ -65,13 +65,56 @@ const formatQty = (value: number | null | undefined, digits = 2) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { maximumFractionDigits: digits }).format(value);
 const formatDate = (value?: string | null) =>
   value ? new Intl.DateTimeFormat("sl-SI", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)) : "—";
-const formatReceiptDate = (value: string) =>
-  new Intl.DateTimeFormat("sl-SI", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "short",
+const SUPPLIER_PRICE_STALE_AFTER_DAYS = 90;
+const DATE_ONLY_MILLISECONDS = 24 * 60 * 60 * 1000;
+type SupplierPriceFreshness = "fresh" | "stale" | "unknown";
+
+function receiptDateTimestamp(value: string | null | undefined): number | null {
+  if (typeof value !== "string") return null;
+  const dateOnly = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return null;
+  const timestamp = Date.parse(`${dateOnly}T00:00:00.000Z`);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== dateOnly) {
+    return null;
+  }
+  return timestamp;
+}
+
+function ljubljanaTodayTimestamp(now = new Date()): number | null {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Ljubljana",
     year: "numeric",
-  }).format(new Date(`${value.slice(0, 10)}T00:00:00.000Z`));
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const year = Number(parts.find(part => part.type === "year")?.value);
+  const month = Number(parts.find(part => part.type === "month")?.value);
+  const day = Number(parts.find(part => part.type === "day")?.value);
+  if (![year, month, day].every(Number.isFinite)) return null;
+  return Date.UTC(year, month - 1, day);
+}
+
+function supplierPriceFreshness(value: string | null | undefined): SupplierPriceFreshness {
+  const receiptTimestamp = receiptDateTimestamp(value);
+  const todayTimestamp = ljubljanaTodayTimestamp();
+  if (receiptTimestamp == null || todayTimestamp == null || receiptTimestamp > todayTimestamp) {
+    return "unknown";
+  }
+  const ageInDays = Math.floor((todayTimestamp - receiptTimestamp) / DATE_ONLY_MILLISECONDS);
+  return ageInDays >= SUPPLIER_PRICE_STALE_AFTER_DAYS ? "stale" : "fresh";
+}
+
+const formatReceiptDate = (value: string | null | undefined) => {
+  const timestamp = receiptDateTimestamp(value);
+  return timestamp == null
+    ? "Datum ni znan"
+    : new Intl.DateTimeFormat("sl-SI", {
+      timeZone: "UTC",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(timestamp));
+};
 const formatMoney = (value: number | null | undefined) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(value);
 const MAX_ORDER_NOTE_LENGTH = 2000;
@@ -749,6 +792,9 @@ export default function NarocilaDobaviteljem() {
                         const packagePriceValid = supplierMapping.lastPackagePrice != null
                           && Number.isFinite(supplierMapping.lastPackagePrice)
                           && supplierMapping.lastPackagePrice >= 0;
+                        const priceFreshness = unitPrice == null
+                          ? null
+                          : supplierPriceFreshness(supplierMapping.lastPriceReceipt?.date);
                         const isLowest = unitPrice != null && lowestUnitPrice != null
                           && Math.abs(unitPrice - lowestUnitPrice) <= 1e-9;
                         const savings = supplierMapping.id === article.preferredMappingId
@@ -785,6 +831,22 @@ export default function NarocilaDobaviteljem() {
                                     ? ": osnovna enota ni določena."
                                     : "."}
                               </div>}
+                            {priceFreshness === "stale" && (
+                              <div
+                                data-testid={`supplier-price-freshness-${supplierMapping.id}`}
+                                className="font-semibold text-amber-800"
+                              >
+                                Pozor: zadnja primerljiva cena je stara {SUPPLIER_PRICE_STALE_AFTER_DAYS} dni ali več.
+                              </div>
+                            )}
+                            {priceFreshness === "unknown" && (
+                              <div
+                                data-testid={`supplier-price-freshness-${supplierMapping.id}`}
+                                className="font-medium text-stone-700"
+                              >
+                                Starost primerljive cene ni znana.
+                              </div>
+                            )}
                             {savings && preferredOffer && article.baseUnit?.trim() && (
                               <div
                                 data-testid={`supplier-savings-${supplierMapping.id}`}

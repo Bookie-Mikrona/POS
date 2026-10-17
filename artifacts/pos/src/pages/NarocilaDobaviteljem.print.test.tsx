@@ -145,6 +145,31 @@ function renderSupplierOrderPage() {
   );
 }
 
+function receiptDateDaysAgo(daysAgo: number) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Ljubljana",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const partValue = (type: string) => Number(parts.find(part => part.type === type)?.value);
+  const timestamp = Date.UTC(
+    partValue("year"),
+    partValue("month") - 1,
+    partValue("day") - daysAgo,
+  );
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function expectedReceiptDate(value: string) {
+  return new Intl.DateTimeFormat("sl-SI", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00.000Z`));
+}
+
 function openNewOrderEditor() {
   fireEvent.click(screen.getByRole("button", { name: "Novo naročilo" }));
   return screen.getByRole("dialog", { name: "Naročilo dobavitelju" });
@@ -470,6 +495,85 @@ describe("supplier order print view", () => {
 
     fireEvent.click(screen.getByTestId("last-price-receipt-7042"));
     expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7044&nacin=ogled");
+  });
+
+  it("marks old prices, preserves their source and date, and treats missing dates as unknown", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const [preferred] = originalMappings;
+    const recentDate = receiptDateDaysAgo(89);
+    const staleDate = receiptDateDaysAgo(90);
+    const recentPreferred = {
+      ...preferred,
+      lastPriceReceipt: { ...preferred.lastPriceReceipt, date: recentDate },
+      priceHistory: preferred.priceHistory.map((entry: any, index: number) =>
+        index === 0 ? { ...entry, date: recentDate } : entry,
+      ),
+    };
+    const staleOffer = {
+      ...preferred,
+      id: 7059,
+      supplierId: "supplier-717",
+      supplierName: "Mlekarna Stara",
+      supplierItemName: "Mleko iz stare cene",
+      packageFactor: 8,
+      lastPackagePrice: 20,
+      lastUnitPrice: 2.5,
+      lastPriceReceipt: { receiptId: 7109, date: staleDate, receiptNumber: "R-7109" },
+      priceHistory: [{ receiptId: 7109, date: staleDate, receiptNumber: "R-7109", unitPrice: 2.5 }],
+    };
+    const missingDateOffer = {
+      ...preferred,
+      id: 7060,
+      supplierId: "supplier-718",
+      supplierName: "Mlekarna Brez Datuma",
+      packageFactor: 6,
+      lastPackagePrice: 27,
+      lastUnitPrice: 4.5,
+      lastPriceReceipt: { receiptId: 7110, date: null, receiptNumber: "R-7110" },
+      priceHistory: [],
+    };
+    const missingReceiptOffer = {
+      ...preferred,
+      id: 7061,
+      supplierId: "supplier-719",
+      supplierName: "Mlekarna Brez Vira",
+      packageFactor: 6,
+      lastPackagePrice: 30,
+      lastUnitPrice: 5,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    Object.assign(article, {
+      mappings: [recentPreferred, staleOffer, missingDateOffer, missingReceiptOffer],
+    });
+
+    try {
+      renderSupplierOrderPage();
+
+      expect(screen.queryByTestId("supplier-price-freshness-7042")).toBeNull();
+      expect(screen.getByTestId("supplier-price-freshness-7059").textContent)
+        .toContain("90 dni ali več");
+      expect(screen.getByTestId("last-unit-price-7059").textContent).toContain("2,50");
+      expect(screen.getByTestId("lowest-unit-price-7059").textContent)
+        .toContain("Najnižja cena / enoto");
+      expect(screen.getByTestId("supplier-savings-7059").textContent)
+        .toContain("cenejša");
+      const staleSource = screen.getByTestId("last-price-receipt-7059");
+      expect(staleSource.textContent).toContain("R-7109");
+      expect(staleSource.textContent).toContain(expectedReceiptDate(staleDate));
+
+      expect(screen.getByTestId("supplier-price-freshness-7060").textContent)
+        .toContain("ni znana");
+      expect(screen.getByTestId("last-price-receipt-7060").textContent)
+        .toContain("Datum ni znan");
+      expect(screen.getByTestId("supplier-price-freshness-7061").textContent)
+        .toContain("ni znana");
+      expect(screen.getByTestId("last-price-source-7061").textContent)
+        .toContain("Vir prejemnice ni zabeležen");
+    } finally {
+      Object.assign(article, { mappings: originalMappings });
+    }
   });
 
   it("shows recent confirmed prices and opens a historical receipt in read-only mode", () => {
