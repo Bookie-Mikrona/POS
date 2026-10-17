@@ -24,6 +24,7 @@ import { getSmtpRow } from "../lib/erp-smtp-settings";
 import erpSmtpRouter from "./erp-smtp";
 import { expectedAccountType } from "../lib/accountTypeWarning";
 import { logger } from "../lib/logger";
+import { REPORT_EXPORT_RETENTION_DAYS, reportExportCutoff } from "../lib/reportExportRetention";
 
 const router: IRouter = Router();
 router.use(erpSmtpRouter);
@@ -741,7 +742,10 @@ router.get(
         emailSentTo: reportExportsTable.emailSentTo,
       })
       .from(reportExportsTable)
-      .where(eq(reportExportsTable.companyId, companyId))
+      .where(and(
+        eq(reportExportsTable.companyId, companyId),
+        gte(reportExportsTable.exportedAt, reportExportCutoff()),
+      ))
       .orderBy(desc(reportExportsTable.exportedAt))
       .limit(200);
 
@@ -781,7 +785,10 @@ router.get(
         emailSentTo: reportExportsTable.emailSentTo,
       })
       .from(reportExportsTable)
-      .where(eq(reportExportsTable.companyId, companyId))
+      .where(and(
+        eq(reportExportsTable.companyId, companyId),
+        gte(reportExportsTable.exportedAt, reportExportCutoff()),
+      ))
       .orderBy(desc(reportExportsTable.exportedAt))
       .limit(200);
 
@@ -1183,7 +1190,10 @@ router.post(
         emailSentTo: reportExportsTable.emailSentTo,
       })
       .from(reportExportsTable)
-      .where(eq(reportExportsTable.companyId, companyId))
+      .where(and(
+        eq(reportExportsTable.companyId, companyId),
+        gte(reportExportsTable.exportedAt, reportExportCutoff()),
+      ))
       .orderBy(desc(reportExportsTable.exportedAt))
       .limit(200);
         const sumField = (field: keyof Pick<TrialBalanceRow, "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
@@ -1311,7 +1321,10 @@ router.get(
         emailSentTo: reportExportsTable.emailSentTo,
       })
       .from(reportExportsTable)
-      .where(eq(reportExportsTable.companyId, companyId))
+      .where(and(
+        eq(reportExportsTable.companyId, companyId),
+        gte(reportExportsTable.exportedAt, reportExportCutoff()),
+      ))
       .orderBy(desc(reportExportsTable.exportedAt))
       .limit(200);
 
@@ -1365,7 +1378,10 @@ router.get(
         companyId: reportExportsTable.companyId,
       })
       .from(reportExportsTable)
-      .where(eq(reportExportsTable.id, exportId))
+      .where(and(
+        eq(reportExportsTable.id, exportId),
+        gte(reportExportsTable.exportedAt, reportExportCutoff()),
+      ))
       .limit(1);
 
     if (!row) {

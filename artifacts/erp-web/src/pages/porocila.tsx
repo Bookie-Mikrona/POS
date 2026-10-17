@@ -1917,6 +1917,7 @@ function ExportHistoryTab() {
   const { getToken } = useAuth();
 
   const [records, setRecords] = useState<ExportRecord[]>([]);
+  const [retentionDays, setRetentionDays] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -1924,6 +1925,7 @@ function ExportHistoryTab() {
   async function fetchHistory() {
     if (!activeCompany) return;
     setLoading(true);
+    setRetentionDays(null);
     setError(null);
     try {
       const token = await getToken();
@@ -1937,6 +1939,7 @@ function ExportHistoryTab() {
       }
       const data = await res.json();
       setRecords(data.exports ?? []);
+      setRetentionDays(data.retentionDays);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -2004,6 +2007,19 @@ function ExportHistoryTab() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Napaka</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {retentionDays != null && (
+        <Alert>
+          <History className="h-4 w-4" />
+          <AlertTitle>Doba hrambe izvozov: {retentionDays} dni</AlertTitle>
+          <AlertDescription>
+            Starejši izvozi in shranjeni PDF-ji se samodejno trajno izbrišejo.
+            Čiščenje poteka ob zagonu strežnika in nato vsako uro.
+            Knjižbe in izvorni podatki ostanejo nespremenjeni.
+            Pomembne PDF-je pred iztekom shranite v svoj trajni arhiv.
+          </AlertDescription>
         </Alert>
       )}
 

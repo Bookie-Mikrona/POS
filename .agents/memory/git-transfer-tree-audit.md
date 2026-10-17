@@ -9,8 +9,8 @@ Po vsakem prenosu, združevanju oddaljene zgodovine ali obnovi glavne veje prime
 
 **How to apply:** Pred prenosom ohrani namensko referenco na celotno drevo. Po prenosu primerjaj izbrisane poti, spremembe registracij poti, OpenAPI pogodbo, sheme in migracije. Izgubljene dele vračaj selektivno ter jih uskladi z novejšimi spremembami; ne prepisuj celotne veje in ne ponavljaj migracij na slepo.
 
-To pravilo velja tudi za samodejno združevanje ob zaključevanju dela: uspešni testi in typecheck pred združitvijo ne preverjajo poznejšega združenega drevesa.
+To pravilo velja tudi za samodejno združevanje ob zaključevanju dela: uspešni testi in typecheck pred združitvijo ne preverjajo poznejšega združenega drevesa. Pri več podobnih blokih v isti datoteki uporabi izrazit kontekst posamezne poti.
 
-**Why:** Samodejna združitev sočasnih sprememb iste datoteke je že premaknila veljavne bloke v nepovezane API handlerje in pustila nezaključeno kodo zunaj registracije poti. Pri usklajevanju skupne datoteke poročil so bile tudi ponavljajoče se poizvedbe zamenjane z vsebinsko nepovezano poizvedbo, čeprav je bila prvotna sprememba omejena na pošiljanje e-pošte.
+**Why:** Samodejna združitev sočasnih sprememb iste datoteke je že premaknila veljavne bloke v nepovezane API handlerje, agregacijske in PDF bloke ter pustila nezaključeno kodo zunaj registracije poti. Pri usklajevanju skupne datoteke poročil so bile tudi ponavljajoče se poizvedbe zamenjane z vsebinsko nepovezano poizvedbo, čeprav je bil prvotni lokalni diff omejen na pošiljanje e-pošte ali zgodovino izvozov in je TypeScript prestal.
 
 **How to apply:** Če zaključno preverjanje po sinhronizaciji javi nove napake, primerjaj celoten končni diff z osnovno različico oziroma pravilnim staršem, posebej podobne ponovljene bloke. Obnovi samo nenamerne spremembe in poškodovane bloke ter ponovno preveri končno drevo in sosednje poti.

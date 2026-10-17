@@ -11,6 +11,8 @@ const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
  * Revizijska sled izvoženih PDF poročil.
  * Vsak izvoz (prenos ali pošiljanje po e-pošti) se zabeleži z vsemi parametri
  * in shranjenim PDF-om, ki ga je mogoče znova prenesti brez ponovnega generiranja.
+ * Začasna zgodovina, ne trajni arhiv: urni API scheduler briše zapise in PDF-e
+ * po REPORT_EXPORT_RETENTION_DAYS (privzeto 365 dni). Izvorne knjižbe ostanejo.
  */
 export const reportExportsTable = pgTable("report_exports", {
   id: uuid("id").primaryKey().defaultRandom(),

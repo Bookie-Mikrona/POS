@@ -9,6 +9,7 @@ import { startQrHistoryRetentionScheduler } from "./lib/qrHistoryRetention";
 import { startVoucherDeliveryRetryScheduler } from "./routes/publicVisits";
 import { startPublicProfileImageRetentionScheduler } from "./lib/publicProfileImageRetention";
 import { startAllergenResearchRunner } from "./lib/allergen-research-runner";
+import { startReportExportRetentionScheduler } from "./lib/reportExportRetention";
 
 const rawPort = process.env["PORT"];
 
@@ -56,4 +57,5 @@ app.listen(port, (err) => {
   // Remove abandoned staged public profile images with a process and database lock.
   startPublicProfileImageRetentionScheduler();
   startAllergenResearchRunner();
+  startReportExportRetentionScheduler();
 });
