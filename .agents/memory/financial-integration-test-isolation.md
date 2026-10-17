@@ -3,11 +3,17 @@ name: Izolacija finančnih integracijskih testov
 description: Kako preverjati dejanske ERP knjižbe brez trajnih testnih revizijskih sledi v skupni razvojni bazi.
 ---
 
-Integracijske teste, ki ustvarijo knjižbe in zapiranja partnerjev, izvedi v zunanji transakciji z razveljavitvijo celotnega testnega nabora. Vsi klici aplikacijske baze morajo uporabljati isto povezavo, transakcije poti pa notranje savepointe.
+Integracijske teste, ki ustvarijo knjižbe in zapiranja partnerjev ali spreminjajo vrednosti osnovnih sredstev, izvedi v zunanji transakciji z razveljavitvijo celotnega testnega nabora. Vsi klici aplikacijske baze morajo uporabljati isto povezavo, transakcije poti pa notranje savepointe.
 
 **Why:** Dejanska plačila ustvarijo append-only revizijske dogodke. Običajno brisanje testnih knjižb nato zadene zaščitene reference; popuščanje sprožilcev samo zaradi čiščenja bi obšlo finančno integriteto, ohranjanje vsakega testnega podjetja pa onesnaži skupno razvojno bazo.
 
 **How to apply:** Transakcijo razveljavi tudi ob neuspelem preverjanju. Ne onemogočaj zaščit in ne spreminjaj trajnih uporabniških knjižb. Za brskalniški preizkus uporabljaj prestrežene sintetične finančne odgovore; resnično knjiženje preveri v izoliranem integracijskem testu.
+
+Za dokaz shranjevanja vrednosti uporabi resnični HTTP zapis in naknadno branje iz baze ter poročila, ne vnaprej pripravljenih odgovorov baze.
+
+**Why:** Ločena simulirana odgovora za zapis in branje lahko prestaneta test, tudi če sprememba ni bila nikoli shranjena ali poročilo bere napačen vir.
+
+**How to apply:** Simuliraj le prijavo; dostop do podjetja, SQL in izračuni naj se izvedejo dejansko znotraj iste razveljavljene transakcije.
 
 Sam ročni `BEGIN` skupaj z novim Drizzle odjemalcem na isti povezavi ni dovolj za izolacijo. Aplikaciji posreduj dejanski Drizzle transakcijski objekt, ki notranje transakcije pretvori v savepointe.
 

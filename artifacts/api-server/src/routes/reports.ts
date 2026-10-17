@@ -766,24 +766,33 @@ router.get(
     const untaggedCredit = untaggedLines.reduce((sum, line) =>
       sum + (line.side === "credit" ? Number(line.amount) : 0), 0);
 
-    const reportRows: DimensionReportRow[] = Array.from(dimMap, ([id, dim]) => {
-      const reportRow: DimensionReportRow = {
-        id, code: dim.code, name: dim.name,
-        totalDebit: dim.debit.toFixed(2), totalCredit: dim.credit.toFixed(2),
-        balance: (dim.debit - dim.credit).toFixed(2),
-      };
-      if (withAccountBreakdown) {
-        reportRow.accounts = Array.from(accountMap.values())
-          .filter(account => account.dimId === id)
-          .map(account => ({
-            accountId: account.accountId, code: account.code, name: account.name,
-            totalDebit: account.debit.toFixed(2), totalCredit: account.credit.toFixed(2),
-            balance: (account.debit - account.credit).toFixed(2),
-          }))
-          .sort((a, b) => a.code.localeCompare(b.code, "sl"));
-      }
-      return reportRow;
-    }).sort((a, b) => a.code.localeCompare(b.code, "sl"));
+    const accountsByDimension = new Map<string, AccountBreakdownRow[]>();
+    for (const account of accountMap.values()) {
+      const rows = accountsByDimension.get(account.dimId) ?? [];
+      rows.push({
+        accountId: account.accountId,
+        code: account.code,
+        name: account.name,
+        totalDebit: account.debit.toFixed(2),
+        totalCredit: account.credit.toFixed(2),
+        balance: (account.debit - account.credit).toFixed(2),
+      });
+      accountsByDimension.set(account.dimId, rows);
+    }
+    const reportRows: DimensionReportRow[] = [...dimMap.entries()]
+      .map(([id, dimension]) => ({
+        id,
+        code: dimension.code,
+        name: dimension.name,
+        totalDebit: dimension.debit.toFixed(2),
+        totalCredit: dimension.credit.toFixed(2),
+        balance: (dimension.debit - dimension.credit).toFixed(2),
+        ...(withAccountBreakdown ? {
+          accounts: (accountsByDimension.get(id) ?? [])
+            .sort((a, b) => a.code.localeCompare(b.code, "sl")),
+        } : {}),
+      }))
+      .sort((a, b) => a.code.localeCompare(b.code, "sl"));
     const grandTotalDebit = reportRows.reduce((s, r) => s + parseFloat(r.totalDebit), 0);
     const grandTotalCredit = reportRows.reduce((s, r) => s + parseFloat(r.totalCredit), 0);
 
