@@ -12,6 +12,9 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const posRoot = path.resolve(testsDir, "..");
 const longOrderNumber = "N-2026-0948-IZREDNO-DOLGA-ŠTEVILKA-NAROČILA-Z-LOKACIJO-RESTAVRACIJA-TRG-REPUBLIKE-001234567890";
 const longSupplierName = "Preizkusni dobavitelj za gostinske obrate – lokalna in sezonska živila, pijače ter oskrba več poslovnih enot z ločenimi dostavami za osrednjo kuhinjo";
+const continuationSupplierName = longSupplierName.length > 42
+  ? `${longSupplierName.slice(0, 41).trimEnd()}…`
+  : longSupplierName;
 const tallRowNumber = 44;
 const tallArticleDetails = Array.from({ length: 8 }, (_, index) =>
   `TALL-ARTICLE-DETAIL-${String(index + 1).padStart(3, "0")} Complete specification and handling notes for this exceptionally large printed supplier-order item.`,
@@ -583,6 +586,41 @@ async function main() {
     const boundingBoxes = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-bbox-layout", pdfPath, "-"]);
     const pdfPages = [...boundingBoxes.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)];
     assert.equal(pdfPages.length, pageCount, "PDF text geometry page count differs from pdfinfo.");
+
+    for (const [pageIndex, page] of pages.entries()) {
+      if (!/POSTAVKA-\d{3}/.test(page)) continue;
+      const pageMarkup = pdfPages[pageIndex];
+      assert(pageMarkup, `Table page ${pageIndex + 1} has no PDF text geometry.`);
+      const blocks = readBlocks(pageMarkup[2]);
+      const compactOrderNumber = compactText(longOrderNumber);
+      const compactSupplierName = compactText(continuationSupplierName);
+      const repeatedHeaderBlock = blocks.find(block => {
+        const compactBlock = compactText(block.text);
+        return compactBlock.includes(compactOrderNumber) && compactBlock.includes(compactSupplierName);
+      });
+      assert(repeatedHeaderBlock, `Table page ${pageIndex + 1} is missing its repeated order and supplier identifiers.`);
+
+      const tableHeaderTokens = new Set(["ARTIKEL", "PAKIRANJE", "KOLIČINA", "PAKETOV", "CENA", "ZNESEK"]);
+      const words = readWords(pageMarkup[2]);
+      const firstArticleWord = words.find(word => /^POSTAVKA-\d{3}$/.test(word.text));
+      assert(firstArticleWord, `Table page ${pageIndex + 1} has no article row geometry.`);
+      const tableHeaderWords = words.filter(word =>
+        tableHeaderTokens.has(word.text.toLocaleUpperCase("sl"))
+        && Number(word.yMin) < Number(firstArticleWord.yMin));
+      assert(tableHeaderWords.length > 0, `Table page ${pageIndex + 1} has no repeated column heading geometry.`);
+
+      const repeatedContextBottom = Number(repeatedHeaderBlock.yMax);
+      const tableHeaderTop = Math.min(...tableHeaderWords.map(word => Number(word.yMin)));
+      const tableHeaderBottom = Math.max(...tableHeaderWords.map(word => Number(word.yMax)));
+      assert(
+        repeatedContextBottom < tableHeaderTop,
+        `The repeated order context collides with the table headings on page ${pageIndex + 1}.`,
+      );
+      assert(
+        tableHeaderBottom < Number(firstArticleWord.yMin),
+        `The repeated table headings collide with order content on page ${pageIndex + 1}.`,
+      );
+    }
 
     const firstPage = pdfPages[0];
     assert(firstPage, "The printed PDF has no first page.");

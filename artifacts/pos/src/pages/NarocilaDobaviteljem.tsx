@@ -242,6 +242,9 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
   const pricedLines = order.lines.filter(line => line.unitPrice != null);
   const total = pricedLines.reduce((sum, line) => sum + (line.unitPrice ?? 0) * line.packageQuantity, 0);
   const hasUnpricedLines = pricedLines.length !== order.lines.length;
+  const continuationSupplierName = order.supplierName.length > 42
+    ? `${order.supplierName.slice(0, 41).trimEnd()}…`
+    : order.supplierName;
 
   return createPortal(
     <article className="supplier-order-print" data-testid="supplier-order-print">
@@ -273,6 +276,15 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
           <col style={{ width: "15%" }} />
         </colgroup>
         <thead>
+          <tr className="supplier-order-print__continuation">
+            <th colSpan={5} scope="colgroup">
+              <div className="supplier-order-print__continuation-content">
+                <span data-testid="text-supplier-order-print-continuation-number" className="supplier-order-print__continuation-number">{order.number}</span>
+                <span aria-hidden="true">·</span>
+                <span data-testid="text-supplier-order-print-continuation-supplier" className="supplier-order-print__continuation-supplier">{continuationSupplierName}</span>
+              </div>
+            </th>
+          </tr>
           <tr>
             <th>Artikel</th>
             <th>Pakiranje</th>

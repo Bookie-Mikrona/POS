@@ -284,6 +284,30 @@
     text-align: left;
     text-transform: uppercase;
   }
+  .supplier-order-print__table thead .supplier-order-print__continuation th {
+    padding: 2px 7px;
+    border-bottom: 1px solid #aebbb3;
+    background: #f7f8f6 !important;
+    color: #45554b;
+    font-size: 6pt;
+    font-weight: 500;
+    line-height: 1.1;
+    text-transform: none;
+  }
+  .supplier-order-print__continuation-content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .supplier-order-print__continuation-number { flex: 0 0 auto; font-weight: 700; }
+  .supplier-order-print__continuation-supplier {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .supplier-order-print__table thead .supplier-order-print__number {
     text-align: left !important;
     white-space: normal;
@@ -292,6 +316,7 @@
     break-inside: avoid-page;
     page-break-inside: avoid;
   }
+  .supplier-order-print__table tbody { line-height: 1.2; }
   .supplier-order-print__table td strong { display: block; }
   .supplier-order-print__table td small {
     display: block;
