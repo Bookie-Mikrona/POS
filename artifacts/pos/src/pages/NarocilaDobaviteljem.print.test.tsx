@@ -1187,6 +1187,40 @@ describe("supplier order print view", () => {
     expect(internalCounter.textContent).toBe(`${noteToCopy.length} / 2000 znakov · preostalo ${2000 - noteToCopy.length}`);
   });
 
+  it("counts emoji and multiple line breaks in both notes and submits text within the field limit", async () => {
+    mocks.mutation.mockResolvedValue(mocks.order);
+    renderSupplierOrderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
+
+    const internalNotes = `🔒\n\n${"i".repeat(1992)}\nend`;
+    const supplierNotes = `🚚\n\n${"s".repeat(1991)}\nend`;
+    const internalField = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
+    const supplierField = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(internalField, { target: { value: internalNotes } });
+    fireEvent.change(supplierField, { target: { value: supplierNotes } });
+
+    expect(internalNotes.length).toBe(2000);
+    expect(supplierNotes.length).toBe(1999);
+    expect(internalField.maxLength).toBe(2000);
+    expect(supplierField.maxLength).toBe(2000);
+    expect(screen.getByTestId("internal-note-character-count").textContent)
+      .toBe("2000 / 2000 znakov · preostalo 0");
+    expect(screen.getByTestId("supplier-note-character-count").textContent)
+      .toBe("1999 / 2000 znakov · preostalo 1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Shrani osnutek" }));
+
+    await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith({
+      data: {
+        supplierId: "supplier-704",
+        expectedDeliveryDate: null,
+        internalNotes,
+        supplierNotes,
+        lines: [{ supplierMappingId: 7042, packageQuantity: 3, unitPrice: 22.5 }],
+      },
+    }));
+  });
+
   it("does not truncate existing supplier instructions when the copied note would exceed the limit", () => {
     const internalNote = "i".repeat(30);
     const existingInstruction = "s".repeat(1990);

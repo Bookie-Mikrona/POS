@@ -1024,6 +1024,31 @@ describe("POS supplier ordering and linked receipt flow", () => {
     });
   });
 
+  it("accepts exactly 2,000 UTF-16 code units in notes with emoji and multiple line breaks", async () => {
+    const note = `🥚\n\n${"x".repeat(1992)}\nend`;
+    expect(note.length).toBe(2000);
+
+    const created = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      internalNotes: note,
+      supplierNotes: note,
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
+    });
+
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    orderIds.push(created.body.id);
+    expect(created.body.internalNotes).toBe(note);
+    expect(created.body.supplierNotes).toBe(note);
+
+    const rejected = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      internalNotes: `${note}x`,
+      supplierNotes: `${note}x`,
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
+    });
+    expect(rejected.status).toBe(400);
+  });
+
   it("does not let a non-administrator manage purchase orders", async () => {
     context.role = "uporabnik";
     const denied = await request(app).get("/narocila-dobaviteljem");
