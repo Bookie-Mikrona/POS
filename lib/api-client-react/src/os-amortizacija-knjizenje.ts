@@ -15,6 +15,7 @@ import type {
   UseQueryResult,
 } from "@tanstack/react-query";
 import { customFetch, getAuthToken } from "./custom-fetch";
+import { useGetOsAmortizacijaArhiv } from "./generated/api";
 
 // ─── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,18 @@ export interface ObracunGlavaInfo {
 export const osAmortizacijaObracunQueryKey = (companyId: string) =>
   ["os-amortizacija-obracun", companyId] as const;
 
+/** Company-scoped archive key, shared with all mutations affecting saved runs. */
+export function useGetOsAmortizacijaObracuni(companyId: string) {
+  return useGetOsAmortizacijaArhiv(companyId, {
+    query: {
+      queryKey: osAmortizacijaObracunQueryKey(companyId),
+      enabled: !!companyId,
+      staleTime: 30_000,
+      refetchOnMount: "always",
+    },
+  });
+}
+
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
 export const osAmortizacijaNastavitveQueryKey = (companyId: string) =>
@@ -225,12 +238,16 @@ export function usePostOsAmortizacijaKnjizenje(
 export function usePostOsAmortizacijaObracun(
   companyId: string,
 ): UseMutationResult<ObracunGlavaInfo, Error, PostObracunBody> {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (body) =>
       customFetch<ObracunGlavaInfo>(
         `/api/os/${companyId}/amortizacija/obracun`,
         { method: "POST", body: JSON.stringify(body) },
       ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: osAmortizacijaObracunQueryKey(companyId) });
+    },
   });
 }
 
@@ -303,12 +320,16 @@ export function usePutOsAmortizacijaOslabitev(
 export function usePostOsAmortizacijaStorno(
   companyId: string,
 ): UseMutationResult<StornoResult, Error, PostStornoBody> {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (body) =>
       customFetch<StornoResult>(
         `/api/os/${companyId}/amortizacija/obracun/storno`,
         { method: "POST", body: JSON.stringify(body) },
       ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: osAmortizacijaObracunQueryKey(companyId) });
+    },
   });
 }
 

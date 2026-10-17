@@ -37,6 +37,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import {
   useGetOsAmortizacija,
   useGetOsAmortizacijaNastavitve,
+  useGetOsAmortizacijaObracuni,
   useOsAmortizacijaIzpis,
   usePostOsAmortizacijaObracun,
   usePostOsAmortizacijaStorno,
@@ -50,6 +51,7 @@ import {
   type ObracunGlavaInfo,
 } from "@workspace/api-client-react";
 import { AmortizacijaKnjizenjDialog } from "@/components/os/AmortizacijaKnjizenjDialog";
+import { AmortizacijaArhiv } from "@/components/os/AmortizacijaArhiv";
 import { SavedAmortizationExports } from "@/components/os/SavedAmortizationExports";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -570,6 +572,7 @@ export default function AmortizacijskiObracun() {
   // Privzeto leto — določi se po prvi naložitvi nastavitev (gl. useEffect spodaj)
   const [leto, setLeto] = useState<number>(thisYear);
   const letoApplied = useRef(false);
+  const arhiv = useGetOsAmortizacijaObracuni(companyId);
 
   // Naloži OS nastavitve — vsebuje zadnjiObracunLeto in osLeto za privzeto leto
   const { data: nastavitve } = useGetOsAmortizacijaNastavitve(companyId, {
@@ -692,7 +695,11 @@ export default function AmortizacijskiObracun() {
   };
 
   // Leta za izbiro
-  const years = Array.from({ length: thisYear - 2010 + 2 }, (_, i) => 2010 + i).reverse();
+  const years = [...new Set([
+    ...Array.from({ length: thisYear - 2010 + 2 }, (_, i) => 2010 + i),
+    ...(arhiv.data ?? []).map((obracun) => obracun.leto),
+    leto,
+  ])].sort((a, b) => b - a);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -848,6 +855,25 @@ export default function AmortizacijskiObracun() {
       </div>
 
       <SavedAmortizationExports key={companyId} companyId={companyId} />
+
+      <AmortizacijaArhiv
+        obracuni={arhiv.data}
+        isLoading={arhiv.isLoading}
+        isError={arhiv.isError}
+        onRetry={() => { void arhiv.refetch(); }}
+        leto={leto}
+        onSelect={(obracun) => {
+          letoApplied.current = true;
+          setLeto(obracun.leto);
+          setDoMeseca(obracun.doMeseca);
+          setActiveTab("sredstva");
+          setExpandedIds(new Set());
+          clearFilters();
+          setObracunResult(null);
+          setObracunError(null);
+          setStornoError(null);
+        }}
+      />
 
       {/* Napaka pri nalaganju */}
       {isError && (

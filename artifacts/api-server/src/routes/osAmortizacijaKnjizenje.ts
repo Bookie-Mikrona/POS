@@ -25,6 +25,7 @@ import { savedAmortizationExcel, savedAmortizationPdf } from "../lib/os-amortiza
 import {
   ExportSavedAmortizationParams, ExportSavedAmortizationQueryParams,
   ListSavedAmortizationYearsParams, ListSavedAmortizationYearsResponse,
+  GetOsAmortizacijaArhivParams, GetOsAmortizacijaArhivResponse,
 } from "@workspace/api-zod";
 import {
   db,
@@ -611,6 +612,45 @@ function clampDate(dateStr: string, startDate: string, endDate: string): string 
   if (dateStr > endDate) return endDate;
   return dateStr;
 }
+
+// ─── GET /os/:companyId/amortizacija/obracun — arhiv shranjenih glav ───────────
+
+router.get(
+  "/os/:companyId/amortizacija/obracun",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const params = GetOsAmortizacijaArhivParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Neveljaven ID podjetja" });
+      return;
+    }
+    const { companyId } = params.data;
+    const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+    if (!(await resolveOsModuleRole(clerkUserId, companyId, res))) return;
+
+    const rows = await db
+      .select({
+        id: osAmortizacijaObracunTable.id,
+        leto: osAmortizacijaObracunTable.leto,
+        doMeseca: osAmortizacijaObracunTable.doMeseca,
+        status: osAmortizacijaObracunTable.status,
+        updatedAt: osAmortizacijaObracunTable.updatedAt,
+        skupajAmortizacija: sql<string>`coalesce(sum(${osAmortizacijaObracunSredstvoTable.obracunano}), 0)::numeric(20, 2)::text`,
+      })
+      .from(osAmortizacijaObracunTable)
+      .leftJoin(
+        osAmortizacijaObracunSredstvoTable,
+        eq(osAmortizacijaObracunSredstvoTable.obracunId, osAmortizacijaObracunTable.id),
+      )
+      .where(eq(osAmortizacijaObracunTable.companyId, companyId))
+      .groupBy(osAmortizacijaObracunTable.id)
+      .orderBy(desc(osAmortizacijaObracunTable.leto));
+
+    res.json(GetOsAmortizacijaArhivResponse.parse(
+      rows.map((row) => ({ ...row, updatedAt: row.updatedAt.toISOString() })),
+    ));
+  },
+);
 
 // ─── GET /os/:companyId/amortizacija/nastavitve ───────────────────────────────
 

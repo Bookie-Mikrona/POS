@@ -374,6 +374,7 @@ import type {
   OperativnaPorocilaZakljucki,
   OperativnaPorocilaZaloge,
   OpozoriloNeuspeleDostaveBona,
+  OsAmortizacijaArhivGlava,
   OsveziShranjenKupec400,
   OsveziShranjenKupec404,
   ParseBankStatementBody,
@@ -610,6 +611,83 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetOsAmortizacijaArhivUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/os/${companyId}/amortizacija/obracun`
+}
+
+/**
+ * @summary Arhiv shranjenih obračunov amortizacije podjetja
+ */
+export const getOsAmortizacijaArhiv = async (companyId: string, options?: RequestInit): Promise<OsAmortizacijaArhivGlava[]> => {
+
+  return customFetch<OsAmortizacijaArhivGlava[]>(getGetOsAmortizacijaArhivUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOsAmortizacijaArhivQueryKey = (companyId: string,) => {
+    return [
+    `/api/os/${companyId}/amortizacija/obracun`
+    ] as const;
+    }
+
+
+export const getGetOsAmortizacijaArhivQueryOptions = <TData = Awaited<ReturnType<typeof getOsAmortizacijaArhiv>>, TError = ErrorType<void>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOsAmortizacijaArhiv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOsAmortizacijaArhivQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOsAmortizacijaArhiv>>> = ({ signal }) => getOsAmortizacijaArhiv(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOsAmortizacijaArhiv>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOsAmortizacijaArhivQueryResult = NonNullable<Awaited<ReturnType<typeof getOsAmortizacijaArhiv>>>
+export type GetOsAmortizacijaArhivQueryError = ErrorType<void>
+
+
+/**
+ * @summary Arhiv shranjenih obračunov amortizacije podjetja
+ */
+
+export function useGetOsAmortizacijaArhiv<TData = Awaited<ReturnType<typeof getOsAmortizacijaArhiv>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOsAmortizacijaArhiv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOsAmortizacijaArhivQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSavedAmortizationYearsUrl = (companyId: string,) => {
 

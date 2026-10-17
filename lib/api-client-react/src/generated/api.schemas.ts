@@ -5,6 +5,28 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export type OsAmortizacijaArhivGlavaStatus = typeof OsAmortizacijaArhivGlavaStatus[keyof typeof OsAmortizacijaArhivGlavaStatus];
+
+
+export const OsAmortizacijaArhivGlavaStatus = {
+  odprt: 'odprt',
+  zakljucen: 'zakljucen',
+} as const;
+
+export interface OsAmortizacijaArhivGlava {
+  id: string;
+  leto: number;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  doMeseca: number;
+  /** Vsota shranjene računovodske amortizacije vseh sredstev */
+  skupajAmortizacija: string;
+  status: OsAmortizacijaArhivGlavaStatus;
+  updatedAt: string;
+}
+
 export interface SavedAmortizationYear {
   leto: number;
   /**

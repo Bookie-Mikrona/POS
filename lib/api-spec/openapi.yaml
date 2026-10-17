@@ -87,6 +87,30 @@ tags:
   - name: daily-lunch
     description: Unit and business-date scoped daily lunch offers
 paths:
+  /os/{companyId}/amortizacija/obracun:
+    get:
+      operationId: getOsAmortizacijaArhiv
+      summary: Arhiv shranjenih obračunov amortizacije podjetja
+      parameters:
+        - in: path
+          name: companyId
+          required: true
+          schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+      responses:
+        "200":
+          description: Shranjeni obračuni, od najnovejšega leta do najstarejšega
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OsAmortizacijaArhivGlava"
+        "400":
+          description: Neveljaven ID podjetja
+        "401":
+          description: Prijava je obvezna
+        "403":
+          description: Dostop do osnovnih sredstev podjetja ni dovoljen
   /os/{companyId}/amortizacija/obracun/leta:
     get:
       operationId: listSavedAmortizationYears
@@ -11966,6 +11990,16 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    OsAmortizacijaArhivGlava:
+      type: object
+      required: [id, leto, doMeseca, skupajAmortizacija, status, updatedAt]
+      properties:
+        id: {type: string}
+        leto: {type: integer}
+        doMeseca: {type: integer, minimum: 1, maximum: 12}
+        skupajAmortizacija: {type: string, description: Vsota shranjene računovodske amortizacije vseh sredstev}
+        status: {type: string, enum: [odprt, zakljucen]}
+        updatedAt: {type: string}
     SavedAmortizationYear:
       type: object
       required: [leto, doMeseca, status]

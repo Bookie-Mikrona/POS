@@ -8,6 +8,31 @@
 import * as zod from 'zod';
 
 
+/**
+ * @summary Arhiv shranjenih obračunov amortizacije podjetja
+ */
+export const getOsAmortizacijaArhivPathCompanyIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const GetOsAmortizacijaArhivParams = zod.object({
+  "companyId": zod.coerce.string().regex(getOsAmortizacijaArhivPathCompanyIdRegExp)
+})
+
+export const getOsAmortizacijaArhivResponseDoMesecaMax = 12;
+
+
+
+export const GetOsAmortizacijaArhivResponseItem = zod.object({
+  "id": zod.string(),
+  "leto": zod.number(),
+  "doMeseca": zod.number().min(1).max(getOsAmortizacijaArhivResponseDoMesecaMax),
+  "skupajAmortizacija": zod.string().describe('Vsota shranjene računovodske amortizacije vseh sredstev'),
+  "status": zod.enum(['odprt', 'zakljucen']),
+  "updatedAt": zod.string()
+})
+export const GetOsAmortizacijaArhivResponse = zod.array(GetOsAmortizacijaArhivResponseItem)
+
+
 export const listSavedAmortizationYearsPathCompanyIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 
 

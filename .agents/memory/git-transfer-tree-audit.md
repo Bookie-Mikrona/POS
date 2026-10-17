@@ -26,3 +26,9 @@ Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti uporabi
 **Why:** Pri usklajevanju podobnih poročil so se deklaracije, telesa poti in ponavljajoči se bloki pomešali tudi brez očitnih konfliktnih oznak. Samo popravek sintakse ni zagotovil ohranitve obeh poti.
 
 **How to apply:** Ob lokalnem popravku jasno razloči obravnavalnike in preveri vsako prizadeto pot po uskladitvi; ne prepisuj drugih veljavnih sprememb cele datoteke.
+
+Generirane API sheme po združitvi regeneriraj iz trenutne specifikacije, namesto da ročno združuješ posamezne deklaracije.
+
+**Why:** Združevanje je prestavilo sestavljeno Zod shemo pred njeno odvisnost. Typecheck je uspel, uvoz modula pa je ustavil celoten API z napako inicializacije.
+
+**How to apply:** Po regeneraciji preveri tudi dejanski uvoz oziroma zagon API-ja; uspešno preverjanje deklaracij samo po sebi ne odkrije takšne napake v generirani kodi.
