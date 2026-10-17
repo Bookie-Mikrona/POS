@@ -634,6 +634,16 @@ describe("POS supplier ordering and linked receipt flow", () => {
         unitPrice: 2,
         date: "2026-10-19",
       });
+      const laterInsertedOlderSourceA = await createConfirmedSource({
+        unitId: enotaId,
+        articleId: articleA.id,
+        supplierMappingId: mappingA.id,
+        unitPrice: 2,
+        date: "2026-10-18",
+      });
+      expect(laterInsertedOlderSourceA.receiptId).toBeGreaterThan(sourceA.receiptId);
+      expect(laterInsertedOlderSourceA.date).toBe("2026-10-18");
+
       const sourceB = await createConfirmedSource({
         unitId: unitB.id,
         articleId: articleB.id,
