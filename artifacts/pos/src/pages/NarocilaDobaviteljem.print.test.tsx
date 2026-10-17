@@ -109,8 +109,8 @@ vi.mock("@workspace/api-client-react", async () => {
       isError: false,
       refetch: vi.fn(),
     }),
-    useListSupplierOrders: () => ({
-      data: mocks.supplierOrderSummaries ?? [{
+    useListSupplierOrders: (params?: { status?: string }) => {
+      const summaries = mocks.supplierOrderSummaries ?? [{
         id: mocks.order.id,
         number: mocks.order.number,
         supplierId: mocks.order.supplierId,
@@ -122,11 +122,14 @@ vi.mock("@workspace/api-client-react", async () => {
         openQuantity: mocks.order.openQuantity,
         internalNotes: mocks.order.internalNotes,
         supplierNotes: mocks.order.supplierNotes,
-      }],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    }),
+      }];
+      return {
+        data: params?.status ? summaries.filter(order => order.status === params.status) : summaries,
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      };
+    },
     useGetSupplierOrder: () => ({
       data: mocks.order,
       isLoading: false,
@@ -364,6 +367,121 @@ describe("supplier order print view", () => {
     expect((screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement).value).toBe("");
     expect(mocks.order.supplierNotes).toBe("");
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("searches supplier orders by number or supplier without exposing internal notes", () => {
+    const internalNote = "INTERNAL ONLY: unique note search token";
+    const sharedSummary = {
+      supplierId: mocks.order.supplierId,
+      createdAt: mocks.order.createdAt,
+      expectedDeliveryDate: mocks.order.expectedDeliveryDate,
+      lineCount: mocks.order.lineCount,
+      openQuantity: mocks.order.openQuantity,
+    };
+    mocks.supplierOrderSummaries = [
+      {
+        ...sharedSummary,
+        id: 704,
+        number: "N-2026-0704",
+        supplierName: "Mlekarna Planika",
+        status: "draft",
+        internalNotes: internalNote,
+        supplierNotes: "",
+      },
+      {
+        ...sharedSummary,
+        id: 705,
+        number: "N-2026-0705",
+        supplierName: "Kmetija Planika",
+        status: "sent",
+        internalNotes: "INTERNAL ONLY: second private note",
+        supplierNotes: "Dostavite pred 10. uro.",
+      },
+    ];
+    renderSupplierOrderPage();
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    const search = screen.getByTestId("input-search-supplier-orders") as HTMLInputElement;
+
+    fireEvent.change(search, { target: { value: "0704" } });
+    expect(screen.getByTestId("row-supplier-order-704")).toBeTruthy();
+    expect(screen.queryByTestId("row-supplier-order-705")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "kmetija" } });
+    expect(screen.getByTestId("row-supplier-order-705")).toBeTruthy();
+    expect(screen.queryByTestId("row-supplier-order-704")).toBeNull();
+
+    fireEvent.change(search, { target: { value: internalNote } });
+    expect(screen.getByText("Ni zadetkov za iskanje")).toBeTruthy();
+    expect(screen.queryByTestId("row-supplier-order-704")).toBeNull();
+    expect(screen.queryByTestId("row-supplier-order-705")).toBeNull();
+    expect(screen.queryByText(internalNote)).toBeNull();
+  });
+
+  it("combines supplier-order search with status and missing-instruction filters", () => {
+    const internalNote = "PRIVATE internal note";
+    const sharedSummary = {
+      supplierId: mocks.order.supplierId,
+      createdAt: mocks.order.createdAt,
+      expectedDeliveryDate: mocks.order.expectedDeliveryDate,
+      lineCount: mocks.order.lineCount,
+      openQuantity: mocks.order.openQuantity,
+      internalNotes: internalNote,
+    };
+    mocks.supplierOrderSummaries = [
+      {
+        ...sharedSummary,
+        id: 710,
+        number: "N-2026-0710",
+        supplierName: "Mlekarna Planika",
+        status: "draft",
+        supplierNotes: null,
+      },
+      {
+        ...sharedSummary,
+        id: 711,
+        number: "N-2026-0711",
+        supplierName: "Mlekarna Planika",
+        status: "sent",
+        supplierNotes: "Dostavite pred 10. uro.",
+      },
+      {
+        ...sharedSummary,
+        id: 712,
+        number: "N-2026-0712",
+        supplierName: "Mlekarna Planika",
+        status: "sent",
+        supplierNotes: null,
+      },
+      {
+        ...sharedSummary,
+        id: 713,
+        number: "N-2026-0713",
+        supplierName: "Domače dobrote",
+        status: "sent",
+        supplierNotes: null,
+      },
+    ];
+    renderSupplierOrderPage();
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+
+    fireEvent.change(screen.getByTestId("input-search-supplier-orders"), {
+      target: { value: "planika" },
+    });
+    fireEvent.change(screen.getAllByRole("combobox", { name: "Filtriraj naročila po statusu" })[0], {
+      target: { value: "sent" },
+    });
+    fireEvent.click(screen.getByTestId("filter-orders-missing-supplier-instructions"));
+
+    expect(screen.getByTestId("row-supplier-order-712")).toBeTruthy();
+    expect(screen.queryByTestId("row-supplier-order-710")).toBeNull();
+    expect(screen.queryByTestId("row-supplier-order-711")).toBeNull();
+    expect(screen.queryByTestId("row-supplier-order-713")).toBeNull();
+
+    fireEvent.change(screen.getByTestId("input-search-supplier-orders"), {
+      target: { value: "0711" },
+    });
+    expect(screen.getByText("Ni zadetkov za iskanje")).toBeTruthy();
+    expect(screen.queryByTestId("row-supplier-order-712")).toBeNull();
   });
 
   it("warns before printing when internal notes exist without supplier instructions, then allows printing without exposing them", () => {

@@ -369,6 +369,7 @@ export default function NarocilaDobaviteljem() {
 
   const [activeView, setActiveView] = useState<"suggestions" | "orders">("suggestions");
   const [search, setSearch] = useState("");
+  const [orderSearch, setOrderSearch] = useState("");
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [settingsArticle, setSettingsArticle] = useState<SupplierReorderArticle | null>(null);
   const [settingPoint, setSettingPoint] = useState("");
@@ -452,9 +453,15 @@ export default function NarocilaDobaviteljem() {
     return (!q || `${article.articleName} ${article.purchaseName ?? ""}`.toLocaleLowerCase("sl").includes(q));
   });
   const ordersMissingSupplierInstructions = (orderList ?? []).filter(hasInternalNoteWithoutSupplierInstructions);
-  const filteredOrders = missingSupplierInstructionsOnly
+  const ordersWithInstructionFilter = missingSupplierInstructionsOnly
     ? ordersMissingSupplierInstructions
     : orderList ?? [];
+  const activeOrderSearch = orderSearch.trim();
+  const normalizedOrderSearch = activeOrderSearch.toLocaleLowerCase("sl");
+  const filteredOrders = ordersWithInstructionFilter.filter(order =>
+    !normalizedOrderSearch
+    || `${order.number} ${order.supplierName}`.toLocaleLowerCase("sl").includes(normalizedOrderSearch),
+  );
   const supplierNotesAfterCopy = orderEditor
     ? appendInternalNoteToSupplierNotes(orderEditor.internalNotes, orderEditor.supplierNotes)
     : "";
@@ -993,6 +1000,18 @@ export default function NarocilaDobaviteljem() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eee8dc] px-4 py-4 sm:px-5">
           <div><h2 className="text-base font-bold text-[#203d39]">Evidenca naročil</h2><p className="mt-0.5 text-xs text-[#77817b]">Stanje naročila in dejanski prevzem sta ločena procesa.</p></div>
           <div className="orders-no-print flex flex-wrap items-center justify-end gap-2">
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78847e]" />
+              <Input
+                type="search"
+                aria-label="Poišči po številki ali dobavitelju"
+                data-testid="input-search-supplier-orders"
+                value={orderSearch}
+                onChange={event => setOrderSearch(event.target.value)}
+                placeholder="Številka ali dobavitelj"
+                className="h-10 border-[#ded6c7] bg-[#fffefa] pl-9"
+              />
+            </div>
             <Button
               type="button"
               size="sm"
@@ -1019,8 +1038,8 @@ export default function NarocilaDobaviteljem() {
           <span>Seznama naročil ni bilo mogoče naložiti.</span><Button variant="outline" size="sm" onClick={() => void refetchOrders()}>Poskusi znova</Button>
         </div> : ordersLoading ? <div className="space-y-3 p-5">{[1, 2, 3].map(item => <div key={item} className="h-16 animate-pulse rounded-lg bg-[#f1eee6]" />)}</div> : filteredOrders.length === 0 ? <div className="px-6 py-14 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf3ed] text-[#416c5e]"><FileText className="h-6 w-6" /></div>
-          <h3 className="mt-3 font-bold text-[#28453f]">{missingSupplierInstructionsOnly ? "Ni naročil z interno opombo brez navodila" : "Za ta filter ni naročil"}</h3>
-          <p className="mt-1 text-sm text-[#748079]">{missingSupplierInstructionsOnly ? "Za izbrani status ni naročil z interno opombo in praznim navodilom za dobavitelja." : "Ustvarite osnutek iz predlogov ali dodajte naročilo ročno."}</p>
+          <h3 className="mt-3 font-bold text-[#28453f]">{activeOrderSearch ? "Ni zadetkov za iskanje" : missingSupplierInstructionsOnly ? "Ni naročil z interno opombo brez navodila" : "Za ta filter ni naročil"}</h3>
+          <p className="mt-1 text-sm text-[#748079]">{activeOrderSearch ? "Preverite številko naročila ali naziv dobavitelja oziroma spremenite izbrane filtre." : missingSupplierInstructionsOnly ? "Za izbrani status ni naročil z interno opombo in praznim navodilom za dobavitelja." : "Ustvarite osnutek iz predlogov ali dodajte naročilo ročno."}</p>
           {!missingSupplierInstructionsOnly && <Button className="mt-4 bg-[#285d50] text-white hover:bg-[#204b41]" onClick={() => startNewOrder()}><Plus className="mr-2 h-4 w-4" /> Novo naročilo</Button>}
         </div> : <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-sm">
