@@ -202,7 +202,6 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
         (_unused, columnIndex) => sheet.getCell(rowNumber, columnIndex + 1).value ?? "",
       );
     const rows = Array.from({ length: 9 }, (_unused, rowIndex) => rowValues(rowIndex + 1));
-
     expect(rows[0]).toEqual(["Karakterizacija d.o.o.", "", "", "", "", "", "", "", "", ""]);
     expect(rows[1]?.[0]).toBe("Bruto bilanca (preizkusna bilanca)");
     expect(rows[2]?.[0]).toMatch(/^Obdobje: \d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2}$/);

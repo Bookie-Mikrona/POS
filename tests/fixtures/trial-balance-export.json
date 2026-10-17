@@ -1,0 +1,41 @@
+{
+  "rows": [
+    {
+      "accountId": "opening-debit",
+      "accountCode": "1100000",
+      "accountName": "Transakcijski račun – šumniki čšž",
+      "accountType": "asset",
+      "openingBalanceDebit": "123456.78",
+      "openingBalanceCredit": "0.00",
+      "turnoverDebit": "2345.67",
+      "turnoverCredit": "890.12",
+      "balanceDebit": "125802.45",
+      "balanceCredit": "890.12"
+    },
+    {
+      "accountId": "opening-credit",
+      "accountCode": "2200000",
+      "accountName": "Obveznosti do dobaviteljev z zelo dolgim nazivom, ki ne sme prekriti začetnega salda ali naslednje vrstice",
+      "accountType": "liability",
+      "openingBalanceDebit": "0.00",
+      "openingBalanceCredit": "123456.78",
+      "turnoverDebit": "890.12",
+      "turnoverCredit": "2345.67",
+      "balanceDebit": "890.12",
+      "balanceCredit": "125802.45"
+    },
+    {
+      "accountId": "zero-net",
+      "accountCode": "1200000",
+      "accountName": "Poravnan konto",
+      "accountType": "asset",
+      "openingBalanceDebit": "12.34",
+      "openingBalanceCredit": "12.34",
+      "turnoverDebit": "56.78",
+      "turnoverCredit": "56.78",
+      "balanceDebit": "69.12",
+      "balanceCredit": "69.12"
+    }
+  ],
+  "totals": [123469.12, 123469.12, 3292.57, 3292.57, 126761.69, 126761.69, 0]
+}
