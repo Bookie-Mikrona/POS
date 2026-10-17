@@ -127,6 +127,8 @@ describe("supplier order print view", () => {
     mocks.markSent.mockReset();
     mocks.mutation.mockReset();
     mocks.navigate.mockReset();
+    mocks.order.internalNotes = "INTERNAL ONLY: preveriti stanje embalaže.";
+    mocks.order.supplierNotes = "Prosimo za dostavo do 10.00.\nHvala.";
     print.mockReset();
     Object.defineProperty(window, "print", { configurable: true, value: print });
   });
@@ -293,6 +295,92 @@ describe("supplier order print view", () => {
         lines: [{ supplierMappingId: 7042, packageQuantity: 3, unitPrice: 22.5 }],
       },
     }));
+  });
+
+  it("copies an internal note only on request and prints the reviewed supplier text after saving", async () => {
+    const internalNote = "INTERNAL ONLY: pred dostavo pokličite.";
+    const existingInstruction = "Dostavite pred 10. uro.";
+    const copiedInstruction = `${existingInstruction}\n\n${internalNote}`;
+    const reviewedInstruction = `${copiedInstruction}\nProsim, pokličite ob prihodu.`;
+    mocks.mutation.mockImplementation(async (input: any) => {
+      Object.assign(mocks.order, {
+        internalNotes: input.data.internalNotes,
+        supplierNotes: input.data.supplierNotes,
+      });
+      return mocks.order;
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
+    const internalField = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
+    const supplierField = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(internalField, { target: { value: internalNote } });
+    fireEvent.change(supplierField, { target: { value: existingInstruction } });
+
+    expect(screen.queryByTestId("supplier-order-print")).toBeNull();
+    fireEvent.click(screen.getByTestId("button-copy-internal-to-supplier"));
+    expect(internalField.value).toBe(internalNote);
+    expect(supplierField.value).toBe(copiedInstruction);
+
+    fireEvent.click(screen.getByTestId("button-copy-internal-to-supplier"));
+    expect(supplierField.value).toBe(copiedInstruction);
+    expect(screen.queryByTestId("supplier-order-print")).toBeNull();
+
+    fireEvent.change(supplierField, { target: { value: reviewedInstruction } });
+    expect(supplierField.value).toBe(reviewedInstruction);
+    fireEvent.click(screen.getByRole("button", { name: "Shrani osnutek" }));
+    await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith({
+      data: {
+        supplierId: "supplier-704",
+        expectedDeliveryDate: null,
+        internalNotes: internalNote,
+        supplierNotes: reviewedInstruction,
+        lines: [{ supplierMappingId: 7042, packageQuantity: 3, unitPrice: 22.5 }],
+      },
+    }));
+    await waitFor(() => expect(screen.getByTestId("text-supplier-order-print-instructions").textContent).toBe(reviewedInstruction));
+
+    const printView = document.querySelector(".supplier-order-print");
+    expect(printView?.textContent).not.toContain("Interna opomba");
+    fireEvent.click(screen.getByTestId("button-print-supplier-order-704"));
+    expect(print).toHaveBeenCalledOnce();
+    expect(mocks.markSent).not.toHaveBeenCalled();
+  });
+
+  it("does not truncate existing supplier instructions when the copied note would exceed the limit", () => {
+    const internalNote = "i".repeat(30);
+    const existingInstruction = "s".repeat(1990);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
+    const internalField = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
+    const supplierField = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(internalField, { target: { value: internalNote } });
+    fireEvent.change(supplierField, { target: { value: existingInstruction } });
+
+    const copyButton = screen.getByTestId("button-copy-internal-to-supplier");
+    expect(copyButton.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("alert").textContent).toContain("presegla omejitev 2000 znakov");
+    fireEvent.click(copyButton);
+
+    expect(internalField.value).toBe(internalNote);
+    expect(supplierField.value).toBe(existingInstruction);
+    expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
   it("prefills the next suggested order with the latest price for the current package size", () => {

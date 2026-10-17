@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle, ArrowDownToLine, ArrowRight, Check,
-  CircleDot, ClipboardList, FileText, PackageCheck, Plus, Printer, RefreshCw,
+  CircleDot, ClipboardList, Copy, FileText, PackageCheck, Plus, Printer, RefreshCw,
   Search, Send, Settings2, ShoppingCart, X,
 } from "lucide-react";
 import {
@@ -62,6 +62,7 @@ const formatReceiptDate = (value: string) =>
   }).format(new Date(`${value.slice(0, 10)}T00:00:00.000Z`));
 const formatMoney = (value: number | null | undefined) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(value);
+const MAX_ORDER_NOTE_LENGTH = 2000;
 const formatUnitMoney = (value: number) =>
   new Intl.NumberFormat("sl-SI", {
     style: "currency",
@@ -90,6 +91,13 @@ function comparableUnitPrice(
     return null;
   }
   return mapping.lastUnitPrice;
+}
+
+function appendInternalNoteToSupplierNotes(internalNote: string, supplierNotes: string): string {
+  const normalizedNote = internalNote.trim();
+  if (!normalizedNote || supplierNotes.includes(normalizedNote)) return supplierNotes;
+  if (!supplierNotes.trim()) return internalNote;
+  return `${supplierNotes}${supplierNotes.endsWith("\n") ? "" : "\n\n"}${internalNote}`;
 }
 
 function StatusPill({ status }: { status: SupplierOrderStatus }) {
@@ -242,6 +250,10 @@ export default function NarocilaDobaviteljem() {
     return (!q || `${article.articleName} ${article.purchaseName ?? ""}`.toLocaleLowerCase("sl").includes(q));
   });
   const filteredOrders = orderList ?? [];
+  const supplierNotesAfterCopy = orderEditor
+    ? appendInternalNoteToSupplierNotes(orderEditor.internalNotes, orderEditor.supplierNotes)
+    : "";
+  const supplierNoteCopyOverLimit = supplierNotesAfterCopy.length > MAX_ORDER_NOTE_LENGTH;
   const suggestedBySupplier = useMemo(() => {
     const groups = new Map<string, SupplierReorderArticle[]>();
     for (const article of suggestions) {
@@ -339,6 +351,12 @@ export default function NarocilaDobaviteljem() {
       })),
     });
     setSelectedOrderId(null);
+  };
+  const copyInternalNoteToSupplierNotes = () => {
+    if (!orderEditor) return;
+    const supplierNotes = appendInternalNoteToSupplierNotes(orderEditor.internalNotes, orderEditor.supplierNotes);
+    if (supplierNotes.length > MAX_ORDER_NOTE_LENGTH) return;
+    setOrderEditor({ ...orderEditor, supplierNotes });
   };
   const saveOrderDraft = async () => {
     if (!orderEditor?.supplierId || !orderEditor.rows.length || orderEditor.rows.some(line => line.packageQuantity <= 0)) {
@@ -760,19 +778,38 @@ export default function NarocilaDobaviteljem() {
             </label>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-[#5f7068]">Interna opomba · samo za zaposlene
-              <textarea value={orderEditor.internalNotes} onChange={event => setOrderEditor({ ...orderEditor, internalNotes: event.target.value })} maxLength={2000} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Besedilo ostane v aplikaciji in se ne natisne." />
-            </label>
+            <div>
+              <label className="block text-xs font-semibold text-[#5f7068]">Interna opomba · samo za zaposlene
+                <textarea value={orderEditor.internalNotes} onChange={event => setOrderEditor({ ...orderEditor, internalNotes: event.target.value })} maxLength={MAX_ORDER_NOTE_LENGTH} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Besedilo ostane v aplikaciji in se ne natisne." />
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="button-copy-internal-to-supplier"
+                disabled={!orderEditor.internalNotes.trim() || supplierNoteCopyOverLimit}
+                onClick={copyInternalNoteToSupplierNotes}
+                className="orders-no-print mt-2 border-[#c9d7cf] text-[#285d50]"
+              >
+                <Copy className="mr-1.5 h-3.5 w-3.5" /> Kopiraj v navodilo dobavitelju
+              </Button>
+              {supplierNoteCopyOverLimit && <p role="alert" className="mt-1 text-xs text-rose-800">
+                Kopija bi presegla omejitev {MAX_ORDER_NOTE_LENGTH} znakov. Skrajšajte besedilo; nič ne bo skrajšano samodejno.
+              </p>}
+              <p className="mt-1 text-[11px] leading-relaxed text-[#77817b]">
+                Kopija se doda na konec obstoječega navodila. Izvirna opomba ostane nespremenjena; pred shranjevanjem preglejte besedilo.
+              </p>
+            </div>
             <label className="text-xs font-semibold text-[#5f7068]">Navodilo dobavitelju · natisne se
-              <textarea value={orderEditor.supplierNotes} onChange={event => setOrderEditor({ ...orderEditor, supplierNotes: event.target.value })} maxLength={2000} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Samo to besedilo bo vključeno v izpis." />
+              <textarea value={orderEditor.supplierNotes} onChange={event => setOrderEditor({ ...orderEditor, supplierNotes: event.target.value })} maxLength={MAX_ORDER_NOTE_LENGTH} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Samo to besedilo bo vključeno v izpis." />
             </label>
           </div>
           <p role="note" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
             {orderEditor.id
-              ? "Interna opomba je vidna samo zaposlenim in se ne natisne. Prej shranjene enotne opombe so ohranjene v tem polju; če je katera namenjena dobavitelju, jo kopirajte v polje »Navodilo dobavitelju«."
-              : "Interna opomba se ne natisne. Za besedilo, namenjeno dobavitelju, uporabite ločeno polje »Navodilo dobavitelju«."}
+              ? "Interna opomba je vidna samo zaposlenim in se ne natisne. Prej shranjene enotne opombe so ohranjene v tem polju; če je katera namenjena dobavitelju, jo izrecno kopirajte v ločeno navodilo in ga preglejte."
+              : "Interna opomba se ne natisne. Za besedilo, namenjeno dobavitelju, uporabite ločeno polje ali ga izrecno kopirajte z gumbom ob interni opombi."}
           </p>
-          <p className="rounded-lg bg-[#f2f4ed] px-3 py-2 text-xs leading-relaxed text-[#66746b]">Osnutek je mogoče natisniti in poslati zunaj aplikacije. Shranjevanje ali označitev kot poslano ne spremeni zaloge in ne ustvari računovodske knjižbe.</p>
+          <p className="rounded-lg bg-[#f2f4ed] px-3 py-2 text-xs leading-relaxed text-[#66746b]">Po shranjevanju lahko naročilo pregledate in natisnete; v izpisu bo samo shranjeno navodilo dobavitelju. Shranjevanje ali označitev kot poslano ne spremeni zaloge in ne ustvari računovodske knjižbe.</p>
         </div>
         <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur"><Button variant="outline" onClick={() => setOrderEditor(null)}>Prekliči</Button><Button disabled={busy} onClick={() => void saveOrderDraft()} className="bg-[#285d50] text-white hover:bg-[#204b41]">{busy ? "Shranjujem…" : "Shrani osnutek"}</Button></div>
       </section>
