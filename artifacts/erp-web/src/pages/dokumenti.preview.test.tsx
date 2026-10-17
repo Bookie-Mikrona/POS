@@ -138,6 +138,60 @@ afterEach(() => {
 });
 
 describe("Dokumenti preview stability", () => {
+  it.each([
+    { status: "done", heading: null },
+    { status: "confirmed", heading: "Dokument potrjen" },
+    { status: "rejected", heading: "Dokument zavrnjen" },
+  ] as const)("does not remount the preview when the same document is refreshed from done to $status", async ({ status, heading }) => {
+    const iframe = await openCompletedDocument();
+    const src = iframe.getAttribute("src");
+    expect(src).toBe("blob:document-preview");
+    const removedNodes: Node[] = [];
+    const observer = new MutationObserver(records => {
+      records.forEach(record => removedNodes.push(...record.removedNodes));
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    try {
+      state.detail = {
+        ...state.detail!,
+        status,
+        fileName: "selected-refreshed.pdf",
+        updatedAt: "2026-01-01T09:00:00.000Z",
+      };
+      state.documents = [state.detail, state.documents[1]];
+
+      // Exercise the real background refetch used after confirm/reject, not a remount
+      // or a mocked hook rerender. The selected document and its file stay the same.
+      await act(async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["documents", state.companyId] }),
+          queryClient.invalidateQueries({ queryKey: ["document", state.companyId, "selected"] }),
+        ]);
+      });
+      await settle();
+
+      expect(state.listFetch).toHaveBeenCalledTimes(2);
+      expect(state.detailFetch).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole("heading", { name: "selected-refreshed.pdf" })).toBeInTheDocument();
+      if (heading) {
+        expect(screen.getByRole("heading", { name: heading })).toBeVisible();
+        expect(screen.queryByRole("button", { name: "Zavrni" })).not.toBeInTheDocument();
+      } else {
+        expect(screen.getByRole("button", { name: "Zavrni" })).toBeVisible();
+      }
+      expect(screen.getByTitle("Predogled PDF dokumenta")).toBe(iframe);
+      expect(iframe.isConnected).toBe(true);
+      expect(iframe).toHaveAttribute("src", src);
+      expect(removedNodes.some(node => node === iframe || node.contains(iframe))).toBe(false);
+      expect(storageFetch).toHaveBeenCalledTimes(1);
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+    } finally {
+      observer.disconnect();
+    }
+  });
+
   it("polls another active document without refetching the selected done document", async () => {
     const iframe = await openCompletedDocument();
     expect(state.listFetch).toHaveBeenCalledTimes(1);
