@@ -9,6 +9,7 @@ import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
 import { z } from "zod";
 import type { Readable } from "stream";
 import PDFDocument from "pdfkit";
+import { registerPdfFonts } from "../../lib/pdf-fonts";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { ObjectStorageService } from "../../lib/objectStorage";
 import {
@@ -55,6 +56,7 @@ function imageToPdf(image: Buffer): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     const doc = new PDFDocument({ autoFirstPage: false, compress: true });
+    registerPdfFonts(doc);
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);

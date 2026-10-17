@@ -12,6 +12,7 @@ import { Decimal } from 'decimal.js';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import PDFDocument from 'pdfkit';
+import { registerPdfFonts } from '../../lib/pdf-fonts';
 
 import { db } from '@workspace/db';
 import { anthropic } from '@workspace/integrations-anthropic-ai';
@@ -59,6 +60,7 @@ async function slikaVPdfBase64(imgBase64: string, mimeTip: string): Promise<stri
     const imgBuf = Buffer.from(imgBase64, 'base64');
     const chunks: Buffer[] = [];
     const doc = new PDFDocument({ autoFirstPage: false, compress: true });
+    registerPdfFonts(doc);
     doc.on('data', (c: Buffer) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
     doc.on('error', reject);

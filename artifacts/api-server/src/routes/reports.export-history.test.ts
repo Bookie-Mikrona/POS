@@ -26,6 +26,7 @@ vi.mock("@workspace/db", async (importOriginal) => ({
 }));
 
 import router from "./reports";
+import { REPORT_EXPORT_RETENTION_DAYS } from "../lib/reportExportRetention";
 
 const app = express();
 app.use(router);
@@ -72,7 +73,8 @@ describe("report export history identities", () => {
   });
 
   it("does not query Clerk for an empty history", async () => {
-    expect((await request(app).get(path).set("x-test-user", "viewer")).body).toEqual({ exports: [] });
+    expect((await request(app).get(path).set("x-test-user", "viewer")).body)
+      .toEqual({ exports: [], retentionDays: REPORT_EXPORT_RETENTION_DAYS });
     expect(state.getUserList).not.toHaveBeenCalled();
   });
 

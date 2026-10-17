@@ -26,7 +26,7 @@ import { AutomaticDrinkNormativeError, resolveAutomaticDrinkNormative } from "..
 import { lockPosBusinessDay } from "../../lib/pos-z-helpers";
 import { isMenuEligibleTaxCategory, normalizeAddedSugarForTaxCategory, type TaxCategory } from "../../lib/ddv-resolver";
 import { mealTypeForPizzaUpdate } from "../../lib/pizza-meal-type";
-import PDFDocument from "pdfkit";
+import { generateAllergenNormativePdf } from "../../lib/allergen-normative-pdf";
 import { normalizirajAlergenProfil } from "../../lib/alergeni";
 import { razresiAlergeneArtikla, razresiAlergeneVhodnihArtiklov, razveljaviAlergeneNadrejenih } from "../../lib/alergeni-resolver";
 import { formatMenuPrice, generateMenuPriceListPdf } from "../../lib/menu-price-list-pdf";
@@ -2292,26 +2292,10 @@ router.get("/artikli/:id/alergeni-normativ.pdf", async (req, res): Promise<void>
   const sestavine = await db.select({ ime: artikliTable.ime, kolicina: normativiTable.kolicina })
     .from(normativiTable).innerJoin(artikliTable, eq(artikliTable.id, normativiTable.vhodniArtikelId))
     .where(eq(normativiTable.artikelId, id));
-  const pdf = new PDFDocument({ margin: 42 });
-  const chunks: Buffer[] = [];
-  pdf.on("data", (chunk: Buffer) => chunks.push(chunk));
-  pdf.on("end", () => {
-    res.type("application/pdf").attachment(`normativ-alergeni-${id}.pdf`).send(Buffer.concat(chunks));
+  const pdf = await generateAllergenNormativePdf({
+    enotaId: tenotaId, artikel, izracun, sestavine,
   });
-  pdf.fontSize(18).text("Alergenski normativ");
-  pdf.moveDown().fontSize(11).text(`Enota: ${tenotaId}`).text(`Artikel: ${artikel.ime}`);
-  pdf.text(`Status: ${izracun.potrjen ? "potrjeno" : "nepreverjeno"}`);
-  pdf.text(`Verzija: ${artikel.revision}; hash: ${artikel.hash ?? "ni izračunan"}`);
-  pdf.text(`Čas izvoza: ${new Date().toISOString()}`);
-  pdf.text(`Potrdil: ${artikel.verifiedBy ?? "ni potrjeno"} ${artikel.verifiedAt ? `(${artikel.verifiedAt.toISOString()})` : ""}`);
-  pdf.moveDown().text("Sestavine / količine:");
-  sestavine.forEach((s) => pdf.text(`• ${s.ime}: ${s.kolicina}`));
-  pdf.moveDown().text(`Vsebuje: ${izracun.alergeni.map((a) => `${a.koda} – ${a.naziv}`).join(", ") || "ni potrjenih podatkov"}`);
-  pdf.text(`Lahko vsebuje sledi: ${izracun.alergeniSledi.map((a) => `${a.koda} – ${a.naziv}`).join(", ") || "brez navedenih sledi"}`);
-  pdf.moveDown().text("Izvori:");
-  izracun.izvori.forEach((source) => pdf.text(`• ${source.artikel}: ${source.vir ?? "vir ni naveden"}${source.documentId ? `; dokument ${source.documentId}` : ""}`));
-  if (izracun.opozorila.length) { pdf.moveDown().text(`Opozorila: ${izracun.opozorila.join(" ")}`); }
-  pdf.end();
+  res.type("application/pdf").attachment(`normativ-alergeni-${id}.pdf`).send(pdf);
 });
 
 type NormativInput = { vhodniArtikelId: number; kolicina: number };

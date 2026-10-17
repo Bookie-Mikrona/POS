@@ -1327,6 +1327,7 @@ router.get(
       return;
     }
     res.json({
+      retentionDays: REPORT_EXPORT_RETENTION_DAYS,
       exports: rows.map((row) => ({
         ...row,
         exportedByName: displayNames.get(row.exportedBy) ?? "Neznan uporabnik",
