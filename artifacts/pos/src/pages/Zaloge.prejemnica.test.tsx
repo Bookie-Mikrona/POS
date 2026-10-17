@@ -171,6 +171,41 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
         skupaj: "15.50",
         ddvStopnja: "0",
         ddvZnesek: "0.00",
+        alergeni: ["MLEKO"],
+        alergeniSledi: ["GLUTEN"],
+        alergeniStatus: "potrjeno",
+        alergeniVir: "specifikacija",
+        alergeniOpombaVira: "Specifikacija proizvajalca, izdaja 4",
+        alergeniDocumentId: "evidence-4209",
+      }, {
+        id: 2,
+        artikelId: 910,
+        artikelIme: "Kruh",
+        enotaMere: "KOS",
+        kolicina: "1",
+        cenaKos: "3.00",
+        skupaj: "3.00",
+        ddvStopnja: "0",
+        ddvZnesek: "0.00",
+        alergeni: [],
+        alergeniSledi: [],
+        alergeniStatus: "potrjeno_brez",
+        alergeniVir: "etiketa",
+      }, {
+        id: 3,
+        artikelId: 911,
+        artikelIme: "Omaka",
+        enotaMere: "L",
+        kolicina: "1",
+        cenaKos: "2.00",
+        skupaj: "2.00",
+        ddvStopnja: "0",
+        ddvZnesek: "0.00",
+        alergeni: ["SEZAM"],
+        alergeniSledi: ["GORČICA"],
+        alergeniStatus: "nepreverjeno",
+        alergeniVir: "drugo",
+        alergeniOpombaVira: "Samodejni spletni predlog",
       }],
       odvisniStroski: [{
         naziv: "Prevoz",
@@ -191,6 +226,25 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     expect(within(dialog).getByText("Mleko polnomastno")).toBeInTheDocument();
     expect(within(dialog).getByTestId("text-receipt-view-total")).toHaveTextContent("15,50 EUR");
     expect(within(dialog).getByText("Prevoz")).toBeInTheDocument();
+    const milkAllergens = within(dialog).getByTestId("receipt-view-allergens-1");
+    expect(milkAllergens).toHaveTextContent("Potrjeno in preverjeno");
+    expect(milkAllergens).toHaveTextContent("Specifikacija proizvajalca");
+    expect(milkAllergens).toHaveTextContent("MLEKO — Mleko in mlečni proizvodi");
+    expect(milkAllergens).toHaveTextContent("GLUTEN — Žita, ki vsebujejo gluten");
+    expect(milkAllergens).toHaveTextContent("Specifikacija proizvajalca, izdaja 4");
+    expect(milkAllergens).toHaveTextContent("Dokazilo: Priloženo");
+    const breadAllergens = within(dialog).getByTestId("receipt-view-allergens-2");
+    expect(breadAllergens).toHaveTextContent("Potrjeno brez alergenov");
+    expect(breadAllergens).toHaveTextContent("Etiketa embalaže");
+    expect(breadAllergens).toHaveTextContent("Brez alergenov");
+    const sauceAllergens = within(dialog).getByTestId("receipt-view-allergens-3");
+    expect(sauceAllergens).toHaveTextContent("Nepreverjeno");
+    expect(sauceAllergens).toHaveTextContent("Drugo");
+    expect(sauceAllergens).toHaveTextContent("Nepreverjeno — zabeležene kode");
+    expect(sauceAllergens).toHaveTextContent("SEZAM — Sezamovo seme");
+    expect(sauceAllergens).toHaveTextContent("Samodejni spletni predlog");
+    expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("combobox")).not.toBeInTheDocument();
     const printDocument = screen.getByTestId("receipt-print-document");
     expect(printDocument).toHaveTextContent("Prejemnica št. 26100009");
     expect(printDocument).toHaveTextContent("Mlekarna Planika");

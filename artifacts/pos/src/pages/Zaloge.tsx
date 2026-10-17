@@ -77,7 +77,12 @@ import { EmbalazaTab } from "./zaloge/EmbalazaTab";
 import { PreparedStockTab } from "./zaloge/PreparedStockTab";
 import { DEFAULT_NEW_PURCHASE_ARTICLE_TYPE } from "@/lib/article-type-defaults";
 import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
-import { AlergenEditor, AlergeniBadge, type AlergenSnapshot } from "@/components/AlergenEditor";
+import {
+  AlergenEditor,
+  AlergeniBadge,
+  STANDARD_ALLERGENS,
+  type AlergenSnapshot,
+} from "@/components/AlergenEditor";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ShieldAlert } from "lucide-react";
 import {
@@ -1832,6 +1837,94 @@ function EditIzdajnicaDialog({
   );
 }
 
+const RECEIPT_ALLERGEN_STATUS_LABELS: Record<string, string> = {
+  nepreverjeno: "Nepreverjeno",
+  potrjeno_brez: "Potrjeno brez alergenov",
+  potrjeno: "Potrjeno in preverjeno",
+};
+
+const RECEIPT_ALLERGEN_SOURCE_LABELS: Record<string, string> = {
+  etiketa: "Etiketa embalaže",
+  specifikacija: "Specifikacija proizvajalca",
+  izjava_dobavitelja: "Izjava dobavitelja",
+  normativ: "Normativ (izračun)",
+  rocno: "Ročno preverjanje",
+  drugo: "Drugo",
+};
+
+function ReceiptLineAllergens({ line, index }: { line: any; index: number }) {
+  const snapshot: AlergenSnapshot = {
+    alergeni: Array.isArray(line.alergeni) ? line.alergeni : [],
+    alergeniSledi: Array.isArray(line.alergeniSledi) ? line.alergeniSledi : [],
+    alergeniStatus: line.alergeniStatus ?? "nepreverjeno",
+    alergeniVir: line.alergeniVir ?? null,
+    alergeniOpombaVira: line.alergeniOpombaVira ?? null,
+    alergeniDocumentId: line.alergeniDocumentId ?? null,
+  };
+  const status = String(snapshot.alergeniStatus);
+  const statusLabel = RECEIPT_ALLERGEN_STATUS_LABELS[status] ?? status;
+  const allergenCodesLabel = status === "nepreverjeno" ? "Nepreverjeno — zabeležene kode: " : "Vsebuje: ";
+  const traceCodesLabel = status === "nepreverjeno" ? "Nepreverjeno — možne sledi: " : "Možne sledi: ";
+  const source = snapshot.alergeniVir
+    ? RECEIPT_ALLERGEN_SOURCE_LABELS[snapshot.alergeniVir] ?? snapshot.alergeniVir
+    : "Brez / neznano";
+  const nameForCode = (code: string) => {
+    const allergen = STANDARD_ALLERGENS.find(item => item.koda === code);
+    return allergen ? `${allergen.koda} — ${allergen.naziv}` : code;
+  };
+
+  return (
+    <section
+      className="mt-2 rounded-md border bg-muted/20 p-2"
+      data-testid={`receipt-view-allergens-${line.id ?? index}`}
+      aria-label={`Alergenski posnetek za ${line.artikelIme || line.imeZaNabavo || "postavko"}`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold">Alergeni</span>
+        <AlergeniBadge snapshot={snapshot} />
+      </div>
+      <dl className="mt-2 space-y-1 text-xs">
+        <div>
+          <dt className="inline font-medium">Stanje: </dt>
+          <dd className="inline">{statusLabel}</dd>
+        </div>
+        <div>
+          <dt className="inline font-medium">Vir: </dt>
+          <dd className="inline">{source}</dd>
+        </div>
+        <div>
+          <dt className="inline font-medium">{allergenCodesLabel}</dt>
+          <dd className="inline">
+            {snapshot.alergeni.length > 0
+              ? snapshot.alergeni.map(nameForCode).join("; ")
+              : status === "potrjeno_brez" ? "Brez alergenov" : "Ni zabeleženo"}
+          </dd>
+        </div>
+        <div>
+          <dt className="inline font-medium">{traceCodesLabel}</dt>
+          <dd className="inline">
+            {snapshot.alergeniSledi.length > 0
+              ? snapshot.alergeniSledi.map(nameForCode).join("; ")
+              : status === "potrjeno" || status === "potrjeno_brez" ? "Ni zabeleženih sledi" : "Ni zabeleženo"}
+          </dd>
+        </div>
+        {snapshot.alergeniOpombaVira && (
+          <div>
+            <dt className="inline font-medium">Opomba vira: </dt>
+            <dd className="inline">{snapshot.alergeniOpombaVira}</dd>
+          </div>
+        )}
+        {snapshot.alergeniDocumentId && (
+          <div>
+            <dt className="inline font-medium">Dokazilo: </dt>
+            <dd className="inline">Priloženo</dd>
+          </div>
+        )}
+      </dl>
+    </section>
+  );
+}
+
 function ReceiptPrintDocument({
   receipt,
   summaryFields,
@@ -2037,6 +2130,7 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
                           {line.izvNaziv && line.izvNaziv !== line.artikelIme && (
                             <div className="text-xs text-muted-foreground">{line.izvNaziv}</div>
                           )}
+                            <ReceiptLineAllergens line={line} index={index} />
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {Number(line.kolicina ?? 0).toLocaleString("sl-SI", { maximumFractionDigits: 4 })}
