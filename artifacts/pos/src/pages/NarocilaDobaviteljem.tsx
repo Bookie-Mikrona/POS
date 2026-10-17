@@ -70,6 +70,32 @@ const formatUnitMoney = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
   }).format(value);
+const supplierOfferName = (mapping: {
+  supplierName: string;
+  supplierItemName?: string | null;
+}) => {
+  const supplierItemName = mapping.supplierItemName?.trim();
+  return supplierItemName
+    ? `${mapping.supplierName} · ${supplierItemName}`
+    : mapping.supplierName;
+};
+
+function supplierUnitSavings(
+  candidateUnitPrice: number | null,
+  preferredUnitPrice: number | null,
+): { amount: number; percent: number } | null {
+  if (candidateUnitPrice == null
+    || preferredUnitPrice == null
+    || !Number.isFinite(candidateUnitPrice)
+    || !Number.isFinite(preferredUnitPrice)
+    || preferredUnitPrice <= 0
+    || candidateUnitPrice < 0) {
+    return null;
+  }
+  const amount = preferredUnitPrice - candidateUnitPrice;
+  if (amount <= 1e-9) return null;
+  return { amount, percent: (amount / preferredUnitPrice) * 100 };
+}
 
 function comparableUnitPrice(
   mapping: {
@@ -605,6 +631,12 @@ export default function NarocilaDobaviteljem() {
                   .map(item => item.unitPrice)
                   .filter((value): value is number => value !== null);
                 const lowestUnitPrice = validUnitPrices.length ? Math.min(...validUnitPrices) : null;
+                const preferredOffer = article.preferredMappingId == null
+                  ? null
+                  : comparableMappings.find(item =>
+                    item.mapping.id === article.preferredMappingId && item.mapping.active,
+                  ) ?? null;
+                const preferredUnitPrice = preferredOffer?.unitPrice ?? null;
                 const under = article.reorderPoint != null && article.onHand <= article.reorderPoint;
                 return <tr key={article.articleId} className="panel-lift hover:bg-[#fbfaf5]" data-testid={`row-reorder-article-${article.articleId}`}>
                   <td className="px-4 py-3"><input type="checkbox" aria-label={`Izberi ${article.articleName}`} checked={articleSelection.includes(article.articleId)} onChange={() => toggleArticle(article.articleId)} className="h-4 w-4 accent-[#285d50]" /></td>
@@ -630,6 +662,9 @@ export default function NarocilaDobaviteljem() {
                           && supplierMapping.lastPackagePrice >= 0;
                         const isLowest = unitPrice != null && lowestUnitPrice != null
                           && Math.abs(unitPrice - lowestUnitPrice) <= 1e-9;
+                        const savings = supplierMapping.id === article.preferredMappingId
+                          ? null
+                          : supplierUnitSavings(unitPrice, preferredUnitPrice);
                         return <div key={supplierMapping.id} className="rounded-lg border border-[#eee8dc] bg-[#fbfaf6] px-2.5 py-2">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="font-medium text-[#40574f]">{supplierMapping.supplierName}</span>
@@ -656,6 +691,14 @@ export default function NarocilaDobaviteljem() {
                                     ? ": osnovna enota ni določena."
                                     : "."}
                               </div>}
+                            {savings && preferredOffer && article.baseUnit?.trim() && (
+                              <div
+                                data-testid={`supplier-savings-${supplierMapping.id}`}
+                                className="font-semibold text-emerald-800"
+                              >
+                                Ponudba {supplierOfferName(supplierMapping)} je {formatUnitMoney(savings.amount)} / {article.baseUnit} ({formatQty(savings.percent, 1)} %) cenejša od prednostne ponudbe {supplierOfferName(preferredOffer.mapping)}.
+                              </div>
+                            )}
                             {supplierMapping.lastPriceReceipt
                               ? <div>
                                 <button

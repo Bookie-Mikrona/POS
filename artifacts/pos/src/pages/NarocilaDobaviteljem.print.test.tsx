@@ -317,7 +317,7 @@ describe("supplier order print view", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7032&nacin=ogled");
   });
 
-  it("compares supplier prices by base unit and omits prices with invalid or missing package factors", () => {
+  it("shows savings against the preferred supplier only for valid comparable prices", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;
     const [existing] = originalMappings;
@@ -329,10 +329,24 @@ describe("supplier order print view", () => {
           id: 7047,
           supplierId: "supplier-705",
           supplierName: "Mlekarna Ugodna",
+          supplierItemName: "Mleko v kartonu",
           packageName: "karton",
           packageFactor: 8,
           lastPackagePrice: 20,
           lastUnitPrice: 2.5,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
+        {
+          ...existing,
+          id: 7051,
+          supplierId: "supplier-709",
+          supplierName: "Mlekarna Dražja",
+          supplierItemName: "Mleko dražje",
+          packageName: "zaboj",
+          packageFactor: 6,
+          lastPackagePrice: 27,
+          lastUnitPrice: 4.5,
           lastPriceReceipt: null,
           priceHistory: [],
         },
@@ -388,12 +402,66 @@ describe("supplier order print view", () => {
       expect(screen.getByTestId("last-unit-price-7042").textContent).toMatch(/3,75\s*€ \/ L/);
       expect(screen.getByTestId("last-unit-price-7047").textContent).toMatch(/2,50\s*€ \/ L/);
       expect(screen.getByTestId("lowest-unit-price-7047").textContent).toContain("Najnižja cena / enoto");
+      const savings = screen.getByTestId("supplier-savings-7047");
+      expect(savings.textContent).toContain("Mlekarna Ugodna · Mleko v kartonu");
+      expect(savings.textContent).toMatch(/1,25\s*€ \/ L/);
+      expect(savings.textContent).toContain("33,3 %");
+      expect(savings.textContent).toContain("Mlekarna Planika · Mleko polnomastno");
+      expect(screen.queryByTestId("supplier-savings-7042")).toBeNull();
+      expect(screen.queryByTestId("supplier-savings-7048")).toBeNull();
+      expect(screen.queryByTestId("supplier-savings-7049")).toBeNull();
+      expect(screen.queryByTestId("supplier-savings-7050")).toBeNull();
+      expect(screen.queryByTestId("supplier-savings-7051")).toBeNull();
       expect(screen.getByTestId("unavailable-unit-price-7048").textContent).toContain("velikost pakiranja ni veljavna");
       expect(screen.getByTestId("unavailable-unit-price-7050").textContent).toContain("velikost pakiranja ni veljavna");
       expect(screen.getByText("Zadnja cena ni zabeležena.")).toBeTruthy();
       expect(screen.queryByTestId("last-unit-price-7048")).toBeNull();
       expect(screen.queryByTestId("last-unit-price-7049")).toBeNull();
       expect(screen.queryByTestId("last-unit-price-7050")).toBeNull();
+    } finally {
+      Object.assign(article, { mappings: originalMappings });
+    }
+  });
+
+  it("does not show savings when the preferred offer has no valid unit price", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const [existing] = originalMappings;
+    Object.assign(article, {
+      mappings: [
+        {
+          ...existing,
+          lastPackagePrice: null,
+          lastUnitPrice: null,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
+        {
+          ...existing,
+          id: 7052,
+          supplierId: "supplier-710",
+          supplierName: "Mlekarna Ugodna",
+          packageFactor: 8,
+          lastPackagePrice: 20,
+          lastUnitPrice: 2.5,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
+      ],
+    });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      expect(screen.getByTestId("last-unit-price-7052")).toBeTruthy();
+      expect(screen.queryByTestId("supplier-savings-7052")).toBeNull();
     } finally {
       Object.assign(article, { mappings: originalMappings });
     }
