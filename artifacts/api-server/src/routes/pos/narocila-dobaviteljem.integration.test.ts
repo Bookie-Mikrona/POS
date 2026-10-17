@@ -1645,4 +1645,156 @@ describe("POS supplier ordering and linked receipt flow", () => {
       await db.delete(counterpartiesTable).where(eq(counterpartiesTable.id, comparisonSupplier.id));
     }
   });
+
+  it("serializes simultaneous receipt confirmations against the order's remaining quantity", async () => {
+    const [raceArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Concurrent receipt ${run}`,
+      cena: "5",
+      davek: "22",
+      enotaMere: "KOS",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    articleIds.push(raceArticle.id);
+    await db.insert(zalogeTable).values({ artikelId: raceArticle.id, kolicina: "0" });
+
+    const [raceMapping] = await db.insert(artikelDobaviteljTable).values({
+      enotaId,
+      artikelId: raceArticle.id,
+      dobaviteljId: supplierId,
+      sifraDobavitelja: `RACE-${run}`,
+      nazivDobavitelja: `Concurrent pack ${run}`,
+      enotVPaketu: "6",
+      nazivPaketa: "zaboj",
+      zadnjaCenaPaket: "18",
+      zadnjaCenaEnota: "3",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(raceMapping.id);
+
+    const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      expectedDeliveryDate: "2026-11-07",
+      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
+    });
+    expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
+    orderIds.push(createdOrder.body.id);
+    const orderLineId = createdOrder.body.lines[0].id as number;
+    const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
+    expect(sentOrder.status, JSON.stringify(sentOrder.body)).toBe(200);
+
+    const createLinkedReceipt = async (quantity: number) => {
+      const response = await request(app).post("/prejemnice").send({
+        dobaviteljId: supplierId,
+        datum: "2026-10-17",
+        vrstaCen: "neto",
+        vrstaDokumenta: "DOBAVNICA",
+        brutoSkupaj: quantity * 5,
+        postavke: [{
+          artikelId: raceArticle.id,
+          supplierOrderLineId: orderLineId,
+          kolicina: quantity,
+          cenaKos: 5,
+          skupaj: quantity * 5,
+          enotVPaketu: 1,
+          izvKolicina: quantity,
+          izvCena: 5,
+          izvEnota: "KOS",
+          izvCenaVrsta: "neto",
+          ddvStopnja: 0,
+        }],
+      });
+      expect(response.status, JSON.stringify(response.body)).toBe(201);
+      receiptIds.push(response.body.id);
+      return response.body.id as number;
+    };
+
+    // Two base units have already arrived; two six-unit drafts now compete for the
+    // remaining ten, leaving the order partially received after either one wins.
+    const priorReceiptId = await createLinkedReceipt(2);
+    const priorConfirmation = await request(app).post(`/prejemnice/${priorReceiptId}/confirm`).send({});
+    expect(priorConfirmation.status, JSON.stringify(priorConfirmation.body)).toBe(200);
+    const orderAfterPriorReceipt = await request(app).get(`/narocila-dobaviteljem/${createdOrder.body.id}`);
+    expect(orderAfterPriorReceipt.body).toMatchObject({
+      status: "partially_received",
+      lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 2, openBaseQuantity: 10 }],
+    });
+
+    const firstRaceReceiptId = await createLinkedReceipt(6);
+    const [firstDraftHeader] = await db.select().from(prejemniceTable)
+      .where(eq(prejemniceTable.id, firstRaceReceiptId));
+    const [secondDraft] = await db.insert(prejemniceTable).values({
+      enotaId: firstDraftHeader.enotaId,
+      dobaviteljId: firstDraftHeader.dobaviteljId,
+      datum: firstDraftHeader.datum,
+      vrstaCen: firstDraftHeader.vrstaCen,
+      valuta: firstDraftHeader.valuta,
+      vrstaDokumenta: firstDraftHeader.vrstaDokumenta,
+      brutoSkupaj: firstDraftHeader.brutoSkupaj,
+      status: "draft",
+    }).returning({ id: prejemniceTable.id });
+    receiptIds.push(secondDraft.id);
+    await db.insert(prejemnicePostavkeTable).values({
+      prejemnicaId: secondDraft.id,
+      supplierOrderLineId: orderLineId,
+      artikelId: raceArticle.id,
+      kolicina: "6",
+      cenaKos: "5",
+      skupaj: "30",
+      enotVPaketu: "1",
+      izvKolicina: "6",
+      izvCena: "5",
+      izvEnota: "KOS",
+      izvCenaVrsta: "neto",
+      ddvStopnja: "0",
+    });
+    const raceReceiptIds = [firstRaceReceiptId, secondDraft.id];
+    const draftsBeforeConfirmation = await db.select({
+      id: prejemniceTable.id,
+      status: prejemniceTable.status,
+    }).from(prejemniceTable).where(inArray(prejemniceTable.id, raceReceiptIds));
+    expect(draftsBeforeConfirmation).toEqual(raceReceiptIds.map(id => ({ id, status: "draft" })));
+
+    const confirmations = await Promise.all(raceReceiptIds.map(receiptId =>
+      request(app).post(`/prejemnice/${receiptId}/confirm`).send({}),
+    ));
+    expect(confirmations.map(response => response.status).sort()).toEqual([200, 409]);
+    const successfulIndex = confirmations.findIndex(response => response.status === 200);
+    const rejectedIndex = confirmations.findIndex(response => response.status === 409);
+    const rejectedConfirmation = confirmations.find(response => response.status === 409);
+    expect(rejectedConfirmation?.body).toMatchObject({ code: "SUPPLIER_ORDER_RECEIPT_CONFLICT" });
+    expect(rejectedConfirmation?.body.error).toContain("neprejeto količino naročila");
+
+    const statesAfterConfirmation = await db.select({
+      id: prejemniceTable.id,
+      status: prejemniceTable.status,
+    }).from(prejemniceTable).where(inArray(prejemniceTable.id, raceReceiptIds));
+    const winningReceipt = statesAfterConfirmation.find(receipt => receipt.status === "confirmed");
+    const losingReceipt = statesAfterConfirmation.find(receipt => receipt.status === "draft");
+    expect(winningReceipt?.id).toBe(raceReceiptIds[successfulIndex]);
+    expect(losingReceipt?.id).toBe(raceReceiptIds[rejectedIndex]);
+
+    const movements = await db.select({
+      receiptId: zalogaGibiTable.referencaId,
+      quantity: zalogaGibiTable.kolicina,
+    }).from(zalogaGibiTable).where(and(
+      eq(zalogaGibiTable.artikelId, raceArticle.id),
+      eq(zalogaGibiTable.tip, "prejemnica"),
+      inArray(zalogaGibiTable.referencaId, raceReceiptIds),
+    ));
+    expect(movements).toHaveLength(1);
+    expect(movements[0].receiptId).toBe(winningReceipt?.id);
+    expect(Number(movements[0].quantity)).toBe(6);
+
+    const [stockAfterRace] = await db.select().from(zalogeTable)
+      .where(eq(zalogeTable.artikelId, raceArticle.id));
+    expect(Number(stockAfterRace.kolicina)).toBe(8);
+    const orderAfterRace = await request(app).get(`/narocila-dobaviteljem/${createdOrder.body.id}`);
+    expect(orderAfterRace.body).toMatchObject({
+      status: "partially_received",
+      lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 8, openBaseQuantity: 4 }],
+    });
+  });
 });

@@ -7,6 +7,12 @@ Naročilo dobavitelju je samo poslovna obveznost. Samo potrjena prejemnica sme v
 
 Količina vrstice prejemnice je že količina zalogovne enote. Faktor pakiranja pretvori količino naročenih paketov v zalogovne enote, pri seštevanju potrjenih prejemnic pa ga ne uporabi znova.
 
+Ob potrditvi povezane prejemnice zakleni naročilo in v isti transakciji primerjaj naročeno količino v zalogovnih enotah z vsoto že potrjenih prejemov in trenutne prejemnice. Osnutki ne štejejo kot prevzeta količina; če potrjeni seštevek preseže naročilo, zavrni celotno potrditev pred gibanjem zaloge.
+
+**Why:** Dva uporabnika lahko pripravita osnutka na podlagi istega preostanka; preverjanje brez zaklepa ali pred potrditveno transakcijo bi ob sočasnih potrditvah omogočilo presežek zaloge.
+
+**How to apply:** Za količinsko mejo uporabi zalogovno količino in isti red zaklepanja kot potrditveni tok. Ponovno izračunaj preostanek po pridobitvi zaklepa; napaka mora razveljaviti tudi vsa gibanja zaloge in posodobitve statusa.
+
 Pri naročilih dobaviteljem cena zadnjega paketa iz potrjenih, povezanih prejemnic temelji na neto ceni na zalogovno enoto, pomnoženi s trenutno velikostjo paketa v preslikavi. Pri ponovnem izračunu upoštevaj najnovejši datum potrjene povezane prejemnice; zgodovinskih cenovnih posnetkov naročila in prejemnice ne spreminjaj. Osnutki ne spreminjajo preslikave.
 
 Pred potrditvijo povezane prejemnice primerjaj shranjeni faktor naročilne vrstice s trenutnim faktorjem dobaviteljske povezave. Ob razliki naj bo prvi poskus brez sprememb, uporabnik pa mora potrditi točno pregledani par faktorjev; ob ponovitvi primerjavo ponovno preberi in zakleni, da zastarelo soglasje ne potrdi nove spremembe. Potrditev nikoli ne prepiše posnetkov naročila ali prejemnice.

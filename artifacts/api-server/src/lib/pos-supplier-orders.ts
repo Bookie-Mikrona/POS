@@ -51,6 +51,7 @@ export async function validateSupplierOrderReceiptLines(
     enotaId: number;
     dobaviteljId: string | null | undefined;
     receiptId?: number;
+    forConfirmation?: boolean;
     lines: ReceiptLineLink[];
   },
 ): Promise<number[]> {
@@ -144,18 +145,59 @@ export async function validateSupplierOrderReceiptLines(
   }
 
   const ids = linked.map(({ id }) => id);
-  const duplicateDrafts = await tx
-    .select({ lineId: prejemnicePostavkeTable.supplierOrderLineId })
-    .from(prejemnicePostavkeTable)
-    .innerJoin(prejemniceTable, eq(prejemniceTable.id, prejemnicePostavkeTable.prejemnicaId))
-    .where(and(
-      inArray(prejemnicePostavkeTable.supplierOrderLineId, ids),
-      eq(prejemniceTable.enotaId, input.enotaId),
-      eq(prejemniceTable.status, "draft"),
-      ...(input.receiptId === undefined ? [] : [ne(prejemniceTable.id, input.receiptId)]),
-    ));
-  if (duplicateDrafts.length > 0) {
-    throw new SupplierOrderReceiptConflict("Za izbrano postavko naročila že obstaja druga odprta prejemnica.");
+  if (input.forConfirmation) {
+    if (input.receiptId === undefined) {
+      throw new SupplierOrderReceiptConflict("Potrjevanje zahteva določeno prejemnico.");
+    }
+    const overReceived = await tx.execute(sql`
+      WITH receipt_quantities AS (
+        SELECT
+          order_line.id AS supplier_order_line_id,
+          order_line.kolicina_pakiranj * order_line.faktor_pakiranja AS ordered_quantity,
+          COALESCE(confirmed.received_quantity, 0) AS received_quantity,
+          COALESCE(incoming.receipt_quantity, 0) AS receipt_quantity
+        FROM pos_supplier_order_lines order_line
+        LEFT JOIN LATERAL (
+          SELECT SUM(receipt_line.kolicina) AS received_quantity
+          FROM prejemnice_postavke receipt_line
+          JOIN prejemnice receipt
+            ON receipt.id = receipt_line.prejemnica_id
+           AND receipt.enota_id = ${input.enotaId}
+           AND receipt.status = 'confirmed'
+          WHERE receipt_line.supplier_order_line_id = order_line.id
+        ) confirmed ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT SUM(receipt_line.kolicina) AS receipt_quantity
+          FROM prejemnice_postavke receipt_line
+          WHERE receipt_line.prejemnica_id = ${input.receiptId}
+            AND receipt_line.supplier_order_line_id = order_line.id
+        ) incoming ON TRUE
+        WHERE order_line.id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+          AND order_line.enota_id = ${input.enotaId}
+      )
+      SELECT supplier_order_line_id
+      FROM receipt_quantities
+      WHERE received_quantity + receipt_quantity > ordered_quantity + 0.000001
+    `);
+    if ((overReceived.rows as Array<{ supplier_order_line_id: number | string }>).length > 0) {
+      throw new SupplierOrderReceiptConflict(
+        "Količina prejemnice presega še neprejeto količino naročila.",
+      );
+    }
+  } else {
+    const duplicateDrafts = await tx
+      .select({ lineId: prejemnicePostavkeTable.supplierOrderLineId })
+      .from(prejemnicePostavkeTable)
+      .innerJoin(prejemniceTable, eq(prejemniceTable.id, prejemnicePostavkeTable.prejemnicaId))
+      .where(and(
+        inArray(prejemnicePostavkeTable.supplierOrderLineId, ids),
+        eq(prejemniceTable.enotaId, input.enotaId),
+        eq(prejemniceTable.status, "draft"),
+        ...(input.receiptId === undefined ? [] : [ne(prejemniceTable.id, input.receiptId)]),
+      ));
+    if (duplicateDrafts.length > 0) {
+      throw new SupplierOrderReceiptConflict("Za izbrano postavko naročila že obstaja druga odprta prejemnica.");
+    }
   }
 
   return [...new Set<number>(rows.map((row: any) => Number(row.narociloId)))];

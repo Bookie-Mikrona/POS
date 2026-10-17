@@ -252,6 +252,7 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
         enotaId,
         dobaviteljId: receipt.dobaviteljId,
         receiptId: id,
+        forConfirmation: true,
         lines: lines.map(line => ({
           artikelId: Number(line.articleId),
           supplierOrderLineId: line.supplierOrderLineId,
