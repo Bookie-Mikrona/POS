@@ -6,23 +6,38 @@ import "../../src/index.css";
 const lineCount = 55;
 const longOrderNumber = "N-2026-0948-IZREDNO-DOLGA-ŠTEVILKA-NAROČILA-Z-LOKACIJO-RESTAVRACIJA-TRG-REPUBLIKE-001234567890";
 const longSupplierName = "Preizkusni dobavitelj za gostinske obrate – lokalna in sezonska živila, pijače ter oskrba več poslovnih enot z ločenimi dostavami za osrednjo kuhinjo";
+const tallRowNumber = 44;
+const tallArticleDetails = Array.from({ length: 8 }, (_, index) =>
+  `TALL-ARTICLE-DETAIL-${String(index + 1).padStart(3, "0")} Complete specification and handling notes for this exceptionally large printed supplier-order item.`,
+).join(" ");
+const tallSupplierDetails = Array.from({ length: 6 }, (_, index) =>
+  `TALL-SUPPLIER-DETAIL-${String(index + 1).padStart(3, "0")} Supplier reference, packaging, origin, and delivery information for this exceptionally large ordered item.`,
+).join(" ");
+const tallSupplierCode = `TALL-SUPPLIER-CODE-START-${"R7Q".repeat(36)}-TALL-SUPPLIER-CODE-END`;
 const lines: SupplierOrderDetail["lines"] = Array.from({ length: lineCount }, (_, index) => {
   const number = index + 1;
   const paddedNumber = String(number).padStart(3, "0");
   const unitPrice = (number % 9) + 1.25;
   const isLongRow = number === 12;
+  const isTallRow = number === tallRowNumber;
 
   return {
     id: number,
     supplierMappingId: 10_000 + number,
     articleId: 20_000 + number,
-    articleName: isLongRow
+    articleName: isTallRow
+      ? `POSTAVKA-${paddedNumber} TALL-ARTICLE-START ${tallArticleDetails} TALL-ARTICLE-END`
+      : isLongRow
       ? `POSTAVKA-${paddedNumber} Izredno dolg naziv artikla za mleko polnomastno v gostinskem pakiranju z dodatno oznako kakovosti in podrobnim opisom`
       : `POSTAVKA-${paddedNumber}`,
-    supplierItemName: isLongRow
+    supplierItemName: isTallRow
+      ? `TALL-SUPPLIER-START ${tallSupplierDetails} TALL-SUPPLIER-END`
+      : isLongRow
       ? "Dobaviteljev artikel mleko polnomastno za profesionalne kuhinje z dodatnim opisom pakiranja in enote za večje gostinske obrate"
       : `KOLICINA-${number}`,
-    supplierCode: isLongRow
+    supplierCode: isTallRow
+      ? tallSupplierCode
+      : isLongRow
       ? `REF-${paddedNumber}-${"X7Q".repeat(30)}`
       : `REF-${paddedNumber}`,
     packageQuantity: number,

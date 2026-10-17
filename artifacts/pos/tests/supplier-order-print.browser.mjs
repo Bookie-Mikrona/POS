@@ -12,6 +12,14 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const posRoot = path.resolve(testsDir, "..");
 const longOrderNumber = "N-2026-0948-IZREDNO-DOLGA-ŠTEVILKA-NAROČILA-Z-LOKACIJO-RESTAVRACIJA-TRG-REPUBLIKE-001234567890";
 const longSupplierName = "Preizkusni dobavitelj za gostinske obrate – lokalna in sezonska živila, pijače ter oskrba več poslovnih enot z ločenimi dostavami za osrednjo kuhinjo";
+const tallRowNumber = 44;
+const tallArticleDetails = Array.from({ length: 8 }, (_, index) =>
+  `TALL-ARTICLE-DETAIL-${String(index + 1).padStart(3, "0")} Complete specification and handling notes for this exceptionally large printed supplier-order item.`,
+).join(" ");
+const tallSupplierDetails = Array.from({ length: 6 }, (_, index) =>
+  `TALL-SUPPLIER-DETAIL-${String(index + 1).padStart(3, "0")} Supplier reference, packaging, origin, and delivery information for this exceptionally large ordered item.`,
+).join(" ");
+const tallSupplierCode = `TALL-SUPPLIER-CODE-START-${"R7Q".repeat(36)}-TALL-SUPPLIER-CODE-END`;
 const originalEnv = {
   PORT: process.env.PORT,
   BASE_PATH: process.env.BASE_PATH,
@@ -586,6 +594,85 @@ async function main() {
       "Long article name, supplier item name, or code is clipped or split across pages.",
     );
 
+    const paddedTallRowNumber = String(tallRowNumber).padStart(3, "0");
+    const tallArticleName = `POSTAVKA-${paddedTallRowNumber} TALL-ARTICLE-START ${tallArticleDetails} TALL-ARTICLE-END`;
+    const tallSupplierItemName = `TALL-SUPPLIER-START ${tallSupplierDetails} TALL-SUPPLIER-END`;
+    const tallRowPageIndex = pages.findIndex(page => page.includes(`POSTAVKA-${paddedTallRowNumber}`));
+    const previousTallRowPageIndex = pages.findIndex(page =>
+      page.includes(`POSTAVKA-${String(tallRowNumber - 1).padStart(3, "0")}`));
+    assert(tallRowPageIndex >= 0, "The exceptionally tall row is missing from the PDF.");
+    assert(previousTallRowPageIndex >= 0, "The row before the exceptionally tall row is missing from the PDF.");
+    assert.notEqual(
+      tallRowPageIndex,
+      previousTallRowPageIndex,
+      "The exceptionally tall row was not moved away from the page boundary.",
+    );
+    const tallRowPage = pdfPages[tallRowPageIndex];
+    assert(tallRowPage, "The exceptionally tall row has no PDF geometry page.");
+    const tallPageAttributes = readAttributes(tallRowPage[1]);
+    const tallPageHeight = Number(tallPageAttributes.height);
+    const tallPageWords = readWords(tallRowPage[2]);
+    const tallArticleStart = tallPageWords.find(word => word.text === `POSTAVKA-${paddedTallRowNumber}`);
+    const nextTallArticleStart = tallPageWords.find(word =>
+      word.text === `POSTAVKA-${String(tallRowNumber + 1).padStart(3, "0")}`);
+    assert(tallArticleStart, "The exceptionally tall article marker is missing from PDF geometry.");
+    const tallFirstColumnWords = tallPageWords
+      .filter(word => {
+        const xMin = Number(word.xMin);
+        const yMin = Number(word.yMin);
+        return xMin < Number(tallPageAttributes.width) * 0.39
+          && yMin >= Number(tallArticleStart.yMin) - 0.5
+          && (!nextTallArticleStart || yMin < Number(nextTallArticleStart.yMin) - 0.5);
+      })
+      .sort((left, right) =>
+        Number(left.yMin) - Number(right.yMin) || Number(left.xMin) - Number(right.xMin));
+    const tallFirstColumnText = tallFirstColumnWords.map(word => word.text).join("");
+    const expectedTallFirstColumnText =
+      `${tallArticleName}${tallSupplierItemName}·${tallSupplierCode}`;
+    assert.equal(
+      compactText(tallFirstColumnText),
+      compactText(expectedTallFirstColumnText),
+      "The exceptionally tall row was clipped or split across pages instead of moving intact.",
+    );
+    const tallRowContentHeight = Math.max(...tallFirstColumnWords.map(word => Number(word.yMax)))
+      - Number(tallArticleStart.yMin);
+    const freshPageRemaining = tallPageHeight
+      - (14 / 25.4) * 72
+      - Number(tallArticleStart.yMin);
+    assert(
+      tallRowContentHeight > 150,
+      "The tall-row fixture is not tall enough to exercise page-boundary handling.",
+    );
+    assert(
+      tallRowContentHeight <= freshPageRemaining,
+      "The tall-row fixture no longer fits intact on a fresh page.",
+    );
+    const precedingTallPage = pdfPages[previousTallRowPageIndex];
+    assert(precedingTallPage, "The page before the exceptionally tall row is missing.");
+    const precedingPageAttributes = readAttributes(precedingTallPage[1]);
+    const precedingPageWords = readWords(precedingTallPage[2]);
+    const previousTallArticleStart = precedingPageWords.find(word =>
+      word.text === `POSTAVKA-${String(tallRowNumber - 1).padStart(3, "0")}`);
+    assert(previousTallArticleStart, "The row before the exceptionally tall row has no geometry.");
+    const previousTallRowBottom = Math.max(
+      ...precedingPageWords
+        .filter(word => Number(word.yMin) >= Number(previousTallArticleStart.yMin) - 0.5)
+        .map(word => Number(word.yMax)),
+    );
+    const previousPagePrintableBottom = Number(precedingPageAttributes.height) - (14 / 25.4) * 72;
+    const previousPageRemaining = previousPagePrintableBottom - previousTallRowBottom;
+    assert(
+      tallRowContentHeight > previousPageRemaining,
+      "The tall-row fixture could have fit in the remaining space on the previous page.",
+    );
+    const tallUnitPrice = (tallRowNumber % 9) + 1.25;
+    const tallAmount = tallUnitPrice * tallRowNumber;
+    const tallRowTopWords = tallPageWords.filter(word =>
+      Math.abs(Number(word.yMin) - Number(tallArticleStart.yMin)) < 2);
+    assert(tallRowTopWords.some(word => word.text === String(tallRowNumber)), "The tall row is missing its quantity.");
+    assert(tallRowTopWords.some(word => word.text === decimalToken(tallUnitPrice)), "The tall row is missing its unit price.");
+    assert(tallRowTopWords.some(word => word.text === decimalToken(tallAmount)), "The tall row is missing its amount.");
+
     for (const [pageIndex, match] of pdfPages.entries()) {
       const pageAttributes = readAttributes(match[1]);
       const width = Number(pageAttributes.width);
@@ -633,7 +720,7 @@ async function main() {
     devTools?.close();
     await stopProcessGroup(browserProcess);
     if (vite) await vite.close();
-    await rm(tempDir, { recursive: true, force: true });
+    await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     for (const key of Object.keys(originalEnv)) {
       if (originalEnv[key] === undefined) delete process.env[key];
       else process.env[key] = originalEnv[key];
