@@ -260,9 +260,6 @@ function EmailDialog({
   );
 }
 
-// ── Browser PDF export (fallback — kept for reference, no longer used) ────────
-// Server-side export is now the primary method.
-
 // ── Collapsible section row ───────────────────────────────────────────────────
 
 function SectionBlock({

@@ -7,7 +7,7 @@
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "pnpm -w run typecheck:libs && tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },
   "devDependencies": {
@@ -84,8 +84,6 @@
     "@clerk/react": "^6.15.1",
     "@clerk/themes": "^2.4.57",
     "exceljs": "^4.4.0",
-    "html2canvas": "^1.4.1",
-    "internal": "link:@clerk/react/internal",
-    "jspdf": "^4.2.1"
+    "internal": "link:@clerk/react/internal"
   }
 }

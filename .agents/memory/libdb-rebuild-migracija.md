@@ -27,6 +27,15 @@ neusklajeni; uspešen inkrementalni build zato ni dokaz, da aplikacija bere aktu
 **How to apply:** Pred spreminjanjem poslovne kode primerjaj izvorni tip z deklaracijo;
 če se razlikujeta, obnovi deklaracije in šele nato preverjaj aplikacijo.
 
+Obnovo skupnih deklaracij izvajaj kot predpogoj preverjanja aplikacije, ne samo kot
+enkraten ročni korak pred zaključevanjem dela.
+
+**Why:** Med preverjanji se lahko združijo druge spremembe API pogodb; predhodno
+uspešna obnova zato ne zagotavlja svežih deklaracij ob naslednjem preverjanju.
+
+**How to apply:** Samostojni ukazi za preverjanje aplikacij s project references
+naj najprej zgradijo svoje skupne knjižnice, preden zaženejo `tsc --noEmit`.
+
 **Why:** api-server/tsconfig.json ima `"references": [{ "path": "../../lib/db" }]`. TypeScript
 project references berejo `.d.ts` iz `dist/`, ne source neposredno — kljub temu da package.json
 exports kažejo na `.ts` vire.
