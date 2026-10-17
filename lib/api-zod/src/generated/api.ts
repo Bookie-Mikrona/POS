@@ -11513,8 +11513,12 @@ export const ConfirmPrejemnicaBody = zod.object({
   "reviewedPackageFactorChanges": zod.array(zod.object({
   "supplierOrderLineId": zod.number(),
   "articleName": zod.string(),
+  "orderPackageName": zod.string().nullable(),
   "orderFactor": zod.number().nullable(),
-  "currentFactor": zod.number().nullable()
+  "orderBaseUnit": zod.string().nullable(),
+  "currentPackageName": zod.string().nullable(),
+  "currentFactor": zod.number().nullable(),
+  "currentBaseUnit": zod.string().nullable()
 })).optional()
 })
 

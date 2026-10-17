@@ -25,13 +25,17 @@ export class SupplierOrderReceiptConflict extends Error {
 export type SupplierOrderPackageFactorChange = {
   supplierOrderLineId: number;
   articleName: string;
+  orderPackageName: string | null;
   orderFactor: number | null;
+  orderBaseUnit: string | null;
+  currentPackageName: string | null;
   currentFactor: number | null;
+  currentBaseUnit: string | null;
 };
 
 export class SupplierOrderPackageFactorReviewRequired extends Error {
   constructor(readonly changes: SupplierOrderPackageFactorChange[]) {
-    super("Velikost pakiranja se je spremenila. Pred potrditvijo prejemnice preglejte oba faktorja.");
+    super("Podatki o pakiranju so se spremenili. Pred potrditvijo prejemnice preglejte shranjene in trenutne podatke.");
     this.name = "SupplierOrderPackageFactorReviewRequired";
   }
 }
@@ -169,9 +173,17 @@ export async function requireSupplierOrderPackageFactorReview(
     SELECT
       order_line.id AS "supplierOrderLineId",
       article.ime AS "articleName",
+      order_line.naziv_pakiranja AS "orderPackageName",
       order_line.faktor_pakiranja::text AS "orderFactor",
+      order_line.osnovna_enota AS "orderBaseUnit",
+      mapping.naziv_paketa AS "currentPackageName",
       mapping.enot_v_paketu::text AS "currentFactor",
-      order_line.faktor_pakiranja IS DISTINCT FROM mapping.enot_v_paketu AS changed
+      article.enota_mere AS "currentBaseUnit",
+      (
+        order_line.faktor_pakiranja IS DISTINCT FROM mapping.enot_v_paketu
+        OR order_line.naziv_pakiranja IS DISTINCT FROM mapping.naziv_paketa
+        OR order_line.osnovna_enota IS DISTINCT FROM article.enota_mere
+      ) AS changed
     FROM pos_supplier_order_lines order_line
     JOIN artikel_dobavitelj mapping
       ON mapping.id = order_line.supplier_mapping_id
@@ -195,16 +207,24 @@ export async function requireSupplierOrderPackageFactorReview(
   const changes = (result.rows as Array<{
     supplierOrderLineId: number | string;
     articleName: string;
+    orderPackageName: string | null;
     orderFactor: number | string | null;
+    orderBaseUnit: string | null;
+    currentPackageName: string | null;
     currentFactor: number | string | null;
+    currentBaseUnit: string | null;
     changed: boolean;
   }>)
     .filter(row => Boolean(row.changed))
     .map(row => ({
       supplierOrderLineId: Number(row.supplierOrderLineId),
       articleName: row.articleName,
+      orderPackageName: row.orderPackageName,
       orderFactor: asNullableFactor(row.orderFactor),
+      orderBaseUnit: row.orderBaseUnit,
+      currentPackageName: row.currentPackageName,
       currentFactor: asNullableFactor(row.currentFactor),
+      currentBaseUnit: row.currentBaseUnit,
     }));
   if (changes.length === 0) return;
 
@@ -215,8 +235,13 @@ export async function requireSupplierOrderPackageFactorReview(
     && changes.every(change => {
       const acknowledgement = reviewedByLineId.get(change.supplierOrderLineId);
       return acknowledgement !== undefined
+        && acknowledgement.articleName === change.articleName
+        && acknowledgement.orderPackageName === change.orderPackageName
         && acknowledgement.orderFactor === change.orderFactor
-        && acknowledgement.currentFactor === change.currentFactor;
+        && acknowledgement.orderBaseUnit === change.orderBaseUnit
+        && acknowledgement.currentPackageName === change.currentPackageName
+        && acknowledgement.currentFactor === change.currentFactor
+        && acknowledgement.currentBaseUnit === change.currentBaseUnit;
     });
   if (!hasReviewedCurrentChanges) {
     throw new SupplierOrderPackageFactorReviewRequired(changes);

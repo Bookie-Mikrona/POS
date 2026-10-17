@@ -345,8 +345,12 @@ describe("POS supplier ordering and linked receipt flow", () => {
       packageFactorChanges: [{
         supplierOrderLineId: lineId,
         articleName: `Order article ${run}`,
+        orderPackageName: "zaboj",
         orderFactor: 6,
+        orderBaseUnit: "KOS",
+        currentPackageName: "zaboj 8",
         currentFactor: 8,
+        currentBaseUnit: "KOS",
       }],
     });
     const receiptAfterFactorWarning = await request(app).get(`/prejemnice/${firstReceiptId}`);
@@ -685,6 +689,177 @@ describe("POS supplier ordering and linked receipt flow", () => {
       receivedBaseQuantity: 4,
       openBaseQuantity: 0,
     });
+
+    const nameOnlyOrder = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      expectedDeliveryDate: "2026-11-08",
+      lines: [{ supplierMappingId: openMapping.id, packageQuantity: 1, unitPrice: 21 }],
+    });
+    expect(nameOnlyOrder.status, JSON.stringify(nameOnlyOrder.body)).toBe(201);
+    orderIds.push(nameOnlyOrder.body.id);
+    const nameOnlyLineId = nameOnlyOrder.body.lines[0].id as number;
+    await request(app).post(`/narocila-dobaviteljem/${nameOnlyOrder.body.id}/send`).send({});
+
+    const nameOnlyReceipt = await request(app).post("/prejemnice").send({
+      dobaviteljId: supplierId,
+      datum: "2026-10-17",
+      vrstaCen: "neto",
+      vrstaDokumenta: "DOBAVNICA",
+      brutoSkupaj: 21,
+      postavke: [{
+        artikelId: openArticle.id,
+        supplierOrderLineId: nameOnlyLineId,
+        kolicina: 7,
+        cenaKos: 3,
+        skupaj: 21,
+        enotVPaketu: 1,
+        izvKolicina: 7,
+        izvCena: 3,
+        izvEnota: "KOS",
+        izvCenaVrsta: "neto",
+        ddvStopnja: 0,
+      }],
+    });
+    expect(nameOnlyReceipt.status, JSON.stringify(nameOnlyReceipt.body)).toBe(201);
+    receiptIds.push(nameOnlyReceipt.body.id);
+
+    await db.update(artikelDobaviteljTable)
+      .set({ nazivPaketa: "transportni zaboj 7" })
+      .where(eq(artikelDobaviteljTable.id, openMapping.id));
+    const nameOnlyWarning = await request(app)
+      .post(`/prejemnice/${nameOnlyReceipt.body.id}/confirm`)
+      .send({});
+    expect(nameOnlyWarning.status).toBe(409);
+    expect(nameOnlyWarning.body).toMatchObject({
+      code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED",
+      packageFactorChanges: [{
+        supplierOrderLineId: nameOnlyLineId,
+        orderPackageName: "paket 7",
+        orderFactor: 7,
+        orderBaseUnit: "KOS",
+        currentPackageName: "transportni zaboj 7",
+        currentFactor: 7,
+        currentBaseUnit: "KOS",
+      }],
+    });
+
+    await db.update(artikelDobaviteljTable)
+      .set({ nazivPaketa: "transportni zaboj 7 - nova oznaka" })
+      .where(eq(artikelDobaviteljTable.id, openMapping.id));
+    const latestNameWarning = await request(app)
+      .post(`/prejemnice/${nameOnlyReceipt.body.id}/confirm`)
+      .send({ reviewedPackageFactorChanges: nameOnlyWarning.body.packageFactorChanges });
+    expect(latestNameWarning.status).toBe(409);
+    expect(latestNameWarning.body.packageFactorChanges).toMatchObject([{
+      orderPackageName: "paket 7",
+      orderFactor: 7,
+      orderBaseUnit: "KOS",
+      currentPackageName: "transportni zaboj 7 - nova oznaka",
+      currentFactor: 7,
+      currentBaseUnit: "KOS",
+    }]);
+
+    const [savedOrderSnapshot] = await db.select({
+      packageName: posSupplierOrderLinesTable.nazivPakiranja,
+      packageFactor: posSupplierOrderLinesTable.faktorPakiranja,
+      baseUnit: posSupplierOrderLinesTable.osnovnaEnota,
+    }).from(posSupplierOrderLinesTable)
+      .where(eq(posSupplierOrderLinesTable.id, nameOnlyLineId));
+    const [savedReceiptSnapshot] = await db.select({
+      supplierOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+      packageFactor: prejemnicePostavkeTable.enotVPaketu,
+    }).from(prejemnicePostavkeTable)
+      .where(eq(prejemnicePostavkeTable.prejemnicaId, nameOnlyReceipt.body.id));
+    expect(savedOrderSnapshot).toMatchObject({
+      packageName: "paket 7",
+      baseUnit: "KOS",
+    });
+    expect(Number(savedOrderSnapshot.packageFactor)).toBe(7);
+    expect(savedReceiptSnapshot.supplierOrderLineId).toBe(nameOnlyLineId);
+    expect(Number(savedReceiptSnapshot.packageFactor)).toBe(1);
+
+    const confirmedNameOnlyReceipt = await request(app)
+      .post(`/prejemnice/${nameOnlyReceipt.body.id}/confirm`)
+      .send({ reviewedPackageFactorChanges: latestNameWarning.body.packageFactorChanges });
+    expect(confirmedNameOnlyReceipt.status, JSON.stringify(confirmedNameOnlyReceipt.body)).toBe(200);
+    const [orderSnapshotAfterConfirmation] = await db.select({
+      packageName: posSupplierOrderLinesTable.nazivPakiranja,
+      packageFactor: posSupplierOrderLinesTable.faktorPakiranja,
+      baseUnit: posSupplierOrderLinesTable.osnovnaEnota,
+    }).from(posSupplierOrderLinesTable)
+      .where(eq(posSupplierOrderLinesTable.id, nameOnlyLineId));
+    const [receiptSnapshotAfterConfirmation] = await db.select({
+      supplierOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+      packageFactor: prejemnicePostavkeTable.enotVPaketu,
+    }).from(prejemnicePostavkeTable)
+      .where(eq(prejemnicePostavkeTable.prejemnicaId, nameOnlyReceipt.body.id));
+    expect(orderSnapshotAfterConfirmation).toEqual(savedOrderSnapshot);
+    expect(receiptSnapshotAfterConfirmation).toEqual(savedReceiptSnapshot);
+
+    const unitChangeOrder = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      expectedDeliveryDate: "2026-11-08",
+      lines: [{ supplierMappingId: openMapping.id, packageQuantity: 1, unitPrice: 21 }],
+    });
+    expect(unitChangeOrder.status, JSON.stringify(unitChangeOrder.body)).toBe(201);
+    orderIds.push(unitChangeOrder.body.id);
+    const unitChangeLine = unitChangeOrder.body.lines[0];
+    const unitChangeSentOrder = await request(app)
+      .post(`/narocila-dobaviteljem/${unitChangeOrder.body.id}/send`)
+      .send({});
+    expect(unitChangeSentOrder.status, JSON.stringify(unitChangeSentOrder.body)).toBe(200);
+
+    const unitChangeReceipt = await request(app).post("/prejemnice").send({
+      dobaviteljId: supplierId,
+      datum: "2026-10-17",
+      vrstaCen: "neto",
+      vrstaDokumenta: "DOBAVNICA",
+      brutoSkupaj: 21,
+      postavke: [{
+        artikelId: openArticle.id,
+        supplierOrderLineId: unitChangeLine.id,
+        kolicina: 7,
+        cenaKos: 3,
+        skupaj: 21,
+        enotVPaketu: 1,
+        izvKolicina: 7,
+        izvCena: 3,
+        izvEnota: "KOS",
+        izvCenaVrsta: "neto",
+        ddvStopnja: 0,
+      }],
+    });
+    expect(unitChangeReceipt.status, JSON.stringify(unitChangeReceipt.body)).toBe(201);
+    receiptIds.push(unitChangeReceipt.body.id);
+    await db.update(artikliTable)
+      .set({ enotaMere: "L" })
+      .where(eq(artikliTable.id, openArticle.id));
+
+    const unitChangeWarning = await request(app)
+      .post(`/prejemnice/${unitChangeReceipt.body.id}/confirm`)
+      .send({});
+    expect(unitChangeWarning.status).toBe(409);
+    expect(unitChangeWarning.body.packageFactorChanges).toMatchObject([{
+      supplierOrderLineId: unitChangeLine.id,
+      orderPackageName: "transportni zaboj 7 - nova oznaka",
+      orderFactor: 7,
+      orderBaseUnit: "KOS",
+      currentPackageName: "transportni zaboj 7 - nova oznaka",
+      currentFactor: 7,
+      currentBaseUnit: "L",
+    }]);
+
+    await db.update(artikliTable)
+      .set({ enotaMere: "ML" })
+      .where(eq(artikliTable.id, openArticle.id));
+    const latestUnitWarning = await request(app)
+      .post(`/prejemnice/${unitChangeReceipt.body.id}/confirm`)
+      .send({ reviewedPackageFactorChanges: unitChangeWarning.body.packageFactorChanges });
+    expect(latestUnitWarning.status).toBe(409);
+    expect(latestUnitWarning.body.packageFactorChanges).toMatchObject([{
+      orderBaseUnit: "KOS",
+      currentBaseUnit: "ML",
+    }]);
   });
 
   it("keeps legacy notes internal and preserves supplier instructions for older clients", async () => {

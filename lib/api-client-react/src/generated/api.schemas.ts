@@ -7905,9 +7905,17 @@ export interface SupplierOrderPackageFactorChange {
   supplierOrderLineId: number;
   articleName: string;
   /** @nullable */
+  orderPackageName: string | null;
+  /** @nullable */
   orderFactor: number | null;
   /** @nullable */
+  orderBaseUnit: string | null;
+  /** @nullable */
+  currentPackageName: string | null;
+  /** @nullable */
   currentFactor: number | null;
+  /** @nullable */
+  currentBaseUnit: string | null;
 }
 
 export interface ConfirmPrejemnicaBody {

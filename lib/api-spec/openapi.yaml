@@ -19131,12 +19131,16 @@ components:
             $ref: "#/components/schemas/SupplierOrderPackageFactorChange"
     SupplierOrderPackageFactorChange:
       type: object
-      required: [supplierOrderLineId, articleName, orderFactor, currentFactor]
+      required: [supplierOrderLineId, articleName, orderPackageName, orderFactor, orderBaseUnit, currentPackageName, currentFactor, currentBaseUnit]
       properties:
         supplierOrderLineId: { type: integer }
         articleName: { type: string }
+        orderPackageName: { type: [string, "null"] }
         orderFactor: { type: [number, "null"] }
+        orderBaseUnit: { type: [string, "null"] }
+        currentPackageName: { type: [string, "null"] }
         currentFactor: { type: [number, "null"] }
+        currentBaseUnit: { type: [string, "null"] }
     ConfirmPrejemnicaResponse:
       type: object
       required: [id, status]

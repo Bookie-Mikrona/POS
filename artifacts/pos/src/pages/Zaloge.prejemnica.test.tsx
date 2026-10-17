@@ -322,14 +322,22 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     const firstChanges = [{
       supplierOrderLineId: 781,
       articleName: "Mleko",
+      orderPackageName: "zaboj",
       orderFactor: 6,
+      orderBaseUnit: "L",
+      currentPackageName: "karton",
       currentFactor: 8,
+      currentBaseUnit: "L",
     }];
     const latestChanges = [{
       supplierOrderLineId: 781,
       articleName: "Mleko",
+      orderPackageName: "zaboj",
       orderFactor: 6,
+      orderBaseUnit: "L",
+      currentPackageName: "karton 9",
       currentFactor: 9,
+      currentBaseUnit: "L",
     }];
     const responses = [
       { status: 409, body: { code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED", packageFactorChanges: firstChanges } },
@@ -367,8 +375,8 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     fireEvent.click(within(confirmDialog).getByRole("button", { name: "Potrdi prejemnico" }));
 
     expect(await screen.findByRole("heading", { name: "Preveri spremenjeno pakiranje" })).toBeInTheDocument();
-    expect(screen.getByText("V naročilu: 6 enot / pakiranje")).toBeInTheDocument();
-    expect(screen.getByText("Trenutno pri dobavitelju: 8 enot / pakiranje")).toBeInTheDocument();
+    expect(screen.getByText(/V naročilu: 6 L \/ zaboj/)).toBeInTheDocument();
+    expect(screen.getByText(/Trenutno pri dobavitelju: 8 L \/ karton/)).toBeInTheDocument();
     expect(screen.getByText(/Pregled ne prepiše shranjenih posnetkov/)).toBeInTheDocument();
 
     fireEvent.click(within(confirmDialog).getByRole("button", { name: "Pregledal/a sem — potrdi prejemnico" }));
@@ -379,7 +387,121 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
         reviewedPackageFactorChanges: firstChanges,
       });
     });
-    expect(await screen.findByText("Trenutno pri dobavitelju: 9 enot / pakiranje")).toBeInTheDocument();
+    expect(await screen.findByText(/Trenutno pri dobavitelju: 9 L \/ karton 9/)).toBeInTheDocument();
+  });
+
+  it("shows package names and the same unit when only the supplier package name changed", async () => {
+    const nameOnlyChanges = [{
+      supplierOrderLineId: 782,
+      articleName: "Mleko",
+      orderPackageName: "zaboj",
+      orderFactor: 6,
+      orderBaseUnit: "L",
+      currentPackageName: "transportni zaboj",
+      currentFactor: 6,
+      currentBaseUnit: "L",
+    }];
+    const responses = [
+      { status: 409, body: { code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED", packageFactorChanges: nameOnlyChanges } },
+      { status: 200, body: { id: 4212, status: "confirmed" } },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input).includes("/zaloge/zadnje-nabavne")) {
+        return { status: 200, ok: true, json: async () => [] } as Response;
+      }
+      const next = responses.shift() ?? { status: 500, body: { error: "Nepričakovan zahtevek" } };
+      return { status: next.status, ok: next.status < 400, json: async () => next.body } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockGetPrejemnica.mockReturnValue({
+      data: {
+        id: 4212,
+        stevilka: "26100012",
+        datum: "2026-10-17",
+        status: "draft",
+        vrstaCen: "neto",
+        postavke: [],
+        odvisniStroski: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+    window.history.pushState({}, "", "/zaloge?prejemnica=4212");
+
+    renderZaloge();
+
+    const receiptDialog = await screen.findByRole("dialog");
+    fireEvent.click(within(receiptDialog).getByRole("button", { name: "Potrdi prejemnico" }));
+    const confirmDialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Potrdi prejemnico" }));
+
+    expect(await screen.findByRole("heading", { name: "Preveri spremenjeno pakiranje" })).toBeInTheDocument();
+    expect(screen.getByText(/V naročilu: 6 L \/ zaboj/)).toBeInTheDocument();
+    expect(screen.getByText(/Trenutno pri dobavitelju: 6 L \/ transportni zaboj/)).toBeInTheDocument();
+
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Pregledal/a sem — potrdi prejemnico" }));
+    await waitFor(() => {
+      const confirmCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("/confirm"));
+      expect(confirmCalls).toHaveLength(2);
+      expect(JSON.parse(String(confirmCalls[1][1]?.body))).toEqual({
+        reviewedPackageFactorChanges: nameOnlyChanges,
+      });
+    });
+  });
+
+  it("shows both actual units when the item's base unit changed after the order", async () => {
+    const unitChanges = [{
+      supplierOrderLineId: 783,
+      articleName: "Mleko",
+      orderPackageName: "zaboj",
+      orderFactor: 6,
+      orderBaseUnit: "KOS",
+      currentPackageName: "karton",
+      currentFactor: 6,
+      currentBaseUnit: "L",
+    }];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/zaloge/zadnje-nabavne")) {
+        return { status: 200, ok: true, json: async () => [] } as Response;
+      }
+      return {
+        status: 409,
+        ok: false,
+        json: async () => ({
+          code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED",
+          packageFactorChanges: unitChanges,
+        }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockGetPrejemnica.mockReturnValue({
+      data: {
+        id: 4213,
+        stevilka: "26100013",
+        datum: "2026-10-17",
+        status: "draft",
+        vrstaCen: "neto",
+        postavke: [],
+        odvisniStroski: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+    window.history.pushState({}, "", "/zaloge?prejemnica=4213");
+
+    renderZaloge();
+
+    const receiptDialog = await screen.findByRole("dialog");
+    fireEvent.click(within(receiptDialog).getByRole("button", { name: "Potrdi prejemnico" }));
+    const confirmDialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Potrdi prejemnico" }));
+
+    expect(await screen.findByRole("heading", { name: "Preveri spremenjeno pakiranje" })).toBeInTheDocument();
+    expect(screen.getByText(/V naročilu: 6 KOS \/ zaboj/)).toBeInTheDocument();
+    expect(screen.getByText(/Trenutno pri dobavitelju: 6 L \/ karton/)).toBeInTheDocument();
+    expect(screen.getByTestId("package-factor-unit-warning")).toHaveTextContent(
+      "Faktorja sta prikazana v različnih enotah in ju ni mogoče neposredno primerjati.",
+    );
   });
 });
 

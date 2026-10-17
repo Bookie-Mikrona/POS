@@ -565,6 +565,8 @@ const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
 const fmt = (n: number, d = 2) => n.toLocaleString("sl-SI", { minimumFractionDigits: d, maximumFractionDigits: d });
 const formatPackageFactor = (factor: number | null) =>
   factor == null ? "ni določeno" : factor.toLocaleString("sl-SI", { maximumFractionDigits: 6 });
+const formatPackageName = (name: string | null) => name?.trim() || "ime ni določeno";
+const normalizePackageUnit = (unit: string | null) => unit?.trim().toLocaleLowerCase("sl-SI") || null;
 
 const fmtDatum = (d: string | Date) =>
   new Date(d).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -3259,6 +3261,13 @@ function EditPrejemnicaDialog({
                 ? "Pakiranje se je od nastanka naročila spremenilo. Pregled ne prepiše shranjenih posnetkov; potrditev bo uporabila količine in pakiranje, shranjene na prejemnici."
                 : "Šele potrditev vpliva na zalogo in evidenco embalaže. Po potrditvi postavk prejemnice ni več mogoče urejati."}
             </AlertDialogDescription>
+            {packageFactorChanges?.some(change =>
+              normalizePackageUnit(change.orderBaseUnit) !== normalizePackageUnit(change.currentBaseUnit),
+            ) && (
+              <div className="pt-2 text-sm font-medium text-amber-800" data-testid="package-factor-unit-warning">
+                Osnovna enota artikla se je spremenila. Faktorja sta prikazana v različnih enotah in ju ni mogoče neposredno primerjati.
+              </div>
+            )}
             {packageFactorChanges && (
               <div className="space-y-2 pt-2" data-testid="package-factor-review-list">
                 {packageFactorChanges.map(change => (
@@ -3268,8 +3277,12 @@ function EditPrejemnicaDialog({
                   >
                     <div className="font-medium">{change.articleName}</div>
                     <div className="mt-1 grid gap-1 text-muted-foreground sm:grid-cols-2">
-                      <span>V naročilu: {formatPackageFactor(change.orderFactor)} enot / pakiranje</span>
-                      <span>Trenutno pri dobavitelju: {formatPackageFactor(change.currentFactor)} enot / pakiranje</span>
+                      <span>
+                        V naročilu: {formatPackageFactor(change.orderFactor)} {change.orderBaseUnit?.trim() || "enot"} / {formatPackageName(change.orderPackageName)}
+                      </span>
+                      <span>
+                        Trenutno pri dobavitelju: {formatPackageFactor(change.currentFactor)} {change.currentBaseUnit?.trim() || "enot"} / {formatPackageName(change.currentPackageName)}
+                      </span>
                     </div>
                   </div>
                 ))}
