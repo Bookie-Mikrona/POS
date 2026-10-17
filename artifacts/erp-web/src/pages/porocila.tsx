@@ -24,6 +24,7 @@ import ExcelJS from "exceljs";
 import { AjpesAnnualReportTab } from "@/components/reports/ajpes-annual-report-tab";
 import { FinancialStatementXlsxButton } from "@/components/reports/financial-statement-xlsx-button";
 import { trialBalanceNet, formatTrialBalanceNet } from "@/lib/trial-balance-net";
+import { useTrialBalanceFilters } from "@/hooks/useTrialBalanceFilters";
 import { LedgerStatementTable, type LedgerStatementView } from "@/components/reports/ledger-statement-table";
 import {
   useGetBalanceSheet,
@@ -1333,14 +1334,17 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
 
 function TrialBalanceTab() {
   const { activeCompany } = useCompany();
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const [dateFrom, setDateFrom] = useState(yearStart());
-  const [dateTo, setDateTo] = useState(todayStr());
+  const { dateFrom, dateTo, search, classFilter, updateFilters } = useTrialBalanceFilters(
+    userId, activeCompany?.id, { dateFrom: yearStart(), dateTo: todayStr() },
+  );
+  const setDateFrom = (dateFrom: string) => updateFilters({ dateFrom });
+  const setDateTo = (dateTo: string) => updateFilters({ dateTo });
+  const setSearch = (search: string) => updateFilters({ search });
+  const setClassFilter = (classFilter: string) => updateFilters({ classFilter });
   const [queried, setQueried] = useState(false);
-  const [search, setSearch] = useState("");
-  const [classFilter, setClassFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
   const [statementView, setStatementView] = useState<"standard" | LedgerStatementView>("standard");
 
