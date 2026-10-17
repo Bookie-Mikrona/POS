@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  AlertCircle, ArrowDownToLine, ArrowRight, Check,
+  AlertCircle, ArrowDownToLine, ArrowRight, Check, ChevronDown, ChevronUp,
   CircleDot, ClipboardList, Copy, FileText, PackageCheck, Plus, Printer, RefreshCw,
   Search, Send, Settings2, ShoppingCart, X,
 } from "lucide-react";
@@ -275,6 +275,7 @@ export default function NarocilaDobaviteljem() {
   const { data: orderList, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } =
     useListSupplierOrders(listParams, { query: { queryKey: getListSupplierOrdersQueryKey(listParams) } });
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [expandedReceiptLineId, setExpandedReceiptLineId] = useState<number | null>(null);
   const { data: orderDetail, isLoading: detailLoading, isError: detailError, refetch: refetchDetail } =
     useGetSupplierOrder(selectedOrderId ?? 0, {
       query: { enabled: selectedOrderId !== null, queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0) },
@@ -1078,7 +1079,61 @@ export default function NarocilaDobaviteljem() {
                   <td className="px-3 py-3"><div className="font-semibold text-[#344d45]">{line.articleName}</div><div className="text-xs text-[#818a83]">{line.supplierItemName ?? line.supplierCode ?? ""}</div></td>
                   <td className="px-3 py-3 text-xs text-[#69766e]">{formatQty(line.packageQuantity)} × {line.packageName ?? "pak."} <span className="text-[#9aa19b]">({formatQty(line.packageFactor)} {line.baseUnit})</span></td>
                   <td className="data-mono px-3 py-3 text-right">{formatQty(line.orderedBaseQuantity)} {line.baseUnit}</td>
-                  <td className="data-mono px-3 py-3 text-right text-[#46705e]">{formatQty(line.receivedBaseQuantity)} {line.baseUnit}</td>
+                   <td className="data-mono px-3 py-3 text-right text-[#46705e]">
+                     <div className="flex flex-col items-end gap-1">
+                       <span>{formatQty(line.receivedBaseQuantity)} {line.baseUnit}</span>
+                       {line.receipts.length > 0 && (
+                         <button
+                           type="button"
+                           aria-expanded={expandedReceiptLineId === line.id}
+                           aria-controls={`order-line-receipts-${line.id}`}
+                           data-testid={`button-toggle-order-line-receipts-${line.id}`}
+                           onClick={() => setExpandedReceiptLineId(current => current === line.id ? null : line.id)}
+                           className="orders-no-print inline-flex items-center gap-1 rounded px-1.5 py-1 text-[11px] font-semibold text-[#315c4d] hover:bg-[#edf2e9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#315c4d]"
+                         >
+                           Potrjene prejemnice ({line.receipts.length})
+                           {expandedReceiptLineId === line.id
+                             ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+                             : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
+                         </button>
+                       )}
+                     </div>
+                     {expandedReceiptLineId === line.id && line.receipts.length > 0 && (
+                       <div
+                         id={`order-line-receipts-${line.id}`}
+                         className="mt-2 ml-auto w-full max-w-[280px] rounded-lg border border-[#d8dfd4] bg-[#f7f8f3] p-2 text-left text-xs text-[#58675e]"
+                         data-testid={`order-line-receipts-${line.id}`}
+                       >
+                         <ul className="space-y-2">
+                           {line.receipts.map(receipt => (
+                             <li key={receipt.receiptId} className="border-b border-[#e1e7dd] pb-2 last:border-0 last:pb-0">
+                               <button
+                                 type="button"
+                                 data-testid={`button-open-order-receipt-${receipt.receiptId}`}
+                                 aria-label={`Odpri prejemnico ${receipt.receiptNumber ?? receipt.receiptId} v načinu samo za branje`}
+                                 onClick={() => navigate(`/zaloge?prejemnica=${receipt.receiptId}&nacin=ogled`)}
+                                 className="font-semibold text-[#315c4d] underline decoration-[#a7b8a9] underline-offset-2 hover:text-[#203d39]"
+                               >
+                                 Prejemnica {receipt.receiptNumber ?? `#${receipt.receiptId}`}
+                               </button>
+                               {receipt.supplierDocumentNumber && (
+                                 <div className="mt-0.5">Dobaviteljeva listina: {receipt.supplierDocumentNumber}</div>
+                               )}
+                               <div className="mt-0.5">
+                                 {formatReceiptDate(receipt.receiptDate)} · {formatQty(receipt.receivedBaseQuantity)} {line.baseUnit}
+                               </div>
+                             </li>
+                           ))}
+                         </ul>
+                         <div
+                           className="mt-2 border-t border-[#d8dfd4] pt-2 font-semibold text-[#344d45]"
+                           data-testid={`text-order-line-receipts-total-${line.id}`}
+                         >
+                           Vsota potrjenih prevzemov: {formatQty(line.receipts.reduce((sum, receipt) => sum + receipt.receivedBaseQuantity, 0))} {line.baseUnit}
+                         </div>
+                       </div>
+                     )}
+                   </td>
                   <td className="data-mono px-3 py-3 text-right font-semibold text-[#354e45]">{formatQty(line.openBaseQuantity)} {line.baseUnit}</td>
                 </tr>)}</tbody>
               </table>

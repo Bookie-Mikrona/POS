@@ -8304,6 +8304,16 @@ export interface SupplierOrderInput {
   lines: SupplierOrderLineInput[];
 }
 
+export interface SupplierOrderReceipt {
+  receiptId: number;
+  /** @nullable */
+  receiptNumber: string | null;
+  /** @nullable */
+  supplierDocumentNumber: string | null;
+  receiptDate: string;
+  receivedBaseQuantity: number;
+}
+
 export interface SupplierOrderLine {
   id: number;
   supplierMappingId: number;
@@ -8326,6 +8336,7 @@ export interface SupplierOrderLine {
   openBaseQuantity: number;
   /** @nullable */
   unitPrice: number | null;
+  receipts: SupplierOrderReceipt[];
 }
 
 export interface SupplierOrderDetail {

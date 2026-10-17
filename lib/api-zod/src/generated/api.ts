@@ -10878,7 +10878,14 @@ export const CreateSupplierOrderResponse = zod.object({
   "orderedBaseQuantity": zod.number(),
   "receivedBaseQuantity": zod.number(),
   "openBaseQuantity": zod.number(),
-  "unitPrice": zod.number().nullable()
+  "unitPrice": zod.number().nullable(),
+  "receipts": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "receiptNumber": zod.string().nullable(),
+  "supplierDocumentNumber": zod.string().nullable(),
+  "receiptDate": zod.coerce.date(),
+  "receivedBaseQuantity": zod.number()
+}))
 }))
 })
 
@@ -10919,7 +10926,14 @@ export const GetSupplierOrderResponse = zod.object({
   "orderedBaseQuantity": zod.number(),
   "receivedBaseQuantity": zod.number(),
   "openBaseQuantity": zod.number(),
-  "unitPrice": zod.number().nullable()
+  "unitPrice": zod.number().nullable(),
+  "receipts": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "receiptNumber": zod.string().nullable(),
+  "supplierDocumentNumber": zod.string().nullable(),
+  "receiptDate": zod.coerce.date(),
+  "receivedBaseQuantity": zod.number()
+}))
 }))
 })
 
@@ -10986,7 +11000,14 @@ export const UpdateSupplierOrderResponse = zod.object({
   "orderedBaseQuantity": zod.number(),
   "receivedBaseQuantity": zod.number(),
   "openBaseQuantity": zod.number(),
-  "unitPrice": zod.number().nullable()
+  "unitPrice": zod.number().nullable(),
+  "receipts": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "receiptNumber": zod.string().nullable(),
+  "supplierDocumentNumber": zod.string().nullable(),
+  "receiptDate": zod.coerce.date(),
+  "receivedBaseQuantity": zod.number()
+}))
 }))
 })
 
@@ -11027,7 +11048,14 @@ export const MarkSupplierOrderSentResponse = zod.object({
   "orderedBaseQuantity": zod.number(),
   "receivedBaseQuantity": zod.number(),
   "openBaseQuantity": zod.number(),
-  "unitPrice": zod.number().nullable()
+  "unitPrice": zod.number().nullable(),
+  "receipts": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "receiptNumber": zod.string().nullable(),
+  "supplierDocumentNumber": zod.string().nullable(),
+  "receiptDate": zod.coerce.date(),
+  "receivedBaseQuantity": zod.number()
+}))
 }))
 })
 
@@ -11077,7 +11105,14 @@ export const CloseSupplierOrderResponse = zod.object({
   "orderedBaseQuantity": zod.number(),
   "receivedBaseQuantity": zod.number(),
   "openBaseQuantity": zod.number(),
-  "unitPrice": zod.number().nullable()
+  "unitPrice": zod.number().nullable(),
+  "receipts": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "receiptNumber": zod.string().nullable(),
+  "supplierDocumentNumber": zod.string().nullable(),
+  "receiptDate": zod.coerce.date(),
+  "receivedBaseQuantity": zod.number()
+}))
 }))
 })
 
@@ -11118,7 +11153,14 @@ export const CancelSupplierOrderResponse = zod.object({
   "orderedBaseQuantity": zod.number(),
   "receivedBaseQuantity": zod.number(),
   "openBaseQuantity": zod.number(),
-  "unitPrice": zod.number().nullable()
+  "unitPrice": zod.number().nullable(),
+  "receipts": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "receiptNumber": zod.string().nullable(),
+  "supplierDocumentNumber": zod.string().nullable(),
+  "receiptDate": zod.coerce.date(),
+  "receivedBaseQuantity": zod.number()
+}))
 }))
 })
 

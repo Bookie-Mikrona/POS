@@ -19685,6 +19685,15 @@ components:
         openQuantity: { type: number }
         internalNotes: { type: [string, "null"], description: Interna opomba; ne natisne se. }
         supplierNotes: { type: [string, "null"], description: Navodilo za dobavitelja; natisne se na naročilu. }
+    SupplierOrderReceipt:
+      type: object
+      required: [receiptId, receiptNumber, supplierDocumentNumber, receiptDate, receivedBaseQuantity]
+      properties:
+        receiptId: { type: integer }
+        receiptNumber: { type: [string, "null"] }
+        supplierDocumentNumber: { type: [string, "null"] }
+        receiptDate: { type: string, format: date }
+        receivedBaseQuantity: { type: number }
     SupplierOrderLine:
       type: object
       required:
@@ -19702,6 +19711,7 @@ components:
         - receivedBaseQuantity
         - openBaseQuantity
         - unitPrice
+        - receipts
       properties:
         id: { type: integer }
         supplierMappingId: { type: integer }
@@ -19718,6 +19728,9 @@ components:
         receivedBaseQuantity: { type: number }
         openBaseQuantity: { type: number }
         unitPrice: { type: [number, "null"] }
+        receipts:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOrderReceipt" }
     SupplierOrderDetail:
       type: object
       required:

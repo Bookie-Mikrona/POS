@@ -226,15 +226,46 @@ async function getSupplierOrderDetail(enotaId: number, id: number) {
   if (!header) return null;
 
   const result = await db.execute(sql`
-    WITH confirmed_received AS (
-      SELECT pp.supplier_order_line_id,
-        SUM(pp.kolicina) AS received_base_quantity
-      FROM prejemnice_postavke pp
-      JOIN prejemnice p ON p.id = pp.prejemnica_id
-      WHERE p.enota_id = ${enotaId}
-        AND p.status = 'confirmed'
-        AND pp.supplier_order_line_id IS NOT NULL
-      GROUP BY pp.supplier_order_line_id
+    WITH confirmed_receipts AS (
+      SELECT
+        receipt_line.supplier_order_line_id,
+        receipt.id AS receipt_id,
+        receipt.stevilka AS receipt_number,
+        receipt.st_dokumenta AS supplier_document_number,
+        TO_CHAR(receipt.datum, 'YYYY-MM-DD') AS receipt_date,
+        SUM(receipt_line.kolicina) AS received_base_quantity
+      FROM pos_supplier_order_lines order_line
+      JOIN prejemnice_postavke receipt_line
+        ON receipt_line.supplier_order_line_id = order_line.id
+      JOIN prejemnice receipt
+        ON receipt.id = receipt_line.prejemnica_id
+       AND receipt.enota_id = ${enotaId}
+       AND receipt.status = 'confirmed'
+      WHERE order_line.enota_id = ${enotaId}
+        AND order_line.narocilo_id = ${id}
+      GROUP BY
+        receipt_line.supplier_order_line_id,
+        receipt.id,
+        receipt.stevilka,
+        receipt.st_dokumenta,
+        receipt.datum
+    ),
+    received_by_line AS (
+      SELECT
+        supplier_order_line_id,
+        SUM(received_base_quantity) AS received_base_quantity,
+        JSONB_AGG(
+          JSONB_BUILD_OBJECT(
+            'receiptId', receipt_id,
+            'receiptNumber', receipt_number,
+            'supplierDocumentNumber', supplier_document_number,
+            'receiptDate', receipt_date,
+            'receivedBaseQuantity', received_base_quantity
+          )
+          ORDER BY receipt_date, receipt_id
+        ) AS receipts
+      FROM confirmed_receipts
+      GROUP BY supplier_order_line_id
     )
     SELECT
       line.id,
@@ -254,9 +285,10 @@ async function getSupplierOrderDetail(enotaId: number, id: number) {
         line.kolicina_pakiranj * line.faktor_pakiranja
           - COALESCE(received.received_base_quantity, 0), 0
       )::float8 AS "openBaseQuantity",
-      line.cena_pakiranja::float8 AS "unitPrice"
+      line.cena_pakiranja::float8 AS "unitPrice",
+      COALESCE(received.receipts, '[]'::jsonb) AS receipts
     FROM pos_supplier_order_lines line
-    LEFT JOIN confirmed_received received
+    LEFT JOIN received_by_line received
       ON received.supplier_order_line_id = line.id
     LEFT JOIN artikel_dobavitelj current_mapping
       ON current_mapping.id = line.supplier_mapping_id
@@ -286,6 +318,15 @@ async function getSupplierOrderDetail(enotaId: number, id: number) {
       receivedBaseQuantity: Number(line.receivedBaseQuantity),
       openBaseQuantity: Number(line.openBaseQuantity),
       unitPrice: nullableNumber(line.unitPrice),
+      receipts: (Array.isArray(line.receipts) ? line.receipts : []).map((receipt: any) => ({
+        receiptId: Number(receipt.receiptId),
+        receiptNumber: receipt.receiptNumber == null ? null : String(receipt.receiptNumber),
+        supplierDocumentNumber: receipt.supplierDocumentNumber == null
+          ? null
+          : String(receipt.supplierDocumentNumber),
+        receiptDate: String(receipt.receiptDate),
+        receivedBaseQuantity: Number(receipt.receivedBaseQuantity),
+      })),
     })),
   };
 }

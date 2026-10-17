@@ -426,6 +426,17 @@ describe("POS supplier ordering and linked receipt flow", () => {
       status: "partially_received",
       lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 6, openBaseQuantity: 6 }],
     });
+    expect(partial.body.lines[0].receipts).toEqual([{
+      receiptId: firstReceiptId,
+      receiptNumber: firstReceiptDetail.body.stevilka,
+      supplierDocumentNumber: null,
+      receiptDate: "2026-10-17",
+      receivedBaseQuantity: 6,
+    }]);
+    expect(partial.body.lines[0].receipts.reduce(
+      (sum: number, receipt: { receivedBaseQuantity: number }) => sum + receipt.receivedBaseQuantity,
+      0,
+    )).toBe(partial.body.lines[0].receivedBaseQuantity);
 
     const secondReceiptId = await createReceipt(3.75);
     expect(await getMappingPrice()).toEqual({ packagePrice: 28, unitPrice: 3.5 });
@@ -464,6 +475,26 @@ describe("POS supplier ordering and linked receipt flow", () => {
         unitPrice: 20,
       }],
     });
+    expect(completed.body.lines[0].receipts).toEqual([
+      {
+        receiptId: firstReceiptId,
+        receiptNumber: firstReceiptDetail.body.stevilka,
+        supplierDocumentNumber: null,
+        receiptDate: "2026-10-17",
+        receivedBaseQuantity: 6,
+      },
+      {
+        receiptId: secondReceiptId,
+        receiptNumber: secondReceiptDetail.body.stevilka,
+        supplierDocumentNumber: null,
+        receiptDate: "2026-10-17",
+        receivedBaseQuantity: 6,
+      },
+    ]);
+    expect(completed.body.lines[0].receipts.reduce(
+      (sum: number, receipt: { receivedBaseQuantity: number }) => sum + receipt.receivedBaseQuantity,
+      0,
+    )).toBe(completed.body.lines[0].receivedBaseQuantity);
     const [firstReceiptLineAfterSecondPrice] = await db.select({
       invoiceUnitPrice: prejemnicePostavkeTable.izvCena,
       inventoryUnitPrice: prejemnicePostavkeTable.netoCena,

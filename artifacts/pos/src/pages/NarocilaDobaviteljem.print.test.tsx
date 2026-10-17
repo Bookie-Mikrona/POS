@@ -38,6 +38,13 @@ const mocks = vi.hoisted(() => ({
       receivedBaseQuantity: 0,
       openBaseQuantity: 12,
       unitPrice: 18,
+      receipts: [] as {
+        receiptId: number;
+        receiptNumber: string | null;
+        supplierDocumentNumber: string | null;
+        receiptDate: string;
+        receivedBaseQuantity: number;
+      }[],
     }],
   },
   dashboard: {
@@ -200,6 +207,56 @@ describe("supplier order print view", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(mocks.markSent).not.toHaveBeenCalled();
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("shows confirmed receipts for an order line and opens the selected receipt read-only", () => {
+    const originalOrder = {
+      status: mocks.order.status,
+      openQuantity: mocks.order.openQuantity,
+      lines: mocks.order.lines,
+    };
+    mocks.order.status = "partially_received";
+    mocks.order.openQuantity = 6;
+    mocks.order.lines = [{
+      ...mocks.order.lines[0],
+      receivedBaseQuantity: 6,
+      openBaseQuantity: 6,
+      receipts: [{
+        receiptId: 7044,
+        receiptNumber: "26100001",
+        supplierDocumentNumber: "R-54",
+        receiptDate: "2026-10-17",
+        receivedBaseQuantity: 6,
+      }],
+    }];
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      fireEvent.click(screen.getByTestId("button-toggle-order-line-receipts-7041"));
+
+      const receipts = screen.getByTestId("order-line-receipts-7041");
+      expect(receipts.textContent).toContain("Prejemnica 26100001");
+      expect(receipts.textContent).toContain("R-54");
+      expect(receipts.textContent).toContain("17. okt. 2026");
+      expect(screen.getByTestId("text-order-line-receipts-total-7041").textContent).toContain("6 L");
+
+      fireEvent.click(screen.getByTestId("button-open-order-receipt-7044"));
+      expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7044&nacin=ogled");
+    } finally {
+      mocks.order.status = originalOrder.status;
+      mocks.order.openQuantity = originalOrder.openQuantity;
+      mocks.order.lines = originalOrder.lines;
+    }
   });
 
   it("filters orders with an internal note but no supplier instructions without copying or changing them", () => {
