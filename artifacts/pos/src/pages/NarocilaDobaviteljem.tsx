@@ -31,6 +31,7 @@ import type {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { registerPosNavigationBlocker } from "@/lib/route-navigation-guard";
 
 type OrderRow = SupplierOrderInput["lines"][number];
 type SupplierOrderEditorState = {
@@ -376,6 +377,7 @@ export default function NarocilaDobaviteljem() {
   const [orderEditor, setOrderEditor] = useState<SupplierOrderEditorState | null>(null);
   const [discardOrderEditorPromptOpen, setDiscardOrderEditorPromptOpen] = useState(false);
   const orderEditorBaseline = useRef<string | null>(null);
+  const pendingInternalNavigationRef = useRef<(() => void) | null>(null);
   const [closeReason, setCloseReason] = useState("");
   const [closeDialog, setCloseDialog] = useState(false);
   const [packageReview, setPackageReview] = useState<{
@@ -384,6 +386,9 @@ export default function NarocilaDobaviteljem() {
   } | null>(null);
   const [packageReviewAcknowledged, setPackageReviewAcknowledged] = useState(false);
   const [articleSelection, setArticleSelection] = useState<number[]>([]);
+  const hasUnsavedOrderEditorChanges = Boolean(
+    orderEditor && orderEditorBaseline.current !== JSON.stringify(orderEditor),
+  );
 
   const openOrderEditor = (editor: SupplierOrderEditorState) => {
     orderEditorBaseline.current = JSON.stringify(editor);
@@ -395,6 +400,16 @@ export default function NarocilaDobaviteljem() {
     setDiscardOrderEditorPromptOpen(false);
     setOrderEditor(null);
   };
+  const continueEditingOrder = () => {
+    pendingInternalNavigationRef.current = null;
+    setDiscardOrderEditorPromptOpen(false);
+  };
+  const discardOrderEditorChanges = () => {
+    const pendingNavigation = pendingInternalNavigationRef.current;
+    pendingInternalNavigationRef.current = null;
+    closeOrderEditor();
+    pendingNavigation?.();
+  };
   const requestCloseOrderEditor = () => {
     if (!orderEditor || createOrder.isPending || updateOrder.isPending) return;
     if (orderEditorBaseline.current !== JSON.stringify(orderEditor)) {
@@ -403,6 +418,30 @@ export default function NarocilaDobaviteljem() {
     }
     closeOrderEditor();
   };
+
+  useEffect(() => {
+    if (!hasUnsavedOrderEditorChanges) return;
+    return registerPosNavigationBlocker((navigateTo, to, options) => {
+      if (pendingInternalNavigationRef.current) return true;
+      const continueNavigation = () => {
+        if (options === undefined) navigateTo(to);
+        else navigateTo(to, options);
+      };
+      pendingInternalNavigationRef.current = continueNavigation;
+      setDiscardOrderEditorPromptOpen(true);
+      return true;
+    });
+  }, [hasUnsavedOrderEditorChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedOrderEditorChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedOrderEditorChanges]);
 
   const articles = dashboard?.articles ?? [];
   const suggestions = useMemo(() => articles.filter(article => article.hasSuggestion), [articles]);
@@ -1133,8 +1172,8 @@ export default function NarocilaDobaviteljem() {
         <h2 id="unsaved-order-editor-title" className="text-lg font-bold text-[#203d39]">Osnutek ima neshranjene spremembe</h2>
         <p id="unsaved-order-editor-description" className="mt-2 text-sm leading-relaxed text-[#68756e]">Če zaprete urejevalnik, se bodo vaše spremembe izgubile.</p>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <Button type="button" autoFocus data-testid="button-continue-supplier-order-editor" variant="outline" onClick={() => setDiscardOrderEditorPromptOpen(false)}>Nadaljuj urejanje</Button>
-          <Button type="button" data-testid="button-discard-supplier-order-editor" onClick={closeOrderEditor} className="bg-rose-700 text-white hover:bg-rose-800">Zavrzi spremembe</Button>
+          <Button type="button" autoFocus data-testid="button-continue-supplier-order-editor" variant="outline" onClick={continueEditingOrder}>Nadaljuj urejanje</Button>
+          <Button type="button" data-testid="button-discard-supplier-order-editor" onClick={discardOrderEditorChanges} className="bg-rose-700 text-white hover:bg-rose-800">Zavrzi spremembe</Button>
         </div>
       </section>
     </div>}

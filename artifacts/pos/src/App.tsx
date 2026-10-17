@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { GotovToastProvider } from "@/contexts/GotovToastContext";
 import { GotovToastSystem } from "@/components/GotovToastSystem";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { aroundPosNavigation } from "@/lib/route-navigation-guard";
 import { PosSyncStatus } from "@/components/PosSyncStatus";
 import { OfflineFiscalQueueStatus } from "@/components/OfflineFiscalQueueStatus";
 import { LocalGatewayStatusBanner } from "@/components/LocalGatewayStatusBanner";
@@ -1312,7 +1313,10 @@ function App() {
           <GotovToastProvider>
             <AuthProvider>
               <PosOperationalProviders>
-                    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                    <WouterRouter
+                      base={import.meta.env.BASE_URL.replace(/\/$/, "")}
+                      aroundNav={aroundPosNavigation}
+                    >
                       <AppRouter />
                     </WouterRouter>
               </PosOperationalProviders>

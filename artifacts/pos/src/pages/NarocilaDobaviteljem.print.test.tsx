@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { aroundPosNavigation } from "@/lib/route-navigation-guard";
 import NarocilaDobaviteljem from "./NarocilaDobaviteljem";
 
 const mocks = vi.hoisted(() => ({
   markSent: vi.fn(),
   mutation: vi.fn(),
   navigate: vi.fn(),
+  aroundNavigation: null as any,
   supplierOrderSummaries: null as any[] | null,
   order: {
     id: 704,
@@ -84,7 +86,16 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("wouter", () => ({
-  useLocation: () => ["/narocila-dobaviteljem", mocks.navigate],
+  useLocation: () => [
+    "/narocila-dobaviteljem",
+    (to: string, options?: any) => {
+      if (mocks.aroundNavigation) {
+        mocks.aroundNavigation(mocks.navigate, to, options);
+      } else {
+        mocks.navigate(to, options);
+      }
+    },
+  ],
 }));
 
 vi.mock("@workspace/api-client-react", async () => {
@@ -192,6 +203,7 @@ describe("supplier order print view", () => {
     mocks.markSent.mockReset();
     mocks.mutation.mockReset();
     mocks.navigate.mockReset();
+    mocks.aroundNavigation = aroundPosNavigation;
     mocks.supplierOrderSummaries = null;
     mocks.order.internalNotes = "INTERNAL ONLY: preveriti stanje embalaže.";
     mocks.order.supplierNotes = "Prosimo za dostavo do 10.00.\nHvala.";
@@ -1222,6 +1234,59 @@ describe("supplier order print view", () => {
 
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+  });
+
+  it("allows app navigation and browser exit when the order draft is unchanged", () => {
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+
+    const beforeUnloadEvent = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(beforeUnloadEvent);
+    expect(beforeUnloadEvent.defaultPrevented).toBe(false);
+
+    act(() => mocks.aroundNavigation(mocks.navigate, "/zaloge"));
+
+    expect(mocks.navigate).toHaveBeenCalledWith("/zaloge");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("warns before app navigation and browser exit only when the order draft changed", () => {
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(supplierNotes, { target: { value: "Dostavite pred 12. uro." } });
+
+    const beforeUnloadEvent = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(beforeUnloadEvent);
+    expect(beforeUnloadEvent.defaultPrevented).toBe(true);
+
+    act(() => mocks.aroundNavigation(mocks.navigate, "/zaloge"));
+
+    expect(screen.getByRole("alertdialog").textContent).toMatch(/neshranjene spremembe/i);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("button-continue-supplier-order-editor"));
+    expect(screen.getByRole("dialog", { name: "Naročilo dobavitelju" })).toBeTruthy();
+    expect(supplierNotes.value).toBe("Dostavite pred 12. uro.");
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("discards a changed draft and resumes the requested app navigation without saving", () => {
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+    fireEvent.change(screen.getByLabelText(/Navodilo dobavitelju/), {
+      target: { value: "Dostavite pred 12. uro." },
+    });
+
+    act(() => mocks.aroundNavigation(mocks.navigate, "/zaloge"));
+    expect(mocks.navigate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("button-discard-supplier-order-editor"));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+    expect(mocks.navigate).toHaveBeenCalledWith("/zaloge");
+    expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
   it("lets the user continue editing a copied note or explicitly discard it", () => {
