@@ -16,6 +16,17 @@ cd lib/db && npx tsc -p tsconfig.json
 ```
 Nato `tsc --noEmit` v api-server prikaže resnične napake (ne slamnate).
 
+Če po sinhronizaciji projekta običajni inkrementalni build uspe, preverjanje aplikacije
+pa še vedno ne vidi izvozov ali polj, ki obstajajo v izvorni kodi, prisili ponovno
+izgradnjo deklaracij vseh skupnih knjižnic: `pnpm exec tsc --build --force`.
+To velja tudi za generirane API tipe, ne le za podatkovno shemo.
+
+**Why:** Prenesene deklaracije in inkrementalni podatki lahko ostanejo medsebojno
+neusklajeni; uspešen inkrementalni build zato ni dokaz, da aplikacija bere aktualne tipe.
+
+**How to apply:** Pred spreminjanjem poslovne kode primerjaj izvorni tip z deklaracijo;
+če se razlikujeta, obnovi deklaracije in šele nato preverjaj aplikacijo.
+
 **Why:** api-server/tsconfig.json ima `"references": [{ "path": "../../lib/db" }]`. TypeScript
 project references berejo `.d.ts` iz `dist/`, ne source neposredno — kljub temu da package.json
 exports kažejo na `.ts` vire.

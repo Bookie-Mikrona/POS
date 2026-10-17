@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react";
 import { getJournalEntryDeletionErrorMessage } from "@/lib/journalEntryDeletionError";
 import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
+import { AccountDimensionHint } from "@/components/account-dimension-hint";
 
 import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users, Info, Receipt, Download, ChevronDown } from "lucide-react";
 
@@ -994,6 +995,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                           ))}
                         </SelectContent>
                       </Select>
+                      <AccountDimensionHint account={activeAccounts.find(a => a.id === line.accountId)} />
                       {line.accountId && activeAccounts.find(a => a.id === line.accountId)?.allowsPosting === false && (
                         <div className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
                           <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
