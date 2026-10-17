@@ -62,6 +62,35 @@ const formatReceiptDate = (value: string) =>
   }).format(new Date(`${value.slice(0, 10)}T00:00:00.000Z`));
 const formatMoney = (value: number | null | undefined) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(value);
+const formatUnitMoney = (value: number) =>
+  new Intl.NumberFormat("sl-SI", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).format(value);
+
+function comparableUnitPrice(
+  mapping: {
+    packageFactor: number;
+    lastPackagePrice?: number | null;
+    lastUnitPrice?: number | null;
+  },
+  baseUnit: string | null,
+): number | null {
+  if (!baseUnit?.trim()
+    || !Number.isFinite(mapping.packageFactor)
+    || mapping.packageFactor <= 0
+    || mapping.lastPackagePrice == null
+    || !Number.isFinite(mapping.lastPackagePrice)
+    || mapping.lastPackagePrice < 0
+    || mapping.lastUnitPrice == null
+    || !Number.isFinite(mapping.lastUnitPrice)
+    || mapping.lastUnitPrice < 0) {
+    return null;
+  }
+  return mapping.lastUnitPrice;
+}
 
 function StatusPill({ status }: { status: SupplierOrderStatus }) {
   return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusClass[status]}`}>
@@ -522,11 +551,22 @@ export default function NarocilaDobaviteljem() {
         </div> : <div className="overflow-x-auto">
           <table className="w-full min-w-[780px] text-left text-sm">
             <thead className="bg-[#f7f4ec] text-[10px] font-bold uppercase tracking-[.13em] text-[#76817a]">
-              <tr><th className="w-10 px-4 py-3"><span className="sr-only">Izberi</span></th><th className="px-2 py-3">Artikel</th><th className="px-3 py-3 text-right">Na zalogi</th><th className="px-3 py-3 text-right">Prag / cilj</th><th className="px-3 py-3">Dobavitelj</th><th className="px-3 py-3 text-right">Predlog</th><th className="px-4 py-3 text-right">Uredi</th></tr>
+              <tr><th className="w-10 px-4 py-3"><span className="sr-only">Izberi</span></th><th className="px-2 py-3">Artikel</th><th className="px-3 py-3 text-right">Na zalogi</th><th className="px-3 py-3 text-right">Prag / cilj</th><th className="min-w-[230px] px-3 py-3">Dobavitelj / cena na osnovno enoto</th><th className="px-3 py-3 text-right">Predlog</th><th className="px-4 py-3 text-right">Uredi</th></tr>
             </thead>
             <tbody className="divide-y divide-[#f0ece3]">
               {filteredArticles.map(article => {
                 const mapping = article.mappings.find(item => item.id === article.preferredMappingId) ?? article.mappings.find(item => item.active);
+                const comparableMappings = article.mappings
+                  .map(item => ({ mapping: item, unitPrice: comparableUnitPrice(item, article.baseUnit) }))
+                  .sort((a, b) => {
+                    if (a.unitPrice == null) return b.unitPrice == null ? 0 : 1;
+                    if (b.unitPrice == null) return -1;
+                    return a.unitPrice - b.unitPrice;
+                  });
+                const validUnitPrices = comparableMappings
+                  .map(item => item.unitPrice)
+                  .filter((value): value is number => value !== null);
+                const lowestUnitPrice = validUnitPrices.length ? Math.min(...validUnitPrices) : null;
                 const under = article.reorderPoint != null && article.onHand <= article.reorderPoint;
                 return <tr key={article.articleId} className="panel-lift hover:bg-[#fbfaf5]" data-testid={`row-reorder-article-${article.articleId}`}>
                   <td className="px-4 py-3"><input type="checkbox" aria-label={`Izberi ${article.articleName}`} checked={articleSelection.includes(article.articleId)} onChange={() => toggleArticle(article.articleId)} className="h-4 w-4 accent-[#285d50]" /></td>
@@ -542,30 +582,64 @@ export default function NarocilaDobaviteljem() {
                     <span className="data-mono">{formatQty(article.reorderPoint)} / {formatQty(article.targetStock)}</span>
                     <div className="mt-0.5 text-[10px] text-[#949a94]">prag / cilj</div>
                   </td>
-                  <td className="px-3 py-3">
-                    {mapping ? <>
-                      <div className="font-medium text-[#40574f]">{mapping.supplierName}</div>
-                      <div className="text-xs text-[#858d87]">{mapping.packageName ?? "pakiranje"} · {formatQty(mapping.packageFactor)} {article.baseUnit ?? ""}</div>
-                      {mapping.lastPackagePrice != null && <div className="mt-1 space-y-0.5 text-xs text-[#68756e]" data-testid={`last-price-source-${mapping.id}`}>
-                        <div>Zadnja cena: {formatMoney(mapping.lastPackagePrice)} / pak.</div>
-                        {mapping.lastPriceReceipt
-                          ? <div>
-                            <button
-                              type="button"
-                              data-testid={`last-price-receipt-${mapping.id}`}
-                              aria-label={`Odpri prejemnico št. ${mapping.lastPriceReceipt.receiptNumber}`}
-                              onClick={() => {
-                                const sourceReceipt = mapping.lastPriceReceipt;
-                                if (sourceReceipt) navigate(`/zaloge?prejemnica=${sourceReceipt.receiptId}`);
-                              }}
-                              className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
-                            >
-                              Vir: prejemnica št. {mapping.lastPriceReceipt.receiptNumber} · {formatReceiptDate(mapping.lastPriceReceipt.date)}
-                            </button>
+                  <td className="min-w-[230px] px-3 py-3">
+                    {comparableMappings.length ? <div className="space-y-2">
+                      {comparableMappings.map(({ mapping: supplierMapping, unitPrice }) => {
+                        const packageFactorValid = Number.isFinite(supplierMapping.packageFactor)
+                          && supplierMapping.packageFactor > 0;
+                        const packagePriceValid = supplierMapping.lastPackagePrice != null
+                          && Number.isFinite(supplierMapping.lastPackagePrice)
+                          && supplierMapping.lastPackagePrice >= 0;
+                        const isLowest = unitPrice != null && lowestUnitPrice != null
+                          && Math.abs(unitPrice - lowestUnitPrice) <= 1e-9;
+                        return <div key={supplierMapping.id} className="rounded-lg border border-[#eee8dc] bg-[#fbfaf6] px-2.5 py-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-medium text-[#40574f]">{supplierMapping.supplierName}</span>
+                            {supplierMapping.id === article.preferredMappingId && <span className="rounded bg-[#edf2e9] px-1.5 py-0.5 text-[10px] font-semibold text-[#52685f]">Izbran</span>}
+                            {isLowest && <span data-testid={`lowest-unit-price-${supplierMapping.id}`} className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-900">Najnižja cena / enoto</span>}
                           </div>
-                          : <div>Vir prejemnice ni zabeležen.</div>}
-                      </div>}
-                    </> : <span className="text-xs text-orange-800">Ni aktivne povezave</span>}
+                          <div className="text-xs text-[#858d87]">
+                            Trenutno pakiranje: {supplierMapping.packageName ?? "pakiranje"} · {packageFactorValid
+                              ? article.baseUnit
+                                ? `${formatQty(supplierMapping.packageFactor)} ${article.baseUnit} / pak.`
+                                : `faktor ${formatQty(supplierMapping.packageFactor)}; enota ni določena`
+                              : "velikost pakiranja ni veljavna"}
+                          </div>
+                          {packagePriceValid ? <div className="mt-1 space-y-0.5 text-xs text-[#68756e]" data-testid={`last-price-source-${supplierMapping.id}`}>
+                            <div>Zadnja zabeležena cena pakiranja: {formatMoney(supplierMapping.lastPackagePrice)}</div>
+                            {unitPrice != null
+                              ? <div data-testid={`last-unit-price-${supplierMapping.id}`} className="font-semibold text-[#315247]">
+                                Zadnja cena na osnovno enoto: {formatUnitMoney(unitPrice)} / {article.baseUnit}
+                              </div>
+                              : <div data-testid={`unavailable-unit-price-${supplierMapping.id}`}>
+                                Cena na osnovno enoto ni prikazana{!packageFactorValid
+                                  ? ": velikost pakiranja ni veljavna."
+                                  : !article.baseUnit?.trim()
+                                    ? ": osnovna enota ni določena."
+                                    : "."}
+                              </div>}
+                            {supplierMapping.lastPriceReceipt
+                              ? <div>
+                                <button
+                                  type="button"
+                                  data-testid={`last-price-receipt-${supplierMapping.id}`}
+                                  aria-label={`Odpri prejemnico št. ${supplierMapping.lastPriceReceipt.receiptNumber}`}
+                                  onClick={() => {
+                                    const sourceReceipt = supplierMapping.lastPriceReceipt;
+                                    if (sourceReceipt) navigate(`/zaloge?prejemnica=${sourceReceipt.receiptId}`);
+                                  }}
+                                  className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
+                                >
+                                  Vir: prejemnica št. {supplierMapping.lastPriceReceipt.receiptNumber} · {formatReceiptDate(supplierMapping.lastPriceReceipt.date)}
+                                </button>
+                              </div>
+                              : <div>Vir prejemnice ni zabeležen.</div>}
+                          </div> : <div className="mt-1 text-xs text-[#858d87]">
+                            {supplierMapping.lastPackagePrice == null ? "Zadnja cena ni zabeležena." : "Zadnja cena ni veljavna."}
+                          </div>}
+                        </div>;
+                      })}
+                    </div> : <span className="text-xs text-orange-800">Ni aktivne povezave</span>}
                   </td>
                   <td className="px-3 py-3 text-right">
                     {article.hasSuggestion && article.suggestedBaseQuantity != null ? <><strong className="data-mono text-[#285d50]">{formatQty(article.suggestedBaseQuantity)} {article.baseUnit}</strong><div className="mt-0.5 text-xs text-[#77817b]">{article.suggestedPackageQuantity != null ? `${formatQty(article.suggestedPackageQuantity)} ${mapping?.packageName ?? "pak."}` : "osnovna enota"}</div></> : <span className="text-xs text-[#969d97]">Nastavite cilj</span>}

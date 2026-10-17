@@ -62,6 +62,7 @@ const mocks = vi.hoisted(() => ({
         packageName: "zaboj",
         packageFactor: 6,
         lastPackagePrice: 22.5,
+        lastUnitPrice: 3.75,
         lastPriceReceipt: { receiptId: 7044, date: "2026-10-17", receiptNumber: "26100001" },
         active: true,
       }],
@@ -176,12 +177,91 @@ describe("supplier order print view", () => {
 
     const source = screen.getByTestId("last-price-source-7042");
     expect(source.textContent).toContain("22,50");
+    expect(source.textContent).toMatch(/3,75\s*€ \/ L/);
     expect(source.textContent).toContain("26100001");
     expect(source.textContent).toContain("17.");
     expect(source.textContent).toContain("2026");
 
     fireEvent.click(screen.getByTestId("last-price-receipt-7042"));
     expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7044");
+  });
+
+  it("compares supplier prices by base unit and omits prices with invalid or missing package factors", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const [existing] = originalMappings;
+    Object.assign(article, {
+      mappings: [
+        existing,
+        {
+          ...existing,
+          id: 7047,
+          supplierId: "supplier-705",
+          supplierName: "Mlekarna Ugodna",
+          packageName: "karton",
+          packageFactor: 8,
+          lastPackagePrice: 20,
+          lastUnitPrice: 2.5,
+          lastPriceReceipt: null,
+        },
+        {
+          ...existing,
+          id: 7048,
+          supplierId: "supplier-706",
+          supplierName: "Mlekarna Neveljavno",
+          packageName: "vreča",
+          packageFactor: 0,
+          lastPackagePrice: 10,
+          lastUnitPrice: null,
+          lastPriceReceipt: null,
+        },
+        {
+          ...existing,
+          id: 7049,
+          supplierId: "supplier-707",
+          supplierName: "Mlekarna Brez Cene",
+          packageName: "paket",
+          packageFactor: 4,
+          lastPackagePrice: null,
+          lastUnitPrice: null,
+          lastPriceReceipt: null,
+        },
+        {
+          ...existing,
+          id: 7050,
+          supplierId: "supplier-708",
+          supplierName: "Mlekarna Brez Faktorja",
+          packageName: "paket",
+          packageFactor: null,
+          lastPackagePrice: 16,
+          lastUnitPrice: null,
+          lastPriceReceipt: null,
+        },
+      ],
+    });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      expect(screen.getByTestId("last-unit-price-7042").textContent).toMatch(/3,75\s*€ \/ L/);
+      expect(screen.getByTestId("last-unit-price-7047").textContent).toMatch(/2,50\s*€ \/ L/);
+      expect(screen.getByTestId("lowest-unit-price-7047").textContent).toContain("Najnižja cena / enoto");
+      expect(screen.getByTestId("unavailable-unit-price-7048").textContent).toContain("velikost pakiranja ni veljavna");
+      expect(screen.getByTestId("unavailable-unit-price-7050").textContent).toContain("velikost pakiranja ni veljavna");
+      expect(screen.getByText("Zadnja cena ni zabeležena.")).toBeTruthy();
+      expect(screen.queryByTestId("last-unit-price-7048")).toBeNull();
+      expect(screen.queryByTestId("last-unit-price-7049")).toBeNull();
+      expect(screen.queryByTestId("last-unit-price-7050")).toBeNull();
+    } finally {
+      Object.assign(article, { mappings: originalMappings });
+    }
   });
 
   it("sends internal notes and supplier instructions in separate fields", async () => {

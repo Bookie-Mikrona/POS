@@ -298,6 +298,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .find((row: any) => row.articleId === articleId).mappings
       .find((mapping: any) => mapping.id === mappingId);
     expect(mappingWithDraftReceipt.lastPriceReceipt).toBeNull();
+    expect(mappingWithDraftReceipt).toMatchObject({
+      packageFactor: 8,
+      lastPackagePrice: 18,
+      lastUnitPrice: 3,
+    });
     const firstReceiptDetail = await request(app).get(`/prejemnice/${firstReceiptId}`);
     expect(firstReceiptDetail.status).toBe(200);
     const originalReceiptLine = firstReceiptDetail.body.postavke[0];
@@ -687,6 +692,113 @@ describe("POS supplier ordering and linked receipt flow", () => {
       });
     } finally {
       context.enotaId = enotaId;
+    }
+  });
+
+  it("returns comparable package prices per base unit and omits invalid factors or missing prices", async () => {
+    context.enotaId = enotaId;
+    const [comparisonArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Comparable purchase article ${run}`,
+      cena: "5",
+      davek: "22",
+      enotaMere: "L",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    articleIds.push(comparisonArticle.id);
+    await db.insert(zalogeTable).values({ artikelId: comparisonArticle.id, kolicina: "0" });
+
+    const [comparisonSupplier] = await db.insert(counterpartiesTable).values({
+      companyId,
+      type: "supplier",
+      name: `Comparison supplier ${run}`,
+    }).returning({ id: counterpartiesTable.id });
+    const localMappingIds: number[] = [];
+    const addMapping = async (input: {
+      supplierId: string;
+      code: string;
+      packageFactor: string;
+      packagePrice: string | null;
+      unitPrice: string | null;
+    }) => {
+      const [mapping] = await db.insert(artikelDobaviteljTable).values({
+        enotaId,
+        artikelId: comparisonArticle.id,
+        dobaviteljId: input.supplierId,
+        sifraDobavitelja: `CMP-${input.code}-${run}`,
+        nazivDobavitelja: `Primerjava ${input.code}`,
+        enotVPaketu: input.packageFactor,
+        nazivPaketa: `${input.code} pakiranje`,
+        zadnjaCenaPaket: input.packagePrice,
+        zadnjaCenaEnota: input.unitPrice,
+        aktivno: true,
+      }).returning({ id: artikelDobaviteljTable.id });
+      localMappingIds.push(mapping.id);
+      return mapping.id;
+    };
+
+    try {
+      const sixUnitMappingId = await addMapping({
+        supplierId,
+        code: "SIX",
+        packageFactor: "6",
+        packagePrice: "24",
+        unitPrice: "4",
+      });
+      const eightUnitMappingId = await addMapping({
+        supplierId: comparisonSupplier.id,
+        code: "EIGHT",
+        packageFactor: "8",
+        packagePrice: "20",
+        unitPrice: "2.5",
+      });
+      const invalidFactorMappingId = await addMapping({
+        supplierId: comparisonSupplier.id,
+        code: "ZERO",
+        packageFactor: "0",
+        packagePrice: "10",
+        unitPrice: "10",
+      });
+      const missingPriceMappingId = await addMapping({
+        supplierId: comparisonSupplier.id,
+        code: "NO-PRICE",
+        packageFactor: "4",
+        packagePrice: null,
+        unitPrice: null,
+      });
+
+      const response = await request(app).get("/narocila-dobaviteljem/pregled");
+      expect(response.status, JSON.stringify(response.body)).toBe(200);
+      const article = response.body.articles.find((row: any) => row.articleId === comparisonArticle.id);
+      expect(article.baseUnit).toBe("L");
+      const mappings = new Map(article.mappings.map((mapping: any) => [mapping.id, mapping]));
+      expect(mappings.get(sixUnitMappingId)).toMatchObject({
+        packageFactor: 6,
+        lastPackagePrice: 24,
+        lastUnitPrice: 4,
+      });
+      expect(mappings.get(eightUnitMappingId)).toMatchObject({
+        packageFactor: 8,
+        lastPackagePrice: 20,
+        lastUnitPrice: 2.5,
+      });
+      expect(mappings.get(invalidFactorMappingId)).toMatchObject({
+        packageFactor: 0,
+        lastPackagePrice: 10,
+        lastUnitPrice: null,
+      });
+      expect(mappings.get(missingPriceMappingId)).toMatchObject({
+        packageFactor: 4,
+        lastPackagePrice: null,
+        lastUnitPrice: null,
+      });
+    } finally {
+      if (localMappingIds.length) {
+        await db.delete(artikelDobaviteljTable).where(inArray(artikelDobaviteljTable.id, localMappingIds));
+      }
+      await db.delete(counterpartiesTable).where(eq(counterpartiesTable.id, comparisonSupplier.id));
     }
   });
 });

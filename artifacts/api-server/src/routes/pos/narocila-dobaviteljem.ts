@@ -105,6 +105,27 @@ function nullableNumber(value: unknown): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
+function comparableLastUnitPrice(
+  packagePriceValue: unknown,
+  packageFactorValue: unknown,
+  lastUnitPriceValue: unknown,
+): number | null {
+  const packagePrice = nullableNumber(packagePriceValue);
+  const packageFactor = nullableNumber(packageFactorValue);
+  const lastUnitPrice = nullableNumber(lastUnitPriceValue);
+  if (
+    packagePrice === null
+    || packagePrice < 0
+    || packageFactor === null
+    || packageFactor <= 0
+    || lastUnitPrice === null
+    || lastUnitPrice < 0
+  ) {
+    return null;
+  }
+  return lastUnitPrice;
+}
+
 function dateOnly(value: unknown): string | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -393,6 +414,7 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
       packageName: artikelDobaviteljTable.nazivPaketa,
       packageFactor: artikelDobaviteljTable.enotVPaketu,
       lastPackagePrice: artikelDobaviteljTable.zadnjaCenaPaket,
+      lastUnitPrice: artikelDobaviteljTable.zadnjaCenaEnota,
       active: artikelDobaviteljTable.aktivno,
     })
       .from(artikelDobaviteljTable)
@@ -452,8 +474,13 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
         supplierItemName: mapping.supplierItemName,
         supplierCode: mapping.supplierCode,
         packageName: mapping.packageName,
-        packageFactor: Number(mapping.packageFactor),
+        packageFactor: nullableNumber(mapping.packageFactor) ?? 0,
         lastPackagePrice: nullableNumber(mapping.lastPackagePrice),
+        lastUnitPrice: comparableLastUnitPrice(
+          mapping.lastPackagePrice,
+          mapping.packageFactor,
+          mapping.lastUnitPrice,
+        ),
         lastPriceReceipt: lastPriceReceipts.get(mapping.id) ?? null,
         active: mapping.active,
       })),

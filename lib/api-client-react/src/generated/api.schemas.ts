@@ -8117,6 +8117,8 @@ export interface SupplierItemMapping {
   /** @nullable */
   lastPackagePrice?: number | null;
   /** @nullable */
+  lastUnitPrice: number | null;
+  /** @nullable */
   lastPriceReceipt: SupplierItemMappingLastPriceReceipt;
   active: boolean;
 }

@@ -19436,7 +19436,7 @@ components:
       enum: [draft, sent, partially_received, received, closed, cancelled]
     SupplierItemMapping:
       type: object
-      required: [id, supplierId, supplierName, packageFactor, lastPriceReceipt, active]
+      required: [id, supplierId, supplierName, packageFactor, lastUnitPrice, lastPriceReceipt, active]
       properties:
         id: { type: integer }
         supplierId: { type: string }
@@ -19446,6 +19446,7 @@ components:
         packageName: { type: [string, "null"] }
         packageFactor: { type: number }
         lastPackagePrice: { type: [number, "null"] }
+        lastUnitPrice: { type: [number, "null"] }
         lastPriceReceipt:
           type: [object, "null"]
           required: [receiptId, date, receiptNumber]
