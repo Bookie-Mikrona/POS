@@ -41,6 +41,7 @@ describe("report PDF classification diagnostics", () => {
     expect(text).toContain("0410000");
     expect(text).toContain("Shranjeni tip: prihodki; uvrščen kot: sredstva");
     expect(text).toContain("Shranjeni tip: manjka; uvrščen kot: sredstva");
+    expect(text.indexOf("OPOZORILA POROČILA")).toBeGreaterThan(text.indexOf("SKUPAJ PASIVA"));
     expect(text).toContain("X123");
     expect(text).toContain("25,00 EUR");
     expect(text).toContain("10,00 EUR");
@@ -63,6 +64,28 @@ describe("report PDF classification diagnostics", () => {
     expect(text).toContain("7600000");
     expect(text).toContain("NERAZVRŠČENI KONTI");
     expect(text).not.toContain("OPOZORILA POROČILA — Osnovno");
+  });
+  it("prints current income statement warnings after the result, including unknown and empty stored types", async () => {
+    const current = {
+      revenue: side, expenses: side, netResult: "0.00",
+      typeWarnings: [
+        { ...warning, code: "4000000", storedType: "legacy", effectiveType: "expense" },
+        { ...warning, code: "7000000", storedType: "", effectiveType: "revenue" },
+      ],
+    };
+    const before = structuredClone(current);
+    const pdf = await generateIncomeStatementPdf({
+      companyName: "PREIZKUS PDF", dateFrom: "2025-01-01", dateTo: "2025-12-31", current,
+    });
+    const { text } = inspect(pdf);
+    expect(text).toContain("Osnovno obdobje: 2025-01-01");
+    expect(text).toContain("4000000");
+    expect(text).toContain("7000000");
+    expect(text).toContain("Shranjeni tip: legacy; uvrščen kot: odhodki");
+    expect(text).toContain("Shranjeni tip: manjka; uvrščen kot: prihodki");
+    expect(text.indexOf("OPOZORILA POROČILA")).toBeGreaterThan(text.indexOf("POSLOVNI IZID"));
+    expect(text).not.toContain("Primerjalno obdobje");
+    expect(current).toEqual(before);
   });
   it("keeps every warning on multipage PDFs, with no footer-only pages", async () => {
     const typeWarnings = Array.from({ length: 75 }, (_, i) => ({

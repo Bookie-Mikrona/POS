@@ -58,6 +58,12 @@ export function drawReportDiagnostics<T extends WarningState>(
   };
   ensureSpace(state, 100);
   state.y += 8;
+  doc.save()
+    .moveTo(margin, state.y)
+    .lineTo(doc.page.width - margin, state.y)
+    .strokeColor("#d97706").lineWidth(1).stroke()
+    .restore();
+  state.y += 10;
   paragraph(`OPOZORILA POROČILA — ${label}`, true);
   if (warnings.length) {
     paragraph("Neskladje tipa konta: konto je uvrščen po SRS razredu šifre, ne po shranjenem tipu. Preverite nastavitve kontnega plana.", true);
