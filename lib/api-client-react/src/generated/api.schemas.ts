@@ -7655,6 +7655,50 @@ export interface VivaVracilo {
   ustvarjeno: string;
 }
 
+export interface VivaRefundAlertSettings {
+  /**
+     * @minimum 1
+     * @maximum 8759
+     */
+  overdueHours: number;
+  /**
+     * @minimum 2
+     * @maximum 8760
+     */
+  criticalHours: number;
+}
+
+export type VivaRefundAgeAlertThreshold = typeof VivaRefundAgeAlertThreshold[keyof typeof VivaRefundAgeAlertThreshold];
+
+
+export const VivaRefundAgeAlertThreshold = {
+  overdue: 'overdue',
+  critical: 'critical',
+} as const;
+
+export interface VivaRefundAgeAlert {
+  id: number;
+  refundId: number;
+  threshold: VivaRefundAgeAlertThreshold;
+  thresholdHours: number;
+  createdAt: string;
+  stevilkaRacuna: string;
+}
+
+export interface VivaRefundAlertOverview {
+  settings: VivaRefundAlertSettings;
+  alerts: VivaRefundAgeAlert[];
+}
+
+export type UnknownVivaRefundAgeState = typeof UnknownVivaRefundAgeState[keyof typeof UnknownVivaRefundAgeState];
+
+
+export const UnknownVivaRefundAgeState = {
+  fresh: 'fresh',
+  overdue: 'overdue',
+  critical: 'critical',
+} as const;
+
 export type UnknownVivaRefundStatus = typeof UnknownVivaRefundStatus[keyof typeof UnknownVivaRefundStatus];
 
 
@@ -7675,6 +7719,8 @@ export const UnknownVivaRefundPredlaganiStatus = {
 } as const;
 
 export interface UnknownVivaRefund {
+  ageHours: number;
+  ageState: UnknownVivaRefundAgeState;
   status: UnknownVivaRefundStatus;
   canApprove: boolean;
   /** @nullable */

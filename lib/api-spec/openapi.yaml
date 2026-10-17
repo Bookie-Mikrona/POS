@@ -5377,6 +5377,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VivaTerminalStatusOdgovor"
+  /terminal/viva/terminal/refunds/alert-settings:
+    get:
+      operationId: getVivaRefundAlertOverview
+      tags: [terminal]
+      summary: Starostni pragovi podjetja in aktivna opozorila vračil enote za administratorje
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VivaRefundAlertOverview"
+        "403":
+          description: Potrebna je administratorska vloga
+    put:
+      operationId: updateVivaRefundAlertSettings
+      tags: [terminal]
+      summary: Administrator podjetja nastavi starostna pragova nejasnih vračil
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VivaRefundAlertSettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VivaRefundAlertSettings"
+        "400":
+          description: Neveljavna pragova
+        "403":
+          description: Potreben je administrator podjetja
   /terminal/viva/terminal/refunds/unknown:
     get:
       operationId: listUnknownVivaRefunds
@@ -19196,6 +19231,46 @@ components:
         ustvarjeno:
           type: string
           format: date-time
+    VivaRefundAlertSettings:
+      type: object
+      required: [overdueHours, criticalHours]
+      properties:
+        overdueHours:
+          type: integer
+          minimum: 1
+          maximum: 8759
+        criticalHours:
+          type: integer
+          minimum: 2
+          maximum: 8760
+    VivaRefundAgeAlert:
+      type: object
+      required: [id, refundId, threshold, thresholdHours, createdAt, stevilkaRacuna]
+      properties:
+        id:
+          type: integer
+        refundId:
+          type: integer
+        threshold:
+          type: string
+          enum: [overdue, critical]
+        thresholdHours:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        stevilkaRacuna:
+          type: string
+    VivaRefundAlertOverview:
+      type: object
+      required: [settings, alerts]
+      properties:
+        settings:
+          $ref: "#/components/schemas/VivaRefundAlertSettings"
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/VivaRefundAgeAlert"
     UnknownVivaRefund:
       type: object
       required:
@@ -19207,7 +19282,14 @@ components:
         - status
         - canApprove
         - ustvarjeno
+        - ageHours
+        - ageState
       properties:
+        ageHours:
+          type: number
+        ageState:
+          type: string
+          enum: [fresh, overdue, critical]
         status:
           type: string
           enum: [unknown, awaiting_approval]

@@ -580,6 +580,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     file: "264-amortizacija-active-entry-unique.sql",
     classification: "integrity",
   },
+  {
+    file: "265-viva-refund-aging-alerts.sql",
+    classification: "schema",
+    dependsOn: ["174-viva-refund-manual-resolution.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

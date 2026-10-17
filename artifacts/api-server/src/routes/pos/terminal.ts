@@ -20,6 +20,9 @@ import {
   type CardPaymentAmountEvidence,
 } from "../../lib/pos-payment-validation";
 import { exactDecimalCents, parsePaytenBridgePublicKey, verifyPaytenBridgeEnvelope } from "../../lib/payten-bridge";
+import { readRefundAlertSettings, refundAgeState } from "../../lib/vivaRefundAlerts";
+import { GetVivaRefundAlertOverviewResponse, UpdateVivaRefundAlertSettingsBody } from "@workspace/api-zod";
+import { pool } from "@workspace/db";
 
 interface DeviceTerminalConfig {
   terminalAktiven: boolean;
@@ -1798,12 +1801,56 @@ function mayManageUnknownVivaRefund(vloga: string | undefined): boolean {
   return vloga === "admin" || vloga === "admin_enote" || vloga === "superadmin";
 }
 
+router.get("/terminal/viva/terminal/refunds/alert-settings", async (req, res): Promise<void> => {
+  const posReq = req as PosRequest;
+  if (!mayManageUnknownVivaRefund(posReq.vloga)) {
+    res.status(403).json({ error: "Za opozorila vračil je potrebna administratorska vloga." });
+    return;
+  }
+  const settings = await readRefundAlertSettings(posReq.companyId);
+  const alerts = await pool.query(`
+    SELECT a.id, a.refund_id AS "refundId", a.threshold, a.threshold_hours AS "thresholdHours",
+      a.created_at AS "createdAt", r.stevilka_racuna AS "stevilkaRacuna"
+    FROM viva_refund_alerts a
+    JOIN viva_vracila v ON v.id = a.refund_id
+    JOIN racuni r ON r.id = v.racun_id
+    JOIN enote e ON e.id = v.enota_id
+    WHERE a.closed_at IS NULL AND v.status IN ('unknown', 'awaiting_approval')
+      AND v.enota_id = $1 AND e.company_id = $2
+    ORDER BY a.created_at DESC, a.id DESC
+  `, [posReq.enotaId, posReq.companyId]);
+  res.setHeader("Cache-Control", "no-store");
+  res.json(GetVivaRefundAlertOverviewResponse.parse({ settings, alerts: alerts.rows }));
+});
+
+router.put("/terminal/viva/terminal/refunds/alert-settings", async (req, res): Promise<void> => {
+  const posReq = req as PosRequest;
+  if (!["admin", "superadmin"].includes(posReq.vloga)) {
+    res.status(403).json({ error: "Pragove lahko spreminja samo administrator podjetja." });
+    return;
+  }
+  const parsed = UpdateVivaRefundAlertSettingsBody.safeParse(req.body);
+  if (!parsed.success || !Number.isInteger(parsed.data.overdueHours) || !Number.isInteger(parsed.data.criticalHours)
+    || parsed.data.criticalHours <= parsed.data.overdueHours) {
+    res.status(400).json({ error: "Pragova morata biti celi uri: zapadlo najmanj 1 h, kritično pozneje in največ 8760 h." });
+    return;
+  }
+  await pool.query(`
+    INSERT INTO viva_refund_alert_settings(company_id, overdue_hours, critical_hours)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (company_id) DO UPDATE
+    SET overdue_hours = EXCLUDED.overdue_hours, critical_hours = EXCLUDED.critical_hours
+  `, [posReq.companyId, parsed.data.overdueHours, parsed.data.criticalHours]);
+  res.json(parsed.data);
+});
+
 router.get("/terminal/viva/terminal/refunds/unknown", async (req, res): Promise<void> => {
   const posReq = req as unknown as PosRequest;
   if (!mayManageUnknownVivaRefund(posReq.vloga)) {
     res.status(403).json({ error: "Za pregled nejasnih vračil je potrebna administratorska vloga." });
     return;
   }
+  const settings = await readRefundAlertSettings(posReq.companyId);
   const items = await db.select({
     id: vivaVracilaTable.id,
     racunId: vivaVracilaTable.racunId,
@@ -1824,7 +1871,7 @@ router.get("/terminal/viva/terminal/refunds/unknown", async (req, res): Promise<
       eq(vivaVracilaTable.enotaId, posReq.enotaId),
       inArray(vivaVracilaTable.status, ["unknown", "awaiting_approval"]),
     ))
-    .orderBy(desc(vivaVracilaTable.ustvarjeno));
+    .orderBy(vivaVracilaTable.ustvarjeno);
   const [unit] = await db.select({ threshold: enoteTable.vivaRefundApprovalThreshold })
     .from(enoteTable).where(eq(enoteTable.id, posReq.enotaId));
   res.json({
@@ -1832,6 +1879,7 @@ router.get("/terminal/viva/terminal/refunds/unknown", async (req, res): Promise<
     items: items.map(item => ({
       ...item,
       canApprove: item.status !== "awaiting_approval" || item.prviOdobriteljClerkUserId !== posReq.clerkUserId,
+      ...refundAgeState(item.ustvarjeno, settings),
       znesek: Number(item.znesek),
       ustvarjeno: item.ustvarjeno instanceof Date ? item.ustvarjeno.toISOString() : item.ustvarjeno,
     })),

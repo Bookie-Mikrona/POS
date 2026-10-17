@@ -38,6 +38,7 @@ import { AdminEnotaStaticInfo } from "@/components/AdminEnotaStaticInfo";
 import { SifrantiSidebar } from "@/components/SifrantiSidebar";
 import { NAV_ANY_CAPABILITY_BY_PATH, NAV_CAPABILITY_BY_PATH, canAccessPosRoute, type UnitCapability } from "@/lib/unitProfiles";
 import { CtiDohodniKlicPopup } from "@/components/CtiDohodniKlicPopup";
+import { VivaRefundAgeAlertBanner } from "@/components/VivaRefundAgeAlerts";
 import { AgentLauncher } from "@/components/AgentLauncher";
 import { BlagajnaProvider } from "@/contexts/BlagajnaContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -803,6 +804,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           <CertExpiryBanner />
           <FursNapakaRetryBanner />
           <VoucherDeliveryAlertBanner />
+          <VivaRefundAgeAlertBanner />
           <OfflineFiscalQueueStatus />
           <LocalGatewayStatusBanner />
         </>}

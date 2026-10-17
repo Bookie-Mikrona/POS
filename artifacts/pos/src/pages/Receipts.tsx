@@ -23,6 +23,8 @@ import { poslovniDatumZaCas } from "@/lib/posCas";
 import { hasReceiptPrintChanges } from "@/lib/receipt-print-changes";
 import { MonthlyInvoicesDialog } from "@/components/MonthlyInvoicesDialog";
 import { FursStateBadge, ReliabilityPanels, classifyFursReceipt } from "@/components/PaymentReliabilityPanels";
+import { VivaRefundAlertSettingsPanel } from "@/components/VivaRefundAgeAlerts";
+import { getGetVivaRefundAlertOverviewQueryKey } from "@workspace/api-client-react";
 import { useUpdateVivaRefundApprovalPolicy } from "@workspace/api-client-react";
 
 function parseFursError(fursOdgovor: string | null | undefined): { koda: string; sporocilo: string } | null {
@@ -670,10 +672,11 @@ export function RefundEvidencePreview({ evidence }: { evidence: { id: string; na
 }
 
 export function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data, isLoading } = useListUnknownVivaRefunds({
-    query: { enabled, queryKey: getListUnknownVivaRefundsQueryKey(), refetchInterval: 15000 },
+    query: { enabled, queryKey: [...getListUnknownVivaRefundsQueryKey(), user?.id, user?.companyId, user?.enotaId], refetchInterval: 15000, staleTime: 0 },
   });
   const resolveRefund = useResolveUnknownVivaRefund();
   const updatePolicy = useUpdateVivaRefundApprovalPolicy();
@@ -734,6 +737,7 @@ export function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
     try {
       const odgovor = await vivaTerminalRefundStatus(refundSessionId);
       await queryClient.invalidateQueries({ queryKey: getListUnknownVivaRefundsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getGetVivaRefundAlertOverviewQueryKey() });
       toast({
         title: odgovor.status === "PAID" || odgovor.status === "FAILED" ? "Status je razrešen" : "Izid še ni znan",
         description: odgovor.status === "UNKNOWN"
@@ -757,6 +761,7 @@ export function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
           await Promise.all([
             queryClient.invalidateQueries({ queryKey: getListUnknownVivaRefundsQueryKey() }),
             queryClient.invalidateQueries({ queryKey: getListVivaVracilaQueryKey(izbrano.racunId) }),
+            queryClient.invalidateQueries({ queryKey: getGetVivaRefundAlertOverviewQueryKey() }),
           ]);
           toast({ title: odgovor.status === "awaiting_approval" ? "Predlog čaka drugo odobritev" : "Vračilo je razrešeno",
             description: odgovor.status === "awaiting_approval" ? "Isti izid mora potrditi drug Clerk uporabnik. Vračilo še ni dokončno razrešeno." : `Ročno stanje je nastavljeno na ${odgovor.status}.` });
@@ -807,6 +812,9 @@ export function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-semibold">{item.stevilkaRacuna} · {formatEur(Number(item.znesek))}</p>
+                  <Badge variant={item.ageState === "critical" ? "destructive" : "outline"} className={item.ageState === "overdue" ? "border-amber-600 text-amber-900" : ""}>
+                    {item.ageState === "critical" ? "Kritično staro" : item.ageState === "overdue" ? "Zapadlo" : "Sveže"} · {Math.floor(item.ageHours)} h
+                  </Badge>
                   <p className="text-xs text-muted-foreground">
                     {new Date(item.ustvarjeno).toLocaleString("sl-SI", { timeZone: "Europe/Ljubljana" })}
                     {" · "}<span className="font-mono">{item.refundSessionId}</span>
@@ -1639,6 +1647,7 @@ export default function Receipts() {
       </div>
       {lahkoIzdaMesecne && <MonthlyInvoicesDialog open={mesecniOpen} onOpenChange={setMesecniOpen} />}
        <ReliabilityPanels />
+      {lahkoVidiRefundAudit && <VivaRefundAlertSettingsPanel key={`${user?.companyId}:${user?.enotaId}`} />}
       <UnknownVivaRefundsPanel enabled={lahkoVidiRefundAudit} />
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 sm:gap-3">

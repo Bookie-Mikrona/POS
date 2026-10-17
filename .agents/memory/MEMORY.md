@@ -3,15 +3,12 @@
 - [Claude konzultacija](claude-konzultacija.md) — pri neznanih SDK/hardware/algoritmičnih problemih pokliči Claude najprej, šele nato implementiraj
 - [Brisanje razvojnih prijav](dev-clerk-user-cleanup.md) — e-pošto razreši v razvojnem Clerku; DB vloge veži na Clerk ID, poslovno/revizijsko zgodovino ohrani.
 - [ERP company header](erp-company-header.md) — ERP poročila morajo aktivno podjetje vedno poslati eksplicitno, ne zanašati se na legacy localStorage fallback.
-- [QR meni slike in ETA pijač](qr-meni-slike-eta-pijac.md) — široke slike so 3 : 1; čista naročila pijač uporabljajo ločeno barsko vrsto.
-- [QR meni uporabniški izrazi](qr-meni-uporabniski-izrazi.md) — glava kaže mizo in prostor; kategorije so vse vidne; artikel se doda v košarico, naročilo se odda pozneje.
+- [Pravila javnega QR menija](qr-menu-guides.md) — prikaz, izrazi, To Go, več naročil, alkohol, lokacija in zasebnost operativnih podatkov.
 - [Pice: velikosti in poraba](pizza-guides.md) — povezana pravila cen, hlebčkov in razlike med postajo pica ter operativnim tipom.
 - [Pitna voda v receptih](tap-water-recipe-policy.md) — voda iz pipe ostane v navodilih priprave, nikoli kot nabavni artikel ali zalogovna sestavina.
 - [POS izbira podjetja](pos-izbira-podjetja.md) — več aktivnih POS vlog je dvoumnih; zahtevaj X-Company-Id, en sam vnos se lahko razreši samodejno
 - [POS kartične reference](pos-karticne-reference.md) — SumUp/Viva referenco je treba atomsko globalno rezervirati pred FURS klicem v vseh računskih tokovih
-- [QR To Go artikli](qr-to-go-artikli.md) — javni QR meni možnost To Go pokaže le pri artiklu, ki jo ima omogočeno; strežnik izbiro vedno preveri.
 - [Prikaz cene To Go embalaže](pos-embalaza-cenovni-prikaz.md) — cena je le prikazno pri staršu, računovodska/DDV vrstica ostane ločena; drugi dodatki ostanejo plačljivi.
-- [Več QR naročil na mizi](qr-vec-narocil-na-mizi.md) — različne naprave ostanejo ločene, POS pa mora na isti mizi prikazati in odpreti vsako naročilo.
 - [CTI žeton po enoti](cti-zeton-po-enoti.md) — dohodni MacroDroid klic se enolično veže na aktivno enoto prek lastnega žetona, nikoli prek telesa ali skupne skrivnosti
 - [Navigacija po formah](form-navigation.md) — puščice + Enter na vseh vnosnih poljih; navFoo() helper za tabelarne forme
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
@@ -20,7 +17,6 @@
 - [Purchase rate map spec](purchase-rate-map-spec.md) — spec za ERP prejemnice: DB tabela, validacija, 3 pravila (datum dobave, asimetrično opozorilo, ločena kontrola)
 - [Ljubljana timezone](ljubljana-timezone.md) — UTC+1 zima / UTC+2 poletje; doc datumi shranjeni kot UTC wall-clock, prikaz z timeZone:"UTC"
 - [KDS pravila in prikaz](kds-guides.md) — čas priprave, postaje po enoti, varni preklici, stabilnost oken ter enaki statusi na KDS in naročilih.
-- [QR alkohol brez blokade](qr-alkohol-brez-blokade.md) — QR alkohol gre takoj v pripravo; osebje starost in opitost preveri ob postrežbi pri mizi.
 - [Zapiranje POS 109](pos-109-zapiranje.md) — prejemnico je dovoljeno zapreti le iz natančnega POS posnetka v temeljnici in z usklajenim zaklepanjem računa
 - [Bon za pico logika](bon-za-pico-logika.md) — skupaj/ddv je že neto; bon za pico je info vrstica; buildBonPicaAdjustedPostavke za tiskanje; statistike ne odštevajo bonPica
 - [POS tiskanje](pos-tiskanje.md) — potrjeni profili tiskalnikov; ovite PDF celice preveri z geometrijo, WebKit pa na delujočem runnerju.
@@ -63,7 +59,6 @@
 - [Več rezervacij mize](vec-rezervacij-mize.md) — 3h razmik, 2h blokada naročil, 1h rumeno stanje; rezervacijo porabi le izrecen prihod gosta.
 - [Arhiv miz in zgodovina rezervacij](rezervacije-arhiv-in-zgodovina.md) — mize se arhivirajo; rezervacije hranijo posnetke in append-only revizijsko sled.
 - [Kanonični POS tloris](pos-tloris-kanonicni.md) — verzioniran dokument je edini geometrijski zapis; aktivne mize se vedno atomsko uskladijo.
-- [QR lokacijska aktivacija](qr-lokacijska-aktivacija.md) — spletni GPS je približevalna ovira, ne neponaredljiv dokaz; strožja zaščita potrebuje fizični signal.
 - [QR napitnina](qr-napitnina.md) — na odprtem naročilu je trenutna izbrana vrednost; ponovna oddaja jo prepiše in je nikoli ne prišteva prodajnemu znesku.
 - [Davčna politika napitnin](davcna-politika-napitnin.md) — kartični tok ne določa davka; odločata dokumentiran dogovor in dejanski nadzor, provizija pa sledi pogodbenemu bremenu.
 - [Napitnine: delitev in knjiženje](napitnine-delitev-knjizenje.md) — prostovoljna napitnina, obvezni dodatek, delitveni snapshot, plačni izvoz in GK zapiranje so ločeni tokovi.
@@ -151,6 +146,6 @@
 - [Shared SMTP identity](shared-smtp-identity.md) — the central Mikrona relay serves multiple companies; recipients must see the document owner's business identity.
 - [Avtomatizacija brez ročnih vnosov](avtomatizacija-brez-rocnih-vnosov.md) — privzeto samodejno, ročni vnos le za popravek; sprašuj le pri nepovratnem ali dvoumnem
 - [Uskladitev POS temeljnic](pos-receipt-booking-reconciliation.md) — plačan B2B ostane posamičen; zbirniki ohranijo izdani DDV in časovno sled storna.
-- [Javni QR meni – kaj gost vidi](qr-meni-javni-podatki.md) — brez internih opomb, brez točnih količin, prazne kategorije skrite; skupni formatter zneskov in imena mize.
 - [Naročila dobaviteljem in prevzemi](supplier-orders-and-receipts.md) — naročilo ne spreminja zaloge; interne opombe so ločene, dolga navodila pa se varno paginirajo.
 - [POS Zod resolver tipi](pos-zod-v3-resolver.md) — POS obrazci z v3 resolverjem naj izrecno uvozijo zod/v3, da se izognejo navzkrižju tipov shem.
+- [Starostna opozorila vračil](refund-aging-policy.md) — zvišanje pragov ne umakne že sproženega finančnega opozorila; zapre ga dejanska razrešitev.

@@ -570,6 +570,8 @@ import type {
   VatReturnResponse,
   VivaPayBody,
   VivaPayOdgovor,
+  VivaRefundAlertOverview,
+  VivaRefundAlertSettings,
   VivaRefundApprovalPolicy,
   VivaStatusOdgovor,
   VivaTerminalPayBody,
@@ -19660,6 +19662,154 @@ export function useVivaTerminalRefundStatus<TData = Awaited<ReturnType<typeof vi
 
 
 
+
+export const getGetVivaRefundAlertOverviewUrl = () => {
+
+
+
+
+  return `/api/terminal/viva/terminal/refunds/alert-settings`
+}
+
+/**
+ * @summary Starostni pragovi podjetja in aktivna opozorila vračil enote za administratorje
+ */
+export const getVivaRefundAlertOverview = async ( options?: RequestInit): Promise<VivaRefundAlertOverview> => {
+
+  return customFetch<VivaRefundAlertOverview>(getGetVivaRefundAlertOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVivaRefundAlertOverviewQueryKey = () => {
+    return [
+    `/api/terminal/viva/terminal/refunds/alert-settings`
+    ] as const;
+    }
+
+
+export const getGetVivaRefundAlertOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getVivaRefundAlertOverview>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVivaRefundAlertOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVivaRefundAlertOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVivaRefundAlertOverview>>> = ({ signal }) => getVivaRefundAlertOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVivaRefundAlertOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVivaRefundAlertOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getVivaRefundAlertOverview>>>
+export type GetVivaRefundAlertOverviewQueryError = ErrorType<void>
+
+
+/**
+ * @summary Starostni pragovi podjetja in aktivna opozorila vračil enote za administratorje
+ */
+
+export function useGetVivaRefundAlertOverview<TData = Awaited<ReturnType<typeof getVivaRefundAlertOverview>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVivaRefundAlertOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVivaRefundAlertOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateVivaRefundAlertSettingsUrl = () => {
+
+
+
+
+  return `/api/terminal/viva/terminal/refunds/alert-settings`
+}
+
+/**
+ * @summary Administrator podjetja nastavi starostna pragova nejasnih vračil
+ */
+export const updateVivaRefundAlertSettings = async (vivaRefundAlertSettings: VivaRefundAlertSettings, options?: RequestInit): Promise<VivaRefundAlertSettings> => {
+
+  return customFetch<VivaRefundAlertSettings>(getUpdateVivaRefundAlertSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vivaRefundAlertSettings)
+  }
+);}
+
+
+
+
+
+export const getUpdateVivaRefundAlertSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVivaRefundAlertSettings>>, TError,{data: BodyType<VivaRefundAlertSettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVivaRefundAlertSettings>>, TError,{data: BodyType<VivaRefundAlertSettings>}, TContext> => {
+
+const mutationKey = ['updateVivaRefundAlertSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVivaRefundAlertSettings>>, {data: BodyType<VivaRefundAlertSettings>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateVivaRefundAlertSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVivaRefundAlertSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateVivaRefundAlertSettings>>>
+    export type UpdateVivaRefundAlertSettingsMutationBody = BodyType<VivaRefundAlertSettings>
+    export type UpdateVivaRefundAlertSettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Administrator podjetja nastavi starostna pragova nejasnih vračil
+ */
+export const useUpdateVivaRefundAlertSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVivaRefundAlertSettings>>, TError,{data: BodyType<VivaRefundAlertSettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateVivaRefundAlertSettings>>,
+        TError,
+        {data: BodyType<VivaRefundAlertSettings>},
+        TContext
+      > => {
+      return useMutation(getUpdateVivaRefundAlertSettingsMutationOptions(options));
+    }
 
 export const getListUnknownVivaRefundsUrl = () => {
 

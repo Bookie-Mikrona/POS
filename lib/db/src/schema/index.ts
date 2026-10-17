@@ -56,3 +56,4 @@ export * from "./ujp-prejemniki";
 export * from "./ajpes-subjekti";
 export * from "./pos/allergen-research-jobs";
 export * from "./pos/booking-drafts";
+export * from "./pos/viva-refund-alerts";

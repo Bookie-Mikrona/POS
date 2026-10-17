@@ -84,6 +84,7 @@ const migrations = [
   "263-erp-smtp-settings.sql",
   "264-amortizacija-active-entry-unique.sql",
   "265-viva-refund-evidence.sql",
+  "265-viva-refund-aging-alerts.sql",
 ] as const;
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptsDir, "../../../lib/db/src/migrations");

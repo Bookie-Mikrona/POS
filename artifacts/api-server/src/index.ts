@@ -10,6 +10,7 @@ import { startVoucherDeliveryRetryScheduler } from "./routes/publicVisits";
 import { startPublicProfileImageRetentionScheduler } from "./lib/publicProfileImageRetention";
 import { startAllergenResearchRunner } from "./lib/allergen-research-runner";
 import { startReportExportRetentionScheduler } from "./lib/reportExportRetention";
+import { startUnknownRefundAlertScheduler } from "./lib/vivaRefundAlerts";
 
 const rawPort = process.env["PORT"];
 
@@ -58,4 +59,5 @@ app.listen(port, (err) => {
   startPublicProfileImageRetentionScheduler();
   startAllergenResearchRunner();
   startReportExportRetentionScheduler();
+  startUnknownRefundAlertScheduler();
 });

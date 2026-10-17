@@ -10636,11 +10636,67 @@ export const VivaTerminalRefundStatusResponse = zod.object({
 
 
 /**
+ * @summary Starostni pragovi podjetja in aktivna opozorila vračil enote za administratorje
+ */
+export const getVivaRefundAlertOverviewResponseSettingsOverdueHoursMax = 8759;
+
+export const getVivaRefundAlertOverviewResponseSettingsCriticalHoursMin = 2;
+export const getVivaRefundAlertOverviewResponseSettingsCriticalHoursMax = 8760;
+
+
+
+export const GetVivaRefundAlertOverviewResponse = zod.object({
+  "settings": zod.object({
+  "overdueHours": zod.number().min(1).max(getVivaRefundAlertOverviewResponseSettingsOverdueHoursMax),
+  "criticalHours": zod.number().min(getVivaRefundAlertOverviewResponseSettingsCriticalHoursMin).max(getVivaRefundAlertOverviewResponseSettingsCriticalHoursMax)
+}),
+  "alerts": zod.array(zod.object({
+  "id": zod.number(),
+  "refundId": zod.number(),
+  "threshold": zod.enum(['overdue', 'critical']),
+  "thresholdHours": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "stevilkaRacuna": zod.string()
+}))
+})
+
+
+/**
+ * @summary Administrator podjetja nastavi starostna pragova nejasnih vračil
+ */
+export const updateVivaRefundAlertSettingsBodyOverdueHoursMax = 8759;
+
+export const updateVivaRefundAlertSettingsBodyCriticalHoursMin = 2;
+export const updateVivaRefundAlertSettingsBodyCriticalHoursMax = 8760;
+
+
+
+export const UpdateVivaRefundAlertSettingsBody = zod.object({
+  "overdueHours": zod.number().min(1).max(updateVivaRefundAlertSettingsBodyOverdueHoursMax),
+  "criticalHours": zod.number().min(updateVivaRefundAlertSettingsBodyCriticalHoursMin).max(updateVivaRefundAlertSettingsBodyCriticalHoursMax)
+})
+
+export const updateVivaRefundAlertSettingsResponseOverdueHoursMax = 8759;
+
+export const updateVivaRefundAlertSettingsResponseCriticalHoursMin = 2;
+export const updateVivaRefundAlertSettingsResponseCriticalHoursMax = 8760;
+
+
+
+export const UpdateVivaRefundAlertSettingsResponse = zod.object({
+  "overdueHours": zod.number().min(1).max(updateVivaRefundAlertSettingsResponseOverdueHoursMax),
+  "criticalHours": zod.number().min(updateVivaRefundAlertSettingsResponseCriticalHoursMin).max(updateVivaRefundAlertSettingsResponseCriticalHoursMax)
+})
+
+
+/**
  * @summary Seznam nejasnih Viva vračil aktivne enote za administratorsko uskladitev
  */
 export const ListUnknownVivaRefundsResponse = zod.object({
   "approvalThreshold": zod.number(),
   "items": zod.array(zod.object({
+  "ageHours": zod.number(),
+  "ageState": zod.enum(['fresh', 'overdue', 'critical']),
   "status": zod.enum(['unknown', 'awaiting_approval']),
   "canApprove": zod.boolean(),
   "predlaganiStatus": zod.union([zod.literal('paid'),zod.literal('failed'),zod.literal(null)]).nullish(),
