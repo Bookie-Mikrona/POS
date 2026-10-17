@@ -1,5 +1,5 @@
 import { formatDatum } from "@/lib/utils";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Layers,
   FolderOpen,
@@ -22,6 +22,7 @@ import {
   useListAccounts,
 } from "@workspace/api-client-react";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useDimensionReportFilters } from "@/hooks/use-dimension-report-filters";
 
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -115,14 +116,6 @@ function fmt(val: string | number | undefined | null): string {
   });
 }
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function yearStart() {
-  return `${new Date().getFullYear()}-01-01`;
-}
-
 function balanceColor(val: string): string {
   const n = parseFloat(val);
   if (n > 0) return "text-emerald-600 dark:text-emerald-400";
@@ -149,23 +142,16 @@ export default function PorocilaAnalitika() {
   const { activeCompany } = useCompany();
   const companyId = activeCompany?.id ?? "";
 
-  // Filter state (what the user is editing)
-  const [dimensionType, setDimensionType] = useState<DimensionType>("costCenter");
-  const [dateFrom, setDateFrom] = useState(yearStart());
-  const [dateTo, setDateTo] = useState(todayStr());
-  const [accountId, setAccountId] = useState<string>("");
-
-  // Applied filter state (what was last queried)
-  const [applied, setApplied] = useState<{
-    dimensionType: DimensionType;
-    dateFrom: string;
-    dateTo: string;
-    accountId: string;
-    queried: boolean;
-  }>({ dimensionType: "costCenter", dateFrom: yearStart(), dateTo: todayStr(), accountId: "", queried: false });
+  // The URL is the source of truth, including on reload and back/forward navigation.
+  const { filters, queried, updateFilters } = useDimensionReportFilters();
+  const { dimensionType, dateFrom, dateTo, accountId } = filters;
+  const applied = { ...filters, queried };
 
   // Expanded dimension rows (set of row ids)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setExpandedRows(new Set());
+  }, [dimensionType, dateFrom, dateTo, accountId, queried, companyId]);
 
   function toggleRow(id: string) {
     setExpandedRows((prev) => {
@@ -197,13 +183,7 @@ export default function PorocilaAnalitika() {
   );
 
   function handleGenerate() {
-    setApplied({
-      dimensionType,
-      dateFrom,
-      dateTo,
-      accountId,
-      queried: true,
-    });
+    updateFilters();
     setExpandedRows(new Set());
   }
 
@@ -245,7 +225,7 @@ export default function PorocilaAnalitika() {
             <Label className="text-xs">Dimenzija</Label>
             <Select
               value={dimensionType}
-              onValueChange={(v) => setDimensionType(v as DimensionType)}
+              onValueChange={(v) => updateFilters({ dimensionType: v as DimensionType })}
             >
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue />
@@ -266,7 +246,7 @@ export default function PorocilaAnalitika() {
             <Input
               type="date"
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(e) => updateFilters({ dateFrom: e.target.value })}
               className="h-9 text-sm"
             />
           </div>
@@ -277,7 +257,7 @@ export default function PorocilaAnalitika() {
             <Input
               type="date"
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(e) => updateFilters({ dateTo: e.target.value })}
               className="h-9 text-sm"
             />
           </div>
@@ -336,7 +316,7 @@ export default function PorocilaAnalitika() {
             <Label className="text-xs">Konto (neobvezno)</Label>
             <Select
               value={accountId || "_all"}
-              onValueChange={(v) => setAccountId(v === "_all" ? "" : v)}
+              onValueChange={(v) => updateFilters({ accountId: v === "_all" ? "" : v })}
             >
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue placeholder="Vsi konti" />
@@ -360,8 +340,7 @@ export default function PorocilaAnalitika() {
               className="text-xs h-7"
               onClick={() => {
                 const y = new Date().getFullYear();
-                setDateFrom(`${y}-01-01`);
-                setDateTo(`${y}-12-31`);
+                updateFilters({ dateFrom: `${y}-01-01`, dateTo: `${y}-12-31` });
               }}
             >
               Tekoče leto
@@ -372,8 +351,7 @@ export default function PorocilaAnalitika() {
               className="text-xs h-7"
               onClick={() => {
                 const y = new Date().getFullYear() - 1;
-                setDateFrom(`${y}-01-01`);
-                setDateTo(`${y}-12-31`);
+                updateFilters({ dateFrom: `${y}-01-01`, dateTo: `${y}-12-31` });
               }}
             >
               Preteklo leto
@@ -390,8 +368,7 @@ export default function PorocilaAnalitika() {
                 // Lokalni zadnji dan — ne toISOString(), ki pri UTC+2 da prejšnji dan
                 const _ld = new Date(y, m, 0);
                 const lastDay = `${_ld.getFullYear()}-${String(_ld.getMonth() + 1).padStart(2, "0")}-${String(_ld.getDate()).padStart(2, "0")}`;
-                setDateFrom(firstDay);
-                setDateTo(lastDay);
+                updateFilters({ dateFrom: firstDay, dateTo: lastDay });
               }}
             >
               Tekoči mesec
