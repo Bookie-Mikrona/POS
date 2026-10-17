@@ -13,8 +13,8 @@
  * fireEvent.mouseDown (ne click) — Trigger interno poslušna na onMouseDown.
  */
 import "@testing-library/jest-dom";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, screen, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, fireEvent, screen, within, waitFor, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import Zaloge from "./Zaloge";
@@ -32,6 +32,7 @@ const mockPrejemnica = {
 // ── Hoisted mock funkcije ───────────────────────────────────────────────────
 const mockDeleteMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
+const mockGetPrejemnica = vi.hoisted(() => vi.fn(() => ({ data: undefined, isLoading: true, isError: false })));
 
 // ── Moki za @workspace/api-client-react ─────────────────────────────────────
 vi.mock("@workspace/api-client-react", () => ({
@@ -60,7 +61,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useUpdateInventura: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteInventura: () => ({ mutate: vi.fn(), isPending: false }),
   useGetKarticaArtikla: () => ({ data: undefined, isLoading: false }),
-  useGetPrejemnica: () => ({ data: undefined, isLoading: false }),
+  useGetPrejemnica: mockGetPrejemnica,
   useGetInventura: () => ({ data: undefined, isLoading: false }),
   useCreateZacetnaZaloga: () => ({ mutate: vi.fn(), isPending: false }),
   useGetZacetnaZaloga: () => ({ data: undefined, isLoading: false }),
@@ -81,6 +82,13 @@ vi.mock("@workspace/api-client-react", () => ({
   getEnotaId: () => 1,
   getAuthToken: async () => null,
 }));
+
+afterEach(() => {
+  cleanup();
+  window.history.replaceState({}, "", "/");
+  mockGetPrejemnica.mockClear();
+  mockGetPrejemnica.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+});
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
@@ -117,6 +125,29 @@ function renderZaloge() {
   );
   return { queryClient, container: result.container };
 }
+
+describe("Zaloge — neposredno odpiranje prejemnice", () => {
+  it("iz poizvedbe odpre podrobnosti zahtevane prejemnice", async () => {
+    window.history.pushState({}, "", "/zaloge?prejemnica=4207");
+
+    renderZaloge();
+
+    expect(await screen.findByText("Uredi prejemnico")).toBeInTheDocument();
+    await waitFor(() => expect(mockGetPrejemnica).toHaveBeenCalledWith(4207));
+    expect(screen.getByRole("tab", { name: "Prejemnice", hidden: true })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("pokaže jasno sporočilo, ko prejemnice ni mogoče naložiti", async () => {
+    mockGetPrejemnica.mockReturnValue({ data: undefined, isLoading: false, isError: true });
+    window.history.pushState({}, "", "/zaloge?prejemnica=4208");
+
+    renderZaloge();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Prejemnice ni mogoče odpreti. Preverite povezavo, izbrano enoto in dovoljenja.",
+    );
+  });
+});
 
 /**
  * Preklopi na zavihek "Prejemnice".

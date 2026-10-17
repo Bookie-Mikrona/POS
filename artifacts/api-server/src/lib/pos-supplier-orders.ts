@@ -218,6 +218,7 @@ export async function syncSupplierOrdersForReceipt(
 }
 
 export type SupplierPriceReceiptSource = {
+  receiptId: number;
   date: string;
   receiptNumber: string;
 };
@@ -234,6 +235,7 @@ export async function getLatestSupplierPriceReceipts(
   const result = await tx.execute(sql`
     SELECT DISTINCT ON (order_line.supplier_mapping_id)
       order_line.supplier_mapping_id AS "mappingId",
+      receipt.id AS "receiptId",
       TO_CHAR(receipt.datum, 'YYYY-MM-DD') AS "date",
       COALESCE(
         NULLIF(BTRIM(receipt.stevilka), ''),
@@ -267,11 +269,12 @@ export async function getLatestSupplierPriceReceipts(
   `);
   return new Map((result.rows as Array<{
     mappingId: number | string;
+    receiptId: number | string;
     date: string;
     receiptNumber: string;
   }>).map(row => [
     Number(row.mappingId),
-    { date: row.date, receiptNumber: row.receiptNumber },
+    { receiptId: Number(row.receiptId), date: row.date, receiptNumber: row.receiptNumber },
   ]));
 }
 

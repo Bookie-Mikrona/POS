@@ -10740,6 +10740,7 @@ export const GetSupplierOrderDashboardResponse = zod.object({
   "packageFactor": zod.number(),
   "lastPackagePrice": zod.number().nullish(),
   "lastPriceReceipt": zod.object({
+  "receiptId": zod.number(),
   "date": zod.coerce.date(),
   "receiptNumber": zod.string()
 }).nullable(),

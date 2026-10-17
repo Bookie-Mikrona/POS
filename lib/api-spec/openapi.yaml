@@ -19448,8 +19448,9 @@ components:
         lastPackagePrice: { type: [number, "null"] }
         lastPriceReceipt:
           type: [object, "null"]
-          required: [date, receiptNumber]
+          required: [receiptId, date, receiptNumber]
           properties:
+            receiptId: { type: integer }
             date: { type: string, format: date }
             receiptNumber: { type: string }
         active: { type: boolean }

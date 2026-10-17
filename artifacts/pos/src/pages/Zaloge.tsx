@@ -49,6 +49,7 @@ import {
   ApiError,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1854,7 +1855,7 @@ function EditPrejemnicaDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { data, isLoading } = useGetPrejemnica(id);
+  const { data, isLoading, isError } = useGetPrejemnica(id);
   const updatePrejemnica = useUpdatePrejemnica();
   const { data: kupci } = useListPartnerji();
   const queryClient = useQueryClient();
@@ -2386,7 +2387,7 @@ function EditPrejemnicaDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Uredi prejemnico
-            <Badge variant={isConfirmed ? "default" : "secondary"}>{isConfirmed ? "Potrjena" : "Osnutek"}</Badge>
+            {data && <Badge variant={isConfirmed ? "default" : "secondary"}>{isConfirmed ? "Potrjena" : "Osnutek"}</Badge>}
           </DialogTitle>
         </DialogHeader>
         {!isConfirmed && (
@@ -2394,7 +2395,12 @@ function EditPrejemnicaDialog({
             Osnutek še ne vpliva na zalogo ali evidenco embalaže. Pred uporabo zaloge potrdite prejemnico.
           </div>
         )}
-        {isLoading || rows.length === 0 ? (
+        {isError ? (
+          <div role="alert" className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            <p>Prejemnice ni mogoče odpreti. Preverite povezavo, izbrano enoto in dovoljenja.</p>
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>Zapri</Button>
+          </div>
+        ) : isLoading || rows.length === 0 ? (
           <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
         ) : (
           <div className="flex-1 overflow-y-auto pr-1">
@@ -3298,6 +3304,7 @@ function EditZacetnaZalogaDialog({
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function Zaloge() {
+  const receiptSearch = useSearch();
   const { data: zaloge, isLoading: loadingZ } = useListZaloge();
   const { data: prejemnice, isLoading: loadingP } = useListPrejemnice();
   const { data: inventure, isLoading: loadingI } = useListInventure();
@@ -3822,6 +3829,23 @@ export default function Zaloge() {
 
   // ── Prejemnica edit ────────────────────────────────────────────────
   const [editPrejId, setEditPrejId] = useState<number | null>(null);
+  useEffect(() => {
+    const rawReceiptId = new URLSearchParams(receiptSearch).get("prejemnica");
+    if (rawReceiptId === null) return;
+
+    const receiptId = Number(rawReceiptId);
+    if (!/^\d+$/.test(rawReceiptId) || !Number.isSafeInteger(receiptId) || receiptId <= 0) {
+      toast({
+        title: "Prejemnice ni mogoče odpreti",
+        description: "Povezava ne vsebuje veljavne prejemnice.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setActiveTab("prejemnice");
+    setEditPrejId(receiptId);
+  }, [receiptSearch, toast]);
 
   // ── Prejemnica delete ──────────────────────────────────────────────
   const [deletePrejId, setDeletePrejId] = useState<number | null>(null);

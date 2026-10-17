@@ -8098,6 +8098,7 @@ export const SupplierOrderStatus = {
  * @nullable
  */
 export type SupplierItemMappingLastPriceReceipt = {
+  receiptId: number;
   date: string;
   receiptNumber: string;
 } | null;

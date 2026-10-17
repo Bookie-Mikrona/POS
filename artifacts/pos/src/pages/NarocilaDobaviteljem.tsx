@@ -519,7 +519,20 @@ export default function NarocilaDobaviteljem() {
                       {mapping.lastPackagePrice != null && <div className="mt-1 space-y-0.5 text-xs text-[#68756e]" data-testid={`last-price-source-${mapping.id}`}>
                         <div>Zadnja cena: {formatMoney(mapping.lastPackagePrice)} / pak.</div>
                         {mapping.lastPriceReceipt
-                          ? <div>Vir: prejemnica št. {mapping.lastPriceReceipt.receiptNumber} · {formatReceiptDate(mapping.lastPriceReceipt.date)}</div>
+                          ? <div>
+                            <button
+                              type="button"
+                              data-testid={`last-price-receipt-${mapping.id}`}
+                              aria-label={`Odpri prejemnico št. ${mapping.lastPriceReceipt.receiptNumber}`}
+                              onClick={() => {
+                                const sourceReceipt = mapping.lastPriceReceipt;
+                                if (sourceReceipt) navigate(`/zaloge?prejemnica=${sourceReceipt.receiptId}`);
+                              }}
+                              className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
+                            >
+                              Vir: prejemnica št. {mapping.lastPriceReceipt.receiptNumber} · {formatReceiptDate(mapping.lastPriceReceipt.date)}
+                            </button>
+                          </div>
                           : <div>Vir prejemnice ni zabeležen.</div>}
                       </div>}
                     </> : <span className="text-xs text-orange-800">Ni aktivne povezave</span>}

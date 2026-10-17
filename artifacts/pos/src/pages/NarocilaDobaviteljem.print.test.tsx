@@ -6,6 +6,7 @@ import NarocilaDobaviteljem from "./NarocilaDobaviteljem";
 const mocks = vi.hoisted(() => ({
   markSent: vi.fn(),
   mutation: vi.fn(),
+  navigate: vi.fn(),
   order: {
     id: 704,
     number: "N-2026-0704",
@@ -60,12 +61,16 @@ const mocks = vi.hoisted(() => ({
         packageName: "zaboj",
         packageFactor: 6,
         lastPackagePrice: 22.5,
-        lastPriceReceipt: { date: "2026-10-17", receiptNumber: "26100001" },
+        lastPriceReceipt: { receiptId: 7044, date: "2026-10-17", receiptNumber: "26100001" },
         active: true,
       }],
     }],
     orders: [],
   },
+}));
+
+vi.mock("wouter", () => ({
+  useLocation: () => ["/narocila-dobaviteljem", mocks.navigate],
 }));
 
 vi.mock("@workspace/api-client-react", async () => {
@@ -119,6 +124,7 @@ describe("supplier order print view", () => {
   beforeEach(() => {
     mocks.markSent.mockReset();
     mocks.mutation.mockReset();
+    mocks.navigate.mockReset();
     print.mockReset();
     Object.defineProperty(window, "print", { configurable: true, value: print });
   });
@@ -172,6 +178,9 @@ describe("supplier order print view", () => {
     expect(source.textContent).toContain("26100001");
     expect(source.textContent).toContain("17.");
     expect(source.textContent).toContain("2026");
+
+    fireEvent.click(screen.getByTestId("last-price-receipt-7042"));
+    expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7044");
   });
 
   it("sends internal notes and supplier instructions in separate fields", async () => {

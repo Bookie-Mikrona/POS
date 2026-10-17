@@ -305,6 +305,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .find((mapping: any) => mapping.id === mappingId);
     expect(mappingAfterFirstReceipt.lastPackagePrice).toBe(28);
     expect(mappingAfterFirstReceipt.lastPriceReceipt).toEqual({
+      receiptId: firstReceiptId,
       date: "2026-10-17",
       receiptNumber: firstReceiptDetail.body.stevilka,
     });
@@ -343,6 +344,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(mappingAfterSecondReceipt.lastPackagePrice).toBe(30);
     const secondReceiptDetail = await request(app).get(`/prejemnice/${secondReceiptId}`);
     expect(mappingAfterSecondReceipt.lastPriceReceipt).toEqual({
+      receiptId: secondReceiptId,
       date: "2026-10-17",
       receiptNumber: secondReceiptDetail.body.stevilka,
     });
