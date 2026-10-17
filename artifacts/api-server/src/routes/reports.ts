@@ -1,4 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
+import { clerkClient } from "@clerk/express";
 import { eq, and, gte, lte, sql, inArray, isNotNull, isNull, or, desc } from "drizzle-orm";
 import {
   db,
@@ -1312,7 +1313,33 @@ router.get(
       .orderBy(desc(reportExportsTable.exportedAt))
       .limit(200);
 
-    res.json({ exports: rows });
+    const userIds = [...new Set(rows.map((row) => row.exportedBy).filter(Boolean))];
+    const displayNames = new Map<string, string>();
+    // Deduplicate and batch only this company's exporters (Clerk's page size is 100).
+    try {
+      for (let offset = 0; offset < userIds.length; offset += 100) {
+        const { data: users } = await clerkClient.users.getUserList({
+          userId: userIds.slice(offset, offset + 100),
+          limit: 100,
+        });
+        for (const user of users) {
+          const name = [user.firstName?.trim(), user.lastName?.trim()].filter(Boolean).join(" ");
+          const email = user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)
+            ?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
+          displayNames.set(user.id, name || email?.trim() || "Neznan uporabnik");
+        }
+      }
+    } catch {
+      // A directory outage is not evidence that the exporter was deleted.
+      res.status(502).json({ error: "Podatkov o izvoznikih ni mogoče pridobiti. Poskusite znova." });
+      return;
+    }
+    res.json({
+      exports: rows.map((row) => ({
+        ...row,
+        exportedByName: displayNames.get(row.exportedBy) ?? "Neznan uporabnik",
+      })),
+    });
   },
 );
 

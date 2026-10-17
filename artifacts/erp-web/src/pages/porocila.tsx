@@ -1849,6 +1849,7 @@ interface ExportRecord {
   params: Record<string, string | undefined>;
   filename: string;
   exportedBy: string;
+  exportedByName: string;
   exportedAt: string;
   emailSentTo: string | null;
 }
@@ -2000,6 +2001,7 @@ function ExportHistoryTab() {
             <thead>
               <tr className="bg-muted/60 border-b border-border">
                 <th className="text-left px-4 py-2.5 font-semibold text-xs">Datum izvoza</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-xs">Izvozil/a</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-xs">Vrsta poročila</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-xs">Parametri</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-xs">Poslano na</th>
@@ -2020,6 +2022,9 @@ function ExportHistoryTab() {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">
+                    {rec.exportedByName || "Neznan uporabnik"}
                   </td>
                   <td className="px-4 py-2.5 text-xs">
                     <Badge variant="outline" className="text-xs font-normal">
