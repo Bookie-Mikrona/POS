@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Children, cloneElement, isValidElement, type ComponentProps, type ReactElement } from "react";
 import {
   buildTrendChartData,
   OperativnaPorocilaQrFeedback,
@@ -23,6 +24,22 @@ vi.mock("@workspace/api-client-react", async () => {
     useGetOperativnaPorocilaQrFeedback: mockUseFeedback,
     useGetOperativnaPorocilaQrFeedbackComments: mockUseComments,
     exportOperativnaPorocilaQrFeedback: mockExportFeedback,
+  };
+});
+
+// Keep real Recharts SVG/legend rendering, with fixed layout and no animation:
+// jsdom cannot measure container sizes or SVG path lengths.
+vi.mock("recharts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("recharts")>();
+  return {
+    ...actual,
+    ResponsiveContainer: ({ children }: { children: ReactElement<ComponentProps<typeof actual.LineChart>> }) => (
+      cloneElement(children, { width: 640, height: 300 },
+        Children.map(children.props.children, child =>
+          isValidElement<{ isAnimationActive?: boolean }>(child) && child.type === actual.Line
+            ? cloneElement(child, { isAnimationActive: false })
+            : child))
+    ),
   };
 });
 
@@ -140,6 +157,52 @@ describe("OperativnaPorocilaQrFeedback", () => {
     expect(screen.getByTestId("article-comparison-pizza").textContent).toContain("+1.0");
     expect(screen.getByTestId("article-direction-reason-pizza").textContent).toContain("vsaj 5 ocen");
     expect(screen.getByTestId("article-comparison-espresso").textContent).toContain("-1.0");
+  });
+
+  it("razloči vse tri serije z vzorci črt tudi v legendi in loči majhen vzorec", () => {
+    mockUseFeedback.mockReturnValue({
+      ...mockUseFeedback(),
+      data: {
+        ...feedbackReport,
+        trends: [
+          { ...feedbackReport.trends[0], serviceAverage: 4 },
+          { ...feedbackReport.trends[0], periodStart: "2026-09-02", periodEnd: "2026-09-02", serviceAverage: 4.5 },
+          { ...feedbackReport.trends[1], periodStart: "2026-09-03", periodEnd: "2026-09-03", serviceAverage: 3 },
+        ],
+      },
+    });
+    const { container } = renderComponent();
+    const expectedPatterns = [
+      { name: "Hrana", dash: null },
+      { name: "Ambient", dash: "8 4" },
+      { name: "Postrežba", dash: "2 4" },
+    ];
+    const curves = container.querySelectorAll('.recharts-line-curve:not([stroke="transparent"])');
+    const smallSampleCurves = container.querySelectorAll('.recharts-line-curve[stroke="transparent"]');
+    const legendItems = Array.from(container.querySelectorAll(".recharts-legend-item"));
+    expect(curves.length).toBe(3);
+    expect(smallSampleCurves.length).toBe(3);
+    expect(legendItems.length).toBe(3);
+    expectedPatterns.forEach(({ name, dash }, index) => {
+      expect(curves[index].getAttribute("stroke-dasharray")).toBe(dash);
+      const legendItem = legendItems.find(item => item.textContent === name);
+      const legendLine = legendItem?.querySelector("line");
+      expect(legendLine).toBeTruthy();
+      expect(legendLine!.getAttribute("stroke-dasharray")).toBe(dash);
+    });
+
+    const smallSampleDots = screen.getAllByTestId("trend-dot-small-sample");
+    expect(smallSampleDots.length).toBe(3);
+    smallSampleDots.forEach(dot => {
+      expect(dot.tagName).toBe("circle");
+      expect(dot.getAttribute("fill")).toBe("hsl(var(--background))");
+      expect(dot.getAttribute("stroke-dasharray")).toBe("2 1");
+    });
+    container.querySelectorAll(".recharts-line-dot").forEach(dot => {
+      expect(dot.getAttribute("r")).toBe("4");
+      expect(dot.getAttribute("fill")).not.toBe("hsl(var(--background))");
+    });
+    expect(screen.getByTestId("trend-sample-legend").textContent).toContain("majhen vzorec, brez povezovalne črte");
   });
 
   it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", () => {

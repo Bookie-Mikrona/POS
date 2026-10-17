@@ -383,9 +383,9 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
                       />
                       <Tooltip content={<TrendTooltip />} />
                       <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                      <Line type="monotone" name="Hrana" dataKey="foodReliable" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={false} />
-                      <Line type="monotone" name="Ambient" dataKey="ambienceReliable" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={false} />
-                      <Line type="monotone" name="Postrežba" dataKey="serviceReliable" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={false} />
+                      <Line type="monotone" name="Hrana" dataKey="foodReliable" stroke="#ef4444" strokeWidth={2} legendType="plainline" dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={false} />
+                      <Line type="monotone" name="Ambient" dataKey="ambienceReliable" stroke="#3b82f6" strokeWidth={2} strokeDasharray="8 4" legendType="plainline" dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={false} />
+                      <Line type="monotone" name="Postrežba" dataKey="serviceReliable" stroke="#10b981" strokeWidth={2} strokeDasharray="2 4" legendType="plainline" dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={false} />
                       <Line type="monotone" dataKey="foodSmallSample" stroke="transparent" legendType="none" dot={<SmallSampleDot />} activeDot={<SmallSampleDot active />} connectNulls={false} />
                       <Line type="monotone" dataKey="ambienceSmallSample" stroke="transparent" legendType="none" dot={<SmallSampleDot />} activeDot={<SmallSampleDot active />} connectNulls={false} />
                       <Line type="monotone" dataKey="serviceSmallSample" stroke="transparent" legendType="none" dot={<SmallSampleDot />} activeDot={<SmallSampleDot active />} connectNulls={false} />
