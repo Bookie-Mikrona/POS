@@ -642,6 +642,31 @@ describe("POS supplier ordering and linked receipt flow", () => {
         date: "2026-10-20",
       });
 
+      context.enotaId = unitB.id;
+      const inaccessibleReceiptA = await request(app).get(`/prejemnice/${sourceA.receiptId}`);
+      expect(inaccessibleReceiptA.status).toBe(404);
+      expect(JSON.stringify(inaccessibleReceiptA.body)).not.toContain(sourceA.receiptNumber);
+      expect(JSON.stringify(inaccessibleReceiptA.body)).not.toContain(`Unit A source article ${run}`);
+
+      const receiptDetailsB = await request(app).get(`/prejemnice/${sourceB.receiptId}`);
+      expect(receiptDetailsB.status, JSON.stringify(receiptDetailsB.body)).toBe(200);
+      expect(receiptDetailsB.body).toMatchObject({
+        id: sourceB.receiptId,
+        stevilka: sourceB.receiptNumber,
+      });
+      expect(receiptDetailsB.body.postavke.map((line: any) => line.artikelId)).toEqual([articleB.id]);
+      expect(JSON.stringify(receiptDetailsB.body)).not.toContain(`Unit A source article ${run}`);
+
+      context.enotaId = enotaId;
+      const receiptDetailsA = await request(app).get(`/prejemnice/${sourceA.receiptId}`);
+      expect(receiptDetailsA.status, JSON.stringify(receiptDetailsA.body)).toBe(200);
+      expect(receiptDetailsA.body).toMatchObject({
+        id: sourceA.receiptId,
+        stevilka: sourceA.receiptNumber,
+      });
+      expect(receiptDetailsA.body.postavke.map((line: any) => line.artikelId)).toEqual([articleA.id]);
+      expect(JSON.stringify(receiptDetailsA.body)).not.toContain(`Unit B source article ${run}`);
+
       const sourcesForA = await getLatestSupplierPriceReceipts(db, enotaId, [mappingA.id, mappingB.id]);
       expect(sourcesForA.get(mappingA.id)).toEqual({
         receiptId: sourceA.receiptId,
@@ -658,6 +683,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       });
       expect(sourcesForB.has(mappingA.id)).toBe(false);
 
+      context.enotaId = unitB.id;
       const dashboardB = await request(app).get("/narocila-dobaviteljem/pregled");
       expect(dashboardB.status, JSON.stringify(dashboardB.body)).toBe(200);
       expect(dashboardB.body.articles.map((row: any) => row.articleId)).toContain(articleB.id);
