@@ -33,7 +33,9 @@ import {
   UpdateInvoiceBody,
   VoidInvoiceBody,
   LinkInvoicePosReceiptBody,
+  DeleteInvoiceParams,
 } from "@workspace/api-zod";
+import { getInvoiceDeletionFailure } from "../lib/invoiceDeletion";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { pos109PostingReasons } from "../lib/posInvoice109";
 import {
@@ -52,6 +54,56 @@ import {
 } from "../lib/posContractSummary";
 
 const router: IRouter = Router();
+
+router.delete(
+  "/companies/:companyId/invoices/:id",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const params = DeleteInvoiceParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Neveljaven ID podjetja ali računa" });
+      return;
+    }
+    const { companyId, id } = params.data;
+    const authReq = req as AuthenticatedRequest;
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    if (access.role === "viewer") {
+      res.status(403).json({ error: "Za brisanje računa potrebujete vlogo računovodja ali lastnik" });
+      return;
+    }
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [invoice] = await tx.select().from(invoicesTable)
+          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
+          .limit(1).for("update");
+        if (!invoice) return "missing";
+        if (invoice.status !== "draft" || invoice.linkedEntryId ||
+            !["manual", "ai-document-fx", "ai-document-gross-expense"].includes(invoice.sourceType)) {
+          return "protected";
+        }
+        await tx.delete(invoicesTable)
+          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)));
+        await tx.insert(auditLogTable).values({
+          companyId, entityType: "invoice", entityId: id, action: "delete",
+          changedBy: authReq.clerkUserId,
+          payload: { invoiceNumber: invoice.invoiceNumber },
+        });
+        return "deleted";
+      });
+      if (result === "missing") {
+        res.status(404).json({ error: "Račun ni najden" });
+      } else if (result === "protected") {
+        res.status(409).json({ error: "Izbrisati je mogoče samo osnutek običajnega računa brez povezane temeljnice. Knjiženih in sistemskih računov ni mogoče brisati." });
+      } else {
+        res.status(204).end();
+      }
+    } catch (error) {
+      const failure = getInvoiceDeletionFailure(error);
+      res.status(failure.status).json({ error: failure.message });
+    }
+  },
+);
 
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;

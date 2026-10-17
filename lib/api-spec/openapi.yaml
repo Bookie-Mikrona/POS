@@ -7816,6 +7816,22 @@ paths:
         "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "409": { description: Conflict or incomplete daily posting, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
   /companies/{companyId}/invoices/{id}:
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      summary: Delete a draft manual invoice without linked protected records
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' } }
+        - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' } }
+      responses:
+        "204": { description: Draft invoice deleted }
+        "400": { description: Invalid identifier, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Forbidden, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Invoice not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Linked document or other protected invoice state prevents deletion, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Deletion failed without changing data, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
     get:
       operationId: getInvoice
       tags:

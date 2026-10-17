@@ -13649,6 +13649,21 @@ export const CreatePosContractSummaryResponse = zod.object({
 
 
 /**
+ * @summary Delete a draft manual invoice without linked protected records
+ */
+export const deleteInvoicePathCompanyIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const deleteInvoicePathIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const DeleteInvoiceParams = zod.object({
+  "companyId": zod.coerce.string().regex(deleteInvoicePathCompanyIdRegExp),
+  "id": zod.coerce.string().regex(deleteInvoicePathIdRegExp)
+})
+
+export const DeleteInvoiceResponse = zod.void()
+
+
+/**
  * @summary Get invoice detail with lines
  */
 export const GetInvoiceParams = zod.object({

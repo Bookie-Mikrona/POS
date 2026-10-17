@@ -25844,6 +25844,79 @@ export const useCreatePosContractSummary = <TError = ErrorType<ErrorResponse>,
       return useMutation(getCreatePosContractSummaryMutationOptions(options));
     }
 
+export const getDeleteInvoiceUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/invoices/${id}`
+}
+
+/**
+ * @summary Delete a draft manual invoice without linked protected records
+ */
+export const deleteInvoice = async (companyId: string,
+    id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteInvoiceUrl(companyId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteInvoice>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteInvoice>>, TError,{companyId: string;id: string}, TContext> => {
+
+const mutationKey = ['deleteInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteInvoice>>, {companyId: string;id: string}> = (props) => {
+          const {companyId,id} = props ?? {};
+
+          return  deleteInvoice(companyId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof deleteInvoice>>>
+
+    export type DeleteInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a draft manual invoice without linked protected records
+ */
+export const useDeleteInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteInvoice>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteInvoice>>,
+        TError,
+        {companyId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteInvoiceMutationOptions(options));
+    }
+
 export const getGetInvoiceUrl = (companyId: string,
     id: string,) => {
 

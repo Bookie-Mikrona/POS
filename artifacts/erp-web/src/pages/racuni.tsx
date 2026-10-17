@@ -55,6 +55,8 @@ import {
   useCreateInvoice,
   usePostInvoice,
   useVoidInvoice,
+  useDeleteInvoice,
+  ApiError,
   useGetInvoicePosReceiptLinks,
   useLinkInvoicePosReceipt,
   useUnlinkInvoicePosReceipt,
@@ -131,6 +133,7 @@ export default function Racuni() {
   const [newSheetOpen, setNewSheetOpen] = useState(false);
   const [contractSummaryOpen, setContractSummaryOpen] = useState(false);
   const [detailInvoice, setDetailInvoice] = useState<InvoiceRecord | null>(null);
+  const [deleteInvoice, setDeleteInvoice] = useState<InvoiceRecord | null>(null);
 
   const postMut = usePostInvoice();
 
@@ -307,6 +310,14 @@ export default function Racuni() {
                         Poknjiži
                       </Button>
                     )}
+                    {inv.status === "draft" && !inv.linkedEntryId &&
+                      ["manual", "ai-document-fx", "ai-document-gross-expense"].includes((inv as any).sourceType ?? "manual") &&
+                      activeCompany?.role !== "viewer" && (
+                      <Button variant="outline" size="sm" className="ml-2" onClick={() => setDeleteInvoice(inv)}>
+                        <Trash2 className="mr-1.5 h-3 w-3 text-destructive" />
+                        Izbriši
+                      </Button>
+                    )}
                     {inv.status === "posted" && activeCompany?.role !== "viewer" && (
                       <Button variant="outline" size="sm" onClick={(e) => {
                         e.stopPropagation();
@@ -360,7 +371,63 @@ export default function Racuni() {
           invoiceId={voidInvoiceId}
         />
       )}
+      {deleteInvoice && activeCompany && (
+        <DeleteInvoiceDialog
+          key={`${activeCompany.id}:${deleteInvoice.id}`}
+          companyId={activeCompany.id}
+          invoice={deleteInvoice}
+          onClose={() => setDeleteInvoice(null)}
+          onDeleted={() => {
+            setDeleteInvoice(null);
+            if (detailInvoice?.id === deleteInvoice.id) setDetailInvoice(null);
+            queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey(activeCompany.id) });
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+export function DeleteInvoiceDialog({ companyId, invoice, onClose, onDeleted }: {
+  companyId: string;
+  invoice: InvoiceRecord;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const mutation = useDeleteInvoice();
+  // Only render the structured API message, never SQL details or an HTTP error stack.
+  const body = mutation.error instanceof ApiError ? mutation.error.data : null;
+  const message = mutation.error
+    ? body && typeof body === "object" && "error" in body && typeof body.error === "string"
+      ? body.error
+      : "Računa trenutno ni bilo mogoče izbrisati. Poskusite znova pozneje."
+    : null;
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Izbris osnutka računa</DialogTitle>
+          <DialogDescription>
+            Ali res želite izbrisati osnutek računa {invoice.invoiceNumber}? Izbrisa ni mogoče razveljaviti.
+          </DialogDescription>
+        </DialogHeader>
+        {message && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Račun ni bil izbrisan</AlertTitle>
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={mutation.isPending}>Prekliči</Button>
+          <Button variant="destructive" disabled={mutation.isPending}
+            onClick={() => mutation.mutate({ companyId, id: invoice.id }, { onSuccess: onDeleted })}>
+            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Izbriši osnutek
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
