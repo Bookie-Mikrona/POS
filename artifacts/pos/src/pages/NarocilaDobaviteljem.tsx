@@ -133,6 +133,13 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
       </section>
 
       <table className="supplier-order-print__table">
+        <colgroup>
+          <col style={{ width: "37%" }} />
+          <col style={{ width: "18%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "15%" }} />
+        </colgroup>
         <thead>
           <tr>
             <th>Artikel</th>

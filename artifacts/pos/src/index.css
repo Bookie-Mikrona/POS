@@ -270,7 +270,7 @@
     text-transform: uppercase;
   }
   .supplier-order-print__table tbody tr {
-    break-inside: avoid;
+    break-inside: avoid-page;
     page-break-inside: avoid;
   }
   .supplier-order-print__table td strong { display: block; }

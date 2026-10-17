@@ -8,14 +8,21 @@ const lines: SupplierOrderDetail["lines"] = Array.from({ length: lineCount }, (_
   const number = index + 1;
   const paddedNumber = String(number).padStart(3, "0");
   const unitPrice = (number % 9) + 1.25;
+  const isLongRow = number === 15;
 
   return {
     id: number,
     supplierMappingId: 10_000 + number,
     articleId: 20_000 + number,
-    articleName: `POSTAVKA-${paddedNumber}`,
-    supplierItemName: `KOLICINA-${number}`,
-    supplierCode: `REF-${paddedNumber}`,
+    articleName: isLongRow
+      ? `POSTAVKA-${paddedNumber} Izredno dolg naziv artikla za mleko polnomastno v gostinskem pakiranju z dodatno oznako kakovosti in podrobnim opisom`
+      : `POSTAVKA-${paddedNumber}`,
+    supplierItemName: isLongRow
+      ? "Dobaviteljev artikel mleko polnomastno za profesionalne kuhinje z dodatnim opisom pakiranja in enote za večje gostinske obrate"
+      : `KOLICINA-${number}`,
+    supplierCode: isLongRow
+      ? `REF-${paddedNumber}-${"X7Q".repeat(30)}`
+      : `REF-${paddedNumber}`,
     packageQuantity: number,
     packageFactor: 1,
     packageName: "zaboj",

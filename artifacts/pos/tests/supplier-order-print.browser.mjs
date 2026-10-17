@@ -48,6 +48,10 @@ function normalizeText(value) {
   return value.normalize("NFC").replace(/[\s\u00a0\u202f]+/g, " ").trim();
 }
 
+function compactText(value) {
+  return normalizeText(value).replace(/\s/g, "");
+}
+
 function delay(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
@@ -165,6 +169,18 @@ function decimalToken(value) {
 
 function readAttributes(raw) {
   return Object.fromEntries([...raw.matchAll(/([\w-]+)="([^"]+)"/g)].map((match) => [match[1], match[2]]));
+}
+
+function readWords(markup) {
+  return [...markup.matchAll(/<word\b([^>]*)>([\s\S]*?)<\/word>/g)].map(match => ({
+    ...readAttributes(match[1]),
+    text: match[2]
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, "\"")
+      .replace(/&apos;/g, "'"),
+  }));
 }
 
 async function main() {
@@ -292,6 +308,34 @@ async function main() {
       assert(rowLine.includes(decimalToken(amount)), `${articleName} is missing its line amount.`);
     }
 
+    const longRowNumber = 15;
+    const paddedLongRowNumber = String(longRowNumber).padStart(3, "0");
+    const longArticleName = `POSTAVKA-${paddedLongRowNumber} Izredno dolg naziv artikla za mleko polnomastno v gostinskem pakiranju z dodatno oznako kakovosti in podrobnim opisom`;
+    const longSupplierItemName = "Dobaviteljev artikel mleko polnomastno za profesionalne kuhinje z dodatnim opisom pakiranja in enote za večje gostinske obrate";
+    const longSupplierCode = `REF-${paddedLongRowNumber}-${"X7Q".repeat(30)}`;
+    const longRowPageIndex = pages.findIndex(page => page.includes(`POSTAVKA-${paddedLongRowNumber}`));
+    const longRowPage = pages[longRowPageIndex];
+    assert(longRowPage, "No PDF page contains the complete long article name.");
+    const precedingArticlePageIndex = pages.findIndex(page =>
+      page.includes(`POSTAVKA-${String(longRowNumber - 1).padStart(3, "0")}`));
+    assert(precedingArticlePageIndex >= 0, "The row before the long row is missing from the PDF.");
+    assert.notEqual(
+      longRowPageIndex,
+      precedingArticlePageIndex,
+      "The long row fixture no longer reaches a page boundary; move it to the page edge.",
+    );
+    const longRowLine = longRowPage.split("\n").map(normalizeText)
+      .find(line => line.includes(`POSTAVKA-${paddedLongRowNumber}`));
+    assert(longRowLine, "No printed table line contains the long article name.");
+    const longUnitPrice = (longRowNumber % 9) + 1.25;
+    const longAmount = longUnitPrice * longRowNumber;
+    assert(
+      new RegExp(`(?:^|\\s)${longRowNumber}(?:\\s|$)`).test(longRowLine),
+      "Long row is missing its printed quantity.",
+    );
+    assert(longRowLine.includes(decimalToken(longUnitPrice)), "Long row is missing its unit price.");
+    assert(longRowLine.includes(decimalToken(longAmount)), "Long row is missing its line amount.");
+
     for (let number = 1; number <= 100; number += 1) {
       const marker = `NAVODILO-${String(number).padStart(3, "0")}`;
       assert(normalizedPdfText.includes(marker), `Printed PDF is missing long-note section ${marker}.`);
@@ -302,6 +346,34 @@ async function main() {
     const boundingBoxes = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-bbox-layout", pdfPath, "-"]);
     const pdfPages = [...boundingBoxes.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)];
     assert.equal(pdfPages.length, pageCount, "PDF text geometry page count differs from pdfinfo.");
+
+    const longRowMarkup = pdfPages[longRowPageIndex];
+    assert(longRowMarkup, "Long row has no PDF geometry page.");
+    const longPageAttributes = readAttributes(longRowMarkup[1]);
+    const longPageWidth = Number(longPageAttributes.width);
+    const longRowWords = readWords(longRowMarkup[2]);
+    const longArticleStart = longRowWords.find(word => word.text === `POSTAVKA-${paddedLongRowNumber}`);
+    assert(longArticleStart, "Long article marker is missing from PDF geometry.");
+    const nextArticleStart = longRowWords.find(word => word.text === `POSTAVKA-${String(longRowNumber + 1).padStart(3, "0")}`);
+    const firstColumnRightEdge = longPageWidth * 0.39;
+    const rowColumnText = longRowWords
+      .filter(word => {
+        const xMin = Number(word.xMin);
+        const yMin = Number(word.yMin);
+        return xMin < firstColumnRightEdge
+          && yMin >= Number(longArticleStart.yMin) - 0.5
+          && (!nextArticleStart || yMin < Number(nextArticleStart.yMin) - 0.5);
+      })
+      .sort((left, right) =>
+        Number(left.yMin) - Number(right.yMin) || Number(left.xMin) - Number(right.xMin))
+      .map(word => word.text)
+      .join("");
+    const expectedLongRowText = `${longArticleName}${longSupplierItemName}·${longSupplierCode}`;
+    assert.equal(
+      compactText(rowColumnText),
+      compactText(expectedLongRowText),
+      "Long article name, supplier item name, or code is clipped or split across pages.",
+    );
 
     for (const [pageIndex, match] of pdfPages.entries()) {
       const pageAttributes = readAttributes(match[1]);
@@ -319,16 +391,29 @@ async function main() {
         assert(xMax <= width + 1 && yMax <= height + 1, `Text is clipped at page ${pageIndex + 1}.`);
       }
 
-      for (const line of match[2].matchAll(/<line\b[^>]*>([\s\S]*?)<\/line>/g)) {
-        const words = [...line[1].matchAll(/<word\b([^>]*)>/g)]
-          .map(word => readAttributes(word[1]))
-          .sort((left, right) => Number(left.xMin) - Number(right.xMin));
-        for (let wordIndex = 1; wordIndex < words.length; wordIndex += 1) {
+      const words = [...match[2].matchAll(/<word\b([^>]*)>/g)]
+        .map(word => readAttributes(word[1]))
+        .sort((left, right) => Number(left.yMin) - Number(right.yMin));
+      const activeWords = [];
+      for (const word of words) {
+        const xMin = Number(word.xMin);
+        const xMax = Number(word.xMax);
+        const yMin = Number(word.yMin);
+        const yMax = Number(word.yMax);
+        for (let index = activeWords.length - 1; index >= 0; index -= 1) {
+          if (Number(activeWords[index].yMax) <= yMin + 0.5) activeWords.splice(index, 1);
+        }
+        for (const active of activeWords) {
+          const overlapsHorizontally =
+            xMin < Number(active.xMax) - 0.5 && xMax > Number(active.xMin) + 0.5;
+          const overlapsVertically =
+            yMin < Number(active.yMax) - 0.5 && yMax > Number(active.yMin) + 0.5;
           assert(
-            Number(words[wordIndex].xMin) >= Number(words[wordIndex - 1].xMax) - 0.5,
+            !overlapsHorizontally || !overlapsVertically,
             `Text overlaps on page ${pageIndex + 1}.`,
           );
         }
+        activeWords.push(word);
       }
     }
 
