@@ -163,8 +163,111 @@ describe("supplier order print view", () => {
     fireEvent.click(screen.getByTestId("button-print-supplier-order-704"));
 
     expect(print).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(mocks.markSent).not.toHaveBeenCalled();
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("warns before printing when internal notes exist without supplier instructions, then allows printing without exposing them", () => {
+    mocks.order.supplierNotes = " \n ";
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+    fireEvent.click(screen.getByTestId("button-print-supplier-order-704"));
+
+    const warning = screen.getByRole("alertdialog");
+    expect(warning.textContent).toContain("Naročilo nima navodila za dobavitelja");
+    expect(warning.textContent).not.toContain("INTERNAL ONLY");
+    expect(print).not.toHaveBeenCalled();
+    expect(document.querySelector(".supplier-order-print")?.textContent).not.toContain("INTERNAL ONLY");
+
+    fireEvent.click(screen.getByTestId("button-continue-supplier-order-print"));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(print).toHaveBeenCalledOnce();
+    expect(document.querySelector(".supplier-order-print")?.textContent).not.toContain("INTERNAL ONLY");
+  });
+
+  it("returns a draft to editing from the print warning without printing", () => {
+    mocks.order.supplierNotes = "";
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+    fireEvent.click(screen.getByTestId("button-print-supplier-order-704"));
+    fireEvent.click(screen.getByTestId("button-edit-supplier-order-from-print-warning"));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.getByRole("button", { name: "Shrani osnutek" })).toBeTruthy();
+    expect((screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement).value)
+      .toBe("INTERNAL ONLY: preveriti stanje embalaže.");
+    expect((screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement).value).toBe("");
+    expect(screen.queryByTestId("supplier-order-print")).toBeNull();
+    expect(print).not.toHaveBeenCalled();
+  });
+
+  it("warns on older non-draft orders too, without offering an unavailable edit action", () => {
+    const originalStatus = mocks.order.status;
+    mocks.order.status = "sent";
+    mocks.order.supplierNotes = "";
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      fireEvent.click(screen.getByTestId("button-print-supplier-order-704"));
+
+      expect(screen.getByRole("alertdialog").textContent).toContain("naročila pa ni več mogoče urejati");
+      expect(screen.queryByTestId("button-edit-supplier-order-from-print-warning")).toBeNull();
+      expect(print).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByTestId("button-dismiss-supplier-order-print-warning"));
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(print).not.toHaveBeenCalled();
+    } finally {
+      mocks.order.status = originalStatus;
+    }
+  });
+
+  it("prints without warning when the internal note is blank even if supplier instructions are blank", () => {
+    mocks.order.internalNotes = " \n ";
+    mocks.order.supplierNotes = "";
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+    fireEvent.click(screen.getByTestId("button-print-supplier-order-704"));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(print).toHaveBeenCalledOnce();
   });
 
   it("shows the date and receipt reference for the latest supplier price", () => {

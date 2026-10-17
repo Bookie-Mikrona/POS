@@ -208,6 +208,7 @@ export default function NarocilaDobaviteljem() {
     useGetSupplierOrder(selectedOrderId ?? 0, {
       query: { enabled: selectedOrderId !== null, queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0) },
     });
+  const [printWarningOpen, setPrintWarningOpen] = useState(false);
 
   const saveSettings = useSaveSupplierReorderSettings();
   const createOrder = useCreateSupplierOrder();
@@ -351,6 +352,18 @@ export default function NarocilaDobaviteljem() {
       })),
     });
     setSelectedOrderId(null);
+  };
+  const requestPrintOrder = () => {
+    if (!orderDetail) return;
+    if ((orderDetail.internalNotes ?? "").trim() && !(orderDetail.supplierNotes ?? "").trim()) {
+      setPrintWarningOpen(true);
+      return;
+    }
+    window.print();
+  };
+  const continuePrintOrder = () => {
+    setPrintWarningOpen(false);
+    window.print();
   };
   const copyInternalNoteToSupplierNotes = () => {
     if (!orderEditor) return;
@@ -822,7 +835,7 @@ export default function NarocilaDobaviteljem() {
         : <>
           <div className="flex flex-col gap-3 border-b border-[#eee8dc] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
             <div><div className="flex flex-wrap items-center gap-2"><h2 id="order-detail-title" className="data-mono text-xl font-bold text-[#203d39]">{orderDetail.number}</h2><StatusPill status={orderDetail.status} /></div><p className="mt-1 text-sm text-[#66746b]">{orderDetail.supplierName} <span className="mx-1.5 text-[#b7b9ae]">·</span> ustvarjeno {formatDate(orderDetail.createdAt)}</p></div>
-            <div className="orders-no-print flex flex-wrap gap-2"><Button size="sm" variant="outline" data-testid={`button-print-supplier-order-${orderDetail.id}`} onClick={() => window.print()}><Printer className="mr-1.5 h-3.5 w-3.5" /> Natisni / PDF</Button>{orderDetail.status === "draft" && <Button size="sm" variant="outline" onClick={editSelectedOrder}>Uredi osnutek</Button>}<button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]" data-testid="button-close-supplier-order-detail"><X className="h-4 w-4" /></button></div>
+            <div className="orders-no-print flex flex-wrap gap-2"><Button size="sm" variant="outline" data-testid={`button-print-supplier-order-${orderDetail.id}`} onClick={requestPrintOrder}><Printer className="mr-1.5 h-3.5 w-3.5" /> Natisni / PDF</Button>{orderDetail.status === "draft" && <Button size="sm" variant="outline" onClick={editSelectedOrder}>Uredi osnutek</Button>}<button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]" data-testid="button-close-supplier-order-detail"><X className="h-4 w-4" /></button></div>
           </div>
           <div className="space-y-4 p-5">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -867,6 +880,27 @@ export default function NarocilaDobaviteljem() {
             </div>
           </div>
         </>}
+      </section>
+    </div>}
+
+    {printWarningOpen && orderDetail && <div className="orders-no-print fixed inset-0 z-[120] flex items-center justify-center bg-[#172a25]/60 p-3" onMouseDown={event => { if (event.target === event.currentTarget) setPrintWarningOpen(false); }}>
+      <section role="alertdialog" aria-modal="true" aria-labelledby="supplier-order-print-warning-title" aria-describedby="supplier-order-print-warning-description" className="w-full max-w-lg rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+          <div>
+            <h2 id="supplier-order-print-warning-title" className="text-lg font-bold text-[#203d39]">Naročilo nima navodila za dobavitelja</h2>
+            <p id="supplier-order-print-warning-description" className="mt-1 text-sm leading-relaxed text-[#66746b]">
+              {orderDetail.status === "draft"
+                ? "Interna opomba se ne bo natisnila. Če je namenjena dobavitelju, jo najprej izrecno kopirajte v navodilo in shranite osnutek. Če nadaljujete, bo izpis brez navodil."
+                : "Interna opomba se ne bo natisnila, naročila pa ni več mogoče urejati. Če nadaljujete, bo izpis brez navodil."}
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button variant="outline" data-testid="button-dismiss-supplier-order-print-warning" onClick={() => setPrintWarningOpen(false)}>Nazaj na naročilo</Button>
+          {orderDetail.status === "draft" && <Button variant="outline" data-testid="button-edit-supplier-order-from-print-warning" onClick={() => { setPrintWarningOpen(false); editSelectedOrder(); }}>Uredi osnutek</Button>}
+          <Button data-testid="button-continue-supplier-order-print" onClick={continuePrintOrder} className="bg-[#285d50] text-white hover:bg-[#204b41]">Nadaljuj s tiskom</Button>
+        </div>
       </section>
     </div>}
 
