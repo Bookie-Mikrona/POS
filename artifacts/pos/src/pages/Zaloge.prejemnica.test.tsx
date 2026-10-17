@@ -31,6 +31,8 @@ const mockPrejemnica = {
 
 // ── Hoisted mock funkcije ───────────────────────────────────────────────────
 const mockDeleteMutate = vi.hoisted(() => vi.fn());
+const mockUpdatePrejemnicaMutate = vi.hoisted(() => vi.fn());
+const mockReconcileZalogeMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
 const mockGetPrejemnica = vi.hoisted(() => vi.fn((): { data: any; isLoading: boolean; isError: boolean } => ({
   data: undefined,
@@ -57,7 +59,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useListZacetneZaloge: () => ({ data: [], isLoading: false }),
   useCreatePrejemnica: () => ({ mutate: vi.fn(), isPending: false }),
   useCreateInventura: () => ({ mutate: vi.fn(), isPending: false }),
-  useUpdatePrejemnica: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdatePrejemnica: () => ({ mutate: mockUpdatePrejemnicaMutate, isPending: false }),
   useDeletePrejemnica: () => ({
     mutate: mockDeleteMutate,
     isPending: false,
@@ -71,7 +73,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetZacetnaZaloga: () => ({ data: undefined, isLoading: false }),
   useUpdateZacetnaZaloga: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteZacetnaZaloga: () => ({ mutate: vi.fn(), isPending: false }),
-  useReconcileZaloge: () => ({ mutate: vi.fn(), isPending: false }),
+  useReconcileZaloge: () => ({ mutate: mockReconcileZalogeMutate, isPending: false }),
   getListZalogeQueryKey: () => ["/api/zaloge"],
   getListPrejemniceQueryKey: () => ["/api/prejemnice"],
   getListIzdajniceQueryKey: () => ["/api/izdajnice"],
@@ -90,8 +92,11 @@ vi.mock("@workspace/api-client-react", () => ({
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   window.history.replaceState({}, "", "/");
   mockGetPrejemnica.mockClear();
+  mockUpdatePrejemnicaMutate.mockClear();
+  mockReconcileZalogeMutate.mockClear();
   mockGetPrejemnica.mockReturnValue({ data: undefined, isLoading: true, isError: false });
 });
 
@@ -174,6 +179,7 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
         obravnava: "strosek",
       }],
     };
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
     mockGetPrejemnica.mockReturnValue({ data: receipt, isLoading: false, isError: false });
     window.history.pushState({}, "", "/zaloge?prejemnica=4209&nacin=ogled");
 
@@ -185,11 +191,50 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     expect(within(dialog).getByText("Mleko polnomastno")).toBeInTheDocument();
     expect(within(dialog).getByTestId("text-receipt-view-total")).toHaveTextContent("15,50 EUR");
     expect(within(dialog).getByText("Prevoz")).toBeInTheDocument();
+    const printDocument = screen.getByTestId("receipt-print-document");
+    expect(printDocument).toHaveTextContent("Prejemnica št. 26100009");
+    expect(printDocument).toHaveTextContent("Mlekarna Planika");
+    expect(printDocument).toHaveTextContent(
+      within(dialog).getByTestId("text-receipt-view-receipt-date").textContent ?? "",
+    );
+    expect(printDocument).toHaveTextContent("Mleko polnomastno");
+    expect(printDocument).toHaveTextContent("DDV %");
+    expect(printDocument).toHaveTextContent("0,00 EUR");
+    expect(printDocument).toHaveTextContent("Prevoz");
+    expect(printDocument).toHaveTextContent("Ločen strošek");
+    expect(printDocument).toHaveTextContent("2,00 EUR");
     expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: /shrani|potrdi prejemnico|pripravi računovodski osnutek/i }))
+    expect(within(dialog).queryByRole("button", { name: /^(?:shrani|potrdi prejemnico|pripravi računovodski osnutek)$/i }))
       .not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Tiskaj / shrani PDF" }));
+    expect(printSpy).toHaveBeenCalledOnce();
+    expect(mockUpdatePrejemnicaMutate).not.toHaveBeenCalled();
+    expect(mockReconcileZalogeMutate).not.toHaveBeenCalled();
+    expect(mockDeleteMutate).not.toHaveBeenCalled();
     expect(within(dialog).getByRole("button", { name: "Zapri" })).toBeInTheDocument();
     expect(mockGetPrejemnica).toHaveBeenCalledWith(4209);
+  });
+
+  it("ne ponudi tiskanja osnutka v načinu samo za ogled", async () => {
+    mockGetPrejemnica.mockReturnValue({
+      data: {
+        id: 4212,
+        stevilka: "26100012",
+        datum: "2026-10-17",
+        status: "draft",
+        postavke: [],
+        odvisniStroski: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+    window.history.pushState({}, "", "/zaloge?prejemnica=4212&nacin=ogled");
+
+    renderZaloge();
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("button", { name: "Tiskaj / shrani PDF" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("receipt-print-document")).not.toBeInTheDocument();
   });
 
   it("pri nedostopni prejemnici v načinu samo za ogled pokaže napako brez urejevalnika", async () => {

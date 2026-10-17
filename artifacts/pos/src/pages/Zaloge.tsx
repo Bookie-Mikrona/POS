@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Fragment, forwardRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useF2Save } from "@/hooks/useF2Save";
 import {
   useListZaloge,
@@ -68,7 +69,7 @@ import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
   Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown, ChevronRight,
-  FileUp,
+  FileUp, Printer,
   Download,
 } from "lucide-react";
 import { UvozPrejemniceDialog } from "./uvoz/UvozPrejemniceDialog";
@@ -1831,6 +1832,122 @@ function EditIzdajnicaDialog({
   );
 }
 
+function ReceiptPrintDocument({
+  receipt,
+  summaryFields,
+  postavke,
+  odvisniStroski,
+  currency,
+}: {
+  receipt: any;
+  summaryFields: { id: string; label: string; value: string }[];
+  postavke: any[];
+  odvisniStroski: any[];
+  currency: string;
+}) {
+  return (
+    <article className="receipt-review-print" data-testid="receipt-print-document">
+      <header className="receipt-review-print__header">
+        <div>
+          <p className="receipt-review-print__eyebrow">Pregled potrjene prejemnice</p>
+          <h1>Prejemnica št. {receipt.stevilka || receipt.id}</h1>
+        </div>
+        <strong className="receipt-review-print__status">Potrjena</strong>
+      </header>
+
+      <dl className="receipt-review-print__meta">
+        {summaryFields.map(({ id, label, value }) => (
+          <div key={id}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {receipt.opomba && (
+        <section className="receipt-review-print__section">
+          <h2>Opomba</h2>
+          <p>{receipt.opomba}</p>
+        </section>
+      )}
+
+      <section className="receipt-review-print__section">
+        <h2>Postavke</h2>
+        <table className="receipt-review-print__table receipt-review-print__table--items">
+          <thead>
+            <tr>
+              <th>Artikel</th>
+              <th>Količina</th>
+              <th>Cena / kos</th>
+              <th>DDV %</th>
+              <th>DDV</th>
+              <th>Znesek</th>
+            </tr>
+          </thead>
+          <tbody>
+            {postavke.length === 0 ? (
+              <tr>
+                <td colSpan={6}>Prejemnica nima postavk.</td>
+              </tr>
+            ) : postavke.map((line, index) => (
+              <tr key={line.id ?? `${line.artikelId}-${index}`}>
+                <td>
+                  <strong>{line.artikelIme || line.imeZaNabavo || line.izvNaziv || "–"}</strong>
+                  {line.izvNaziv && line.izvNaziv !== line.artikelIme && <small>{line.izvNaziv}</small>}
+                </td>
+                <td className="receipt-review-print__number">
+                  {Number(line.kolicina ?? 0).toLocaleString("sl-SI", { maximumFractionDigits: 4 })}
+                  {line.enotaMere ? ` ${line.enotaMere}` : ""}
+                </td>
+                <td className="receipt-review-print__number">{fmt(Number(line.cenaKos ?? 0))} {currency}</td>
+                <td className="receipt-review-print__number">
+                  {line.ddvStopnja == null ? "–" : `${fmt(Number(line.ddvStopnja), 1)} %`}
+                </td>
+                <td className="receipt-review-print__number">
+                  {line.ddvZnesek == null ? "–" : `${fmt(Number(line.ddvZnesek))} ${currency}`}
+                </td>
+                <td className="receipt-review-print__number">
+                  {fmt(Number(line.skupaj ?? 0))} {currency}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {odvisniStroski.length > 0 && (
+        <section className="receipt-review-print__section">
+          <h2>Odvisni/ostali stroški</h2>
+          <table className="receipt-review-print__table receipt-review-print__table--costs">
+            <thead>
+              <tr>
+                <th>Strošek</th>
+                <th>DDV %</th>
+                <th>Obravnava</th>
+                <th>Znesek</th>
+              </tr>
+            </thead>
+            <tbody>
+              {odvisniStroski.map((cost, index) => (
+                <tr key={cost.id ?? `${cost.naziv}-${index}`}>
+                  <td>{cost.naziv || "–"}</td>
+                  <td className="receipt-review-print__number">
+                    {cost.ddvStopnja == null ? "–" : `${fmt(Number(cost.ddvStopnja), 1)} %`}
+                  </td>
+                  <td>{cost.obravnava === "zaloga" ? "Vrednost zaloge" : "Ločen strošek"}</td>
+                  <td className="receipt-review-print__number">
+                    {fmt(Number(cost.znesek ?? 0))} {currency}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+    </article>
+  );
+}
+
 function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void }) {
   const { data, isLoading, isError } = useGetPrejemnica(id);
   const receipt = data as any;
@@ -1849,6 +1966,8 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
     { id: "tax-amount", label: "Znesek DDV", value: receipt?.ddvZnesek == null ? "–" : `${fmt(Number(receipt.ddvZnesek))} ${currency}` },
     { id: "total", label: "Skupaj", value: `${fmt(Number(receipt?.skupajVrednost ?? 0))} ${currency}` },
   ];
+
+  const canPrint = receipt?.status === "confirmed" && !isLoading && !isError;
 
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
@@ -1977,10 +2096,32 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
         )}
 
         <DialogFooter>
+          {canPrint && (
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="button-print-receipt-view"
+              onClick={() => window.print()}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Tiskaj / shrani PDF
+            </Button>
+          )}
           <Button type="button" variant="outline" data-testid="button-close-receipt-view" onClick={onClose}>
             Zapri
           </Button>
         </DialogFooter>
+
+        {canPrint && createPortal(
+          <ReceiptPrintDocument
+            receipt={receipt}
+            summaryFields={summaryFields}
+            postavke={postavke}
+            odvisniStroski={odvisniStroski}
+            currency={currency}
+          />,
+          document.body,
+        )}
       </DialogContent>
     </Dialog>
   );
