@@ -48,7 +48,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import * as z from "zod/v3";
 
 const HOUR_FORMATTER = new Intl.NumberFormat("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const EUR_FORMATTER = new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" });

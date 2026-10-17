@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import * as z from "zod/v3";
 import { getEnotaId, useCreateRezervacijaMize, useUpdateRezervacijaMize, getListMizeQueryKey, getListRazpolozljiveMizeQueryKey } from "@workspace/api-client-react";
 import type { Miza, RezervacijaMize } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";

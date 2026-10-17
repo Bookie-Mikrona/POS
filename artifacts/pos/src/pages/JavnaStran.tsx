@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useForm, useFieldArray, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import * as z from "zod/v3";
 import { format, parseISO } from "date-fns";
 import { sl } from "date-fns/locale";
 import { Loader2, Save, CalendarIcon, Plus, Trash2, Link as LinkIcon, Store, Palette, CalendarClock, Gift, Clock, Trash, AlertTriangle, CheckCircle2, Upload, ImageIcon, X, Eye, Monitor, Smartphone } from "lucide-react";

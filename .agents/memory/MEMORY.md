@@ -155,3 +155,4 @@
 - [Uskladitev POS temeljnic](pos-receipt-booking-reconciliation.md) — plačan B2B ostane posamičen; zbirniki ohranijo izdani DDV in časovno sled storna.
 - [Javni QR meni – kaj gost vidi](qr-meni-javni-podatki.md) — brez internih opomb, brez točnih količin, prazne kategorije skrite; skupni formatter zneskov in imena mize.
 - [Naročila dobaviteljem in prevzemi](supplier-orders-and-receipts.md) — naročilo ne spreminja zaloge; interne opombe so ločene, dolga navodila pa se varno paginirajo.
+- [POS Zod resolver tipi](pos-zod-v3-resolver.md) — POS obrazci z v3 resolverjem naj izrecno uvozijo zod/v3, da se izognejo navzkrižju tipov shem.
