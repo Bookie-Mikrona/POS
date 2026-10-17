@@ -750,7 +750,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     context.role = "admin";
   });
 
-  it("keeps latest supplier price receipts and amounts scoped to each POS unit", async () => {
+  it("keeps latest supplier price receipts scoped to each POS unit and breaks same-date ties by receipt ID", async () => {
     const [articleA] = await db.insert(artikliTable).values({
       enotaId,
       ime: `Unit A source article ${run}`,
@@ -881,6 +881,16 @@ describe("POS supplier ordering and linked receipt flow", () => {
         unitPrice: 2,
         date: "2026-10-19",
       });
+      const sameDateHigherIdSourceA = await createConfirmedSource({
+        unitId: enotaId,
+        articleId: articleA.id,
+        supplierMappingId: mappingA.id,
+        unitPrice: 2.5,
+        date: "2026-10-19",
+      });
+      expect(sameDateHigherIdSourceA.date).toBe(sourceA.date);
+      expect(sameDateHigherIdSourceA.receiptId).toBeGreaterThan(sourceA.receiptId);
+
       const laterInsertedOlderSourceA = await createConfirmedSource({
         unitId: enotaId,
         articleId: articleA.id,
@@ -942,9 +952,9 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
       const sourcesForA = await getLatestSupplierPriceReceipts(db, enotaId, [mappingA.id, mappingB.id]);
       expect(sourcesForA.get(mappingA.id)).toEqual({
-        receiptId: sourceA.receiptId,
-        date: sourceA.date,
-        receiptNumber: sourceA.receiptNumber,
+        receiptId: sameDateHigherIdSourceA.receiptId,
+        date: sameDateHigherIdSourceA.date,
+        receiptNumber: sameDateHigherIdSourceA.receiptNumber,
       });
       expect(sourcesForA.has(mappingB.id)).toBe(false);
 
@@ -988,13 +998,19 @@ describe("POS supplier ordering and linked receipt flow", () => {
         .find((row: any) => row.articleId === articleA.id).mappings
         .find((mapping: any) => mapping.id === mappingA.id);
       expect(mappingInA).toMatchObject({
-        lastPackagePrice: sourceA.packagePrice,
+        lastPackagePrice: sameDateHigherIdSourceA.packagePrice,
         lastPriceReceipt: {
-          receiptId: sourceA.receiptId,
-          date: sourceA.date,
-          receiptNumber: sourceA.receiptNumber,
+          receiptId: sameDateHigherIdSourceA.receiptId,
+          date: sameDateHigherIdSourceA.date,
+          receiptNumber: sameDateHigherIdSourceA.receiptNumber,
         },
         priceHistory: [
+          {
+            receiptId: sameDateHigherIdSourceA.receiptId,
+            date: sameDateHigherIdSourceA.date,
+            receiptNumber: sameDateHigherIdSourceA.receiptNumber,
+            unitPrice: sameDateHigherIdSourceA.unitPrice,
+          },
           {
             receiptId: sourceA.receiptId,
             date: sourceA.date,
