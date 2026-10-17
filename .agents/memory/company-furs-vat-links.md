@@ -13,4 +13,10 @@ Enako poimenovano polje DDV nima v vseh dokumentih istega prostora identifikator
 
 **Why:** Kopiranje OCR identifikatorja je povzročilo napako tujega ključa pri ustvarjanju osnutka. Popravek samo tega koraka ni zadoščal: isto zamenjavo je treba preprečiti tudi pri nadaljnjem knjiženju in davčni evidenci.
 
-**How to apply:** Integracijski primeri naj uporabljajo različna ID-ja podjetniške in globalne kode. Manjkajoča ali dvoumna povezava zahteva pregled, ne samodejne izbire druge davčne obravnave. Pri samoobdavčitvi je lahko dobaviteljeva stopnja 0 %, čeprav ima povezana FURS koda stopnjo 22 %; teh dveh pomenov stopnje ne enači.
+**How to apply:** Integracijski primeri naj uporabljajo različna ID-ja podjetniške in globalne kode. Manjkajoča ali dvoumna povezava zahteva pregled, ne samodejne izbire druge davčne obravnave. To velja tudi za e-SLOG uvoz v ERP račun, ne samo za OCR. Pri samoobdavčitvi je lahko dobaviteljeva stopnja 0 %, čeprav ima povezana FURS koda stopnjo 22 %; teh dveh pomenov stopnje ne enači.
+
+Razrešitev podjetniške povezave mora veljati ob dejanskem zapisu temeljnice, ne samo ob pripravi predloga; stari tokovi, ki podjetniške kode ne poznajo, ostanejo dovoljeni.
+
+**Why:** Nastavitve povezave se lahko spremenijo med pripravo in potrditvijo. Revizijski izvor in globalna klasifikacija ne smeta postati neskladna zaradi sočasnega urejanja.
+
+**How to apply:** Preverjanje in zapis obravnavaj kot eno transakcijsko operacijo; pri znani podjetniški kodi zavrni neskladen par, pri neznani pa kode ne ugibaj samo iz stopnje.

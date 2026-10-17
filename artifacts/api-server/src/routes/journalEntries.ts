@@ -14,7 +14,6 @@ import {
   costCentersTable,
   projectsTable,
   departmentsTable,
-  vatCodesTable,
   posReceiptBookingSourcesTable,
   prejemniceTable,
 } from "@workspace/db";
@@ -32,7 +31,7 @@ import {
   type EntryMeta,
   type VatLine,
 } from "../lib/vatLedger";
-import { resolveCompanyVatCodeLinks } from "../lib/journalVatCodeLinks";
+import { JournalVatCodeLinkError, resolveJournalVatCodeLinks } from "../lib/journalVatCodeLinks";
 import { getPosReceiptBookingVatEvidence } from "../lib/posReceiptBooking";
 import {
   deleteDraftJournalEntry,
@@ -311,11 +310,11 @@ router.post(
     const access = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!access) return;
     if (access.role === "viewer") {
-      res.status(403).json({ error: "Za ustvarjanje temeljnic potrebujete vlogo računovodja ali lastnik" });
+      res.status(403).json({ error: "Za storno potrebujete vlogo računovodja ali lastnik" });
       return;
     }
 
-    const parsed = CreateJournalEntryBody.safeParse(req.body);
+    const parsed = ReverseJournalEntryBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
@@ -333,13 +332,30 @@ router.post(
       res.status(409).json({ error: "Letno otvoritev pripravite prek postopka v Računovodskih obdobjih" });
       return;
     }
-    let lines = requestedLines;
+    const lines = await db
+      .select({
+        id: journalEntryLinesTable.id,
+        side: journalEntryLinesTable.side,
+        amount: journalEntryLinesTable.amount,
+        accountId: journalEntryLinesTable.accountId,
+        partnerId: journalEntryLinesTable.partnerId,
+        costCenterId: journalEntryLinesTable.costCenterId,
+        projectId: journalEntryLinesTable.projectId,
+        departmentId: journalEntryLinesTable.departmentId,
+        vatCodeId: journalEntryLinesTable.vatCodeId,
+        companyVatCodeId: journalEntryLinesTable.companyVatCodeId,
+        vatAmount: journalEntryLinesTable.vatAmount,
+        vatDeductionPercent: journalEntryLinesTable.vatDeductionPercent,
+        description: journalEntryLinesTable.description,
+      })
+      .from(journalEntryLinesTable)
+      .where(eq(journalEntryLinesTable.entryId, id));
 
     // Preveri period pripada podjetju
     const [period] = await db
-      .select({ id: accountingPeriodsTable.id, status: accountingPeriodsTable.status })
+      .select({ status: accountingPeriodsTable.status })
       .from(accountingPeriodsTable)
-      .where(and(eq(accountingPeriodsTable.id, periodId), eq(accountingPeriodsTable.companyId, companyId)))
+      .where(eq(accountingPeriodsTable.id, entry.periodId))
       .limit(1);
 
     if (!period) {
@@ -384,41 +400,12 @@ router.post(
     const allCostCenterIds = [...new Set(lines.map((l) => l.costCenterId).filter((x): x is string => !!x))];
     const allProjectIds = [...new Set(lines.map((l) => l.projectId).filter((x): x is string => !!x))];
     const allDepartmentIds = [...new Set(lines.map((l) => l.departmentId).filter((x): x is string => !!x))];
-    const allCompanyVatCodeIds = [...new Set(lines.map((l) => l.companyVatCodeId).filter((x): x is string => !!x))];
-
-    if (allPartnerIds.length > 0) {
       const found = await db
-        .select({ id: counterpartiesTable.id })
-        .from(counterpartiesTable)
+        .select({ id: departmentsTable.id })
+        .from(departmentsTable)
         .where(and(
-          inArray(counterpartiesTable.id, allPartnerIds),
-          eq(counterpartiesTable.companyId, companyId),
-        ));
-      if (found.length !== allPartnerIds.length) {
-        res.status(400).json({ error: "Vsaj en partner ne obstaja ali ne pripada temu podjetju" });
-        return;
-      }
-    }
-    if (allCostCenterIds.length > 0) {
-      const found = await db
-        .select({ id: costCentersTable.id })
-        .from(costCentersTable)
-        .where(and(
-          inArray(costCentersTable.id, allCostCenterIds),
-          eq(costCentersTable.companyId, companyId),
-        ));
-      if (found.length !== allCostCenterIds.length) {
-        res.status(400).json({ error: "Vsaj eno stroškovno mesto ne obstaja ali ne pripada temu podjetju" });
-        return;
-      }
-    }
-    if (allProjectIds.length > 0) {
-      const found = await db
-        .select({ id: projectsTable.id })
-        .from(projectsTable)
-        .where(and(
-          inArray(projectsTable.id, allProjectIds),
-          eq(projectsTable.companyId, companyId),
+          inArray(departmentsTable.id, allDepartmentIds),
+          eq(departmentsTable.companyId, companyId),
         ));
       if (found.length !== allProjectIds.length) {
         res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
@@ -433,34 +420,50 @@ router.post(
           inArray(departmentsTable.id, allDepartmentIds),
           eq(departmentsTable.companyId, companyId),
         ));
-      if (found.length !== allDepartmentIds.length) {
-        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
+      if (found.length !== allProjectIds.length) {
+        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
         return;
       }
     }
-    if (allCompanyVatCodeIds.length > 0) {
+    if (allDepartmentIds.length > 0) {
       const found = await db
-        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
-        .from(vatCodesTable)
+        .select({ id: departmentsTable.id })
+        .from(departmentsTable)
         .where(and(
-          inArray(vatCodesTable.id, allCompanyVatCodeIds),
-          eq(vatCodesTable.companyId, companyId),
+          inArray(departmentsTable.id, allDepartmentIds),
+          eq(departmentsTable.companyId, companyId),
+        ));
+      if (found.length !== allProjectIds.length) {
+        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allDepartmentIds.length > 0) {
+      const found = await db
+        .select({ id: departmentsTable.id })
+        .from(departmentsTable)
+        .where(and(
+          inArray(departmentsTable.id, allDepartmentIds),
+          eq(departmentsTable.companyId, companyId),
+        ));
+      if (found.length !== allProjectIds.length) {
+        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allDepartmentIds.length > 0) {
+      const found = await db
+        .select({ id: departmentsTable.id })
+        .from(departmentsTable)
+        .where(and(
+          inArray(departmentsTable.id, allDepartmentIds),
+          eq(departmentsTable.companyId, companyId),
         ));
       if (found.length !== allCompanyVatCodeIds.length) {
         res.status(400).json({ error: "Vsaj ena DDV koda ne obstaja ali ne pripada temu podjetju" });
         return;
       }
-      const resolved = resolveCompanyVatCodeLinks(requestedLines, found);
-      if (resolved.error !== null) {
-        res.status(400).json({ error: resolved.error });
-        return;
-      }
-      lines = resolved.lines;
-    }
-
-    // §69, §70 — Validacija kontov in dimenzij
-    for (const line of lines) {
-      const acc = accountMap.get(line.accountId);
+        const acc = lineAccountMap.get(line.accountId);
       if (!acc) continue;
       if (!acc.isActive) {
         res.status(400).json(accountingError("ACCOUNT_INACTIVE", `Konto ${acc.code} ni aktiven.`, { account: acc.code }));
@@ -490,7 +493,7 @@ router.post(
 
     // §68 — Za autoPost preveri balance pred insertom (Decimal natančnost)
     if (autoPost) {
-      const balanceErr = checkBalance(lines.map(line => ({ side: line.side, amount: String(line.amount) })));
+    const balanceErr = checkBalance(lines);
       if (balanceErr) { res.status(400).json(balanceErr); return; }
     }
 
@@ -507,7 +510,8 @@ router.post(
       : null;
     const now = new Date();
 
-    const entry = await db.transaction(async (tx) => {
+    let entry: { id: string };
+
       const [newEntry] = await tx
         .insert(journalEntriesTable)
         .values({
@@ -526,68 +530,6 @@ router.post(
           createdBy: authReq.clerkUserId,
         })
         .returning({ id: journalEntriesTable.id });
-
-      await tx.insert(journalEntryLinesTable).values(
-        lines.map((l, i) => ({
-          entryId: newEntry.id,
-          accountId: l.accountId,
-          side: l.side,
-          amount: l.amount.toFixed(2),
-          description: l.description ?? null,
-          sequence: i,
-          partnerId: l.partnerId ?? null,
-          costCenterId: l.costCenterId ?? null,
-          projectId: l.projectId ?? null,
-          departmentId: l.departmentId ?? null,
-          vatCodeId: l.vatCodeId ?? null,
-          companyVatCodeId: l.companyVatCodeId ?? null,
-          vatAmount: l.vatAmount != null ? String(l.vatAmount) : null,
-          vatDeductionPercent: l.vatDeductionPercent != null ? String(l.vatDeductionPercent) : null,
-        })),
-      );
-
-      // ── KIR/KPR: autoPost → takoj ustvari vat_ledger vrstice ──────────────
-      if (autoPost) {
-        const vatLines: VatLine[] = lines
-          .filter((l) => l.vatCodeId != null)
-          .map((l, i) => ({
-            lineId: `line-${i}`,
-            vatCodeId: l.vatCodeId!,
-            amount: l.amount.toFixed(2),
-            vatAmount: l.vatAmount != null ? String(l.vatAmount) : null,
-            vatDeductionPercent: l.vatDeductionPercent != null ? String(l.vatDeductionPercent) : null,
-            partnerId: l.partnerId ?? null,
-            description: l.description ?? null,
-          }));
-
-        if (vatLines.length > 0) {
-          const entryMeta: EntryMeta = {
-            id: newEntry.id,
-            companyId,
-            documentDate,
-            entryDate,
-            taxDate,
-            receiptDate,
-            reference: reference ?? null,
-            sourceType: (sourceType ?? "manual") as string,
-          };
-          await createVatLedgerEntries(tx, entryMeta, vatLines, authReq.clerkUserId);
-        }
-      }
-
-      // Revizijski dnevnik je del transakcije — napaka povzroči rollback
-      await tx.insert(auditLogTable).values({
-        companyId,
-        entityType: "journal_entry",
-        entityId: newEntry.id,
-        action: autoPost ? "create_and_post" : "create",
-        changedBy: authReq.clerkUserId,
-        payload: { periodId, entryDate, description, lineCount: lines.length },
-      });
-
-      return newEntry;
-    });
-
     const createdResult = await fetchEntryWithLines(entry.id);
     res.status(201).json(createdResult);
   },

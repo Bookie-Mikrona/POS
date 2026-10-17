@@ -1,4 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
+import { JournalVatCodeLinkError, resolveJournalVatCodeLinks } from "../lib/journalVatCodeLinks";
 import { eq, and, gte, lte, asc, desc, like, inArray, isNull, or, sql, notInArray } from "drizzle-orm";
 import Decimal from "decimal.js";
 import {
@@ -2784,11 +2785,9 @@ router.post(
           side: "credit",
           amount: l.lineTotal.toFixed(2),
           description: l.description ?? null,
-          ...(usesAiDocumentApprovedAmounts(invoice.sourceType) ? {
-            vatCodeId: selectedVatCode?.id ?? null,
-            companyVatCodeId: selectedVatCode?.companyVatCodeId ?? null,
-            vatAmount: money(l.vatAmt),
-          } : {}),
+          vatCodeId: selectedVatCode?.id ?? null,
+          companyVatCodeId: selectedVatCode?.companyVatCodeId ?? null,
+          vatAmount: selectedVatCode ? money(l.vatAmt) : null,
         });
       }
       // Kredit: DDV po stopnjah
@@ -3088,6 +3087,7 @@ router.post(
             throw new Error("INVOICE_SOURCE_GOODS_RECEIPT_UNMATCHED");
           }
         }
+        const resolvedJournalLines = await resolveJournalVatCodeLinks(tx, companyId, journalLines);
         const [claimedInvoice] = await tx
           .update(invoicesTable)
           .set({ status: "posted" })
@@ -3120,7 +3120,7 @@ router.post(
         .returning({ id: journalEntriesTable.id });
 
         await tx.insert(journalEntryLinesTable).values(
-        journalLines.map((l, i) => ({
+        resolvedJournalLines.map((l, i) => ({
           entryId: entry.id,
           accountId: l.accountId,
           side: l.side,
@@ -3208,6 +3208,10 @@ router.post(
         }
       });
     } catch (error: unknown) {
+      if (error instanceof JournalVatCodeLinkError) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
       if (error instanceof Error && error.message === "INVOICE_CHANGED_DURING_POST") {
         res.status(409).json({ error: "Račun se je med pripravo spremenil; osvežite ga in ponovno potrdite knjiženje." });
         return;

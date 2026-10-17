@@ -38,6 +38,11 @@ import { packagingMovementKindForQuantity } from '../packagingMovementKind';
 import { normalizeIncomingPaymentMethod } from '../posReceiptBooking';
 import { normalizeDrainedYield } from '../drained-yield';
 import {
+  resolveDocumentVatCodeMappings,
+  type DocumentFursVatCode,
+  type DocumentCompanyVatCode,
+} from '../documentVatCodeMapping';
+import {
   inferEslogFixedAssetCandidate,
   type FixedAssetType,
 } from './eslog-fixed-asset-candidate';
@@ -768,12 +773,21 @@ export async function ustvariOsnutekErpPrejetegaRacuna(
     `)).rows;
     if (!lineAccount) throw new Error('Ni aktivnega knjižljivega privzetega konta vrstice 400*.');
 
-    const vatCodes = (await tx.execute<InputVatCodeCandidate>(sql`
-      SELECT id, code, rate
+    const vatCodes = (await tx.execute<DocumentFursVatCode & InputVatCodeCandidate>(sql`
+      SELECT id, code, rate, direction, valid_from::text AS "validFrom",
+             valid_to::text AS "validTo", is_reverse_charge AS "isReverseCharge"
         FROM vat_code
        WHERE direction = 'IN'
          AND valid_from <= ${invoiceDate}
          AND (valid_to IS NULL OR valid_to >= ${invoiceDate})
+    `)).rows;
+    const companyVatCodes = (await tx.execute<DocumentCompanyVatCode>(sql`
+      SELECT id, company_id AS "companyId", furs_code_id AS "fursCodeId",
+             rate, behavior, valid_from::text AS "validFrom", valid_to::text AS "validTo",
+             is_active AS "isActive"
+        FROM vat_codes
+       WHERE company_id = ${companyAndSupplier.company_id}
+       FOR SHARE
     `)).rows;
     const [invoice] = (await tx.execute<{ id: string }>(sql`
       INSERT INTO invoices (
@@ -809,7 +823,17 @@ export async function ustvariOsnutekErpPrejetegaRacuna(
         line.ddvKoda ?? line.ddvKategorija,
         line.ddvStopnja?.toString() ?? null,
       );
-      const vatCodeId = mappedVat.kind === 'matched' ? mappedVat.vatCodeId : null;
+      let companyVatCodeId: string | null = null;
+      if (mappedVat.kind === 'matched') {
+        const mapping = resolveDocumentVatCodeMappings(
+          [mappedVat.vatCodeId], vatCodes, companyVatCodes,
+          companyAndSupplier.company_id, invoiceDate, "IN",
+        );
+        if (mapping.error !== null) {
+          throw new Error(`DDV koda vrstice ${line.zap} nima enolične veljavne povezave s podjetniško DDV kodo. Preverite DDV šifrant.`);
+        }
+        companyVatCodeId = mapping.mappings.get(mappedVat.vatCodeId)!;
+      }
       const assetType = assetTypes[line.zap] ?? 'NONE';
       await tx.execute(sql`
         INSERT INTO invoice_lines (
@@ -817,7 +841,7 @@ export async function ustvariOsnutekErpPrejetegaRacuna(
           vat_base, vat_amount, account_id, sequence, asset_type
         ) VALUES (
           ${invoice.id}, ${line.izvNaziv}, ${line.izvKolicina.toString()},
-          ${base.div(line.izvKolicina).toString()}, ${rate.toString()}, ${vatCodeId},
+          ${base.div(line.izvKolicina).toString()}, ${rate.toString()}, ${companyVatCodeId},
           ${base.toString()}, ${vat.toString()}, ${lineAccount.id}, ${sequence},
           ${assetType}
         )
@@ -830,8 +854,8 @@ export async function ustvariOsnutekErpPrejetegaRacuna(
              metapodatki = COALESCE(metapodatki, '{}'::jsonb)
                || jsonb_build_object(
                     'fixedAssetReviewRequired', false,
-                    'fixedAssetReviewApprovedBy', ${actorSnapshot},
-                    'erpInvoiceId', ${invoice.id}
+                    'fixedAssetReviewApprovedBy', ${actorSnapshot}::text,
+                    'erpInvoiceId', ${invoice.id}::text
                   )
        WHERE id = ${sejaId}
     `);

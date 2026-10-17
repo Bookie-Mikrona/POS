@@ -35,6 +35,6 @@ Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti uporabi
 
 Generirane API sheme po združitvi regeneriraj iz trenutne specifikacije, namesto da ročno združuješ posamezne deklaracije.
 
-**Why:** Združevanje je prestavilo sestavljeno Zod shemo pred njeno odvisnost. Typecheck je uspel, uvoz modula pa je ustavil celoten API z napako inicializacije.
+**Why:** Ročno združene deklaracije lahko ostanejo nepopolne ali napačno razvrščene; uspešen typecheck ne zagotavlja pravilnega vrstnega reda inicializacije ob uvozu.
 
 **How to apply:** Po regeneraciji preveri tudi dejanski uvoz oziroma zagon API-ja; uspešno preverjanje deklaracij samo po sebi ne odkrije takšne napake v generirani kodi.
