@@ -31,7 +31,7 @@ import {
   db, companiesTable, accountingRolesTable, accountingPeriodsTable,
   accountsTable, counterpartiesTable, documentsTable, invoicesTable,
   invoiceLinesTable, journalEntriesTable, journalEntryLinesTable,
-  vatCodeTable, vatCodesTable, vatLedgerTable, enoteTable,
+  vatCodeTable, vatCodesTable, vatLedgerTable, enoteTable, auditLogTable,
 } from "@workspace/db";
 import journalsRouter from "./journalEntries";
 import invoicesRouter from "./invoices";
@@ -137,6 +137,44 @@ async function entryVatLines(entryId: string) {
 }
 
 describe.sequential("automatic journal VAT provenance", () => {
+  it.each([false, true])("creates complete journal, VAT and audit records (autoPost: %s)", async (autoPost) => {
+    const response = await request(app).post(`/companies/${companyId}/entries`).send({
+      ...proposalBody({ companyVatCodeId: companyCodeId }),
+      sourceType: "manual",
+      autoPost,
+    }).expect(201);
+    const entryId = response.body.id;
+    const reloaded = await request(app).get(`/companies/${companyId}/entries/${entryId}`).expect(200);
+    expect(reloaded.body).toMatchObject({ status: autoPost ? "posted" : "draft", companyId, periodId });
+    expect(reloaded.body.lines).toHaveLength(2);
+    expect(await entryVatLines(entryId)).toEqual([
+      { vatCodeId: globalId, companyVatCodeId: companyCodeId },
+    ]);
+    const taxRows = await db.select({
+      vatCodeId: vatLedgerTable.vatCodeId,
+      direction: vatLedgerTable.direction,
+      baseAmount: vatLedgerTable.baseAmount,
+      vatAmount: vatLedgerTable.vatAmount,
+    }).from(vatLedgerTable).where(eq(vatLedgerTable.journalEntryId, entryId));
+    expect(taxRows).toEqual(autoPost
+      ? [{ vatCodeId: globalId, direction: "IN", baseAmount: "100.00", vatAmount: "22.00" }]
+      : []);
+    const audits = await db.select({
+      action: auditLogTable.action,
+      changedBy: auditLogTable.changedBy,
+      payload: auditLogTable.payload,
+    }).from(auditLogTable).where(and(
+      eq(auditLogTable.companyId, companyId),
+      eq(auditLogTable.entityType, "journal_entry"),
+      eq(auditLogTable.entityId, entryId),
+    ));
+    expect(audits).toEqual([{
+      action: autoPost ? "create_and_post" : "create",
+      changedBy: "TEST-journal-vat-links",
+      payload: { periodId, entryDate: "2026-01-10", description: "Automatic document proposal", lineCount: 2 },
+    }]);
+  });
+
   it("resolves a company-only automatic proposal and preserves both IDs after reload", async () => {
     const created = await request(app).post(`/companies/${companyId}/entries`)
       .send(proposalBody({ companyVatCodeId: companyCodeId })).expect(201);

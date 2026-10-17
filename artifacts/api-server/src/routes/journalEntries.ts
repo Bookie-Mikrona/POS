@@ -310,11 +310,11 @@ router.post(
     const access = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!access) return;
     if (access.role === "viewer") {
-      res.status(403).json({ error: "Za storno potrebujete vlogo računovodja ali lastnik" });
+      res.status(403).json({ error: "Za ustvarjanje temeljnic potrebujete vlogo računovodja ali lastnik" });
       return;
     }
 
-    const parsed = ReverseJournalEntryBody.safeParse(req.body);
+    const parsed = CreateJournalEntryBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
@@ -332,30 +332,13 @@ router.post(
       res.status(409).json({ error: "Letno otvoritev pripravite prek postopka v Računovodskih obdobjih" });
       return;
     }
-    const lines = await db
-      .select({
-        id: journalEntryLinesTable.id,
-        side: journalEntryLinesTable.side,
-        amount: journalEntryLinesTable.amount,
-        accountId: journalEntryLinesTable.accountId,
-        partnerId: journalEntryLinesTable.partnerId,
-        costCenterId: journalEntryLinesTable.costCenterId,
-        projectId: journalEntryLinesTable.projectId,
-        departmentId: journalEntryLinesTable.departmentId,
-        vatCodeId: journalEntryLinesTable.vatCodeId,
-        companyVatCodeId: journalEntryLinesTable.companyVatCodeId,
-        vatAmount: journalEntryLinesTable.vatAmount,
-        vatDeductionPercent: journalEntryLinesTable.vatDeductionPercent,
-        description: journalEntryLinesTable.description,
-      })
-      .from(journalEntryLinesTable)
-      .where(eq(journalEntryLinesTable.entryId, id));
+    const lines = requestedLines;
 
     // Preveri period pripada podjetju
     const [period] = await db
-      .select({ status: accountingPeriodsTable.status })
+      .select({ id: accountingPeriodsTable.id, status: accountingPeriodsTable.status })
       .from(accountingPeriodsTable)
-      .where(eq(accountingPeriodsTable.id, entry.periodId))
+      .where(and(eq(accountingPeriodsTable.id, periodId), eq(accountingPeriodsTable.companyId, companyId)))
       .limit(1);
 
     if (!period) {
@@ -400,12 +383,40 @@ router.post(
     const allCostCenterIds = [...new Set(lines.map((l) => l.costCenterId).filter((x): x is string => !!x))];
     const allProjectIds = [...new Set(lines.map((l) => l.projectId).filter((x): x is string => !!x))];
     const allDepartmentIds = [...new Set(lines.map((l) => l.departmentId).filter((x): x is string => !!x))];
+
+    if (allPartnerIds.length > 0) {
       const found = await db
-        .select({ id: departmentsTable.id })
-        .from(departmentsTable)
+        .select({ id: counterpartiesTable.id })
+        .from(counterpartiesTable)
         .where(and(
-          inArray(departmentsTable.id, allDepartmentIds),
-          eq(departmentsTable.companyId, companyId),
+          inArray(counterpartiesTable.id, allPartnerIds),
+          eq(counterpartiesTable.companyId, companyId),
+        ));
+      if (found.length !== allPartnerIds.length) {
+        res.status(400).json({ error: "Vsaj en partner ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allCostCenterIds.length > 0) {
+      const found = await db
+        .select({ id: costCentersTable.id })
+        .from(costCentersTable)
+        .where(and(
+          inArray(costCentersTable.id, allCostCenterIds),
+          eq(costCentersTable.companyId, companyId),
+        ));
+      if (found.length !== allCostCenterIds.length) {
+        res.status(400).json({ error: "Vsaj eno stroškovno mesto ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allProjectIds.length > 0) {
+      const found = await db
+        .select({ id: projectsTable.id })
+        .from(projectsTable)
+        .where(and(
+          inArray(projectsTable.id, allProjectIds),
+          eq(projectsTable.companyId, companyId),
         ));
       if (found.length !== allProjectIds.length) {
         res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
@@ -420,50 +431,15 @@ router.post(
           inArray(departmentsTable.id, allDepartmentIds),
           eq(departmentsTable.companyId, companyId),
         ));
-      if (found.length !== allProjectIds.length) {
-        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
+      if (found.length !== allDepartmentIds.length) {
+        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
         return;
       }
     }
-    if (allDepartmentIds.length > 0) {
-      const found = await db
-        .select({ id: departmentsTable.id })
-        .from(departmentsTable)
-        .where(and(
-          inArray(departmentsTable.id, allDepartmentIds),
-          eq(departmentsTable.companyId, companyId),
-        ));
-      if (found.length !== allProjectIds.length) {
-        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
-        return;
-      }
-    }
-    if (allDepartmentIds.length > 0) {
-      const found = await db
-        .select({ id: departmentsTable.id })
-        .from(departmentsTable)
-        .where(and(
-          inArray(departmentsTable.id, allDepartmentIds),
-          eq(departmentsTable.companyId, companyId),
-        ));
-      if (found.length !== allProjectIds.length) {
-        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
-        return;
-      }
-    }
-    if (allDepartmentIds.length > 0) {
-      const found = await db
-        .select({ id: departmentsTable.id })
-        .from(departmentsTable)
-        .where(and(
-          inArray(departmentsTable.id, allDepartmentIds),
-          eq(departmentsTable.companyId, companyId),
-        ));
-      if (found.length !== allCompanyVatCodeIds.length) {
-        res.status(400).json({ error: "Vsaj ena DDV koda ne obstaja ali ne pripada temu podjetju" });
-        return;
-      }
-        const acc = lineAccountMap.get(line.accountId);
+
+    // §69, §70 — Validacija kontov in dimenzij
+    for (const line of lines) {
+      const acc = accountMap.get(line.accountId);
       if (!acc) continue;
       if (!acc.isActive) {
         res.status(400).json(accountingError("ACCOUNT_INACTIVE", `Konto ${acc.code} ni aktiven.`, { account: acc.code }));
@@ -493,7 +469,7 @@ router.post(
 
     // §68 — Za autoPost preveri balance pred insertom (Decimal natančnost)
     if (autoPost) {
-    const balanceErr = checkBalance(lines);
+      const balanceErr = checkBalance(lines.map(line => ({ side: line.side, amount: String(line.amount) })));
       if (balanceErr) { res.status(400).json(balanceErr); return; }
     }
 
@@ -511,25 +487,93 @@ router.post(
     const now = new Date();
 
     let entry: { id: string };
+    try {
+      entry = await db.transaction(async (tx) => {
+        // Resolve and lock company/FURS links in the same transaction as all writes.
+        const resolvedLines = await resolveJournalVatCodeLinks(tx, companyId, requestedLines);
+        const [newEntry] = await tx
+          .insert(journalEntriesTable)
+          .values({
+            companyId,
+            periodId,
+            documentDate,
+            entryDate,
+            taxDate,
+            receiptDate,
+            description,
+            reference: reference ?? null,
+            status: autoPost ? "posted" : "draft",
+            postedAt: autoPost ? now : null,
+            sourceType: (sourceType ?? "manual") as "manual" | "bank_import" | "document" | "ai_suggestion",
+            approvedBy: autoPost ? authReq.clerkUserId : null,
+            createdBy: authReq.clerkUserId,
+          })
+          .returning({ id: journalEntriesTable.id });
 
-      const [newEntry] = await tx
-        .insert(journalEntriesTable)
-        .values({
+        await tx.insert(journalEntryLinesTable).values(
+          resolvedLines.map((line, i) => ({
+            entryId: newEntry.id,
+            accountId: line.accountId,
+            side: line.side,
+            amount: line.amount.toFixed(2),
+            description: line.description ?? null,
+            sequence: i,
+            partnerId: line.partnerId ?? null,
+            costCenterId: line.costCenterId ?? null,
+            projectId: line.projectId ?? null,
+            departmentId: line.departmentId ?? null,
+            vatCodeId: line.vatCodeId ?? null,
+            companyVatCodeId: line.companyVatCodeId ?? null,
+            vatAmount: line.vatAmount != null ? String(line.vatAmount) : null,
+            vatDeductionPercent: line.vatDeductionPercent != null ? String(line.vatDeductionPercent) : null,
+          })),
+        );
+
+        if (autoPost) {
+          const vatLines: VatLine[] = resolvedLines
+            .filter(line => line.vatCodeId != null)
+            .map((line, i) => ({
+              lineId: `line-${i}`,
+              vatCodeId: line.vatCodeId!,
+              amount: line.amount.toFixed(2),
+              vatAmount: line.vatAmount != null ? String(line.vatAmount) : null,
+              vatDeductionPercent: line.vatDeductionPercent != null ? String(line.vatDeductionPercent) : null,
+              partnerId: line.partnerId ?? null,
+              description: line.description ?? null,
+            }));
+          if (vatLines.length > 0) {
+            const entryMeta: EntryMeta = {
+              id: newEntry.id,
+              companyId,
+              documentDate,
+              entryDate,
+              taxDate,
+              receiptDate,
+              reference: reference ?? null,
+              sourceType: sourceType ?? "manual",
+            };
+            await createVatLedgerEntries(tx, entryMeta, vatLines, authReq.clerkUserId);
+          }
+        }
+
+        // Audit failure must roll back the header, lines and VAT ledger together.
+        await tx.insert(auditLogTable).values({
           companyId,
-          periodId,
-          documentDate,
-          entryDate,
-          taxDate,
-          receiptDate,
-          description,
-          reference: reference ?? null,
-          status: autoPost ? "posted" : "draft",
-          postedAt: autoPost ? now : null,
-          sourceType: (sourceType ?? "manual") as "manual" | "bank_import" | "document" | "ai_suggestion",
-          approvedBy: autoPost ? authReq.clerkUserId : null,
-          createdBy: authReq.clerkUserId,
-        })
-        .returning({ id: journalEntriesTable.id });
+          entityType: "journal_entry",
+          entityId: newEntry.id,
+          action: autoPost ? "create_and_post" : "create",
+          changedBy: authReq.clerkUserId,
+          payload: { periodId, entryDate, description, lineCount: resolvedLines.length },
+        });
+        return newEntry;
+      });
+    } catch (error) {
+      if (error instanceof JournalVatCodeLinkError) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
     const createdResult = await fetchEntryWithLines(entry.id);
     res.status(201).json(createdResult);
   },

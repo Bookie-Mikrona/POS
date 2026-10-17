@@ -20,6 +20,8 @@ import {
   izmeneTable,
   kdsNalogiTable,
   kdsPostajeTable,
+  multicourseMenuCoursesTable,
+  multicourseMenusTable,
   napraveTable,
   narocilaTable,
   natakariTable,
@@ -217,6 +219,8 @@ afterAll(async () => {
   if (actorA || actorB) {
     await db.delete(posAiAgentAuditTable).where(inArray(posAiAgentAuditTable.actorNatakarId, [actorA, actorB]));
   }
+  // Remove menu/course references before the company cascades into articles.
+  if (enotaA) await db.delete(multicourseMenusTable).where(eq(multicourseMenusTable.enotaId, enotaA));
   if (companyId) await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
   if (previousSessionSecret === undefined) delete process.env.SESSION_SECRET;
   else process.env.SESSION_SECRET = previousSessionSecret;
@@ -335,4 +339,110 @@ describe("POST /ai/agent protected batch clarification", () => {
     expect(replay.body).toMatchObject({ action: "explain", odgovor: expect.stringContaining("spremenili") });
     expect(await assignmentRows()).toEqual(saved);
   });
+});
+
+describe("POST /ai/agent persisted course-name audit", () => {
+  it.each([
+    { action: "assign_course", conflictingSnapshots: false },
+    { action: "assign_courses", conflictingSnapshots: false },
+    { action: "assign_course", conflictingSnapshots: true },
+    { action: "assign_courses", conflictingSnapshots: true },
+  ] as const)(
+    "$action keeps historical audit evidence after rename (conflicting snapshots: $conflictingSnapshots)",
+    async ({ action, conflictingSnapshots }) => {
+      const [article] = await db.insert(artikliTable).values({
+        enotaId: enotaA, ime: `${run} audit menu`, cena: "1", davek: "22", vrstniRed: 1,
+      }).returning({ id: artikliTable.id });
+      const [menu] = await db.insert(multicourseMenusTable).values({
+        enotaId: enotaA, menuArtikelId: article!.id, izbor: "fixed_four", aktivno: true,
+      }).returning({ id: multicourseMenusTable.id });
+      const [course] = await db.insert(multicourseMenuCoursesTable).values({
+        menuId: menu!.id, courseNumber: 2, courseName: "Ribji hod", foodArtikelId: article!.id,
+      }).returning({ id: multicourseMenuCoursesTable.id });
+      const [order] = await db.insert(narocilaTable).values({
+        enotaId: enotaA, stevilkaNarocila: 920000,
+      }).returning({ id: narocilaTable.id });
+      const group = `${run}:audit:${order!.id}`;
+      const lines = await db.insert(postavkeTable).values([
+        {
+          narociloId: order!.id, artikelId: article!.id, ime: "Meni", kolicina: 1,
+          cenaKos: "1", skupaj: "1", davek: "22", pairingGroupId: group,
+        },
+        {
+          narociloId: order!.id, artikelId: article!.id, ime: "Referenca hoda", kolicina: 1,
+          cenaKos: "0", skupaj: "0", davek: "22", pairingGroupId: group,
+          courseNumber: 2, courseSequence: 2, courseNameSnapshot: "Ribji hod",
+        },
+        {
+          narociloId: order!.id, artikelId: article!.id, ime: "Juha", kolicina: 1,
+          cenaKos: "1", skupaj: "1", davek: "22",
+        },
+        {
+          narociloId: order!.id, artikelId: article!.id, ime: "Vino", kolicina: 1,
+          cenaKos: "1", skupaj: "1", davek: "22",
+        },
+      ]).returning({ id: postavkeTable.id, ime: postavkeTable.ime });
+      if (conflictingSnapshots) {
+        await db.insert(postavkeTable).values({
+          narociloId: order!.id, artikelId: article!.id, ime: "Nasprotujoča referenca", kolicina: 1,
+          cenaKos: "0", skupaj: "0", davek: "22", pairingGroupId: group,
+          courseNumber: 2, courseSequence: 2, courseNameSnapshot: "Drugo zgodovinsko ime",
+        });
+      }
+
+      // Rename only after opening the order with persisted historical evidence.
+      await db.update(multicourseMenuCoursesTable)
+        .set({ courseName: "Preimenovan hod" })
+        .where(eq(multicourseMenuCoursesTable.id, course!.id));
+      const response = await agentRequest({
+        actorSession: actorToken({ actorId: actorA, shiftId: shiftA, enotaId: enotaA }),
+        body: {
+          ukaz: action === "assign_course" ? "juha na drugi hod" : "juha na drugi hod, vino na drugi hod",
+          narociloId: order!.id,
+        },
+      });
+      expect(response.status, JSON.stringify(response.body)).toBe(200);
+      expect(response.body).toMatchObject({ action, changed: true, narociloId: order!.id });
+
+      const targetIds = lines.filter(line =>
+        line.ime === "Juha" || (action === "assign_courses" && line.ime === "Vino"),
+      ).map(line => line.id);
+      const saved = await db.select({
+        id: postavkeTable.id,
+        courseNumber: postavkeTable.courseNumber,
+        courseSequence: postavkeTable.courseSequence,
+        pairingGroupId: postavkeTable.pairingGroupId,
+      }).from(postavkeTable).where(inArray(postavkeTable.id, targetIds)).orderBy(postavkeTable.id);
+      expect(saved).toEqual(targetIds.map(id => ({
+        id, courseNumber: 2, courseSequence: 2, pairingGroupId: expect.any(String),
+      })));
+
+      // Read the stored audit, not the response or the resolver's return value.
+      const audits = await db.select().from(posAiAgentAuditTable)
+        .where(eq(posAiAgentAuditTable.enotaId, enotaA));
+      const relevantAudits = audits.filter(row => {
+        if (row.action !== action) return false;
+        const metadata = row.metadata as {
+          postavkaId?: number;
+          assignments?: Array<{ postavkaId: number }>;
+        };
+        return action === "assign_course"
+          ? metadata.postavkaId === targetIds[0]
+          : metadata.assignments?.some(assignment => targetIds.includes(assignment.postavkaId));
+      });
+      expect(relevantAudits).toHaveLength(1);
+      const expectedAssignments = saved.map(line => ({
+        postavkaId: line.id,
+        courseNumber: 2,
+        courseNameSnapshot: conflictingSnapshots ? "2. hod" : "Ribji hod",
+        pairingGroupId: line.pairingGroupId,
+      }));
+      expect(relevantAudits[0]).toMatchObject({
+        napravaId: napravaA.id, actorNatakarId: actorA, action, outcome: "success",
+        metadata: action === "assign_course"
+          ? expectedAssignments[0]
+          : { assignments: expectedAssignments },
+      });
+    },
+  );
 });
