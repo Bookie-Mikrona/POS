@@ -7511,6 +7511,7 @@ export type VivaTerminalRefundOdgovorStatus = typeof VivaTerminalRefundOdgovorSt
 export const VivaTerminalRefundOdgovorStatus = {
   pending: 'pending',
   unknown: 'unknown',
+  awaiting_approval: 'awaiting_approval',
   paid: 'paid',
 } as const;
 
@@ -7532,6 +7533,7 @@ export type VivaVraciloStatusPrehodPrejsnjiStatus = typeof VivaVraciloStatusPreh
 export const VivaVraciloStatusPrehodPrejsnjiStatus = {
   pending: 'pending',
   unknown: 'unknown',
+  awaiting_approval: 'awaiting_approval',
   paid: 'paid',
   failed: 'failed',
 } as const;
@@ -7542,6 +7544,18 @@ export type VivaVraciloStatusPrehodNoviStatus = typeof VivaVraciloStatusPrehodNo
 export const VivaVraciloStatusPrehodNoviStatus = {
   pending: 'pending',
   unknown: 'unknown',
+  awaiting_approval: 'awaiting_approval',
+  paid: 'paid',
+  failed: 'failed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type VivaVraciloStatusPrehodPredlaganiStatus = typeof VivaVraciloStatusPrehodPredlaganiStatus[keyof typeof VivaVraciloStatusPrehodPredlaganiStatus] | null;
+
+
+export const VivaVraciloStatusPrehodPredlaganiStatus = {
   paid: 'paid',
   failed: 'failed',
 } as const;
@@ -7562,6 +7576,8 @@ export interface VivaVraciloStatusPrehod {
   /** @nullable */
   prejsnjiStatus?: VivaVraciloStatusPrehodPrejsnjiStatus;
   noviStatus: VivaVraciloStatusPrehodNoviStatus;
+  /** @nullable */
+  predlaganiStatus?: VivaVraciloStatusPrehodPredlaganiStatus;
   /** @nullable */
   napaka?: string | null;
   /** @nullable */
@@ -7588,6 +7604,7 @@ export type VivaVraciloStatus = typeof VivaVraciloStatus[keyof typeof VivaVracil
 export const VivaVraciloStatus = {
   pending: 'pending',
   unknown: 'unknown',
+  awaiting_approval: 'awaiting_approval',
   paid: 'paid',
   failed: 'failed',
 } as const;
@@ -7624,7 +7641,32 @@ export interface VivaVracilo {
   ustvarjeno: string;
 }
 
+export type UnknownVivaRefundStatus = typeof UnknownVivaRefundStatus[keyof typeof UnknownVivaRefundStatus];
+
+
+export const UnknownVivaRefundStatus = {
+  unknown: 'unknown',
+  awaiting_approval: 'awaiting_approval',
+} as const;
+
+/**
+ * @nullable
+ */
+export type UnknownVivaRefundPredlaganiStatus = typeof UnknownVivaRefundPredlaganiStatus[keyof typeof UnknownVivaRefundPredlaganiStatus] | null;
+
+
+export const UnknownVivaRefundPredlaganiStatus = {
+  paid: 'paid',
+  failed: 'failed',
+} as const;
+
 export interface UnknownVivaRefund {
+  status: UnknownVivaRefundStatus;
+  canApprove: boolean;
+  /** @nullable */
+  predlaganiStatus?: UnknownVivaRefundPredlaganiStatus;
+  /** @nullable */
+  prviOdobriteljClerkUserId?: string | null;
   id: number;
   racunId: number;
   stevilkaRacuna: string;
@@ -7641,7 +7683,16 @@ export interface UnknownVivaRefund {
   ustvarjeno: string;
 }
 
+export interface VivaRefundApprovalPolicy {
+  /**
+     * @minimum 0
+     * @maximum 99999999.99
+     */
+  approvalThreshold: number;
+}
+
 export interface UnknownVivaRefundList {
+  approvalThreshold: number;
   items: UnknownVivaRefund[];
 }
 
@@ -7671,6 +7722,7 @@ export type ResolveUnknownVivaRefundResponseStatus = typeof ResolveUnknownVivaRe
 
 
 export const ResolveUnknownVivaRefundResponseStatus = {
+  awaiting_approval: 'awaiting_approval',
   paid: 'paid',
   failed: 'failed',
 } as const;

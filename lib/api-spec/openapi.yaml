@@ -5392,6 +5392,29 @@ paths:
                 $ref: "#/components/schemas/UnknownVivaRefundList"
         "403":
           description: Potrebna je administratorska vloga
+  /terminal/viva/terminal/refunds/approval-policy:
+    put:
+      operationId: updateVivaRefundApprovalPolicy
+      tags:
+        - terminal
+      summary: Nastavi prag druge odobritve za aktivno enoto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VivaRefundApprovalPolicy"
+      responses:
+        "200":
+          description: Prag je shranjen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VivaRefundApprovalPolicy"
+        "400":
+          description: Neveljaven prag
+        "403":
+          description: Potrebna je administratorska vloga
   /terminal/viva/terminal/refund/{sessionId}/resolve:
     post:
       operationId: resolveUnknownVivaRefund
@@ -18997,6 +19020,7 @@ components:
           enum:
             - pending
             - unknown
+            - awaiting_approval
             - paid
           description: Trenutni trajni status začetega vračila
         idempotentReplay:
@@ -19020,6 +19044,7 @@ components:
           enum:
             - pending
             - unknown
+            - awaiting_approval
             - paid
             - failed
             - null
@@ -19028,8 +19053,12 @@ components:
           enum:
             - pending
             - unknown
+            - awaiting_approval
             - paid
             - failed
+        predlaganiStatus:
+          type: [string, "null"]
+          enum: [paid, failed, null]
         napaka:
           type:
             - string
@@ -19094,6 +19123,7 @@ components:
           enum:
             - pending
             - unknown
+            - awaiting_approval
             - paid
             - failed
           description: Status vračila
@@ -19134,8 +19164,20 @@ components:
         - stevilkaRacuna
         - refundSessionId
         - znesek
+        - status
+        - canApprove
         - ustvarjeno
       properties:
+        status:
+          type: string
+          enum: [unknown, awaiting_approval]
+        canApprove:
+          type: boolean
+        predlaganiStatus:
+          type: [string, "null"]
+          enum: [paid, failed, null]
+        prviOdobriteljClerkUserId:
+          type: [string, "null"]
         id:
           type: integer
         racunId:
@@ -19165,11 +19207,23 @@ components:
         ustvarjeno:
           type: string
           format: date-time
+    VivaRefundApprovalPolicy:
+      type: object
+      required: [approvalThreshold]
+      properties:
+        approvalThreshold:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
     UnknownVivaRefundList:
       type: object
       required:
         - items
+        - approvalThreshold
       properties:
+        approvalThreshold:
+          type: number
         items:
           type: array
           items:
@@ -19206,6 +19260,7 @@ components:
         status:
           type: string
           enum:
+            - awaiting_approval
             - paid
             - failed
         manualResolution:

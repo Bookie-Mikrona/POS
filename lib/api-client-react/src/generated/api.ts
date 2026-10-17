@@ -568,6 +568,7 @@ import type {
   VatReturnResponse,
   VivaPayBody,
   VivaPayOdgovor,
+  VivaRefundApprovalPolicy,
   VivaStatusOdgovor,
   VivaTerminalPayBody,
   VivaTerminalPayOdgovor,
@@ -19734,6 +19735,77 @@ export function useListUnknownVivaRefunds<TData = Awaited<ReturnType<typeof list
 
 
 
+
+export const getUpdateVivaRefundApprovalPolicyUrl = () => {
+
+
+
+
+  return `/api/terminal/viva/terminal/refunds/approval-policy`
+}
+
+/**
+ * @summary Nastavi prag druge odobritve za aktivno enoto
+ */
+export const updateVivaRefundApprovalPolicy = async (vivaRefundApprovalPolicy: VivaRefundApprovalPolicy, options?: RequestInit): Promise<VivaRefundApprovalPolicy> => {
+
+  return customFetch<VivaRefundApprovalPolicy>(getUpdateVivaRefundApprovalPolicyUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vivaRefundApprovalPolicy)
+  }
+);}
+
+
+
+
+
+export const getUpdateVivaRefundApprovalPolicyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVivaRefundApprovalPolicy>>, TError,{data: BodyType<VivaRefundApprovalPolicy>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVivaRefundApprovalPolicy>>, TError,{data: BodyType<VivaRefundApprovalPolicy>}, TContext> => {
+
+const mutationKey = ['updateVivaRefundApprovalPolicy'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVivaRefundApprovalPolicy>>, {data: BodyType<VivaRefundApprovalPolicy>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateVivaRefundApprovalPolicy(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVivaRefundApprovalPolicyMutationResult = NonNullable<Awaited<ReturnType<typeof updateVivaRefundApprovalPolicy>>>
+    export type UpdateVivaRefundApprovalPolicyMutationBody = BodyType<VivaRefundApprovalPolicy>
+    export type UpdateVivaRefundApprovalPolicyMutationError = ErrorType<void>
+
+    /**
+ * @summary Nastavi prag druge odobritve za aktivno enoto
+ */
+export const useUpdateVivaRefundApprovalPolicy = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVivaRefundApprovalPolicy>>, TError,{data: BodyType<VivaRefundApprovalPolicy>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateVivaRefundApprovalPolicy>>,
+        TError,
+        {data: BodyType<VivaRefundApprovalPolicy>},
+        TContext
+      > => {
+      return useMutation(getUpdateVivaRefundApprovalPolicyMutationOptions(options));
+    }
 
 export const getResolveUnknownVivaRefundUrl = (sessionId: string,) => {
 

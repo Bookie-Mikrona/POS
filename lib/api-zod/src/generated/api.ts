@@ -8210,7 +8210,7 @@ export const ListVivaVracilaResponseItem = zod.object({
   "racunId": zod.number(),
   "refundSessionId": zod.string().describe('UUID seje vračila (za polling terminala)'),
   "znesek": zod.number().describe('Znesek vračila v evrih'),
-  "status": zod.enum(['pending', 'unknown', 'paid', 'failed']).describe('Status vračila'),
+  "status": zod.enum(['pending', 'unknown', 'awaiting_approval', 'paid', 'failed']).describe('Status vračila'),
   "napaka": zod.string().nullish().describe('Sporočilo o napaki, če je terminal zavrnil vračilo'),
   "actorClerkUserId": zod.string().nullish().describe('Nespremenljivi Clerk ID uporabnika, ki je rezerviral vračilo'),
   "actorNatakarId": zod.number().nullish().describe('Nespremenljivi ID aktivnega POS natakarja, ki je rezerviral vračilo'),
@@ -8218,8 +8218,9 @@ export const ListVivaVracilaResponseItem = zod.object({
   "providerReferenca": zod.string().describe('Referenca seje vračila pri ponudniku'),
   "statusPrehodi": zod.array(zod.object({
   "id": zod.number(),
-  "prejsnjiStatus": zod.union([zod.literal('pending'),zod.literal('unknown'),zod.literal('paid'),zod.literal('failed'),zod.literal(null)]).nullish(),
-  "noviStatus": zod.enum(['pending', 'unknown', 'paid', 'failed']),
+  "prejsnjiStatus": zod.union([zod.literal('pending'),zod.literal('unknown'),zod.literal('awaiting_approval'),zod.literal('paid'),zod.literal('failed'),zod.literal(null)]).nullish(),
+  "noviStatus": zod.enum(['pending', 'unknown', 'awaiting_approval', 'paid', 'failed']),
+  "predlaganiStatus": zod.union([zod.literal('paid'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "napaka": zod.string().nullish(),
   "actorClerkUserId": zod.string().nullish(),
   "actorNatakarId": zod.number().nullish(),
@@ -10609,7 +10610,7 @@ export const VivaTerminalRefundBody = zod.object({
 
 export const VivaTerminalRefundResponse = zod.object({
   "sessionId": zod.string().describe('UUID seje vračila za polling statusa terminala'),
-  "status": zod.enum(['pending', 'unknown', 'paid']).describe('Trenutni trajni status začetega vračila'),
+  "status": zod.enum(['pending', 'unknown', 'awaiting_approval', 'paid']).describe('Trenutni trajni status začetega vračila'),
   "idempotentReplay": zod.boolean().optional().describe('Ali je strežnik vrnil že obstoječ poskus brez novega klica terminala')
 })
 
@@ -10631,7 +10632,12 @@ export const VivaTerminalRefundStatusResponse = zod.object({
  * @summary Seznam nejasnih Viva vračil aktivne enote za administratorsko uskladitev
  */
 export const ListUnknownVivaRefundsResponse = zod.object({
+  "approvalThreshold": zod.number(),
   "items": zod.array(zod.object({
+  "status": zod.enum(['unknown', 'awaiting_approval']),
+  "canApprove": zod.boolean(),
+  "predlaganiStatus": zod.union([zod.literal('paid'),zod.literal('failed'),zod.literal(null)]).nullish(),
+  "prviOdobriteljClerkUserId": zod.string().nullish(),
   "id": zod.number(),
   "racunId": zod.number(),
   "stevilkaRacuna": zod.string(),
@@ -10643,6 +10649,30 @@ export const ListUnknownVivaRefundsResponse = zod.object({
   "napravaKljuc": zod.string().nullish(),
   "ustvarjeno": zod.coerce.date()
 }))
+})
+
+
+/**
+ * @summary Nastavi prag druge odobritve za aktivno enoto
+ */
+export const updateVivaRefundApprovalPolicyBodyApprovalThresholdMin = 0;
+export const updateVivaRefundApprovalPolicyBodyApprovalThresholdMax = 99999999.99;
+export const updateVivaRefundApprovalPolicyBodyApprovalThresholdMultipleOf = 0.01;
+
+
+
+export const UpdateVivaRefundApprovalPolicyBody = zod.object({
+  "approvalThreshold": zod.number().min(updateVivaRefundApprovalPolicyBodyApprovalThresholdMin).max(updateVivaRefundApprovalPolicyBodyApprovalThresholdMax).multipleOf(updateVivaRefundApprovalPolicyBodyApprovalThresholdMultipleOf)
+})
+
+export const updateVivaRefundApprovalPolicyResponseApprovalThresholdMin = 0;
+export const updateVivaRefundApprovalPolicyResponseApprovalThresholdMax = 99999999.99;
+export const updateVivaRefundApprovalPolicyResponseApprovalThresholdMultipleOf = 0.01;
+
+
+
+export const UpdateVivaRefundApprovalPolicyResponse = zod.object({
+  "approvalThreshold": zod.number().min(updateVivaRefundApprovalPolicyResponseApprovalThresholdMin).max(updateVivaRefundApprovalPolicyResponseApprovalThresholdMax).multipleOf(updateVivaRefundApprovalPolicyResponseApprovalThresholdMultipleOf)
 })
 
 
@@ -10669,7 +10699,7 @@ export const ResolveUnknownVivaRefundBody = zod.object({
 
 export const ResolveUnknownVivaRefundResponse = zod.object({
   "sessionId": zod.string(),
-  "status": zod.enum(['paid', 'failed']),
+  "status": zod.enum(['awaiting_approval', 'paid', 'failed']),
   "manualResolution": zod.boolean()
 })
 

@@ -251,6 +251,7 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     dependsOn: ["173-viva-refund-actor-status-audit.sql"],
   },
   { file: "175-restrict-linked-invoice-delete.sql", classification: "integrity" },
+  { file: "265-viva-refund-four-eyes.sql", classification: "integrity", dependsOn: ["174-viva-refund-manual-resolution.sql"] },
   { file: "176-pos-receipt-payment-details.sql", classification: "schema" },
   { file: "177-invoice-payment-instructions.sql", classification: "schema" },
   { file: "178-bank-statement-evidence.sql", classification: "audit" },

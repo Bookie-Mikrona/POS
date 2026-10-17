@@ -250,8 +250,8 @@ describe("Viva refund audit access", () => {
       Object.assign(req, {
         companyId: company!.id,
         enotaId: enota!.id,
-        clerkUserId: `resolver-${runId}`,
-        vloga: "superadmin",
+        clerkUserId: req.get("X-Test-Actor") === "missing" ? null : req.get("X-Test-Actor") ?? `resolver-${runId}`,
+        vloga: req.get("X-Test-Role") ?? "superadmin",
         napravaKljuc: `admin-device-${runId}`,
         log: { info: () => undefined, warn: () => undefined, error: () => undefined },
       });
@@ -281,7 +281,7 @@ describe("Viva refund audit access", () => {
 
     const [stored] = await db.select({ status: vivaVracilaTable.status })
       .from(vivaVracilaTable).where(eq(vivaVracilaTable.id, refund!.id));
-    expect(["paid", "failed"]).toContain(stored!.status);
+    expect(["awaiting_approval", "failed"]).toContain(stored!.status);
     const transitions = await db.select().from(vivaVraciloStatusPrehodiTable)
       .where(eq(vivaVraciloStatusPrehodiTable.vivaVraciloId, refund!.id));
     const manual = transitions.filter(transition => transition.vir === "manual");
@@ -294,9 +294,83 @@ describe("Viva refund audit access", () => {
     });
 
     const after = await supertest(app).get("/terminal/viva/terminal/refunds/unknown");
-    expect(after.body.items).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ refundSessionId }),
-    ]));
+    expect(after.body.items.some((item: { refundSessionId: string }) => item.refundSessionId === refundSessionId))
+      .toBe(stored!.status === "awaiting_approval");
+
+    const reason = "Preverjeno v terminalskem dnevniku in bančnem izpisku.";
+    const createUnknown = async (suffix: string, amount: string) => {
+      const [row] = await db.insert(vivaVracilaTable).values({
+        racunId: racun!.id, enotaId: enota!.id, refundSessionId: `${refundSessionId}-${suffix}`,
+        znesek: amount, status: "unknown", napravaKljuc: `device-${runId}`,
+      }).returning();
+      return row!;
+    };
+    const resolve = (session: string, actor: string, status: "paid" | "failed") =>
+      supertest(app).post(`/terminal/viva/terminal/refund/${session}/resolve`)
+        .set("X-Test-Actor", actor).send({ status, razlog: reason, dokazReferenca: `proof-${actor}` });
+    const actorA = `first-${runId}`;
+    const actorB = `second-${runId}`;
+    const actorC = `third-${runId}`;
+    const paidRefund = await createUnknown("four-eyes-paid", "0.01");
+    expect((await resolve(paidRefund.refundSessionId, "missing", "paid")).status).toBe(403);
+    expect((await supertest(app).post(`/terminal/viva/terminal/refund/${paidRefund.refundSessionId}/resolve`)
+      .set("X-Test-Role", "natakar").send({ status: "paid", razlog: reason, dokazReferenca: "proof" })).status).toBe(403);
+    const proposed = await resolve(paidRefund.refundSessionId, actorA, "paid");
+    expect(proposed.status, proposed.body).toBe(200);
+    expect(proposed.body.status).toBe("awaiting_approval");
+    const [waiting] = await db.select().from(vivaVracilaTable).where(eq(vivaVracilaTable.id, paidRefund.id));
+    expect(waiting).toMatchObject({ status: "awaiting_approval", predlaganiStatus: "paid",
+      prviOdobriteljClerkUserId: actorA, zakljucenoAt: null });
+    const ownList = await supertest(app).get("/terminal/viva/terminal/refunds/unknown").set("X-Test-Actor", actorA);
+    expect(ownList.body.items.find((item: { id: number }) => item.id === paidRefund.id).canApprove).toBe(false);
+    expect((await resolve(paidRefund.refundSessionId, actorA, "paid")).status).toBe(409);
+    expect((await resolve(paidRefund.refundSessionId, actorB, "failed")).status).toBe(409);
+    const replay = await supertest(app).get(`/terminal/viva/terminal/refund/status/${paidRefund.refundSessionId}`);
+    expect(replay.status, replay.body).toBe(200);
+    expect(replay.body.status).toBe("UNKNOWN");
+    // A threshold change cannot remove an already-required second approval.
+    const policy = await supertest(app).put("/terminal/viva/terminal/refunds/approval-policy")
+      .send({ approvalThreshold: 200 });
+    expect(policy.status, policy.body).toBe(200);
+    const approvals = await Promise.all([
+      resolve(paidRefund.refundSessionId, actorB, "paid"),
+      resolve(paidRefund.refundSessionId, actorC, "paid"),
+    ]);
+    expect(approvals.map(response => response.status).sort()).toEqual([200, 409]);
+    const decisions = await db.select().from(vivaVraciloStatusPrehodiTable)
+      .where(eq(vivaVraciloStatusPrehodiTable.vivaVraciloId, paidRefund.id)).orderBy(vivaVraciloStatusPrehodiTable.id);
+    expect(decisions).toHaveLength(2);
+    expect(decisions[0]).toMatchObject({ prejsnjiStatus: "unknown", noviStatus: "awaiting_approval",
+      actorClerkUserId: actorA, razlog: reason, dokazReferenca: `proof-${actorA}`, predlaganiStatus: "paid" });
+    expect(decisions[1]).toMatchObject({ prejsnjiStatus: "awaiting_approval", noviStatus: "paid", vir: "manual" });
+    expect(decisions[1].actorClerkUserId).not.toBe(actorA);
+    expect(decisions.filter(item => item.noviStatus === "paid")).toHaveLength(1);
+    await expect(db.update(vivaVraciloStatusPrehodiTable).set({ razlog: "changed" })
+      .where(eq(vivaVraciloStatusPrehodiTable.id, decisions[0].id))).rejects.toThrow();
+    await expect(db.delete(vivaVraciloStatusPrehodiTable)
+      .where(eq(vivaVraciloStatusPrehodiTable.id, decisions[0].id))).rejects.toThrow();
+
+    for (const [amount, expected] of [["199.99", "failed"], ["200.00", "awaiting_approval"], ["200.01", "awaiting_approval"]] as const) {
+      const item = await createUnknown(`threshold-${amount}`, amount);
+      const response = await resolve(item.refundSessionId, actorA, "failed");
+      expect(response.status, response.body).toBe(200);
+      expect(response.body.status).toBe(expected);
+      if (expected === "awaiting_approval") {
+        expect((await resolve(item.refundSessionId, actorB, "failed")).body.status).toBe("failed");
+      }
+    }
+    const sameActor = await createUnknown("same-actor-race", "5.00");
+    const sameResponses = await Promise.all([
+      resolve(sameActor.refundSessionId, actorA, "paid"),
+      resolve(sameActor.refundSessionId, actorA, "paid"),
+    ]);
+    expect(sameResponses.map(response => response.status).sort()).toEqual([200, 409]);
+    expect((await db.select().from(vivaVracilaTable).where(eq(vivaVracilaTable.id, sameActor.id)))[0].status)
+      .toBe("awaiting_approval");
+    for (const invalid of [-1, 1.001, "100", null]) {
+      expect((await supertest(app).put("/terminal/viva/terminal/refunds/approval-policy")
+        .send({ approvalThreshold: invalid })).status).toBe(400);
+    }
   });
 });
 

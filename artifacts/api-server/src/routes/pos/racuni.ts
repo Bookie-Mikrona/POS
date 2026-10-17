@@ -4569,6 +4569,7 @@ router.get("/racuni/:id/vracila", async (req, res): Promise<void> => {
     vivaVraciloId: vivaVraciloStatusPrehodiTable.vivaVraciloId,
     prejsnjiStatus: vivaVraciloStatusPrehodiTable.prejsnjiStatus,
     noviStatus: vivaVraciloStatusPrehodiTable.noviStatus,
+    predlaganiStatus: vivaVraciloStatusPrehodiTable.predlaganiStatus,
     napaka: vivaVraciloStatusPrehodiTable.napaka,
     actorClerkUserId: vivaVraciloStatusPrehodiTable.actorClerkUserId,
     actorNatakarId: vivaVraciloStatusPrehodiTable.actorNatakarId,

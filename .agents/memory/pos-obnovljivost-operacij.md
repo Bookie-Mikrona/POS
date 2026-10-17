@@ -3,6 +3,12 @@ name: POS obnovljivost operacij
 description: Varnostno pravilo za FURS, kartična plačila, offline replay, tiskanje in poslovno finalizacijo.
 ---
 
+Ročna razrešitev terminalskega vračila v »paid« vedno zahteva dva različna Clerk uporabnika, tudi pod zneskovnim pragom. Že zahtevanega drugega soglasja poznejši dvig praga ne odpravi.
+
+**Why:** Prag omejuje dodatne kontrole pri neuspelem vračilu, ne dovoljuje samostojne potrditve odtoka denarja. Sprememba nastavitev ne sme naknadno obiti že začetega postopka štirih oči.
+
+**How to apply:** Med odobritvama obravnavaj vračilo kot nejasno, nikoli kot izvedeno ali varno za ponovitev.
+
 Vsako operacijo z zunanjim ali nepovratnim učinkom je treba trajno rezervirati pred izvedbo. Potrjen rezultat se ob ponovitvi vrne nespremenjen; nejasen rezultat ostane `unknown` oziroma `needs_review` in se ne izvede samodejno znova.
 
 **Why:** Padec procesa ali timeout lahko nastopi po tem, ko je ponudnik, FURS, tiskalnik ali poslovna transakcija učinek že izvedla. Samodejna ponovitev bi lahko ustvarila dvojno bremenitev, račun, izpis ali zalogovni gib.

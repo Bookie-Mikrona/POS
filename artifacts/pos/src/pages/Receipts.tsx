@@ -22,6 +22,7 @@ import { poslovniDatumZaCas } from "@/lib/posCas";
 import { hasReceiptPrintChanges } from "@/lib/receipt-print-changes";
 import { MonthlyInvoicesDialog } from "@/components/MonthlyInvoicesDialog";
 import { FursStateBadge, ReliabilityPanels, classifyFursReceipt } from "@/components/PaymentReliabilityPanels";
+import { useUpdateVivaRefundApprovalPolicy } from "@workspace/api-client-react";
 
 function parseFursError(fursOdgovor: string | null | undefined): { koda: string; sporocilo: string } | null {
   if (!fursOdgovor) return null;
@@ -626,6 +627,7 @@ function EslogEmailButton({
 function statusVivaVracilaBadge(status: string) {
   if (status === "paid") return <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800">Potrjeno</span>;
   if (status === "failed") return <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-800">Zavrnjeno</span>;
+  if (status === "awaiting_approval") return <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">Čaka drugo odobritev</span>;
   if (status === "unknown") return <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">Ročna uskladitev</span>;
   return <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-medium text-yellow-800">V teku</span>;
 }
@@ -634,16 +636,18 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data, isLoading } = useListUnknownVivaRefunds({
-    query: { enabled, queryKey: getListUnknownVivaRefundsQueryKey() },
+    query: { enabled, queryKey: getListUnknownVivaRefundsQueryKey(), refetchInterval: 15000 },
   });
   const resolveRefund = useResolveUnknownVivaRefund();
+  const updatePolicy = useUpdateVivaRefundApprovalPolicy();
+  const [threshold, setThreshold] = useState("");
   const [preverja, setPreverja] = useState<string | null>(null);
   const [izbrano, setIzbrano] = useState<NonNullable<typeof data>["items"][number] | null>(null);
   const [status, setStatus] = useState<"paid" | "failed">("paid");
   const [razlog, setRazlog] = useState("");
   const [dokaz, setDokaz] = useState("");
 
-  if (!enabled || isLoading || !data?.items.length) return null;
+  if (!enabled || isLoading || !data) return null;
 
   async function osvezi(refundSessionId: string) {
     setPreverja(refundSessionId);
@@ -669,12 +673,13 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
     resolveRefund.mutate(
       { sessionId: izbrano.refundSessionId, data: { status, razlog: razlog.trim(), dokazReferenca: dokaz.trim() } },
       {
-        onSuccess: async () => {
+        onSuccess: async odgovor => {
           await Promise.all([
             queryClient.invalidateQueries({ queryKey: getListUnknownVivaRefundsQueryKey() }),
             queryClient.invalidateQueries({ queryKey: getListVivaVracilaQueryKey(izbrano.racunId) }),
           ]);
-          toast({ title: "Vračilo je razrešeno", description: `Ročno stanje je nastavljeno na ${status}.` });
+          toast({ title: odgovor.status === "awaiting_approval" ? "Predlog čaka drugo odobritev" : "Vračilo je razrešeno",
+            description: odgovor.status === "awaiting_approval" ? "Isti izid mora potrditi drug Clerk uporabnik. Vračilo še ni dokončno razrešeno." : `Ročno stanje je nastavljeno na ${odgovor.status}.` });
           setIzbrano(null);
           setRazlog("");
           setDokaz("");
@@ -695,8 +700,27 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
           <div>
             <h2 className="font-semibold text-amber-950">Nejasna Viva vračila ({data.items.length})</h2>
             <p className="text-xs text-amber-800">Najprej ponovno preverite Vivo. Ročno zaključite šele po primerjavi s terminalom ali izpiskom.</p>
+            <p className="text-xs text-amber-800">Druga odobritev je obvezna za »izvedeno« ter za zneske od {formatEur(data.approvalThreshold)} naprej.</p>
           </div>
         </div>
+        <form className="flex flex-wrap items-end gap-2" onSubmit={event => {
+          event.preventDefault();
+          const amount = parseDecimal(threshold);
+          if (!Number.isFinite(amount) || amount < 0 || !threshold.trim()) return;
+          updatePolicy.mutate({ data: { approvalThreshold: amount } }, {
+            onSuccess: async () => {
+              setThreshold("");
+              await queryClient.invalidateQueries({ queryKey: getListUnknownVivaRefundsQueryKey() });
+              toast({ title: "Prag druge odobritve je shranjen" });
+            },
+            onError: () => toast({ title: "Praga ni bilo mogoče shraniti", variant: "destructive" }),
+          });
+        }}>
+          <div><Label htmlFor="refund-approval-threshold">Prag druge odobritve (€)</Label>
+            <Input id="refund-approval-threshold" inputMode="decimal" value={threshold} placeholder={String(data.approvalThreshold)} onChange={event => setThreshold(event.target.value)} />
+          </div>
+          <Button type="submit" variant="outline" disabled={updatePolicy.isPending || !threshold.trim()}>Shrani prag</Button>
+        </form>
         <div className="space-y-2">
           {data.items.map(item => (
             <div key={item.id} className="rounded-md border border-amber-200 bg-white p-3 text-sm">
@@ -709,15 +733,19 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => osvezi(item.refundSessionId)} disabled={preverja === item.refundSessionId}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => osvezi(item.refundSessionId)} disabled={preverja === item.refundSessionId || item.status === "awaiting_approval"}>
                     <RefreshCw className={`mr-1 h-3.5 w-3.5 ${preverja === item.refundSessionId ? "animate-spin" : ""}`} />
                     Ponovno preveri Vivo
                   </Button>
-                  <Button type="button" size="sm" onClick={() => { setIzbrano(item); setStatus("paid"); }}>
-                    Ročno razreši
+                  <Button type="button" size="sm" disabled={!item.canApprove} onClick={() => { setIzbrano(item); setStatus(item.predlaganiStatus ?? "paid"); setRazlog(""); setDokaz(""); }}>
+                    {item.status === "awaiting_approval" ? "Druga odobritev" : "Ročno razreši"}
                   </Button>
                 </div>
               </div>
+              {item.status === "awaiting_approval" && <p className="mt-2 font-medium text-amber-900">
+                Čaka drugo odobritev · predlog: {item.predlaganiStatus === "paid" ? "vračilo izvedeno" : "vračilo ni izvedeno"} · prvi odobritelj: {item.prviOdobriteljClerkUserId}.
+                {!item.canApprove && " Potrditi mora drug Clerk uporabnik."}
+              </p>}
               {item.napaka && <p className="mt-1 text-xs text-amber-800">{item.napaka}</p>}
               <p className="mt-1 text-[11px] text-slate-600">Naprava: <span className="font-mono">{item.napravaKljuc ?? "ni zabeležena"}</span> · izvajalec: {item.actorNatakarId != null ? `Natakar #${item.actorNatakarId}` : item.actorClerkUserId ?? "ni zabeležen"}</p>
             </div>
@@ -733,11 +761,16 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
             </div>
             <div className="space-y-2">
               <Label>Končno stanje</Label>
-              <RadioGroup value={status} onValueChange={value => setStatus(value as "paid" | "failed")} className="flex gap-4">
+              <RadioGroup disabled={izbrano?.status === "awaiting_approval"} value={status} onValueChange={value => setStatus(value as "paid" | "failed")} className="flex gap-4">
                 <label className="flex items-center gap-2"><RadioGroupItem value="paid" /> Vračilo je bilo izvedeno</label>
                 <label className="flex items-center gap-2"><RadioGroupItem value="failed" /> Vračilo ni bilo izvedeno</label>
               </RadioGroup>
             </div>
+            <p className="text-sm text-amber-900">{izbrano?.status === "awaiting_approval"
+              ? "Potrjujete predlog drugega uporabnika. Vnesite svoj razlog in dokaz."
+              : status === "paid" || Number(izbrano?.znesek) >= data.approvalThreshold
+                ? "Ta odločitev se shrani kot predlog. Za dokončno razrešitev bo potreben drug Clerk uporabnik."
+                : "Ta odločitev bo vračilo dokončno razrešila."}</p>
             <div className="space-y-2">
               <Label htmlFor="refund-resolution-reason">Razlog odločitve</Label>
               <textarea id="refund-resolution-reason" value={razlog} onChange={e => setRazlog(e.target.value)} className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm" placeholder="Kaj ste preverili in zakaj je izbrano stanje pravilno?" />
@@ -749,7 +782,7 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIzbrano(null)}>Prekliči</Button>
               <Button type="button" onClick={potrdiRazresitev} disabled={resolveRefund.isPending || razlog.trim().length < 10 || dokaz.trim().length < 3}>
-                {resolveRefund.isPending ? "Shranjevanje…" : "Potrdi ročno razrešitev"}
+                {resolveRefund.isPending ? "Shranjevanje…" : izbrano?.status === "awaiting_approval" ? "Potrdi drugo odobritev" : "Shrani odločitev"}
               </Button>
             </div>
           </div>
@@ -777,7 +810,7 @@ function VivaVracilaHistory({
       queryKey: getListVivaVracilaQueryKey(racunId),
       refetchInterval: (query) => {
         const data = query.state.data as { status: string }[] | undefined;
-        const imaPending = Array.isArray(data) && data.some(v => v.status === "pending");
+        const imaPending = Array.isArray(data) && data.some(v => v.status === "pending" || v.status === "awaiting_approval" || v.status === "unknown");
         return imaPending ? 3000 : false;
       },
     },
@@ -859,11 +892,11 @@ function VivaVracilaHistory({
                   )}
                 </div>
               )}
-              {v.status === "unknown" && (
+              {(v.status === "unknown" || v.status === "awaiting_approval") && (
                 <div className="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1.5">
                   <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
                   <p className="text-[10px] text-amber-800">
-                    Izid vračila ni znan. Ne ponavljajte vračila in ne nadaljujte s stornom, dokler odgovorna oseba ne preveri transakcije na Viva terminalu.
+                    {v.status === "awaiting_approval" ? "Vračilo čaka na drugega odobritelja. Ne ponavljajte vračila in ne nadaljujte s stornom." : "Izid vračila ni znan. Ne ponavljajte vračila in ne nadaljujte s stornom, dokler odgovorna oseba ne preveri transakcije na Viva terminalu."}
                   </p>
                 </div>
               )}
@@ -1090,7 +1123,7 @@ function VivaTerminalRefundButton({
         onSuccess: (data) => {
           setRefundSessionId(data.sessionId);
           queryClient.invalidateQueries({ queryKey: getListVivaVracilaQueryKey(racun.id) });
-          if (data.status === "unknown") {
+          if (data.status === "unknown" || data.status === "awaiting_approval") {
             setUnknownIzid(true);
             setFaza("napaka");
             setNapakaSporocilo("Izid terminalskega vračila ni znan; potrebna je ročna uskladitev.");
@@ -1252,13 +1285,13 @@ function KarticniStornoFlow({
       queryKey: getListVivaVracilaQueryKey(racun.id),
       refetchInterval: (query) => {
         const data = query.state.data as { status: string }[] | undefined;
-        return Array.isArray(data) && data.some(v => v.status === "pending") ? 3000 : false;
+        return Array.isArray(data) && data.some(v => v.status === "pending" || v.status === "unknown" || v.status === "awaiting_approval") ? 3000 : false;
       },
     },
   });
   const imaStorno = stornoRacuni.length > 0;
   const imaPotrjenoVracilo = (vracila ?? []).some(v => v.status === "paid");
-  const imaUnknown = !imaPotrjenoVracilo && (vracila ?? []).some(v => v.status === "unknown");
+  const imaUnknown = !imaPotrjenoVracilo && (vracila ?? []).some(v => v.status === "unknown" || v.status === "awaiting_approval");
   const imaPending = !imaPotrjenoVracilo && (vracila ?? []).some(v => v.status === "pending");
   const lahkoZacneVracilo = !isLoading && !imaPotrjenoVracilo && !imaUnknown && !imaPending;
   const obaZakljucena = imaPotrjenoVracilo && imaStorno;

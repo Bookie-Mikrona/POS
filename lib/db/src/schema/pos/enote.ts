@@ -87,6 +87,7 @@ export const enoteTable = pgTable("enote", {
     .notNull()
     .references(() => companiesTable.id, { onDelete: "cascade" }),
   ime: text("ime").notNull(),
+  vivaRefundApprovalThreshold: numeric("viva_refund_approval_threshold", { precision: 10, scale: 2 }).notNull().default("100"),
   opis: text("opis"),
   aktiven: boolean("aktiven").notNull().default(true),
   hospitalityProfile: text("hospitality_profile")

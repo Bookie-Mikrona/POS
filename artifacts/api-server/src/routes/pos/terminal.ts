@@ -1796,6 +1796,9 @@ router.get("/terminal/viva/terminal/refunds/unknown", async (req, res): Promise<
     stevilkaRacuna: racuniTable.stevilkaRacuna,
     refundSessionId: vivaVracilaTable.refundSessionId,
     znesek: vivaVracilaTable.znesek,
+    status: vivaVracilaTable.status,
+    predlaganiStatus: vivaVracilaTable.predlaganiStatus,
+    prviOdobriteljClerkUserId: vivaVracilaTable.prviOdobriteljClerkUserId,
     napaka: vivaVracilaTable.napaka,
     actorClerkUserId: vivaVracilaTable.actorClerkUserId,
     actorNatakarId: vivaVracilaTable.actorNatakarId,
@@ -1805,16 +1808,35 @@ router.get("/terminal/viva/terminal/refunds/unknown", async (req, res): Promise<
     .innerJoin(racuniTable, eq(racuniTable.id, vivaVracilaTable.racunId))
     .where(and(
       eq(vivaVracilaTable.enotaId, posReq.enotaId),
-      eq(vivaVracilaTable.status, "unknown"),
+      inArray(vivaVracilaTable.status, ["unknown", "awaiting_approval"]),
     ))
     .orderBy(desc(vivaVracilaTable.ustvarjeno));
+  const [unit] = await db.select({ threshold: enoteTable.vivaRefundApprovalThreshold })
+    .from(enoteTable).where(eq(enoteTable.id, posReq.enotaId));
   res.json({
+    approvalThreshold: Number(unit?.threshold ?? 100),
     items: items.map(item => ({
       ...item,
+      canApprove: item.status !== "awaiting_approval" || item.prviOdobriteljClerkUserId !== posReq.clerkUserId,
       znesek: Number(item.znesek),
       ustvarjeno: item.ustvarjeno instanceof Date ? item.ustvarjeno.toISOString() : item.ustvarjeno,
     })),
   });
+});
+
+router.put("/terminal/viva/terminal/refunds/approval-policy", async (req, res): Promise<void> => {
+  const posReq = req as unknown as PosRequest;
+  if (!mayManageUnknownVivaRefund(posReq.vloga) || !posReq.clerkUserId) {
+    res.status(403).json({ error: "Potrebna je prijava administratorja." }); return;
+  }
+  const threshold = req.body?.approvalThreshold;
+  const cents = typeof threshold === "number" ? exactEuroCents(threshold) : null;
+  if (cents == null || cents < 0 || cents > 9999999999) {
+    res.status(400).json({ error: "Prag mora biti nenegativen znesek z največ dvema decimalkama." }); return;
+  }
+  await db.update(enoteTable).set({ vivaRefundApprovalThreshold: (cents / 100).toFixed(2) })
+    .where(eq(enoteTable.id, posReq.enotaId));
+  res.json({ approvalThreshold: cents / 100 });
 });
 
 router.delete("/terminal/viva/terminal/refund", async (req, res): Promise<void> => {
@@ -1894,7 +1916,7 @@ router.delete("/terminal/viva/terminal/refund", async (req, res): Promise<void> 
       eq(vivaVracilaTable.racunId, racun.id),
       eq(vivaVracilaTable.enotaId, tenotaId),
       eq(vivaVracilaTable.znesek, canonicalRefundEur.toFixed(2)),
-      inArray(vivaVracilaTable.status, ["pending", "unknown", "paid"]),
+      inArray(vivaVracilaTable.status, ["pending", "unknown", "awaiting_approval", "paid"]),
     )).orderBy(desc(vivaVracilaTable.ustvarjeno)).limit(1);
     if (existing) return { row: existing, replay: true };
 
@@ -1993,13 +2015,6 @@ router.get("/terminal/viva/terminal/refund/status/:sessionId", async (req, res):
     napravaKljuc,
   };
 
-  const tc = await getDeviceTerminalConfig(tenotaId, napravaKljuc);
-
-  if (!tc.vivaClientId || !tc.vivaClientSecret) {
-    res.status(400).json({ status: "FAILED", napaka: "Viva Wallet Client ID ali Secret ni nastavljen" });
-    return;
-  }
-
   const existingRefund = await db.query.vivaVracilaTable.findFirst({
     where: and(
       eq(vivaVracilaTable.refundSessionId, sessionId),
@@ -2010,12 +2025,22 @@ router.get("/terminal/viva/terminal/refund/status/:sessionId", async (req, res):
     res.status(404).json({ status: "UNKNOWN", napaka: "Vračilo ni najdeno." });
     return;
   }
+  if (existingRefund.status === "awaiting_approval") {
+    res.json({ status: "UNKNOWN", napaka: "Čaka na odobritev drugega uporabnika.", idempotentReplay: true });
+    return;
+  }
   if (existingRefund.status === "paid" || existingRefund.status === "failed") {
     res.json({
       status: existingRefund.status === "paid" ? "PAID" : "FAILED",
       napaka: existingRefund.napaka ?? null,
       idempotentReplay: true,
     });
+    return;
+  }
+
+  const tc = await getDeviceTerminalConfig(tenotaId, napravaKljuc);
+  if (!tc.vivaClientId || !tc.vivaClientSecret) {
+    res.status(400).json({ status: "FAILED", napaka: "Viva Wallet Client ID ali Secret ni nastavljen" });
     return;
   }
 
@@ -2038,7 +2063,13 @@ router.get("/terminal/viva/terminal/refund/status/:sessionId", async (req, res):
       );
     }
 
-    res.json({ status: odgovor.status, napaka: odgovor.napaka ?? null });
+    const current = await db.query.vivaVracilaTable.findFirst({
+      where: and(eq(vivaVracilaTable.id, existingRefund.id), eq(vivaVracilaTable.enotaId, tenotaId)),
+    });
+    res.json({
+      status: current?.status === "paid" ? "PAID" : current?.status === "failed" ? "FAILED" : "UNKNOWN",
+      napaka: current?.napaka ?? odgovor.napaka ?? null,
+    });
   } catch (err) {
     const napakaSporocilo = err instanceof Error ? err.message : "Viva Terminal napaka";
     await transitionVivaRefundStatus(sessionId, tenotaId, "unknown", napakaSporocilo, auditActor, { vir: "provider_error" }).catch(() => {});
@@ -2052,6 +2083,9 @@ router.post("/terminal/viva/terminal/refund/:sessionId/resolve", async (req, res
   if (!mayManageUnknownVivaRefund(posReq.vloga)) {
     res.status(403).json({ error: "Za ročno razrešitev vračila je potrebna administratorska vloga." });
     return;
+  }
+  if (!posReq.clerkUserId) {
+    res.status(403).json({ error: "Odobritev zahteva prijavljenega Clerk uporabnika." }); return;
   }
   const napravaKljuc = getRequestDeviceKey(req);
   if (!napravaKljuc) {
@@ -2078,19 +2112,47 @@ router.post("/terminal/viva/terminal/refund/:sessionId/resolve", async (req, res
     actorNatakarId: posReq.posActorNatakarId ?? null,
     napravaKljuc,
   };
-  const transitioned = await transitionVivaRefundStatus(
-    req.params.sessionId,
-    posReq.enotaId,
-    status,
-    status === "failed" ? razlog : null,
-    actor,
-    { vir: "manual", razlog, dokazReferenca, zahtevaniStatus: "unknown" },
-  );
-  if (!transitioned) {
-    res.status(409).json({ error: "Vračilo ni več v stanju UNKNOWN ali ne pripada aktivni enoti. Osvežite seznam." });
+  const result = await db.transaction(async tx => {
+    const [refund] = await tx.select().from(vivaVracilaTable).where(and(
+      eq(vivaVracilaTable.refundSessionId, req.params.sessionId),
+      eq(vivaVracilaTable.enotaId, posReq.enotaId),
+    )).for("update");
+    if (!refund || !["unknown", "awaiting_approval"].includes(refund.status)) {
+      return { error: "Vračilo ni več nejasno ali ne pripada aktivni enoti. Osvežite seznam." };
+    }
+    const secondApproval = refund.status === "awaiting_approval";
+    if (secondApproval && refund.prviOdobriteljClerkUserId === posReq.clerkUserId) {
+      return { error: "Drugi odobritelj mora biti drug Clerk uporabnik." };
+    }
+    if (secondApproval && refund.predlaganiStatus !== status) {
+      return { error: "Druga odobritev mora potrditi isti predlagani izid." };
+    }
+    const [unit] = await tx.select({ threshold: enoteTable.vivaRefundApprovalThreshold })
+      .from(enoteTable).where(eq(enoteTable.id, posReq.enotaId)).for("share");
+    if (!unit) return { error: "Aktivna enota ni najdena." };
+    const needsApproval = !secondApproval && (status === "paid"
+      || exactEuroCents(Number(refund.znesek))! >= exactEuroCents(Number(unit.threshold))!);
+    const nextStatus = needsApproval ? "awaiting_approval" as const : status;
+    await tx.update(vivaVracilaTable).set({
+      status: nextStatus,
+      predlaganiStatus: status,
+      prviOdobriteljClerkUserId: secondApproval ? refund.prviOdobriteljClerkUserId : posReq.clerkUserId,
+      napaka: nextStatus === "failed" ? razlog : refund.napaka,
+      zakljucenoAt: needsApproval ? null : new Date(),
+    }).where(eq(vivaVracilaTable.id, refund.id));
+    await tx.insert(vivaVraciloStatusPrehodiTable).values({
+      vivaVraciloId: refund.id, enotaId: posReq.enotaId,
+      prejsnjiStatus: refund.status, noviStatus: nextStatus, predlaganiStatus: status,
+      ...actor, providerReferenca: req.params.sessionId, vir: "manual",
+      razlog, dokazReferenca,
+    });
+    return { status: nextStatus };
+  });
+  if ("error" in result) {
+    res.status(409).json({ error: result.error });
     return;
   }
-  res.json({ sessionId: req.params.sessionId, status, manualResolution: true });
+  res.json({ sessionId: req.params.sessionId, status: result.status, manualResolution: true });
 });
 
 export default router;

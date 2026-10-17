@@ -58,6 +58,7 @@ const migrations = [
   "172-qr-order-device-retention-index.sql",
   "173-viva-refund-actor-status-audit.sql",
   "174-viva-refund-manual-resolution.sql",
+  "265-viva-refund-four-eyes.sql",
   "179-returnable-packaging.sql",
   "180-pos-returnable-packaging-account.sql",
   "181-pos-credit-note-allocations.sql",
