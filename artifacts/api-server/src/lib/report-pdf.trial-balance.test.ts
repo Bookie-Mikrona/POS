@@ -14,6 +14,23 @@ function inspectPdf(buffer: Buffer) {
 }
 
 describe("PDF bruto bilance", () => {
+  it.each([undefined, "bilanca", "zakljucni"] as const)(
+    "identifies the active class in the %s report heading, even with no matching rows",
+    async (statementView) => {
+      const pdf = await generateTrialBalancePdf({
+        companyName: "TEST filtered export", dateFrom: "2026-01-01", dateTo: "2026-12-31",
+        statementView, accountClass: "0", rows: [],
+        totalOpeningBalanceDebit: "0", totalOpeningBalanceCredit: "0",
+        totalTurnoverDebit: "0", totalTurnoverCredit: "0",
+        totalBalanceDebit: "0", totalBalanceCredit: "0",
+      });
+      const { pages, textPages } = inspectPdf(pdf);
+      expect(pages).toBe(1);
+      expect(textPages[0]).toContain("Razred 0");
+      expect(textPages[0]).toContain("SKUPAJ");
+    },
+  );
+
   it("shows the signed net saldo while preserving the gross closing debit and credit", async () => {
     const rows = [
       {

@@ -1208,11 +1208,13 @@ router.post(
         reportTitle = statementView === "bilanca" ? "BILANCA KONTOV"
           : statementView === "zakljucni" ? "ZAKLJUČNI RAČUN" : "BRUTO BILANCA (PREIZKUSNA BILANCA)";
         subtitle = `Obdobje: ${dateFrom ?? ""} – ${dateTo ?? ""}`;
+        if (accountClass) subtitle += ` · Razred ${accountClass}`;
         filename = `${statementView ?? "bruto-bilanca"}-${dateFrom ?? "brez"}-${dateTo ?? "brez"}.pdf`;
         pdfBuffer = await generateTrialBalancePdf({
           ...report,
           companyName, dateFrom: dateFrom ?? "", dateTo: dateTo ?? "",
           statementView,
+          accountClass,
           rows,
           totalOpeningBalanceDebit: sumField("openingBalanceDebit"),
           totalOpeningBalanceCredit: sumField("openingBalanceCredit"),

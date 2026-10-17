@@ -698,6 +698,7 @@ type LedgerField = "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDeb
 async function generateLedgerStatementPdf(opts: {
   companyName: string; dateFrom: string; dateTo: string;
   rows: TrialBalanceRow[]; statementView: LedgerView;
+  accountClass?: string;
 }): Promise<Buffer> {
   const { companyName, dateFrom, dateTo, rows, statementView } = opts;
   const closing = statementView === "bilanca";
@@ -712,7 +713,8 @@ async function generateLedgerStatementPdf(opts: {
   const numericWidth = closing ? 114 : 92;
   const leftWidth = closing ? 350 : 275;
   const numX = MARGIN + leftWidth;
-  const title = closing ? "BILANCA KONTOV" : "ZAKLJUČNI RAČUN";
+  const title = (closing ? "BILANCA KONTOV" : "ZAKLJUČNI RAČUN") +
+    (opts.accountClass ? ` — Razred ${opts.accountClass}` : "");
   const doc = new PDFDocument({
     size: [width, height],
     margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
@@ -743,7 +745,7 @@ async function generateLedgerStatementPdf(opts: {
       .text(companyName, MARGIN, y, { width: width - 2 * MARGIN, lineBreak: false });
     y += 17;
     doc.font("DejaVuSans-Bold").fontSize(11).text(title, MARGIN, y, { lineBreak: false });
-    doc.font("DejaVuSans").fontSize(8).text(`${dateFrom} – ${dateTo}  ·  konti nove GK`, MARGIN + 200, y + 2, { lineBreak: false });
+    doc.font("DejaVuSans").fontSize(8).text(`${dateFrom} – ${dateTo}  ·  konti nove GK`, MARGIN + 310, y + 2, { lineBreak: false });
     y += 25;
     doc.rect(MARGIN, y, width - 2 * MARGIN, 19).fillColor(COLOR_SECTION).fill();
     doc.font("DejaVuSans-Bold").fontSize(closing ? 8 : 6.8).fillColor(COLOR_PRIMARY);
@@ -808,10 +810,12 @@ export async function generateTrialBalancePdf(opts: {
   totalBalanceDebit: string;
   totalBalanceCredit: string;
   statementView?: LedgerView;
+  accountClass?: string;
 }): Promise<Buffer> {
   if (opts.statementView) return generateLedgerStatementPdf({ ...opts, statementView: opts.statementView });
   const { companyName, dateFrom, dateTo, rows } = opts;
-  const reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)";
+  const reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)" +
+    (opts.accountClass ? ` — Razred ${opts.accountClass}` : "");
   const subtitle = `Obdobje: ${dateFrom} - ${dateTo} · Neto saldo: + breme / − dobro`;
 
   // A4 ležeče za 8-stolpčno postavitev
