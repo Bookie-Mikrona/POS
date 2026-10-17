@@ -122,6 +122,7 @@
 - [Križišče POS brez interne GK](krizisce-pos-only.md) — poslovne knjige vodi zunanji izvajalec; ne odpiraj obdobij, razvojno testiranje osnovnih sredstev ohrani.
 - [Prikaz POS temeljnic](pos-temeljnice-prikaz.md) — prikaži ime pripadajoče enote namesto internih oznak, kot je E309; tehnične reference ostanejo nespremenjene.
 - [Skupinski nabavni artikli](generic-purchase-articles.md) — dobaviteljeva postavka ohrani identiteto; skupna zaloga združuje le postavke z isto kanonično e-SLOG enoto.
+- [Nabavni uporabniški izrazi](nabava-uporabniski-izrazi.md) — ne uporabljaj izraza »uparjanje« v uporabniških besedilih; dokler ni potrjen nadomestek, vprašaj za pravi izraz.
 - [Git prenosi in tihe izgube](git-transfer-tree-audit.md) — po vsakem prenosu primerjaj celotno drevo s stanjem pred prenosom; zgodovina lahko skrije množične izgube.
 - [Stripe boni po gostincu](stripe-boni-po-gostincu.md) — spletni bon uporablja neposredno plačilo povezanega računa podjetja; brez povezave ni platformskega nadomestnega plačila.
 - [POS unovčenje spletnega bona](pos-spletni-bon-unovcenje.md) — bon se rezervira skupaj z računom pred FURS; neznan izid zadrži rezervacijo, kartica in bon pa nista dovoljena skupaj.
