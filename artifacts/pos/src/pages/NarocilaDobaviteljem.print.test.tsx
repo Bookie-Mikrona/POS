@@ -661,6 +661,26 @@ describe("supplier order print view", () => {
     expect(mocks.markSent).not.toHaveBeenCalled();
   });
 
+  it("shows used and remaining supplier-instruction characters after typing and copying a note", () => {
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+    const counter = screen.getByTestId("supplier-note-character-count");
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    const internalNote = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
+    const typedInstructions = "Dostavite pred 10. uro.";
+
+    expect(counter.textContent).toBe("0 / 2000 znakov · preostalo 2000");
+    fireEvent.change(supplierNotes, { target: { value: typedInstructions } });
+    expect(counter.textContent).toBe(`${typedInstructions.length} / 2000 znakov · preostalo ${2000 - typedInstructions.length}`);
+
+    const noteToCopy = "Pokličite ob prihodu.";
+    fireEvent.change(internalNote, { target: { value: noteToCopy } });
+    fireEvent.click(screen.getByTestId("button-copy-internal-to-supplier"));
+    const combinedInstructions = `${typedInstructions}\n\n${noteToCopy}`;
+    expect(supplierNotes.value).toBe(combinedInstructions);
+    expect(counter.textContent).toBe(`${combinedInstructions.length} / 2000 znakov · preostalo ${2000 - combinedInstructions.length}`);
+  });
+
   it("does not truncate existing supplier instructions when the copied note would exceed the limit", () => {
     const internalNote = "i".repeat(30);
     const existingInstruction = "s".repeat(1990);
@@ -678,6 +698,8 @@ describe("supplier order print view", () => {
     const supplierField = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
     fireEvent.change(internalField, { target: { value: internalNote } });
     fireEvent.change(supplierField, { target: { value: existingInstruction } });
+    const characterCount = screen.getByTestId("supplier-note-character-count");
+    expect(characterCount.textContent).toBe("1990 / 2000 znakov · preostalo 10");
 
     const copyButton = screen.getByTestId("button-copy-internal-to-supplier");
     expect(copyButton.hasAttribute("disabled")).toBe(true);
@@ -686,6 +708,7 @@ describe("supplier order print view", () => {
 
     expect(internalField.value).toBe(internalNote);
     expect(supplierField.value).toBe(existingInstruction);
+    expect(characterCount.textContent).toBe("1990 / 2000 znakov · preostalo 10");
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 

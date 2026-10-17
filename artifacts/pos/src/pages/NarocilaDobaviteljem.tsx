@@ -923,9 +923,19 @@ export default function NarocilaDobaviteljem() {
                 Kopija se doda na konec obstoječega navodila. Izvirna opomba ostane nespremenjena; pred shranjevanjem preglejte besedilo.
               </p>
             </div>
-            <label className="text-xs font-semibold text-[#5f7068]">Navodilo dobavitelju · natisne se
-              <textarea value={orderEditor.supplierNotes} onChange={event => setOrderEditor({ ...orderEditor, supplierNotes: event.target.value })} maxLength={MAX_ORDER_NOTE_LENGTH} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Samo to besedilo bo vključeno v izpis." />
-            </label>
+            <div>
+              <label className="text-xs font-semibold text-[#5f7068]">Navodilo dobavitelju · natisne se
+                <textarea value={orderEditor.supplierNotes} onChange={event => setOrderEditor({ ...orderEditor, supplierNotes: event.target.value })} maxLength={MAX_ORDER_NOTE_LENGTH} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Samo to besedilo bo vključeno v izpis." />
+              </label>
+              <p
+                role="status"
+                aria-live="polite"
+                data-testid="supplier-note-character-count"
+                className="mt-1 text-right text-[11px] text-[#77817b]"
+              >
+                {orderEditor.supplierNotes.length} / {MAX_ORDER_NOTE_LENGTH} znakov · preostalo {MAX_ORDER_NOTE_LENGTH - orderEditor.supplierNotes.length}
+              </p>
+            </div>
           </div>
           <p role="note" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
             {orderEditor.id
