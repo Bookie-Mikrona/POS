@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,6 +23,7 @@ import {
   useUpdateSupplierOrder,
 } from "@workspace/api-client-react";
 import type {
+  SupplierOrderDetail,
   SupplierOrderInput,
   SupplierOrderStatus,
   SupplierReorderArticle,
@@ -51,11 +53,92 @@ const formatQty = (value: number | null | undefined, digits = 2) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { maximumFractionDigits: digits }).format(value);
 const formatDate = (value?: string | null) =>
   value ? new Intl.DateTimeFormat("sl-SI", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)) : "—";
+const formatMoney = (value: number | null | undefined) =>
+  value == null ? "—" : new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(value);
 
 function StatusPill({ status }: { status: SupplierOrderStatus }) {
   return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusClass[status]}`}>
     <CircleDot className="h-3 w-3" />{statusCopy[status]}
   </span>;
+}
+
+function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }) {
+  const pricedLines = order.lines.filter(line => line.unitPrice != null);
+  const total = pricedLines.reduce((sum, line) => sum + (line.unitPrice ?? 0) * line.packageQuantity, 0);
+  const hasUnpricedLines = pricedLines.length !== order.lines.length;
+
+  return createPortal(
+    <article className="supplier-order-print" data-testid="supplier-order-print">
+      <header className="supplier-order-print__header">
+        <div>
+          <p className="supplier-order-print__eyebrow">Naročilo dobavitelju</p>
+          <h1 data-testid="text-supplier-order-print-number">{order.number}</h1>
+        </div>
+        <p className="supplier-order-print__created">Ustvarjeno {formatDate(order.createdAt)}</p>
+      </header>
+
+      <section className="supplier-order-print__meta" aria-label="Podatki naročila">
+        <div>
+          <span>Dobavitelj</span>
+          <strong data-testid="text-supplier-order-print-supplier">{order.supplierName}</strong>
+        </div>
+        <div>
+          <span>Predvidena dostava</span>
+          <strong data-testid="text-supplier-order-print-delivery">{formatDate(order.expectedDeliveryDate)}</strong>
+        </div>
+      </section>
+
+      <table className="supplier-order-print__table">
+        <thead>
+          <tr>
+            <th>Artikel</th>
+            <th>Pakiranje</th>
+            <th className="supplier-order-print__number">Količina paketov</th>
+            <th className="supplier-order-print__number">Cena paketa</th>
+            <th className="supplier-order-print__number">Znesek</th>
+          </tr>
+        </thead>
+        <tbody>
+          {order.lines.map(line => (
+            <tr key={line.id} data-testid={`row-supplier-order-print-${line.id}`}>
+              <td>
+                <strong>{line.articleName}</strong>
+                {(line.supplierItemName || line.supplierCode) && (
+                  <small>{[line.supplierItemName, line.supplierCode].filter(Boolean).join(" · ")}</small>
+                )}
+              </td>
+              <td>
+                {line.packageName ?? "pakiranje"}
+                {line.packageFactor > 0 && line.baseUnit
+                  ? <small>1 pak. = {formatQty(line.packageFactor)} {line.baseUnit}</small>
+                  : null}
+              </td>
+              <td className="supplier-order-print__number">{formatQty(line.packageQuantity, 3)}</td>
+              <td className="supplier-order-print__number">{formatMoney(line.unitPrice)}</td>
+              <td className="supplier-order-print__number">
+                {line.unitPrice == null ? "—" : formatMoney(line.unitPrice * line.packageQuantity)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colSpan={4} className="supplier-order-print__number">Skupaj</th>
+            <th className="supplier-order-print__number">{pricedLines.length ? formatMoney(total) : "—"}</th>
+          </tr>
+        </tfoot>
+      </table>
+      {hasUnpricedLines && <p className="supplier-order-print__subtotal-note">Vsota ne vključuje postavk brez določene cene.</p>}
+
+      {order.notes && (
+        <section className="supplier-order-print__notes">
+          <h2>Opombe</h2>
+          <p data-testid="text-supplier-order-print-notes">{order.notes}</p>
+        </section>
+      )}
+    </article>,
+    document.body,
+  );
 }
 
 function Metric({ label, value, caption, tone = "normal" }: { label: string; value: string | number; caption: string; tone?: "normal" | "warning" }) {
@@ -316,6 +399,9 @@ export default function NarocilaDobaviteljem() {
     markSent.isPending || closeOrder.isPending || cancelOrder.isPending || createReceipt.isPending;
 
   return <main className="orders-page min-w-0 flex-1 overflow-auto bg-[#f7f4ec] p-3 sm:p-5 lg:p-7">
+    {selectedOrderId !== null && !detailLoading && !detailError && orderDetail && (
+      <SupplierOrderPrintView order={orderDetail} />
+    )}
     <div className="mx-auto max-w-[1440px] space-y-5">
       <header className="flex flex-col justify-between gap-4 border-b border-[#ded6c7] pb-5 sm:flex-row sm:items-end">
         <div>
@@ -352,7 +438,7 @@ export default function NarocilaDobaviteljem() {
           <button type="button" onClick={() => setActiveView("suggestions")} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeView === "suggestions" ? "bg-[#fffefa] text-[#234d43] shadow-sm" : "text-[#64706a] hover:text-[#234d43]"}`}>
             Predlogi <span className="ml-1.5 rounded-full bg-[#e7eee8] px-2 py-0.5 text-[11px]">{suggestions.length}</span>
           </button>
-          <button type="button" onClick={() => setActiveView("orders")} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeView === "orders" ? "bg-[#fffefa] text-[#234d43] shadow-sm" : "text-[#64706a] hover:text-[#234d43]"}`}>
+          <button type="button" data-testid="tab-supplier-orders" onClick={() => setActiveView("orders")} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeView === "orders" ? "bg-[#fffefa] text-[#234d43] shadow-sm" : "text-[#64706a] hover:text-[#234d43]"}`}>
             Naročila <span className="ml-1.5 rounded-full bg-[#e7eee8] px-2 py-0.5 text-[11px]">{orderList?.length ?? 0}</span>
           </button>
         </div>
@@ -454,7 +540,7 @@ export default function NarocilaDobaviteljem() {
               <td className="px-3 py-3 text-[#6b7770]">{formatDate(order.expectedDeliveryDate)}</td>
               <td className="px-3 py-3 text-center data-mono text-[#50645b]">{order.lineCount}</td>
               <td className="px-3 py-3"><StatusPill status={order.status} /></td>
-              <td className="orders-no-print px-5 py-3 text-right"><Button variant="ghost" size="sm" className="text-[#285d50]" onClick={() => setSelectedOrderId(order.id)}>Podrobnosti <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Button></td>
+              <td className="orders-no-print px-5 py-3 text-right"><Button variant="ghost" size="sm" data-testid={`button-open-supplier-order-${order.id}`} className="text-[#285d50]" onClick={() => setSelectedOrderId(order.id)}>Podrobnosti <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Button></td>
             </tr>)}</tbody>
           </table>
         </div>}
@@ -545,7 +631,7 @@ export default function NarocilaDobaviteljem() {
         : <>
           <div className="flex flex-col gap-3 border-b border-[#eee8dc] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
             <div><div className="flex flex-wrap items-center gap-2"><h2 id="order-detail-title" className="data-mono text-xl font-bold text-[#203d39]">{orderDetail.number}</h2><StatusPill status={orderDetail.status} /></div><p className="mt-1 text-sm text-[#66746b]">{orderDetail.supplierName} <span className="mx-1.5 text-[#b7b9ae]">·</span> ustvarjeno {formatDate(orderDetail.createdAt)}</p></div>
-            <div className="orders-no-print flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="mr-1.5 h-3.5 w-3.5" /> Natisni</Button>{orderDetail.status === "draft" && <Button size="sm" variant="outline" onClick={editSelectedOrder}>Uredi osnutek</Button>}<button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]"><X className="h-4 w-4" /></button></div>
+            <div className="orders-no-print flex flex-wrap gap-2"><Button size="sm" variant="outline" data-testid={`button-print-supplier-order-${orderDetail.id}`} onClick={() => window.print()}><Printer className="mr-1.5 h-3.5 w-3.5" /> Natisni / PDF</Button>{orderDetail.status === "draft" && <Button size="sm" variant="outline" onClick={editSelectedOrder}>Uredi osnutek</Button>}<button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]" data-testid="button-close-supplier-order-detail"><X className="h-4 w-4" /></button></div>
           </div>
           <div className="space-y-4 p-5">
             <div className="grid gap-3 sm:grid-cols-3">

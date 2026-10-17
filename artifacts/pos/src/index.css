@@ -175,9 +175,145 @@
 .orders-page .data-mono { font-family: "DM Mono", monospace; }
 .orders-page .panel-lift { transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease; }
 .orders-page .panel-lift:hover { transform: translateY(-1px); }
+.supplier-order-print { display: none; }
+
+@page supplier-order {
+  size: A4 portrait;
+  margin: 14mm;
+}
+
 @media print {
-  .orders-no-print { display: none !important; }
-  .orders-page { background: white !important; padding: 0 !important; }
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body { margin: 0 !important; padding: 0 !important; }
+  body > :not(.supplier-order-print) { display: none !important; }
+  body > .supplier-order-print {
+    page: supplier-order;
+    display: block !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #171c19 !important;
+    background: #fff !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 10pt;
+    line-height: 1.4;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .supplier-order-print__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid #31594d;
+  }
+  .supplier-order-print__eyebrow {
+    margin: 0;
+    color: #31594d;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .supplier-order-print__header h1 {
+    margin: 4px 0 0 !important;
+    color: #171c19 !important;
+    font-size: 24pt !important;
+    line-height: 1.15 !important;
+  }
+  .supplier-order-print__created {
+    margin: 4px 0 0;
+    color: #4f5a54;
+    font-size: 9pt;
+    text-align: right;
+  }
+  .supplier-order-print__meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 28px;
+    margin: 18px 0 22px;
+  }
+  .supplier-order-print__meta div { display: grid; gap: 3px; }
+  .supplier-order-print__meta span {
+    color: #59645e;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .supplier-order-print__meta strong { font-size: 12pt; }
+  .supplier-order-print__table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .supplier-order-print__table th,
+  .supplier-order-print__table td {
+    padding: 8px 7px;
+    border: 1px solid #cbd1cd;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+  .supplier-order-print__table thead { display: table-header-group; }
+  .supplier-order-print__table tfoot { display: table-row-group; }
+  .supplier-order-print__table thead th {
+    background: #eef2ee !important;
+    color: #263a32;
+    font-size: 8pt;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  .supplier-order-print__table tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .supplier-order-print__table td strong { display: block; }
+  .supplier-order-print__table td small {
+    display: block;
+    margin-top: 3px;
+    color: #59645e;
+    font-size: 8pt;
+  }
+  .supplier-order-print__number {
+    text-align: right !important;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .supplier-order-print__table tfoot th {
+    border-top: 2px solid #59645e;
+    background: #f4f5f3 !important;
+    font-size: 10pt;
+  }
+  .supplier-order-print__subtotal-note {
+    margin: 6px 0 0;
+    color: #59645e;
+    font-size: 8pt;
+    text-align: right;
+  }
+  .supplier-order-print__notes {
+    margin-top: 22px;
+    padding: 11px 13px;
+    border: 1px solid #cbd1cd;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .supplier-order-print__notes h2 {
+    margin: 0 0 5px;
+    color: #263a32;
+    font-size: 9pt;
+    text-transform: uppercase;
+  }
+  .supplier-order-print__notes p {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (hover: none) and (pointer: coarse) {
