@@ -300,19 +300,25 @@
     margin-top: 22px;
     padding: 11px 13px;
     border: 1px solid #cbd1cd;
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: auto;
+    page-break-inside: auto;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
   .supplier-order-print__notes h2 {
     margin: 0 0 5px;
     color: #263a32;
     font-size: 9pt;
     text-transform: uppercase;
+    break-after: avoid-page;
+    page-break-after: avoid;
   }
   .supplier-order-print__notes p {
     margin: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    orphans: 3;
+    widows: 3;
   }
 }
 

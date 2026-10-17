@@ -69,7 +69,7 @@ function StatusPill({ status }: { status: SupplierOrderStatus }) {
   </span>;
 }
 
-function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }) {
+export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }) {
   const pricedLines = order.lines.filter(line => line.unitPrice != null);
   const total = pricedLines.reduce((sum, line) => sum + (line.unitPrice ?? 0) * line.packageQuantity, 0);
   const hasUnpricedLines = pricedLines.length !== order.lines.length;

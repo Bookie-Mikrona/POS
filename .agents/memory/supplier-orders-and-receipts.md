@@ -13,8 +13,12 @@ Naročilo dobavitelju ima ločeno interno opombo in izrecno navodilo dobavitelju
 
 Ročni izpis naročila oziroma shranjevanje v PDF je samo prikaz: ne spreminja statusa naročila in ne pošilja e-pošte.
 
+Dolga dobaviteljska navodila se lahko nadaljujejo na naslednji strani. Izpis mora ponoviti glavo tabele, ohraniti vse vrstice in zneske ter razdeliti besedilo brez izreza ali prekrivanja.
+
 **Why:** Uporabnik je izrecno potrdil, da naročilo ni prejem blaga in ne sme samo ustvariti zaloge ali računovodskega učinka. Cena za prihodnje naročilo mora izhajati iz potrjenega dejanskega prejema, ne iz osnutka ali starega cenovnega posnetka.
 
 **Why:** Mešana opomba je že povzročila možnost, da se interna vsebina natisne dobavitelju. Varna privzeta obravnava starega besedila je interna, dokler ga uporabnik izrecno ne označi kot dobaviteljsko navodilo.
 
-**How to apply:** Pri novih POS nabavnih tokovih spremembe zaloge in knjiženja veži na potrditev prejemnice, ne na nastanek ali pošiljanje naročila. Prejemniško količino primerjaj neposredno z naročeno zalogovno količino. Ceno za ponovitev izračunaj samo iz potrjenih povezanih prejemnic in ohrani že shranjene posnetke dokumentov. Ročno oddajo podpri s tiskom/PDF, status pa spreminjaj samo prek ločenega izrecnega dejanja. Internih opomb nikoli ne vključuj v dobaviteljski izpis.
+**Why:** Brskalniški izpis z dolgim neprelomljivim blokom lahko preseže stran, tudi če navadni prikaz DOM-a deluje pravilno.
+
+**How to apply:** Pri novih POS nabavnih tokovih spremembe zaloge in knjiženja veži na potrditev prejemnice, ne na nastanek ali pošiljanje naročila. Prejemniško količino primerjaj neposredno z naročeno zalogovno količino. Ceno za ponovitev izračunaj samo iz potrjenih povezanih prejemnic in ohrani že shranjene posnetke dokumentov. Ročno oddajo podpri s tiskom/PDF, status pa spreminjaj samo prek ločenega izrecnega dejanja. Internih opomb nikoli ne vključuj v dobaviteljski izpis. Pri spremembah paginacije preveri dejanski brskalniški PDF z več stranmi, ponovljeno glavo tabele in dolgimi navodili.
