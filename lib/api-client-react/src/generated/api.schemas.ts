@@ -9620,6 +9620,16 @@ export interface CreateAccountBody {
 }
 
 export type UpdateAccountBodyType = typeof UpdateAccountBodyType[keyof typeof UpdateAccountBodyType];
+
+
+export const UpdateAccountBodyType = {
+  asset: 'asset',
+  liability: 'liability',
+  equity: 'equity',
+  revenue: 'revenue',
+  expense: 'expense',
+} as const;
+
 export type UpdateAccountBodyCostCenterPolicy = typeof UpdateAccountBodyCostCenterPolicy[keyof typeof UpdateAccountBodyCostCenterPolicy];
 
 
@@ -9670,6 +9680,16 @@ export interface AccountTypeWarning {
   expectedType: string;
   message: string;
 }
+
+export interface AccountTypeWarningResponse {
+  error: string;
+  warnings: AccountTypeWarning[];
+}
+
+export interface SeedAccountsBody {
+  confirmTypeException?: boolean;
+}
+
 export interface SeedAccountsResponse {
   count: number;
 }
@@ -14916,19 +14936,3 @@ month: string;
 counterpartyId: string;
 };
 
-export interface SeedAccountsBody {
-  confirmTypeException?: boolean;
-}
-
-export interface AccountTypeWarningResponse {
-  error: string;
-  warnings: AccountTypeWarning[];
-}
-
-export const UpdateAccountBodyType = {
-  asset: 'asset',
-  liability: 'liability',
-  equity: 'equity',
-  revenue: 'revenue',
-  expense: 'expense',
-} as const;
