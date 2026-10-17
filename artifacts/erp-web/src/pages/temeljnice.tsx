@@ -9,8 +9,6 @@ import { getJournalEntryDeletionErrorMessage } from "@/lib/journalEntryDeletionE
 import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
 import { AccountDimensionHint } from "@/components/account-dimension-hint";
 
-import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users, Info, Receipt, Download, ChevronDown } from "lucide-react";
-
 import { useCompany } from "@/contexts/CompanyContext";
 import {
   classifyPosJournalReference,
@@ -37,12 +35,8 @@ import {
 } from "@workspace/api-client-react";
 
 // API vrne dimenzijska polja za seznam, ki niso (še) v generiranem tipu
-type JournalEntryWithDims = JournalEntry & {
-  costCenterNames?: string[];
-  projectNames?: string[];
-  departmentNames?: string[];
-};
-
+import { JournalEntryDimensions } from "@/components/journal-entry-dimensions";
+import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Info, Receipt, Download, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +49,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function downloadEntry(companyId: string, entryId: string, format: string, baseName: string, token: string) {
@@ -475,6 +468,7 @@ export default function Temeljnice() {
               <TableRow>
                 <TableHead className="w-[120px]">Datum</TableHead>
                 <TableHead>Opis</TableHead>
+                <TableHead className="w-[220px]">Dimenzije</TableHead>
                 <TableHead className="w-[250px]">Referenca</TableHead>
                 <TableHead className="w-[90px]">Izvor</TableHead>
                 <TableHead className="w-[150px]">Obdobje</TableHead>
@@ -483,7 +477,7 @@ export default function Temeljnice() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(visibleEntries as JournalEntryWithDims[]).map(entry => (
+              {visibleEntries.map(entry => (
                 <TableRow 
                   key={entry.id} 
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -491,31 +485,11 @@ export default function Temeljnice() {
                 >
                   <TableCell className="font-medium">{formatDatum(entry.entryDate)}</TableCell>
                   <TableCell>
-                    <div className="space-y-1">
-                      <div>
-                        {entry.description}
-                        {entry.reversalOf && <Badge variant="secondary" className="ml-2 text-[10px] py-0">Storno</Badge>}
-                      </div>
-                      {((entry.costCenterNames?.length ?? 0) > 0 || (entry.projectNames?.length ?? 0) > 0 || (entry.departmentNames?.length ?? 0) > 0) && (
-                        <div className="flex flex-wrap gap-1">
-                          {entry.costCenterNames?.map(name => (
-                            <span key={name} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">
-                              <Building2 className="h-2.5 w-2.5" />{name}
-                            </span>
-                          ))}
-                          {entry.projectNames?.map(name => (
-                            <span key={name} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              <FolderKanban className="h-2.5 w-2.5" />{name}
-                            </span>
-                          ))}
-                          {entry.departmentNames?.map(name => (
-                            <span key={name} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
-                              <Users className="h-2.5 w-2.5" />{name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    {entry.description}
+                    {entry.reversalOf && <Badge variant="secondary" className="ml-2 text-[10px] py-0">Storno</Badge>}
+                  </TableCell>
+                  <TableCell>
+                    <JournalEntryDimensions {...entry} />
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-2">

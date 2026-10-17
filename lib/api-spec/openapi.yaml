@@ -22001,6 +22001,21 @@ components:
     JournalEntry:
       type: object
       properties:
+        costCenterNames:
+          type: array
+          items:
+            type: string
+          description: Distinct cost center names across all entry lines; included in list responses.
+        projectNames:
+          type: array
+          items:
+            type: string
+          description: Distinct project names across all entry lines; included in list responses.
+        departmentNames:
+          type: array
+          items:
+            type: string
+          description: Distinct department names across all entry lines; included in list responses.
         id:
           type: string
         companyId:

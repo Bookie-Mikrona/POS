@@ -9793,6 +9793,12 @@ export const JournalEntrySourceType = {
 } as const;
 
 export interface JournalEntry {
+  /** Distinct cost center names across all entry lines; included in list responses. */
+  costCenterNames?: string[];
+  /** Distinct project names across all entry lines; included in list responses. */
+  projectNames?: string[];
+  /** Distinct department names across all entry lines; included in list responses. */
+  departmentNames?: string[];
   id: string;
   companyId: string;
   periodId: string;
@@ -14841,4 +14847,3 @@ export type PreviewPosMonthlyInvoiceParams = {
 month: string;
 counterpartyId: string;
 };
-
