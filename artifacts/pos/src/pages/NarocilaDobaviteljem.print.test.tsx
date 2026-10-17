@@ -708,6 +708,59 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("shows tied lowest-price badges without reporting savings for equal offers", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const [preferred] = originalMappings;
+    const tiedAlternative = {
+      ...preferred,
+      id: 7057,
+      supplierId: "supplier-715",
+      supplierName: "Mlekarna Enaka",
+      supplierItemName: "Mleko po isti ceni",
+      packageName: "karton",
+      packageFactor: 8,
+      lastPackagePrice: 30,
+      lastUnitPrice: 3.75,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    const moreExpensiveOffer = {
+      ...preferred,
+      id: 7058,
+      supplierId: "supplier-716",
+      supplierName: "Mlekarna Dražja",
+      packageFactor: 6,
+      lastPackagePrice: 27,
+      lastUnitPrice: 4.5,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    Object.assign(article, { mappings: [preferred, tiedAlternative, moreExpensiveOffer] });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      for (const mappingId of [7042, 7057]) {
+        expect(screen.getByTestId(`lowest-unit-price-${mappingId}`).textContent)
+          .toContain("Najnižja cena / enoto");
+      }
+      expect(screen.queryByTestId("lowest-unit-price-7058")).toBeNull();
+      expect(screen.queryByTestId("supplier-savings-7057")).toBeNull();
+      expect(screen.queryByTestId("supplier-total-savings-7057")).toBeNull();
+      expect(article.preferredMappingId).toBe(7042);
+    } finally {
+      Object.assign(article, { mappings: originalMappings });
+    }
+  });
+
   it("keeps a valid zero package and unit price in the lowest-price comparison", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;
