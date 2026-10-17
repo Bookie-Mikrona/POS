@@ -293,6 +293,33 @@ describe("supplier order print view", () => {
     expect(document.querySelector(".supplier-order-print")?.textContent).not.toContain("INTERNAL ONLY");
   });
 
+  it("closes the print warning with Escape, restores focus to the print button, and does not print", () => {
+    mocks.order.supplierNotes = " \n ";
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+    const printButton = screen.getByTestId("button-print-supplier-order-704");
+    fireEvent.click(printButton);
+
+    const warning = screen.getByRole("alertdialog");
+    expect(document.activeElement).toBe(warning);
+    expect(print).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(warning, { key: "Escape", code: "Escape" });
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(document.activeElement).toBe(printButton);
+    expect(print).not.toHaveBeenCalled();
+  });
+
   it("returns a draft to editing from the print warning without printing", () => {
     mocks.order.supplierNotes = "";
     const queryClient = new QueryClient({

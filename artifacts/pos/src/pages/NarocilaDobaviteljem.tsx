@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -255,6 +255,21 @@ export default function NarocilaDobaviteljem() {
       query: { enabled: selectedOrderId !== null, queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0) },
     });
   const [printWarningOpen, setPrintWarningOpen] = useState(false);
+  const printButtonRef = useRef<HTMLButtonElement | null>(null);
+  const printWarningRef = useRef<HTMLElement | null>(null);
+  const printWarningWasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (printWarningOpen) {
+      printWarningWasOpenRef.current = true;
+      printWarningRef.current?.focus();
+      return;
+    }
+    if (printWarningWasOpenRef.current) {
+      printWarningWasOpenRef.current = false;
+      printButtonRef.current?.focus();
+    }
+  }, [printWarningOpen]);
 
   const saveSettings = useSaveSupplierReorderSettings();
   const createOrder = useCreateSupplierOrder();
@@ -995,7 +1010,7 @@ export default function NarocilaDobaviteljem() {
         : <>
           <div className="flex flex-col gap-3 border-b border-[#eee8dc] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
             <div><div className="flex flex-wrap items-center gap-2"><h2 id="order-detail-title" className="data-mono text-xl font-bold text-[#203d39]">{orderDetail.number}</h2><StatusPill status={orderDetail.status} /></div><p className="mt-1 text-sm text-[#66746b]">{orderDetail.supplierName} <span className="mx-1.5 text-[#b7b9ae]">·</span> ustvarjeno {formatDate(orderDetail.createdAt)}</p></div>
-            <div className="orders-no-print flex flex-wrap gap-2"><Button size="sm" variant="outline" data-testid={`button-print-supplier-order-${orderDetail.id}`} onClick={requestPrintOrder}><Printer className="mr-1.5 h-3.5 w-3.5" /> Natisni / PDF</Button>{orderDetail.status === "draft" && <Button size="sm" variant="outline" onClick={editSelectedOrder}>Uredi osnutek</Button>}<button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]" data-testid="button-close-supplier-order-detail"><X className="h-4 w-4" /></button></div>
+            <div className="orders-no-print flex flex-wrap gap-2"><Button ref={printButtonRef} size="sm" variant="outline" data-testid={`button-print-supplier-order-${orderDetail.id}`} onClick={requestPrintOrder}><Printer className="mr-1.5 h-3.5 w-3.5" /> Natisni / PDF</Button>{orderDetail.status === "draft" && <Button size="sm" variant="outline" onClick={editSelectedOrder}>Uredi osnutek</Button>}<button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]" data-testid="button-close-supplier-order-detail"><X className="h-4 w-4" /></button></div>
           </div>
           <div className="space-y-4 p-5">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -1044,7 +1059,22 @@ export default function NarocilaDobaviteljem() {
     </div>}
 
     {printWarningOpen && orderDetail && <div className="orders-no-print fixed inset-0 z-[120] flex items-center justify-center bg-[#172a25]/60 p-3" onMouseDown={event => { if (event.target === event.currentTarget) setPrintWarningOpen(false); }}>
-      <section role="alertdialog" aria-modal="true" aria-labelledby="supplier-order-print-warning-title" aria-describedby="supplier-order-print-warning-description" className="w-full max-w-lg rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl">
+      <section
+        ref={printWarningRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="supplier-order-print-warning-title"
+        aria-describedby="supplier-order-print-warning-description"
+        tabIndex={-1}
+        onKeyDownCapture={event => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            setPrintWarningOpen(false);
+          }
+        }}
+        className="w-full max-w-lg rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl"
+      >
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
           <div>
