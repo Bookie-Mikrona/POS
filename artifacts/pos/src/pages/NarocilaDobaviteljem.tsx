@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,6 +32,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type OrderRow = SupplierOrderInput["lines"][number];
+type SupplierOrderEditorState = {
+  id?: number;
+  supplierId: string;
+  rows: OrderRow[];
+  date: string;
+  internalNotes: string;
+  supplierNotes: string;
+};
 
 const statusCopy: Record<SupplierOrderStatus, string> = {
   draft: "Osnutek",
@@ -258,14 +266,9 @@ export default function NarocilaDobaviteljem() {
   const [settingPoint, setSettingPoint] = useState("");
   const [settingTarget, setSettingTarget] = useState("");
   const [settingMapping, setSettingMapping] = useState("");
-  const [orderEditor, setOrderEditor] = useState<{
-    id?: number;
-    supplierId: string;
-    rows: OrderRow[];
-    date: string;
-    internalNotes: string;
-    supplierNotes: string;
-  } | null>(null);
+  const [orderEditor, setOrderEditor] = useState<SupplierOrderEditorState | null>(null);
+  const [discardOrderEditorPromptOpen, setDiscardOrderEditorPromptOpen] = useState(false);
+  const orderEditorBaseline = useRef<string | null>(null);
   const [closeReason, setCloseReason] = useState("");
   const [closeDialog, setCloseDialog] = useState(false);
   const [packageReview, setPackageReview] = useState<{
@@ -274,6 +277,25 @@ export default function NarocilaDobaviteljem() {
   } | null>(null);
   const [packageReviewAcknowledged, setPackageReviewAcknowledged] = useState(false);
   const [articleSelection, setArticleSelection] = useState<number[]>([]);
+
+  const openOrderEditor = (editor: SupplierOrderEditorState) => {
+    orderEditorBaseline.current = JSON.stringify(editor);
+    setDiscardOrderEditorPromptOpen(false);
+    setOrderEditor(editor);
+  };
+  const closeOrderEditor = () => {
+    orderEditorBaseline.current = null;
+    setDiscardOrderEditorPromptOpen(false);
+    setOrderEditor(null);
+  };
+  const requestCloseOrderEditor = () => {
+    if (!orderEditor || createOrder.isPending || updateOrder.isPending) return;
+    if (orderEditorBaseline.current !== JSON.stringify(orderEditor)) {
+      setDiscardOrderEditorPromptOpen(true);
+      return;
+    }
+    closeOrderEditor();
+  };
 
   const articles = dashboard?.articles ?? [];
   const suggestions = useMemo(() => articles.filter(article => article.hasSuggestion), [articles]);
@@ -338,7 +360,7 @@ export default function NarocilaDobaviteljem() {
     const supplier = supplierId
       ? articles.flatMap(article => article.mappings).find(mapping => mapping.supplierId === supplierId)
       : undefined;
-    setOrderEditor({ supplierId: supplierId ?? "", date: "", internalNotes: "", supplierNotes: "", rows: [] });
+    openOrderEditor({ supplierId: supplierId ?? "", date: "", internalNotes: "", supplierNotes: "", rows: [] });
     setActiveView("suggestions");
     if (supplier) setNotice({ text: `Sestavljate osnutek za ${supplier.supplierName}.` });
   };
@@ -367,12 +389,12 @@ export default function NarocilaDobaviteljem() {
       return;
     }
     const mapping = mappingsByArticle[0]?.mapping;
-    setOrderEditor({ supplierId, date: "", internalNotes: "", supplierNotes: "", rows });
+    openOrderEditor({ supplierId, date: "", internalNotes: "", supplierNotes: "", rows });
     setNotice({ text: `Predlog vključuje ${rows.length} artiklov${mapping ? ` za ${mapping.supplierName}` : ""}.` });
   };
   const editSelectedOrder = () => {
     if (!orderDetail) return;
-    setOrderEditor({
+    openOrderEditor({
       id: orderDetail.id,
       supplierId: orderDetail.supplierId,
       date: orderDetail.expectedDeliveryDate?.slice(0, 10) ?? "",
@@ -420,7 +442,7 @@ export default function NarocilaDobaviteljem() {
       const result = orderEditor.id
         ? await updateOrder.mutateAsync({ id: orderEditor.id, data })
         : await createOrder.mutateAsync({ data });
-      setOrderEditor(null);
+      closeOrderEditor();
       setSelectedOrderId(result.id);
       setActiveView("orders");
       setNotice({ text: `Osnutek ${result.number} je shranjen. Naročilo samo ne spremeni zaloge ali računovodstva.` });
@@ -821,11 +843,22 @@ export default function NarocilaDobaviteljem() {
       </section>
     </div>}
 
-    {orderEditor && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#172a25]/50 p-3" onMouseDown={event => { if (event.target === event.currentTarget) setOrderEditor(null); }}>
+    {orderEditor && <div
+      data-testid="supplier-order-editor-backdrop"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-[#172a25]/50 p-3"
+      onMouseDown={event => { if (event.target === event.currentTarget) requestCloseOrderEditor(); }}
+    >
       <section role="dialog" aria-modal="true" aria-labelledby="order-editor-title" className="max-h-[94dvh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#ddd4c4] bg-[#fffefa] shadow-2xl">
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur">
           <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#628174]">{orderEditor.id ? "Uredi osnutek" : "Nov osnutek"}</p><h2 id="order-editor-title" className="mt-1 text-xl font-bold text-[#203d39]">Naročilo dobavitelju</h2></div>
-          <button type="button" onClick={() => setOrderEditor(null)} aria-label="Zapri" className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]"><X className="h-4 w-4" /></button>
+          <button
+            type="button"
+            data-testid="button-close-supplier-order-editor"
+            onClick={requestCloseOrderEditor}
+            disabled={createOrder.isPending || updateOrder.isPending}
+            aria-label="Zapri"
+            className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8] disabled:opacity-50"
+          ><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -901,7 +934,17 @@ export default function NarocilaDobaviteljem() {
           </p>
           <p className="rounded-lg bg-[#f2f4ed] px-3 py-2 text-xs leading-relaxed text-[#66746b]">Po shranjevanju lahko naročilo pregledate in natisnete; v izpisu bo samo shranjeno navodilo dobavitelju. Shranjevanje ali označitev kot poslano ne spremeni zaloge in ne ustvari računovodske knjižbe.</p>
         </div>
-        <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur"><Button variant="outline" onClick={() => setOrderEditor(null)}>Prekliči</Button><Button disabled={busy} onClick={() => void saveOrderDraft()} className="bg-[#285d50] text-white hover:bg-[#204b41]">{busy ? "Shranjujem…" : "Shrani osnutek"}</Button></div>
+        <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-[#eee8dc] bg-[#fffefa]/95 px-5 py-4 backdrop-blur"><Button type="button" variant="outline" data-testid="button-cancel-supplier-order-editor" disabled={createOrder.isPending || updateOrder.isPending} onClick={requestCloseOrderEditor}>Prekliči</Button><Button disabled={busy} onClick={() => void saveOrderDraft()} className="bg-[#285d50] text-white hover:bg-[#204b41]">{busy ? "Shranjujem…" : "Shrani osnutek"}</Button></div>
+      </section>
+    </div>}
+    {orderEditor && discardOrderEditorPromptOpen && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#172a25]/60 p-3">
+      <section role="alertdialog" aria-modal="true" aria-labelledby="unsaved-order-editor-title" aria-describedby="unsaved-order-editor-description" className="w-full max-w-md rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl">
+        <h2 id="unsaved-order-editor-title" className="text-lg font-bold text-[#203d39]">Osnutek ima neshranjene spremembe</h2>
+        <p id="unsaved-order-editor-description" className="mt-2 text-sm leading-relaxed text-[#68756e]">Če zaprete urejevalnik, se bodo vaše spremembe izgubile.</p>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button type="button" autoFocus data-testid="button-continue-supplier-order-editor" variant="outline" onClick={() => setDiscardOrderEditorPromptOpen(false)}>Nadaljuj urejanje</Button>
+          <Button type="button" data-testid="button-discard-supplier-order-editor" onClick={closeOrderEditor} className="bg-rose-700 text-white hover:bg-rose-800">Zavrzi spremembe</Button>
+        </div>
       </section>
     </div>}
 

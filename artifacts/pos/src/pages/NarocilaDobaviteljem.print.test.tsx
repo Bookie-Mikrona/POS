@@ -124,6 +124,34 @@ vi.mock("@workspace/api-client-react", async () => {
   };
 });
 
+type EditorDismissal = "close-button" | "cancel-button" | "outside-click";
+
+function renderSupplierOrderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <NarocilaDobaviteljem />
+    </QueryClientProvider>,
+  );
+}
+
+function openNewOrderEditor() {
+  fireEvent.click(screen.getByRole("button", { name: "Novo naročilo" }));
+  return screen.getByRole("dialog", { name: "Naročilo dobavitelju" });
+}
+
+function dismissOrderEditor(method: EditorDismissal) {
+  if (method === "close-button") {
+    fireEvent.click(screen.getByTestId("button-close-supplier-order-editor"));
+  } else if (method === "cancel-button") {
+    fireEvent.click(screen.getByTestId("button-cancel-supplier-order-editor"));
+  } else {
+    fireEvent.mouseDown(screen.getByTestId("supplier-order-editor-backdrop"));
+  }
+}
+
 describe("supplier order print view", () => {
   const print = vi.fn();
 
@@ -659,6 +687,57 @@ describe("supplier order print view", () => {
     expect(internalField.value).toBe(internalNote);
     expect(supplierField.value).toBe(existingInstruction);
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["gumbom za zapiranje", "close-button"],
+    ["preklicem", "cancel-button"],
+    ["klikom zunaj", "outside-click"],
+  ] as const)("warns about unsaved changes when closing %s", (_label, method) => {
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(supplierNotes, { target: { value: "Dostavite pred 12. uro." } });
+
+    dismissOrderEditor(method);
+
+    expect(screen.getByRole("alertdialog").textContent).toMatch(/neshranjene spremembe/i);
+    fireEvent.click(screen.getByTestId("button-continue-supplier-order-editor"));
+    expect(screen.getByRole("dialog", { name: "Naročilo dobavitelju" })).toBeTruthy();
+    expect(supplierNotes.value).toBe("Dostavite pred 12. uro.");
+  });
+
+  it.each([
+    ["gumbom za zapiranje", "close-button"],
+    ["preklicem", "cancel-button"],
+    ["klikom zunaj", "outside-click"],
+  ] as const)("closes an unchanged draft directly when closing %s", (_label, method) => {
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+
+    dismissOrderEditor(method);
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+  });
+
+  it("lets the user continue editing a copied note or explicitly discard it", () => {
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+    const internalNote = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
+    fireEvent.change(internalNote, { target: { value: "Pokličite ob prihodu." } });
+    fireEvent.click(screen.getByTestId("button-copy-internal-to-supplier"));
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+
+    dismissOrderEditor("close-button");
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("button-continue-supplier-order-editor"));
+    expect(supplierNotes.value).toBe("Pokličite ob prihodu.");
+
+    dismissOrderEditor("cancel-button");
+    fireEvent.click(screen.getByTestId("button-discard-supplier-order-editor"));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
   });
 
   it("prefills the next suggested order with the latest price for the current package size", () => {
