@@ -1877,4 +1877,125 @@ describe("POS supplier ordering and linked receipt flow", () => {
       lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 8, openBaseQuantity: 4 }],
     });
   });
+
+  it("includes older orders in the server-side missing-instructions review and stays unit-scoped", async () => {
+    const recentCreatedAt = new Date();
+    const recentOrders = Array.from({ length: 201 }, (_, index) => ({
+      enotaId,
+      dobaviteljId: supplierId,
+      dobaviteljNaziv: `Supplier ${run}`,
+      stevilka: `HISTORY-${run}-${index}`,
+      status: "draft",
+      opomba: null,
+      navodiloDobavitelju: null,
+      ustvaril: context.userId,
+      ustvarjeno: recentCreatedAt,
+      posodobljeno: recentCreatedAt,
+    }));
+    const recentRows = await db.insert(posSupplierOrdersTable)
+      .values(recentOrders)
+      .returning({ id: posSupplierOrdersTable.id });
+    orderIds.push(...recentRows.map(order => order.id));
+
+    const oldCreatedAt = new Date("2020-01-01T00:00:00.000Z");
+    const [oldSentOrder] = await db.insert(posSupplierOrdersTable).values({
+      enotaId,
+      dobaviteljId: supplierId,
+      dobaviteljNaziv: `Supplier ${run}`,
+      stevilka: `HISTORY-${run}-old-sent`,
+      status: "sent",
+      opomba: "Starejša interna opomba.",
+      navodiloDobavitelju: " \n ",
+      ustvaril: context.userId,
+      ustvarjeno: oldCreatedAt,
+      posodobljeno: oldCreatedAt,
+    }).returning({ id: posSupplierOrdersTable.id });
+    orderIds.push(oldSentOrder.id);
+
+    const [oldDraftOrder] = await db.insert(posSupplierOrdersTable).values({
+      enotaId,
+      dobaviteljId: supplierId,
+      dobaviteljNaziv: `Supplier ${run}`,
+      stevilka: `HISTORY-${run}-old-draft`,
+      status: "draft",
+      opomba: "Starejša interna opomba za osnutek.",
+      navodiloDobavitelju: null,
+      ustvaril: context.userId,
+      ustvarjeno: oldCreatedAt,
+      posodobljeno: oldCreatedAt,
+    }).returning({ id: posSupplierOrdersTable.id });
+    orderIds.push(oldDraftOrder.id);
+
+    const [otherUnit] = await db.insert(enoteTable).values({
+      companyId,
+      ime: `Supplier order other unit ${run}`,
+    }).returning({ id: enoteTable.id });
+    unitIds.push(otherUnit.id);
+    const [otherUnitOrder] = await db.insert(posSupplierOrdersTable).values({
+      enotaId: otherUnit.id,
+      dobaviteljId: supplierId,
+      dobaviteljNaziv: `Supplier ${run}`,
+      stevilka: `HISTORY-${run}-other-unit`,
+      status: "sent",
+      opomba: "Opomba iz druge enote.",
+      navodiloDobavitelju: null,
+      ustvaril: context.userId,
+      ustvarjeno: oldCreatedAt,
+      posodobljeno: oldCreatedAt,
+    }).returning({ id: posSupplierOrdersTable.id });
+    orderIds.push(otherUnitOrder.id);
+
+    const [otherCompany] = await db.insert(companiesTable).values({
+      naziv: `Supplier order other company ${run}`,
+      podjetjeDavcna: `SI${run}79`,
+    }).returning({ id: companiesTable.id });
+    extraCompanyIds.push(otherCompany.id);
+    const [otherCompanyUnit] = await db.insert(enoteTable).values({
+      companyId: otherCompany.id,
+      ime: `Supplier order other company unit ${run}`,
+    }).returning({ id: enoteTable.id });
+    unitIds.push(otherCompanyUnit.id);
+    const [otherCompanySupplier] = await db.insert(counterpartiesTable).values({
+      companyId: otherCompany.id,
+      type: "supplier",
+      name: `Other company supplier ${run}`,
+    }).returning({ id: counterpartiesTable.id });
+    extraSupplierIds.push(otherCompanySupplier.id);
+    const [otherCompanyOrder] = await db.insert(posSupplierOrdersTable).values({
+      enotaId: otherCompanyUnit.id,
+      dobaviteljId: otherCompanySupplier.id,
+      dobaviteljNaziv: `Other company supplier ${run}`,
+      stevilka: `HISTORY-${run}-other-company`,
+      status: "sent",
+      opomba: "Opomba iz drugega podjetja.",
+      navodiloDobavitelju: null,
+      ustvaril: context.userId,
+      ustvarjeno: oldCreatedAt,
+      posodobljeno: oldCreatedAt,
+    }).returning({ id: posSupplierOrdersTable.id });
+    orderIds.push(otherCompanyOrder.id);
+
+    const latestOrders = await request(app).get("/narocila-dobaviteljem");
+    expect(latestOrders.status).toBe(200);
+    expect(latestOrders.body).toHaveLength(200);
+    expect(latestOrders.body.some((order: any) => order.id === oldSentOrder.id)).toBe(false);
+
+    const missingInstructionOrders = await request(app)
+      .get("/narocila-dobaviteljem")
+      .query({ missingSupplierInstructionsOnly: true });
+    expect(missingInstructionOrders.status, JSON.stringify(missingInstructionOrders.body)).toBe(200);
+    expect(missingInstructionOrders.body.map((order: any) => order.id)).toContain(oldSentOrder.id);
+    expect(missingInstructionOrders.body.map((order: any) => order.id)).toContain(oldDraftOrder.id);
+    expect(missingInstructionOrders.body.map((order: any) => order.id)).not.toContain(otherUnitOrder.id);
+    expect(missingInstructionOrders.body.map((order: any) => order.id)).not.toContain(otherCompanyOrder.id);
+
+    const sentMissingInstructionOrders = await request(app)
+      .get("/narocila-dobaviteljem")
+      .query({ status: "sent", missingSupplierInstructionsOnly: true });
+    expect(sentMissingInstructionOrders.status, JSON.stringify(sentMissingInstructionOrders.body)).toBe(200);
+    expect(sentMissingInstructionOrders.body.map((order: any) => order.id)).toContain(oldSentOrder.id);
+    expect(sentMissingInstructionOrders.body.map((order: any) => order.id)).not.toContain(oldDraftOrder.id);
+    expect(sentMissingInstructionOrders.body.map((order: any) => order.id)).not.toContain(otherUnitOrder.id);
+    expect(sentMissingInstructionOrders.body.map((order: any) => order.id)).not.toContain(otherCompanyOrder.id);
+  });
 });

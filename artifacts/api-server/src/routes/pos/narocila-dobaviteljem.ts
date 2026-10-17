@@ -150,7 +150,13 @@ async function assertSupplierInCompany(
   return supplier ?? null;
 }
 
-async function getSupplierOrderSummaries(enotaId: number, status?: string, limit = 200) {
+async function getSupplierOrderSummaries(
+  enotaId: number,
+  status?: string,
+  limit = 200,
+  missingSupplierInstructionsOnly = false,
+) {
+  const limitClause = missingSupplierInstructionsOnly ? sql`` : sql`LIMIT ${limit}`;
   const result = await db.execute(sql`
     WITH confirmed_received AS (
       SELECT pp.supplier_order_line_id,
@@ -184,9 +190,16 @@ async function getSupplierOrderSummaries(enotaId: number, status?: string, limit
       ON received.supplier_order_line_id = line.id
     WHERE o.enota_id = ${enotaId}
       AND (${status ?? null}::text IS NULL OR o.status = ${status ?? null})
+      AND (
+        NOT ${missingSupplierInstructionsOnly}
+        OR (
+          NULLIF(regexp_replace(COALESCE(o.opomba, ''), '^[[:space:]]+|[[:space:]]+$', '', 'g'), '') IS NOT NULL
+          AND NULLIF(regexp_replace(COALESCE(o.navodilo_dobavitelju, ''), '^[[:space:]]+|[[:space:]]+$', '', 'g'), '') IS NULL
+        )
+      )
     GROUP BY o.id
     ORDER BY o.ustvarjeno DESC, o.id DESC
-    LIMIT ${limit}
+    ${limitClause}
   `);
   return (result.rows as Array<Record<string, unknown>>).map(row => ({
     id: Number(row.id),
@@ -602,10 +615,18 @@ router.put("/narocila-dobaviteljem/artikli/:artikelId/nastavitve", async (req, r
 
 router.get("/narocila-dobaviteljem", async (req, res): Promise<void> => {
   const { enotaId } = requestScope(req);
-  const parsed = z.object({ status: orderStatus.optional() }).safeParse(req.query);
-  if (!parsed.success) { res.status(400).json({ error: "Neveljaven filter stanja naročila." }); return; }
+  const parsed = z.object({
+    status: orderStatus.optional(),
+    missingSupplierInstructionsOnly: z.enum(["true", "false"]).optional().transform(value => value === "true"),
+  }).safeParse(req.query);
+  if (!parsed.success) { res.status(400).json({ error: "Neveljaven filter seznama naročil." }); return; }
   res.setHeader("Cache-Control", "no-store");
-  res.json(await getSupplierOrderSummaries(enotaId, parsed.data.status));
+  res.json(await getSupplierOrderSummaries(
+    enotaId,
+    parsed.data.status,
+    200,
+    parsed.data.missingSupplierInstructionsOnly,
+  ));
 });
 
 router.post("/narocila-dobaviteljem", async (req, res): Promise<void> => {

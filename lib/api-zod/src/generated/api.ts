@@ -10800,8 +10800,11 @@ export const SaveSupplierReorderSettingsResponse = zod.object({
 /**
  * @summary Seznam naročil dobaviteljem
  */
+export const listSupplierOrdersQueryMissingSupplierInstructionsOnlyDefault = false;
+
 export const ListSupplierOrdersQueryParams = zod.object({
-  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']).optional()
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']).optional(),
+  "missingSupplierInstructionsOnly": zod.coerce.boolean().default(listSupplierOrdersQueryMissingSupplierInstructionsOnlyDefault).describe('Omeji seznam na naročila z interno opombo in brez navodila za dobavitelja; ta pregled zajame celotno zgodovino naročil.')
 })
 
 export const ListSupplierOrdersResponseItem = zod.object({

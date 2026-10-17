@@ -5476,6 +5476,13 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/SupplierOrderStatus"
+        - name: missingSupplierInstructionsOnly
+          in: query
+          required: false
+          description: Omeji seznam na naročila z interno opombo in brez navodila za dobavitelja; ta pregled zajame celotno zgodovino naročil.
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Seznam naročil

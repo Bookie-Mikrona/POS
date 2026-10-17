@@ -14159,6 +14159,10 @@ artikelId?: number;
 
 export type ListSupplierOrdersParams = {
 status?: SupplierOrderStatus;
+/**
+ * Omeji seznam na naročila z interno opombo in brez navodila za dobavitelja; ta pregled zajame celotno zgodovino naročil.
+ */
+missingSupplierInstructionsOnly?: boolean;
 };
 
 export type CloseSupplierOrderBody = {

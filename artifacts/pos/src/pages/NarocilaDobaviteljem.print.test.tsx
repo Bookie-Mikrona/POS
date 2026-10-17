@@ -109,7 +109,7 @@ vi.mock("@workspace/api-client-react", async () => {
       isError: false,
       refetch: vi.fn(),
     }),
-    useListSupplierOrders: (params?: { status?: string }) => {
+    useListSupplierOrders: (params?: { status?: string; missingSupplierInstructionsOnly?: boolean }) => {
       const summaries = mocks.supplierOrderSummaries ?? [{
         id: mocks.order.id,
         number: mocks.order.number,
@@ -123,8 +123,13 @@ vi.mock("@workspace/api-client-react", async () => {
         internalNotes: mocks.order.internalNotes,
         supplierNotes: mocks.order.supplierNotes,
       }];
+      const statusFiltered = params?.status
+        ? summaries.filter(order => order.status === params.status)
+        : summaries;
       return {
-        data: params?.status ? summaries.filter(order => order.status === params.status) : summaries,
+        data: params?.missingSupplierInstructionsOnly
+          ? statusFiltered.filter(order => Boolean(order.internalNotes?.trim()) && !order.supplierNotes?.trim())
+          : statusFiltered.slice(0, 200),
         isLoading: false,
         isError: false,
         refetch: vi.fn(),
@@ -367,6 +372,46 @@ describe("supplier order print view", () => {
     expect((screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement).value).toBe("");
     expect(mocks.order.supplierNotes).toBe("");
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("shows missing-instruction orders beyond the latest-200 limit", () => {
+    const sharedSummary = {
+      supplierId: mocks.order.supplierId,
+      supplierName: "Nedavni dobavitelj",
+      status: "draft",
+      createdAt: mocks.order.createdAt,
+      expectedDeliveryDate: null,
+      lineCount: 0,
+      openQuantity: 0,
+      internalNotes: null,
+      supplierNotes: null,
+    };
+    const recentOrders = Array.from({ length: 200 }, (_, index) => ({
+      ...sharedSummary,
+      id: 2000 + index,
+      number: `N-2026-${String(index).padStart(4, "0")}`,
+    }));
+    const olderOrder = {
+      ...sharedSummary,
+      id: 1999,
+      number: "N-2010-1999",
+      supplierName: "Zgodovinski dobavitelj",
+      status: "sent",
+      createdAt: "2010-01-01T10:00:00.000Z",
+      internalNotes: "Starejša interna opomba.",
+      supplierNotes: " \n ",
+    };
+    mocks.supplierOrderSummaries = [...recentOrders, olderOrder];
+    renderSupplierOrderPage();
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+
+    expect(screen.queryByTestId("row-supplier-order-1999")).toBeNull();
+    const filterButton = screen.getByTestId("filter-orders-missing-supplier-instructions");
+    expect(filterButton.textContent).toContain("1");
+    fireEvent.click(filterButton);
+
+    expect(screen.getByTestId("row-supplier-order-1999")).toBeTruthy();
+    expect(screen.queryByTestId("row-supplier-order-2000")).toBeNull();
   });
 
   it("searches supplier orders by number or supplier without exposing internal notes", () => {

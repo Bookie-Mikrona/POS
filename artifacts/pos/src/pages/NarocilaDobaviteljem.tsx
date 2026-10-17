@@ -336,6 +336,21 @@ export default function NarocilaDobaviteljem() {
   const listParams = statusFilter === "all" ? undefined : { status: statusFilter };
   const { data: orderList, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } =
     useListSupplierOrders(listParams, { query: { queryKey: getListSupplierOrdersQueryKey(listParams) } });
+  const missingInstructionsParams = {
+    ...(statusFilter === "all" ? {} : { status: statusFilter }),
+    missingSupplierInstructionsOnly: true,
+  };
+  const {
+    data: completeMissingInstructionsList,
+    isLoading: missingInstructionsLoading,
+    isError: missingInstructionsError,
+    refetch: refetchMissingInstructions,
+  } = useListSupplierOrders(missingInstructionsParams, {
+    query: { queryKey: getListSupplierOrdersQueryKey(missingInstructionsParams) },
+  });
+  const activeOrdersLoading = missingSupplierInstructionsOnly ? missingInstructionsLoading : ordersLoading;
+  const activeOrdersError = missingSupplierInstructionsOnly ? missingInstructionsError : ordersError;
+  const refetchActiveOrders = missingSupplierInstructionsOnly ? refetchMissingInstructions : refetchOrders;
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [expandedReceiptLineId, setExpandedReceiptLineId] = useState<number | null>(null);
   const { data: orderDetail, isLoading: detailLoading, isError: detailError, refetch: refetchDetail } =
@@ -452,7 +467,8 @@ export default function NarocilaDobaviteljem() {
     const q = search.trim().toLocaleLowerCase("sl");
     return (!q || `${article.articleName} ${article.purchaseName ?? ""}`.toLocaleLowerCase("sl").includes(q));
   });
-  const ordersMissingSupplierInstructions = (orderList ?? []).filter(hasInternalNoteWithoutSupplierInstructions);
+  const ordersMissingSupplierInstructions = (completeMissingInstructionsList ?? [])
+    .filter(hasInternalNoteWithoutSupplierInstructions);
   const ordersWithInstructionFilter = missingSupplierInstructionsOnly
     ? ordersMissingSupplierInstructions
     : orderList ?? [];
@@ -729,7 +745,7 @@ export default function NarocilaDobaviteljem() {
           <p className="mt-1 max-w-2xl text-sm text-[#68736e]">Priprava nabave iz dejanskega stanja zalog. Naročilo je evidenca — zalogo posodobi šele potrjena prejemnica.</p>
         </div>
         <div className="orders-no-print flex flex-wrap gap-2">
-          <Button variant="outline" className="border-[#cfc5b4] bg-[#fffefa] text-[#314a44]" onClick={() => { void refetchDashboard(); void refetchOrders(); }}>
+          <Button variant="outline" className="border-[#cfc5b4] bg-[#fffefa] text-[#314a44]" onClick={() => { void refetchDashboard(); void refetchOrders(); void refetchMissingInstructions(); }}>
             <RefreshCw className="mr-2 h-4 w-4" /> Osveži
           </Button>
           <Button className="bg-[#285d50] text-white hover:bg-[#204b41]" onClick={() => startNewOrder()}>
@@ -1019,7 +1035,7 @@ export default function NarocilaDobaviteljem() {
               aria-pressed={missingSupplierInstructionsOnly}
               data-testid="filter-orders-missing-supplier-instructions"
               title="Pokaži naročila z interno opombo in praznim navodilom za dobavitelja"
-              disabled={ordersLoading || ordersError}
+              disabled={activeOrdersLoading}
               onClick={() => setMissingSupplierInstructionsOnly(value => !value)}
               className={`h-10 ${missingSupplierInstructionsOnly ? "border-amber-400 bg-amber-50 text-amber-950" : "border-[#ded6c7] bg-[#fffefa] text-[#52645d]"}`}
             >
@@ -1031,12 +1047,12 @@ export default function NarocilaDobaviteljem() {
               <option value="all">Vsi statusi</option>
               {Object.entries(statusCopy).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-            <Button size="sm" variant="outline" className="h-10 border-[#ded6c7]" onClick={() => void refetchOrders()}><RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Osveži</Button>
+            <Button size="sm" variant="outline" className="h-10 border-[#ded6c7]" onClick={() => void refetchActiveOrders()}><RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Osveži</Button>
           </div>
         </div>
-        {ordersError ? <div className="m-5 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-          <span>Seznama naročil ni bilo mogoče naložiti.</span><Button variant="outline" size="sm" onClick={() => void refetchOrders()}>Poskusi znova</Button>
-        </div> : ordersLoading ? <div className="space-y-3 p-5">{[1, 2, 3].map(item => <div key={item} className="h-16 animate-pulse rounded-lg bg-[#f1eee6]" />)}</div> : filteredOrders.length === 0 ? <div className="px-6 py-14 text-center">
+        {activeOrdersError ? <div className="m-5 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+          <span>Seznama naročil ni bilo mogoče naložiti.</span><Button variant="outline" size="sm" onClick={() => void refetchActiveOrders()}>Poskusi znova</Button>
+        </div> : activeOrdersLoading ? <div className="space-y-3 p-5">{[1, 2, 3].map(item => <div key={item} className="h-16 animate-pulse rounded-lg bg-[#f1eee6]" />)}</div> : filteredOrders.length === 0 ? <div className="px-6 py-14 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf3ed] text-[#416c5e]"><FileText className="h-6 w-6" /></div>
           <h3 className="mt-3 font-bold text-[#28453f]">{activeOrderSearch ? "Ni zadetkov za iskanje" : missingSupplierInstructionsOnly ? "Ni naročil z interno opombo brez navodila" : "Za ta filter ni naročil"}</h3>
           <p className="mt-1 text-sm text-[#748079]">{activeOrderSearch ? "Preverite številko naročila ali naziv dobavitelja oziroma spremenite izbrane filtre." : missingSupplierInstructionsOnly ? "Za izbrani status ni naročil z interno opombo in praznim navodilom za dobavitelja." : "Ustvarite osnutek iz predlogov ali dodajte naročilo ročno."}</p>
