@@ -186,6 +186,13 @@ function openNewOrderEditor() {
   return screen.getByRole("dialog", { name: "Naročilo dobavitelju" });
 }
 
+function openSavedDraftEditor() {
+  fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+  fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+  fireEvent.click(screen.getByRole("button", { name: "Uredi osnutek" }));
+  return screen.getByRole("dialog", { name: "Naročilo dobavitelju" });
+}
+
 function dismissOrderEditor(method: EditorDismissal) {
   if (method === "close-button") {
     fireEvent.click(screen.getByTestId("button-close-supplier-order-editor"));
@@ -1234,6 +1241,51 @@ describe("supplier order print view", () => {
 
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+  });
+
+  it("closes an unchanged saved draft without showing a warning", () => {
+    renderSupplierOrderPage();
+    openSavedDraftEditor();
+
+    expect((screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement).value)
+      .toBe("Prosimo za dostavo do 10.00.\nHvala.");
+    dismissOrderEditor("cancel-button");
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("warns about changed saved-draft instructions and keeps them when continuing", () => {
+    renderSupplierOrderPage();
+    openSavedDraftEditor();
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(supplierNotes, { target: { value: "Dostavite pred 12. uro." } });
+
+    dismissOrderEditor("close-button");
+
+    expect(screen.getByRole("alertdialog").textContent).toMatch(/neshranjene spremembe/i);
+    fireEvent.click(screen.getByTestId("button-continue-supplier-order-editor"));
+
+    expect(screen.getByRole("dialog", { name: "Naročilo dobavitelju" })).toBeTruthy();
+    expect(supplierNotes.value).toBe("Dostavite pred 12. uro.");
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("explicitly discards changed saved-draft instructions and closes the editor without saving", () => {
+    renderSupplierOrderPage();
+    openSavedDraftEditor();
+    fireEvent.change(screen.getByLabelText(/Navodilo dobavitelju/), {
+      target: { value: "Dostavite pred 12. uro." },
+    });
+
+    dismissOrderEditor("close-button");
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("button-discard-supplier-order-editor"));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+    expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
   it("allows app navigation and browser exit when the order draft is unchanged", () => {
