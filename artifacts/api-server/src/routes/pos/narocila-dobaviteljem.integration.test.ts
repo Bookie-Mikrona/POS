@@ -750,7 +750,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     context.role = "admin";
   });
 
-  it("keeps latest supplier price receipts scoped to each POS unit and breaks same-date ties by receipt ID", async () => {
+  it("scopes supplier-order price sources by unit, breaks date ties by ID, and ignores manual receipts", async () => {
     const [articleA] = await db.insert(artikliTable).values({
       enotaId,
       ime: `Unit A source article ${run}`,
@@ -910,11 +910,53 @@ describe("POS supplier ordering and linked receipt flow", () => {
       });
 
       context.enotaId = enotaId;
+      const manualReceipt = await request(app).post("/prejemnice").send({
+        dobaviteljId: supplierId,
+        datum: "2026-10-20",
+        vrstaCen: "neto",
+        vrstaDokumenta: "DOBAVNICA",
+        brutoSkupaj: 600,
+        postavke: [{
+          artikelId: articleA.id,
+          kolicina: 6,
+          cenaKos: 100,
+          skupaj: 600,
+          enotVPaketu: 1,
+          izvKolicina: 6,
+          izvCena: 100,
+          izvEnota: "KOS",
+          izvCenaVrsta: "neto",
+          ddvStopnja: 0,
+        }],
+      });
+      expect(manualReceipt.status, JSON.stringify(manualReceipt.body)).toBe(201);
+      receiptIds.push(manualReceipt.body.id);
+      const manualReceiptConfirmed = await request(app)
+        .post(`/prejemnice/${manualReceipt.body.id}/confirm`)
+        .send({});
+      expect(manualReceiptConfirmed.status, JSON.stringify(manualReceiptConfirmed.body)).toBe(200);
+      const manualReceiptDetails = await request(app).get(`/prejemnice/${manualReceipt.body.id}`);
+      expect(manualReceiptDetails.status, JSON.stringify(manualReceiptDetails.body)).toBe(200);
+      expect(manualReceiptDetails.body).toMatchObject({
+        id: manualReceipt.body.id,
+        dobaviteljId: supplierId,
+        status: "confirmed",
+      });
+      expect(manualReceiptDetails.body.postavke).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          artikelId: articleA.id,
+          supplierOrderLineId: null,
+          cenaKos: 100,
+        }),
+      ]));
+      const manualReceiptId = manualReceipt.body.id as number;
+
       const receiptListA = await request(app).get("/prejemnice");
       expect(receiptListA.status, JSON.stringify(receiptListA.body)).toBe(200);
       const receiptIdsForA = receiptListA.body.map((receipt: any) => receipt.id);
       expect(receiptIdsForA).toContain(sourceA.receiptId);
       expect(receiptIdsForA).toContain(laterInsertedOlderSourceA.receiptId);
+      expect(receiptIdsForA).toContain(manualReceiptId);
       expect(receiptIdsForA).not.toContain(sourceB.receiptId);
 
       context.enotaId = unitB.id;
@@ -924,6 +966,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       expect(receiptIdsForB).toContain(sourceB.receiptId);
       expect(receiptIdsForB).not.toContain(sourceA.receiptId);
       expect(receiptIdsForB).not.toContain(laterInsertedOlderSourceA.receiptId);
+      expect(receiptIdsForB).not.toContain(manualReceiptId);
 
       context.enotaId = unitB.id;
       const inaccessibleReceiptA = await request(app).get(`/prejemnice/${sourceA.receiptId}`);
@@ -1025,6 +1068,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
           },
         ],
       });
+      expect(mappingInA.priceHistory.map((entry: any) => entry.receiptId)).not.toContain(manualReceiptId);
     } finally {
       context.enotaId = enotaId;
     }
