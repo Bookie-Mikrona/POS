@@ -68,6 +68,7 @@ const ARTICLE_DIRECTION_LABELS: Record<ArticleDirection, string> = {
   unavailable: "Neprimerljivi",
 };
 export const QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY = "pos.qr-feedback.article-view.v1";
+export const QR_FEEDBACK_GRANULARITY_STORAGE_KEY = "pos.qr-feedback.granularity.v1";
 const ARTICLE_SORTS = new Set<ArticleSort>(["difference", "currentAverage", "sampleSize"]);
 const ARTICLE_SORT_ORDERS = new Set<ArticleSortOrder>(["ascending", "descending"]);
 const DEFAULT_ARTICLE_VIEW: ArticleViewState = {
@@ -136,6 +137,14 @@ function readStoredArticleView(): ArticleViewState {
   }
 }
 
+function readStoredGranularity(): "day" | "week" {
+  try {
+    return window.localStorage.getItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY) === "week" ? "week" : "day";
+  } catch {
+    return "day";
+  }
+}
+
 export function buildTrendChartData(trends: TrendRow[]): TrendChartRow[] {
   return trends.map((row) => ({
     ...row,
@@ -149,7 +158,7 @@ export function buildTrendChartData(trends: TrendRow[]): TrendChartRow[] {
 }
 
 export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
-  const [granularity, setGranularity] = useState<"day" | "week">("day");
+  const [granularity, setGranularity] = useState<"day" | "week">(readStoredGranularity);
   const [commentsPage, setCommentsPage] = useState(1);
   const [articleView, setArticleView] = useState<ArticleViewState>(readStoredArticleView);
   const {
@@ -170,6 +179,14 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
       // Preferences are optional; keep the report usable when browser storage is unavailable.
     }
   }, [articleView]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY, granularity);
+    } catch {
+      // Preferences are optional; keep the report usable when browser storage is unavailable.
+    }
+  }, [granularity]);
 
   const {
     data,

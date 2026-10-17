@@ -7,6 +7,7 @@ import {
   OperativnaPorocilaQrFeedback,
   parseStoredArticleView,
   QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY,
+  QR_FEEDBACK_GRANULARITY_STORAGE_KEY,
   SmallSampleDot,
   TrendTooltip,
 } from "./OperativnaPorocilaQrFeedback";
@@ -504,33 +505,94 @@ describe("OperativnaPorocilaQrFeedback", () => {
     expect(screen.getByText(/02\. 09\. 2026/)).not.toBeNull();
   });
 
-  it("resets comment page to 1 when date changes", async () => {
+  it.each([
+    ["day", "week", "Po dnevih"],
+    ["week", "day", "Po tednih"],
+  ] as const)("shrani in ob vrnitvi obnovi prikaz %s", async (granularity, initial, label) => {
+    localStorage.setItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY, initial);
+    const first = renderComponent();
+    fireEvent.click(screen.getByTestId("select-granularity"));
+    fireEvent.click(await screen.findByTestId(`select-option-${granularity}`));
+
+    expect(localStorage.getItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY)).toBe(granularity);
+    first.unmount();
+    mockUseFeedback.mockClear();
+    mockUseComments.mockClear();
+    renderComponent();
+
+    expect(screen.getByTestId("select-granularity").textContent).toContain(label);
+    expect(mockUseFeedback.mock.calls[0][0]).toMatchObject({ granularity });
+    expect(mockUseComments.mock.calls[0][0]).toMatchObject({ granularity, page: 1 });
+  });
+
+  it.each([null, "month", "", "WEEK", '{"granularity":"week"}'])(
+    "manjkajoč ali neveljaven prikaz %s ponastavi na day",
+    (stored) => {
+      if (stored !== null) localStorage.setItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY, stored);
+      renderComponent();
+      expect(screen.getByTestId("select-granularity").textContent).toContain("Po dnevih");
+      expect(mockUseFeedback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ granularity: "day" }),
+        expect.anything(),
+      );
+      expect(localStorage.getItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY)).toBe("day");
+    },
+  );
+
+  it("resets comment page to 1 when date changes and keeps the saved granularity", () => {
+    localStorage.setItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY, "week");
+    mockUseComments.mockImplementation(({ page }) => ({
+      data: { ...commentsPage, page },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+    }));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { rerender } = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider client={queryClient}>
         <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
       </QueryClientProvider>
     );
 
-    // Initial page param requested is 1 from useState(1) before effect/mock handles it,
-    // actually, React state is 1 on mount. Wait, the mock hook checks what it receives.
+    fireEvent.click(screen.getByTestId("button-comments-next"));
     expect(mockUseComments).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 1 }),
+      expect.objectContaining({ page: 2, granularity: "week" }),
       expect.anything()
     );
 
-    // After mount, let's simulate a next page click if it was page 1.
-    // However, our mock always returns commentsPage with page: 2, so the UI thinks we are on page 2.
-    // If we pass new props, it should reset page to 1.
-    
     rerender(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider client={queryClient}>
         <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-04" }} />
       </QueryClientProvider>
     );
 
     expect(mockUseComments).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 1, do: "2026-09-04" }),
+      expect.objectContaining({ page: 1, do: "2026-09-04", granularity: "week" }),
       expect.anything()
+    );
+    expect(localStorage.getItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY)).toBe("week");
+  });
+
+  it("resets comment page to 1 when granularity changes", async () => {
+    mockUseComments.mockImplementation(({ page }) => ({
+      data: { ...commentsPage, page },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+    }));
+    renderComponent();
+    fireEvent.click(screen.getByTestId("button-comments-next"));
+    expect(mockUseComments).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, granularity: "day" }),
+      expect.anything(),
+    );
+    fireEvent.click(screen.getByTestId("select-granularity"));
+    fireEvent.click(await screen.findByTestId("select-option-week"));
+    expect(mockUseComments).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, granularity: "week" }),
+      expect.anything(),
     );
   });
 
