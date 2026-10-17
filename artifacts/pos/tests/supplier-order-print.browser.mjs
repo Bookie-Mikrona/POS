@@ -520,6 +520,66 @@ async function main() {
     assert(normalizedPdfText.includes("KONEC-NAVODILA-100"), "The end of the long supplier instruction is missing.");
     assert(!normalizedPdfText.includes("INTERNAL-NOTE-MUST-NOT-PRINT"), "Internal note leaked into the PDF.");
 
+    const lastInstructionPageIndex = pages.findIndex(page => page.includes("KONEC-NAVODILA-100"));
+    const oneRowPageIndex = pages.findIndex(page =>
+      compactText(page).includes(compactText("ONE-ROW-ORDER-CASE")));
+    const emptyOrderPageIndex = pages.findIndex(page => page.includes("EMPTY-ORDER-CASE"));
+    const noInstructionsPageIndex = pages.findIndex(page =>
+      compactText(page).includes(compactText("NO-INSTRUCTIONS-ORDER-CASE")));
+    assert(lastInstructionPageIndex >= 0, "The long order's final instruction page is missing.");
+    assert(oneRowPageIndex >= 0, "The one-row order is missing from the PDF.");
+    assert(emptyOrderPageIndex >= 0, "The empty order is missing from the PDF.");
+    assert(noInstructionsPageIndex >= 0, "The order without supplier instructions is missing from the PDF.");
+    assert.equal(oneRowPageIndex, lastInstructionPageIndex + 1, "A blank page appeared before the one-row order.");
+    assert.equal(emptyOrderPageIndex, oneRowPageIndex + 1, "The one-row order produced an unexpected extra page.");
+    assert.equal(noInstructionsPageIndex, emptyOrderPageIndex + 1, "The empty order produced an unexpected extra page.");
+
+    const oneRowPage = pages[oneRowPageIndex];
+    assert(oneRowPage.includes("Enovrstični preizkusni dobavitelj"), "The one-row order supplier is missing.");
+    assert(oneRowPage.includes("ONE-ROW-SUPPLIER-INSTRUCTION"), "The one-row supplier instructions are missing.");
+    assert(oneRowPage.includes("ONE-ROW-SUPPLIER-ITEM"), "The one-row supplier item details are missing.");
+    assert(oneRowPage.includes("SUPPLIER-CODE"), "The one-row supplier code is missing.");
+    const oneRowLine = oneRowPage.split("\n").map(normalizeText)
+      .find(line => line.includes("ONE-ROW-ARTICLE"));
+    assert(oneRowLine, "The one-row article is missing.");
+    assert(
+      new RegExp("(?:^|\\s)2(?:\\s|$)").test(oneRowLine),
+      "The one-row article is missing its quantity.",
+    );
+    assert(oneRowLine.includes(decimalToken(3.5)), "The one-row article is missing its unit price.");
+    assert(oneRowLine.includes(decimalToken(7)), "The one-row article is missing its amount.");
+    const oneRowTotalLine = oneRowPage.split("\n").map(normalizeText)
+      .find(line => line.includes("Skupaj"));
+    assert(oneRowTotalLine?.includes(decimalToken(7)), "The one-row order total is missing or incomplete.");
+
+    const emptyOrderPage = pages[emptyOrderPageIndex];
+    assert(emptyOrderPage.includes("Dobavitelj praznega osnutka"), "The empty order supplier is missing.");
+    const emptyOrderTotalLine = emptyOrderPage.split("\n").map(normalizeText)
+      .find(line => line.includes("Skupaj"));
+    assert(emptyOrderTotalLine?.includes("—"), "The empty order's total placeholder is missing.");
+    assert(!emptyOrderPage.includes("Navodilo dobavitelju"), "The empty order printed a missing-instructions section.");
+
+    const noInstructionsPage = pages[noInstructionsPageIndex];
+    assert(noInstructionsPage.includes("Dobavitelj brez navodil"), "The order without instructions is missing its supplier.");
+    assert(noInstructionsPage.includes("NO-INSTRUCTIONS-SUPPLIER-ITEM"), "Supplier item details are missing without instructions.");
+    assert(
+      noInstructionsPage.includes("INSTRUCTIONS-SUPPLIER-CODE"),
+      "Supplier code is missing without instructions.",
+    );
+    assert(!noInstructionsPage.includes("Navodilo dobavitelju"), "An order without supplier instructions printed an empty section.");
+    const noInstructionsLine = noInstructionsPage.split("\n").map(normalizeText)
+      .find(line => line.includes("NO-INSTRUCTIONS-ARTICLE"));
+    assert(noInstructionsLine, "The order without supplier instructions is missing its article.");
+    assert(
+      new RegExp("(?:^|\\s)3(?:\\s|$)").test(noInstructionsLine),
+      "The order without instructions is missing its quantity.",
+    );
+    assert(noInstructionsLine.includes(decimalToken(1.2)), "The order without instructions is missing its unit price.");
+    assert(noInstructionsLine.includes(decimalToken(3.6)), "The order without instructions is missing its amount.");
+    const noInstructionsTotalLine = noInstructionsPage.split("\n").map(normalizeText)
+      .find(line => line.includes("Skupaj"));
+    assert(noInstructionsTotalLine?.includes(decimalToken(3.6)), "The order without instructions is missing its total.");
+
     const boundingBoxes = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-bbox-layout", pdfPath, "-"]);
     const pdfPages = [...boundingBoxes.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)];
     assert.equal(pdfPages.length, pageCount, "PDF text geometry page count differs from pdfinfo.");

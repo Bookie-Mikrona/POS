@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <title>Supplier order print regression</title>
+    <style>
+      @media print {
+        body > article.supplier-order-print:not(:first-of-type) {
+          break-before: page;
+          page-break-before: always;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="test-root"></div>

@@ -20,3 +20,11 @@ V tem Replitovem Linux okolju se WebKitGTK WebDriver lahko zažene, vendar MiniB
 **Why:** Headless WebKitGTK v razpoložljivem okolju ni uspel prikazati strani, zato njegovega PDF izpisa ni bilo mogoče zanesljivo preveriti.
 
 **How to apply:** Če je treba potrditi Safari/WebKit tiskanje, uporabi resničen Safari ali drug delujoč WebKit runner; Chromium in Firefox ne štejeta kot dokaz za WebKit.
+
+## Besedilno preverjanje PDF-jev z ovitimi celicami
+
+`pdftotext -layout` lahko besedilo iz ovite celice tabele razporedi med besedilo sosednjih stolpcev. Odsotnost ene strnjene podnizne vrednosti zato sama po sebi ne dokazuje, da je tiskani PDF vsebino odrezal.
+
+**Why:** Chromium lahko prelomljeni dobaviteljev šifrant izpiše v besedilnem vrstnem redu med vrednostjo sosednjega stolpca, čeprav so vse besede vidne v PDF-ju.
+
+**How to apply:** Za ovite celice primerjaj besede iz PDF-geometrije, filtrirane po vrstici in stolpcu; strnjena besedilna preverjanja uporabljaj le za vrednosti, katerih vrstni red izluščeno besedilo zanesljivo ohrani.

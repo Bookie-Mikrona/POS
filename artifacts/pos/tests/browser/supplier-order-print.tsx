@@ -73,7 +73,76 @@ const order: SupplierOrderDetail = {
   lines,
 };
 
+const oneRowLine: SupplierOrderDetail["lines"][number] = {
+  ...lines[0],
+  id: 90_001,
+  supplierMappingId: 90_001,
+  articleId: 90_001,
+  articleName: "ONE-ROW-ARTICLE",
+  supplierItemName: "ONE-ROW-SUPPLIER-ITEM",
+  supplierCode: "ONE-ROW-SUPPLIER-CODE",
+  packageQuantity: 2,
+  orderedBaseQuantity: 2,
+  openBaseQuantity: 2,
+  unitPrice: 3.5,
+};
+const noInstructionsLine: SupplierOrderDetail["lines"][number] = {
+  ...lines[0],
+  id: 90_002,
+  supplierMappingId: 90_002,
+  articleId: 90_002,
+  articleName: "NO-INSTRUCTIONS-ARTICLE",
+  supplierItemName: "NO-INSTRUCTIONS-SUPPLIER-ITEM",
+  supplierCode: "NO-INSTRUCTIONS-SUPPLIER-CODE",
+  packageQuantity: 3,
+  orderedBaseQuantity: 3,
+  openBaseQuantity: 3,
+  unitPrice: 1.2,
+};
+const shortOrders: SupplierOrderDetail[] = [
+  {
+    ...order,
+    id: 949,
+    number: "ONE-ROW-ORDER-CASE",
+    supplierId: "supplier-one-row-test",
+    supplierName: "Enovrstični preizkusni dobavitelj",
+    lineCount: 1,
+    openQuantity: 2,
+    internalNotes: null,
+    supplierNotes: "ONE-ROW-SUPPLIER-INSTRUCTION",
+    lines: [oneRowLine],
+  },
+  {
+    ...order,
+    id: 950,
+    number: "EMPTY-ORDER-CASE",
+    supplierId: "supplier-empty-test",
+    supplierName: "Dobavitelj praznega osnutka",
+    lineCount: 0,
+    openQuantity: 0,
+    internalNotes: null,
+    supplierNotes: null,
+    lines: [],
+  },
+  {
+    ...order,
+    id: 951,
+    number: "NO-INSTRUCTIONS-ORDER-CASE",
+    supplierId: "supplier-no-instructions-test",
+    supplierName: "Dobavitelj brez navodil",
+    lineCount: 1,
+    openQuantity: 3,
+    internalNotes: "INTERNAL-NOTE-MUST-NOT-PRINT",
+    supplierNotes: null,
+    lines: [noInstructionsLine],
+  },
+];
+
 const root = document.getElementById("test-root");
 if (!root) throw new Error("Print test root is missing.");
 
-createRoot(root).render(<SupplierOrderPrintView order={order} />);
+createRoot(root).render(
+  [order, ...shortOrders].map(printOrder =>
+    <SupplierOrderPrintView key={printOrder.id} order={printOrder} />,
+  ),
+);
