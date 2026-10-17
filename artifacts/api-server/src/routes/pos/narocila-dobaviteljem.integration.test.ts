@@ -52,6 +52,8 @@ let enotaId = 0;
 let supplierId = "";
 let articleId = 0;
 let mappingId = 0;
+const extraCompanyIds: string[] = [];
+const extraSupplierIds: string[] = [];
 const unitIds: number[] = [];
 const articleIds: number[] = [];
 const mappingIds: number[] = [];
@@ -150,13 +152,20 @@ describe("POS supplier ordering and linked receipt flow", () => {
       await db.delete(zalogeTable).where(inArray(zalogeTable.artikelId, articleIds));
       await db.delete(artikliTable).where(inArray(artikliTable.id, articleIds));
     }
-    if (supplierId) {
+    const supplierIdsToCleanup = [supplierId, ...extraSupplierIds].filter(Boolean);
+    if (supplierIdsToCleanup.length) {
       await db.delete(purchaseSourceDocumentsTable)
-        .where(eq(purchaseSourceDocumentsTable.counterpartyId, supplierId));
+        .where(inArray(purchaseSourceDocumentsTable.counterpartyId, supplierIdsToCleanup));
     }
-    if (supplierId) await db.delete(counterpartiesTable).where(eq(counterpartiesTable.id, supplierId));
+    if (supplierIdsToCleanup.length) {
+      await db.delete(counterpartiesTable)
+        .where(inArray(counterpartiesTable.id, supplierIdsToCleanup));
+    }
     if (unitIds.length) await db.delete(enoteTable).where(inArray(enoteTable.id, unitIds));
     await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
+    if (extraCompanyIds.length) {
+      await db.delete(companiesTable).where(inArray(companiesTable.id, extraCompanyIds));
+    }
   });
 
   it("keeps order price snapshots when the supplier changes package size before receipt confirmation", async () => {
@@ -986,6 +995,120 @@ describe("POS supplier ordering and linked receipt flow", () => {
       });
     } finally {
       context.enotaId = enotaId;
+    }
+  });
+
+  it("does not expose a receipt belonging to another company by direct ID", async () => {
+    const [foreignCompany] = await db.insert(companiesTable).values({
+      naziv: `Foreign supplier order ${run}`,
+      podjetjeDavcna: `SI${run}99`,
+    }).returning({ id: companiesTable.id });
+    extraCompanyIds.push(foreignCompany.id);
+
+    const [foreignUnit] = await db.insert(enoteTable).values({
+      companyId: foreignCompany.id,
+      ime: `Foreign supplier order unit ${run}`,
+    }).returning({ id: enoteTable.id });
+    unitIds.push(foreignUnit.id);
+
+    const [foreignSupplier] = await db.insert(counterpartiesTable).values({
+      companyId: foreignCompany.id,
+      type: "supplier",
+      name: `FOREIGN-RECEIPT-SUPPLIER-${run}`,
+    }).returning({ id: counterpartiesTable.id });
+    extraSupplierIds.push(foreignSupplier.id);
+
+    const [foreignArticle] = await db.insert(artikliTable).values({
+      enotaId: foreignUnit.id,
+      ime: `FOREIGN-RECEIPT-ARTICLE-${run}`,
+      cena: "5",
+      davek: "22",
+      enotaMere: "KOS",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    articleIds.push(foreignArticle.id);
+
+    let foreignReceiptId = 0;
+    let foreignReceiptNumber = "";
+    context.companyId = foreignCompany.id;
+    context.enotaId = foreignUnit.id;
+    try {
+      const createdForeignReceipt = await request(app).post("/prejemnice").send({
+        dobaviteljId: foreignSupplier.id,
+        datum: "2026-10-20",
+        vrstaCen: "neto",
+        vrstaDokumenta: "DOBAVNICA",
+        brutoSkupaj: 9876.54,
+        opomba: `FOREIGN-RECEIPT-NOTE-${run}`,
+        postavke: [{
+          artikelId: foreignArticle.id,
+          kolicina: 3,
+          cenaKos: 1234.56,
+          skupaj: 3703.68,
+          enotVPaketu: 1,
+          izvKolicina: 3,
+          izvCena: 1234.56,
+          izvEnota: "KOS",
+          izvCenaVrsta: "neto",
+          ddvStopnja: 0,
+        }],
+      });
+      expect(createdForeignReceipt.status, JSON.stringify(createdForeignReceipt.body)).toBe(201);
+      foreignReceiptId = createdForeignReceipt.body.id as number;
+      foreignReceiptNumber = createdForeignReceipt.body.stevilka as string;
+      expect(foreignReceiptNumber).toBeTruthy();
+      receiptIds.push(foreignReceiptId);
+    } finally {
+      context.companyId = companyId;
+      context.enotaId = enotaId;
+    }
+
+    const ownReceipt = await request(app).post("/prejemnice").send({
+      dobaviteljId: supplierId,
+      datum: "2026-10-20",
+      vrstaCen: "neto",
+      vrstaDokumenta: "DOBAVNICA",
+      brutoSkupaj: 10,
+      postavke: [{
+        artikelId: articleId,
+        kolicina: 2,
+        cenaKos: 5,
+        skupaj: 10,
+        enotVPaketu: 1,
+        izvKolicina: 2,
+        izvCena: 5,
+        izvEnota: "KOS",
+        izvCenaVrsta: "neto",
+        ddvStopnja: 0,
+      }],
+    });
+    expect(ownReceipt.status, JSON.stringify(ownReceipt.body)).toBe(201);
+    receiptIds.push(ownReceipt.body.id);
+
+    const accessibleOwnReceipt = await request(app).get(`/prejemnice/${ownReceipt.body.id}`);
+    expect(accessibleOwnReceipt.status, JSON.stringify(accessibleOwnReceipt.body)).toBe(200);
+    expect(accessibleOwnReceipt.body).toMatchObject({
+      id: ownReceipt.body.id,
+      dobaviteljNaziv: `Supplier ${run}`,
+      skupajVrednost: 10,
+      postavke: [{ artikelIme: `Order article ${run}`, skupaj: 10 }],
+    });
+
+    const foreignReceipt = await request(app).get(`/prejemnice/${foreignReceiptId}`);
+    expect(foreignReceipt.status).toBe(404);
+    const foreignResponse = JSON.stringify(foreignReceipt.body);
+    for (const secret of [
+      foreignReceiptNumber,
+      `FOREIGN-RECEIPT-SUPPLIER-${run}`,
+      `FOREIGN-RECEIPT-ARTICLE-${run}`,
+      `FOREIGN-RECEIPT-NOTE-${run}`,
+      "9876.54",
+      "3703.68",
+      "1234.56",
+    ]) {
+      expect(foreignResponse).not.toContain(secret);
     }
   });
 
