@@ -17,6 +17,7 @@ description: Kazalo posebnosti zaganjalnikov, preverjanja, paketov in prikazovan
 - [Prenosi sredstev](present-asset-paths.md) — omejitve Unicode imen pri prenosih iz knjižnice.
 - [Vrstni red patch odsekov](apply-patch-hunk-order.md) — kontekst od začetka proti koncu.
 - [Recharts testi](recharts-tooltip-testing.md) — omejitve postavitve in hover v jsdom.
+- [Radix izbirniki v jsdom](radix-select-jsdom.md) — navadni MouseEvent ne prenese pointerType; ne sklepaj, da je izbirnik pokvarjen.
 - [Časovniki plačilnih testov](payment-test-polling-timers.md) — nepreklicljive mikronaloge lahko podvojijo izdajo le v celotnem testnem teku.
 - [Native ESM API](api-native-esm-loader.md) — zastoj CJS sonde ni dokaz nedelujočega API.
 - [DB runtime scope](database-runtime-read-scope.md) — managed razvojna poizvedba lahko vrne drugačne podatke kot API; pred sklepanjem preveri dejansko povezavo aplikacije.
