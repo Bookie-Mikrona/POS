@@ -83,6 +83,20 @@ export interface KnjizenjePotrditev {
   opis: string;
 }
 
+/** Aktivne temeljnice, ki preprečujejo novo knjiženje (HTTP 409). */
+export interface AmortizacijaExistingEntry {
+  entryId: string;
+  status: "draft" | "posted";
+}
+
+export interface AmortizacijaKnjizenjeConflict {
+  error: string;
+  code: "DUPLICATE_PERIOD" | "MONTHLY_EXISTS_FOR_YEAR" | "ANNUAL_EXISTS_FOR_YEAR";
+  existingEntries: AmortizacijaExistingEntry[];
+  existingEntryId?: string;
+  existingStatus?: "draft" | "posted";
+}
+
 export interface UpdateNastavitveBody {
   kontoStroskaId?: string | null;
   kontoPopravkaId?: string | null;

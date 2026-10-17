@@ -570,6 +570,10 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     file: "263-erp-smtp-settings.sql",
     classification: "schema",
   },
+  {
+    file: "264-amortizacija-active-entry-unique.sql",
+    classification: "integrity",
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

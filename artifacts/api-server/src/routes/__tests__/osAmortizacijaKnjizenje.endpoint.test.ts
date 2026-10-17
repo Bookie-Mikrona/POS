@@ -46,7 +46,7 @@ const { mockTransactionSpy, mockInsertSpy, dbState, txState } = vi.hoisted(() =>
   const mockTransactionSpy = vi.fn();
   const mockInsertSpy = vi.fn();
   const dbState = { queues: [] as unknown[][], idx: 0 };
-  const txState = { queues: [] as unknown[][], idx: 0 };
+  const txState = { queues: [] as unknown[][], idx: 0, predicates: [] as unknown[] };
   return { mockTransactionSpy, mockInsertSpy, dbState, txState };
 });
 
@@ -63,7 +63,10 @@ vi.mock("@workspace/db", () => {
     const p = Promise.resolve(rows);
     const chain: Record<string, unknown> = {
       from: () => chain,
-      where: () => chain,
+      where: (predicate: unknown) => {
+        if (state === txState) txState.predicates.push(predicate);
+        return chain;
+      },
       innerJoin: () => chain,
       leftJoin: () => chain,
       limit: () => p,
@@ -113,6 +116,7 @@ vi.mock("@workspace/db", () => {
     journalEntriesTable: T("je"),
     journalEntryLinesTable: T("jl"),
     accountingPeriodsTable: T("pe"),
+    osAmortizacijaObracunTable: T("ob"),
   };
 });
 
@@ -122,8 +126,11 @@ vi.mock("drizzle-orm", async (importOriginal) => {
   const orig = await importOriginal<typeof import("drizzle-orm")>();
   return {
     ...orig,
-    eq: () => "eq", and: () => "and", like: () => "like",
-    sql: () => "sql", inArray: () => "inArray",
+    eq: (column: unknown, value: unknown) => ({ column, value }),
+    and: (...predicates: unknown[]) => predicates,
+    like: () => "like",
+    sql: () => "sql",
+    inArray: (column: unknown, values: unknown[]) => ({ column, values }),
   };
 });
 
@@ -206,6 +213,7 @@ function setup(outerQueues: unknown[][], txQueues: unknown[][] = []) {
   dbState.idx = 0;
   txState.queues = txQueues;
   txState.idx = 0;
+  txState.predicates = [];
   mockTransactionSpy.mockClear();
   mockInsertSpy.mockClear();
 }
@@ -297,14 +305,20 @@ describe("POST /os/:companyId/amortizacija/knjizenje — validacija in blokiranj
         MODULE_ERP,       // hasGlkModule → true
         [PERIOD_2024],    // findPeriodForBooking → najdeno
       ],
-      [[{ count: 3 }]],   // txState: mesecni obstajajo
+      [[{ entryId: "monthly-uuid", status: "posted" }]],
     );
     const r = await request(app)
       .post(`/os/${CID}/amortizacija/knjizenje`)
       .send({ leto: 2024 });
     expect(r.status).toBe(409);
     expect(r.body.code).toBe("MONTHLY_EXISTS_FOR_YEAR");
+    expect(r.body.existingEntries).toEqual([{ entryId: "monthly-uuid", status: "posted" }]);
     expect(mockInsertSpy).not.toHaveBeenCalled();
+    expect(txState.predicates[0]).toEqual(expect.arrayContaining([
+      { column: "je.companyId", value: CID },
+      { column: "je.sourceType", value: "amortizacija" },
+      { column: "je.status", values: ["draft", "posted"] },
+    ]));
   }, 10_000);
 
   it("409 ANNUAL_EXISTS_FOR_YEAR — mesečni obračun, ko letni obstaja; noben INSERT v DB", async () => {
@@ -318,15 +332,60 @@ describe("POST /os/:companyId/amortizacija/knjizenje — validacija in blokiranj
         MODULE_ERP,       // hasGlkModule → true
         [PERIOD_2024],    // findPeriodForBooking → najdeno
       ],
-      [[{ id: "annual-uuid" }]],  // txState: letni obstaja
+      [[{ entryId: "annual-uuid", status: "draft" }]],
     );
     const r = await request(app)
       .post(`/os/${CID}/amortizacija/knjizenje`)
       .send({ leto: 2024, mesec: 6 });
     expect(r.status).toBe(409);
     expect(r.body.code).toBe("ANNUAL_EXISTS_FOR_YEAR");
+    expect(r.body.existingEntries).toEqual([{ entryId: "annual-uuid", status: "draft" }]);
     expect(mockInsertSpy).not.toHaveBeenCalled();
   }, 10_000);
+
+  it.each([
+    { status: "draft", mesec: undefined },
+    { status: "posted", mesec: undefined },
+    { status: "draft", mesec: 6 },
+    { status: "posted", mesec: 6 },
+  ])("409 za $status, mesec=$mesec — vrne seznam in ne prepiše obstoječe temeljnice", async ({ status, mesec }) => {
+    const existingEntries = [{ entryId: "existing-entry", status }, { entryId: "other-entry", status }];
+    setup([
+      ...baseQueues({ skupineRows: ASSET_SKUPINA, glaveRows: ASSET_GLAVA, doknjizbeRows: ASSET_DOKNJIZBA }),
+      MODULE_ERP, [PERIOD_2024],
+    ], [[], existingEntries]);
+    const r = await request(app).post(`/os/${CID}/amortizacija/knjizenje`)
+      .send({ leto: 2024, mesec, dryRun: false });
+    expect(r.status).toBe(409);
+    expect(r.body).toMatchObject({
+      code: "DUPLICATE_PERIOD", existingEntries,
+      existingEntryId: "existing-entry", existingStatus: status,
+    });
+    expect(mockInsertSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, 6])("201 ko ni aktivnih temeljnic — mesec=%s, vedno nov osnutek", async (mesec) => {
+    // Filtrirana poizvedba ne vrne izbrisanih ali storniranih zapisov.
+    setup([
+      ...baseQueues({ skupineRows: ASSET_SKUPINA, glaveRows: ASSET_GLAVA, doknjizbeRows: ASSET_DOKNJIZBA }),
+      MODULE_ERP, [PERIOD_2024], [],
+    ], [[], []]);
+    const r = await request(app).post(`/os/${CID}/amortizacija/knjizenje`)
+      .send({ leto: 2024, mesec, dryRun: false });
+    expect(r.status).toBe(201);
+    expect(r.body).toMatchObject({
+      entryId: "new-entry-id", status: "draft",
+      referenca: mesec ? "AMORT:2024-06" : "AMORT:2024",
+    });
+    expect(mockInsertSpy).toHaveBeenCalledTimes(2);
+    for (const predicate of txState.predicates) {
+      expect(predicate).toEqual(expect.arrayContaining([
+        { column: "je.companyId", value: CID },
+        { column: "je.sourceType", value: "amortizacija" },
+        { column: "je.status", values: ["draft", "posted"] },
+      ]));
+    }
+  });
 
   // ── Nastavitve kontov ──────────────────────────────────────────────────────
 

@@ -9,3 +9,4 @@ description: Kazalo pravil začetka amortizacije, odtujitve, korekcij in oslabit
 - [Oslabitev](os-oslabitev-nova-letna-am.md) — nova letna amortizacija sledi novi knjižni vrednosti in preostali dobi.
 - [Osnutki amortizacije](os-amortizacija-osnutki.md) — splošno potrjevanje ne sme potrditi amortizacijske temeljnice, niti v skrbniški seriji.
 - [Prazni obračuni](os-prazni-obracuni.md) — ničelni znesek ali manjkajoče vrstice niso dokaz, da podjetje nima sredstev.
+- [Ponovno knjiženje](os-amortizacija-ponovno-knjizenje.md) — obstoječih osnutkov ne prepisuj; popravek zahteva izbris osnutka ali storno.

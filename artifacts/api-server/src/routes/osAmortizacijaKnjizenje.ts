@@ -1288,7 +1288,7 @@ router.post(
     //      s čimer preprečimo race condition med letnim in mesečnim obračunom.
     //   2. Conflict-check (MONTHLY_EXISTS_FOR_YEAR / ANNUAL_EXISTS_FOR_YEAR) znotraj zaklepanja.
     //   3. INSERT journal_entries + journal_entry_lines.
-    //   4. Parcialni UNIQUE indeks (company_id, reference) WHERE source_type='amortizacija'
+    //   4. Parcialni UNIQUE indeks za aktivne (draft/posted) amortizacijske temeljnice
     //      ujame morebitne preostale duplikate in vrže 23505.
     //
     const lockKey = `amort:${companyId}:${leto}`;
@@ -1301,100 +1301,90 @@ router.post(
 
         // 2. Preveri vzajemni izklop letni↔mesečni pod zaklenitvijo
         if (mesec === undefined) {
-          const [mesecniObstaja] = await tx
-            .select({ count: sql<number>`count(*)::int` })
+          const mesecne = await tx
+            .select({ entryId: journalEntriesTable.id, status: journalEntriesTable.status })
             .from(journalEntriesTable)
             .where(
               and(
                 eq(journalEntriesTable.companyId, companyId),
                 eq(journalEntriesTable.sourceType, "amortizacija"),
+                inArray(journalEntriesTable.status, ["draft", "posted"]),
                 like(journalEntriesTable.reference, `AMORT:${leto}-%`),
               ),
             );
-          if ((mesecniObstaja?.count ?? 0) > 0) {
+          if (mesecne.length > 0) {
             // makeAmortConflict vrže objekt z AMORT_CONFLICT sentinelom — ni razred,
             // da se izognemo težavam z instanceof v async kontekstu.
             throw makeAmortConflict(409, {
               error: `Za leto ${leto} že obstajajo mesečne amortizacijske temeljnice. Letni obračun ni dovoljen, ko so mesečni zapisi prisotni za isto leto.`,
               code: "MONTHLY_EXISTS_FOR_YEAR",
+              existingEntries: mesecne,
             });
           }
         } else {
-          const [letniObstaja] = await tx
-            .select({ id: journalEntriesTable.id })
+          const letne = await tx
+            .select({ entryId: journalEntriesTable.id, status: journalEntriesTable.status })
             .from(journalEntriesTable)
             .where(
               and(
                 eq(journalEntriesTable.companyId, companyId),
                 eq(journalEntriesTable.sourceType, "amortizacija"),
+                inArray(journalEntriesTable.status, ["draft", "posted"]),
                 eq(journalEntriesTable.reference, `AMORT:${leto}`),
               ),
-            )
-            .limit(1);
-          if (letniObstaja) {
+            );
+          if (letne.length > 0) {
             throw makeAmortConflict(409, {
               error: `Za leto ${leto} že obstaja letna amortizacijska temeljnica (AMORT:${leto}). Mesečni obračun ni dovoljen, ko letni zapis obstaja za isto leto.`,
               code: "ANNUAL_EXISTS_FOR_YEAR",
+              existingEntries: letne,
             });
           }
         }
 
-        // 3. Upsert: preveri obstoječ draft s to referenco (prepreči sirote ob ponovnem obračunu).
+        // 3. Aktivni osnutki in knjižene temeljnice preprečijo dvojnik.
+        //    Izbrisani osnutki in stornirane temeljnice ne blokirajo ponovnega vnosa.
         //    Pod advisory lockom — varen pred race condition.
-        const [obstojeciJe] = await tx
-          .select({ id: journalEntriesTable.id, status: journalEntriesTable.status })
+        const existingEntries = await tx
+          .select({ entryId: journalEntriesTable.id, status: journalEntriesTable.status })
           .from(journalEntriesTable)
           .where(
             and(
               eq(journalEntriesTable.companyId, companyId),
               eq(journalEntriesTable.sourceType, "amortizacija"),
+              inArray(journalEntriesTable.status, ["draft", "posted"]),
               eq(journalEntriesTable.reference, referenca),
             ),
-          )
-          .limit(1);
+          );
 
-        let entryId: string;
-        if (obstojeciJe) {
-          if (obstojeciJe.status !== "draft") {
-            // Poknjižena temeljnica — ne smemo prepisati
-            throw makeAmortConflict(409, {
-              error: `Temeljnica za obdobje ${referenca} je že poknjižena (status: ${obstojeciJe.status}) — ni mogoče posodobiti.`,
-              code: "DUPLICATE_PERIOD",
-              existingEntryId: obstojeciJe.id,
-              existingStatus: obstojeciJe.status,
-            });
-          }
-          // Draft obstaja → posodobi: zamenjaj vrstice, osvezi glavo
-          await tx
-            .delete(journalEntryLinesTable)
-            .where(eq(journalEntryLinesTable.entryId, obstojeciJe.id));
-          await tx
-            .update(journalEntriesTable)
-            .set({ periodId: period.id, documentDate, entryDate, description: opis, updatedAt: new Date() })
-            .where(eq(journalEntriesTable.id, obstojeciJe.id));
-          entryId = obstojeciJe.id;
-        } else {
-          // Vstavi novo temeljnico
-          const [newEntry] = await tx
-            .insert(journalEntriesTable)
-            .values({
-              companyId,
-              periodId: period.id,
-              documentDate,
-              entryDate,
-              description: opis,
-              reference: referenca,
-              status: "draft",
-              postedAt: null,
-              sourceType: "amortizacija",
-              approvedBy: null,
-              createdBy: clerkUserId,
-            })
-            .returning({ id: journalEntriesTable.id });
-          entryId = newEntry.id;
+        if (existingEntries.length > 0) {
+          throw makeAmortConflict(409, {
+            error: `Temeljnica za obdobje ${referenca} že obstaja. Odpri obstoječo temeljnico; za nov vnos najprej izbriši osnutek ali storniraj knjiženo temeljnico.`,
+            code: "DUPLICATE_PERIOD",
+            existingEntries,
+            existingEntryId: existingEntries[0].entryId,
+            existingStatus: existingEntries[0].status,
+          });
         }
+        const [newEntry] = await tx
+          .insert(journalEntriesTable)
+          .values({
+            companyId,
+            periodId: period.id,
+            documentDate,
+            entryDate,
+            description: opis,
+            reference: referenca,
+            status: "draft",
+            postedAt: null,
+            sourceType: "amortizacija",
+            approvedBy: null,
+            createdBy: clerkUserId,
+          })
+          .returning({ id: journalEntriesTable.id });
+        const entryId = newEntry.id;
 
-        // Vstavi vrstice (na upsert ID)
+        // Vstavi vrstice novega osnutka.
         const lines: Array<{
           entryId: string;
           accountId: string;
@@ -1437,19 +1427,25 @@ router.post(
         return;
       }
       // Varnostna mreža: PostgreSQL unique_violation (parcialni indeks za amortizacija)
-      // Ob normalnem delovanju ne sme priti do sem — upsert zgoraj pokrije duplikate.
+      // Ob normalnem delovanju ne sme priti do sem — zaklep zgoraj pokrije duplikate.
       const pgCode = err && typeof err === "object" && "code" in err ? (err as { code: string }).code : undefined;
       if (pgCode === "23505") {
-        const [existing] = await db
-          .select({ id: journalEntriesTable.id, status: journalEntriesTable.status })
+        const existingEntries = await db
+          .select({ entryId: journalEntriesTable.id, status: journalEntriesTable.status })
           .from(journalEntriesTable)
-          .where(and(eq(journalEntriesTable.companyId, companyId), eq(journalEntriesTable.reference, referenca)))
-          .limit(1);
+          .where(and(
+            eq(journalEntriesTable.companyId, companyId),
+            eq(journalEntriesTable.sourceType, "amortizacija"),
+            inArray(journalEntriesTable.status, ["draft", "posted"]),
+            eq(journalEntriesTable.reference, referenca),
+          ));
+        if (existingEntries.length === 0) throw err;
         res.status(409).json({
-          error: `Temeljnica za obdobje ${referenca} že obstaja (status: ${existing?.status ?? "unknown"}).`,
+          error: `Temeljnica za obdobje ${referenca} že obstaja.`,
           code: "DUPLICATE_PERIOD",
-          existingEntryId: existing?.id ?? null,
-          existingStatus: existing?.status ?? null,
+          existingEntries,
+          existingEntryId: existingEntries[0].entryId,
+          existingStatus: existingEntries[0].status,
         });
         return;
       }

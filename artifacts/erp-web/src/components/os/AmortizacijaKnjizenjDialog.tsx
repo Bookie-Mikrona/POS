@@ -59,6 +59,8 @@ import {
   useOsAmortizacijaIzpis,
   type KnjizenjePredogled,
   type KnjizenjePotrditev,
+  type AmortizacijaExistingEntry,
+  ApiError,
 } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 
@@ -356,6 +358,7 @@ function PredogledView({
   hasGlkModule,
   onPotrdi,
   onNazaj,
+  onZapri,
 }: {
   companyId: string;
   leto: number;
@@ -363,13 +366,16 @@ function PredogledView({
   hasGlkModule: boolean;
   onPotrdi: (potrditev: KnjizenjePotrditev) => void;
   onNazaj: () => void;
+  onZapri: () => void;
 }) {
+  const [, setLocation] = useLocation();
   const dryRunMut = usePostOsAmortizacijaKnjizenje(companyId);
   const confirmMut = usePostOsAmortizacijaKnjizenje(companyId);
   const izpisMut = useOsAmortizacijaIzpis(companyId);
   const [predogled, setPredogled] = useState<KnjizenjePredogled | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [existingEntries, setExistingEntries] = useState<AmortizacijaExistingEntry[]>([]);
 
   // Poženi predogled takoj ob prikazu — BEZ periodId
   React.useEffect(() => {
@@ -385,12 +391,22 @@ function PredogledView({
 
   const handlePotrdi = useCallback(async () => {
     setErrMsg(null);
+    setExistingEntries([]);
     setConfirming(true);
     try {
       const result = await confirmMut.mutateAsync({ leto, mesec, dryRun: false });
       onPotrdi(result as KnjizenjePotrditev);
     } catch (e: unknown) {
       setErrMsg(e instanceof Error ? e.message : "Napaka pri ustvarjanju temeljnice.");
+      if (e instanceof ApiError && e.status === 409 && e.data && typeof e.data === "object") {
+        const entries = (e.data as { existingEntries?: unknown }).existingEntries;
+        if (Array.isArray(entries)) {
+          setExistingEntries(entries.filter((entry): entry is AmortizacijaExistingEntry =>
+            entry && typeof entry.entryId === "string" &&
+            (entry.status === "draft" || entry.status === "posted"),
+          ));
+        }
+      }
       setConfirming(false);
     }
   }, [confirmMut, leto, mesec, onPotrdi]);
@@ -431,7 +447,21 @@ function PredogledView({
       {errMsg && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{errMsg}</AlertDescription>
+          <AlertDescription>
+            {errMsg}
+            {existingEntries.map((entry) => (
+              <div key={entry.entryId} className="mt-2 flex items-center gap-2">
+                <Badge variant="secondary">{entry.status === "draft" ? "Osnutek" : "Potrjena"}</Badge>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setLocation(`/temeljnice?id=${encodeURIComponent(entry.entryId)}`);
+                  onZapri();
+                }}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Odpri obstoječo temeljnico
+                </Button>
+              </div>
+            ))}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -717,6 +747,7 @@ export function AmortizacijaKnjizenjDialog({ open, onOpenChange, companyId, leto
             hasGlkModule={hasGlk}
             onPotrdi={(p) => { setPotrditev(p); setStep("potrjeno"); }}
             onNazaj={() => setStep("mesec")}
+            onZapri={handleClose}
           />
         )}
 

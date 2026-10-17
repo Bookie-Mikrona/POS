@@ -15,6 +15,12 @@ To pravilo velja tudi za samodejno združevanje ob zaključevanju dela: uspešni
 
 **How to apply:** Če zaključno preverjanje po sinhronizaciji javi nove napake, primerjaj celoten končni diff z osnovno različico oziroma pravilnim staršem, posebej podobne ponovljene bloke. Obnovi samo nenamerne spremembe in poškodovane bloke ter ponovno preveri končno drevo in sosednje poti.
 
+Primerjaj tudi vsebino testnih podatkov, ne le imen in pričakovanj testov.
+
+**Why:** Pri združitvi so bile različne priprave PDF testov zamenjane z isto prazno tabelo, čeprav so pričakovanja še vedno zahtevala več strani in konkretne zneske. Takšna poškodba lahko ostane zunaj skupnega validacijskega nabora.
+
+**How to apply:** Po obnovi podobnih ponovljenih blokov zaženi tudi namenske preizkuse prizadetih poročil in PDF-jev; uspešen skupni ukaz ni dokaz za teste, ki jih ta ne vključuje.
+
 Preverjanje mora zajeti tudi podedovane napake iz novo prevzetega starša, ne le trenutnega diff-a.
 
 **Why:** Uspešno lokalno preverjanje pred združitvijo ne zagotavlja pravilnosti pozneje prevzetega izhodišča; avtomatsko združevanje lahko znova odstrani že preverjen popravek.
