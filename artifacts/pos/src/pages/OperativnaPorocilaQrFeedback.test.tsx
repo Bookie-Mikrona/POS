@@ -19,7 +19,7 @@ const { mockUseFeedback, mockUseComments, mockExportFeedback } = vi.hoisted(() =
 }));
 
 vi.mock("@workspace/api-client-react", async () => {
-  const actual = await vi.importActual("@workspace/api-client-react");
+  const actual = await importOriginal<typeof import("recharts")>();
   return {
     ...actual as object,
     useGetOperativnaPorocilaQrFeedback: mockUseFeedback,
@@ -207,7 +207,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   });
 
   it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", () => {
-    const chartData = buildTrendChartData(feedbackReport.trends);
+    const chartData = buildTrendChartData(trends);
     expect(chartData[0]).toMatchObject({
       foodReliable: 4.5,
       ambienceReliable: 3,
@@ -221,7 +221,11 @@ describe("OperativnaPorocilaQrFeedback", () => {
       ambienceSmallSample: 4,
     });
 
-    const { rerender } = render(<svg><SmallSampleDot cx={20} cy={30} /></svg>);
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
+      </QueryClientProvider>
+    );
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("stroke")).toBe("#f59e0b");
     rerender(<svg><SmallSampleDot cx={20} cy={30} active /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("r")).toBe("7");
@@ -230,7 +234,9 @@ describe("OperativnaPorocilaQrFeedback", () => {
   it("tooltip pokaže odzive in opozori samo pri nezanesljivi točki", () => {
     const [reliable, unreliable] = buildTrendChartData(feedbackReport.trends);
     const { rerender } = render(
-      <TrendTooltip active payload={[{ payload: reliable }]} />,
+      <QueryClientProvider client={queryClient}>
+        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
+      </QueryClientProvider>
     );
     expect(screen.getByTestId("trend-tooltip").textContent).toContain("6 odzivov");
     expect(screen.queryByTestId("trend-tooltip-small-sample")).toBeNull();
@@ -347,6 +353,38 @@ describe("OperativnaPorocilaQrFeedback", () => {
     expect(visibleNames()).toEqual(["Espresso", "Čaj", "Kava", "Pizza", "Sladoled"]);
     fireEvent.click(screen.getByTestId("button-article-sort-order"));
     expect(visibleNames()).toEqual(["Sladoled", "Pizza", "Kava", "Čaj", "Espresso"]);
+  });
+
+  it.each(["ascending", "descending"] as const)("prejšnja ocena: %s, izenačenja, null na koncu in obnova pogleda", async (order) => {
+    mockUseFeedback.mockReturnValue({
+      ...mockUseFeedback(),
+      data: {
+        ...feedbackReport,
+        articles: [
+          ...feedbackReport.articles,
+          { articleName: "Brez ocen", current: { average: null, count: 0, smallSample: true }, previous: { average: null, count: 0, smallSample: true }, difference: null, direction: "unavailable", directionReason: "Ni ocen." },
+          { articleName: "Sok", current: { average: null, count: 0, smallSample: true }, previous: { average: 4.5, count: 5, smallSample: false }, difference: null, direction: "unavailable", directionReason: "Ni trenutnih ocen." },
+        ],
+      },
+    });
+    const first = renderComponent();
+    const visibleNames = () => screen.getAllByTestId(/^article-name-/).map(cell => cell.textContent);
+    const descending = ["Sok", "Kava", "Pizza", "Čaj", "Espresso", "Brez ocen", "Sladoled"];
+    const ascending = ["Čaj", "Espresso", "Kava", "Pizza", "Sok", "Brez ocen", "Sladoled"];
+    fireEvent.click(screen.getByTestId("select-article-sort"));
+    fireEvent.click(await screen.findByText("Prejšnja ocena"));
+    expect(visibleNames()).toEqual(descending);
+    fireEvent.click(screen.getByTestId("button-article-sort-order"));
+    expect(visibleNames()).toEqual(ascending);
+    if (order === "descending") fireEvent.click(screen.getByTestId("button-article-sort-order"));
+    const stored = localStorage.getItem(QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY)!;
+    expect(JSON.parse(stored)).toMatchObject({ sort: "previousAverage", sortOrder: order });
+    expect(parseStoredArticleView(stored)).toMatchObject({ sort: "previousAverage", sortOrder: order });
+    first.unmount();
+    renderComponent();
+    expect(screen.getByTestId("select-article-sort").textContent).toContain("Prejšnja ocena");
+    expect(screen.getByTestId("button-article-sort-order").textContent).toContain(order === "ascending" ? "Naraščajoče" : "Padajoče");
+    expect(visibleNames()).toEqual(order === "ascending" ? ascending : descending);
   });
 
   it("naraščajoče razvrščanje deluje skupaj z iskanjem in smernimi filtri", async () => {

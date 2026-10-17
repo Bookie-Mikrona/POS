@@ -58,6 +58,7 @@ type TrendChartRow = TrendRow & {
 };
 export const QR_FEEDBACK_GRANULARITY_STORAGE_KEY = "pos.qr-feedback.granularity.v1";
 
+
 function readStoredGranularity(): "day" | "week" {
   try {
     return window.localStorage.getItem(QR_FEEDBACK_GRANULARITY_STORAGE_KEY) === "week" ? "week" : "day";
@@ -383,6 +384,7 @@ export function OperativnaPorocilaQrFeedback({ queryParams }: Props) {
                       <SelectContent>
                         <SelectItem value="difference">Največja sprememba</SelectItem>
                         <SelectItem value="currentAverage">Trenutna ocena</SelectItem>
+                        <SelectItem value="previousAverage">Prejšnja ocena</SelectItem>
                         <SelectItem value="sampleSize">Velikost vzorca</SelectItem>
                       </SelectContent>
                     </Select>
@@ -819,6 +821,8 @@ function compareArticles(
     );
   } else if (sort === "currentAverage") {
     difference = nullableNumberComparison(a.current.average, b.current.average, order);
+  } else if (sort === "previousAverage") {
+    difference = nullableNumberComparison(a.previous.average, b.previous.average, order);
   } else {
     difference = nullableNumberComparison(
       a.current.count + a.previous.count,
@@ -834,3 +838,4 @@ function nullableNumberComparison(a: number | null, b: number | null, order: Art
   if (b === null) return -1;
   return order === "descending" ? b - a : a - b;
 }
+

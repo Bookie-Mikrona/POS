@@ -1,5 +1,5 @@
 export type ArticleDirection = "improved" | "declined" | "unchanged" | "unavailable";
-export type ArticleSort = "difference" | "currentAverage" | "sampleSize";
+export type ArticleSort = "difference" | "currentAverage" | "previousAverage" | "sampleSize";
 export type ArticleSortOrder = "ascending" | "descending";
 export type ArticleViewState = {
   version: 1;
@@ -17,7 +17,7 @@ export const ARTICLE_DIRECTION_LABELS: Record<ArticleDirection, string> = {
 };
 export const QR_FEEDBACK_ARTICLE_VIEW_STORAGE_KEY = "pos.qr-feedback.article-view.v1";
 export const QR_FEEDBACK_NAMED_ARTICLE_VIEWS_STORAGE_KEY = "pos.qr-feedback.named-article-views.v1";
-const ARTICLE_SORTS = new Set<ArticleSort>(["difference", "currentAverage", "sampleSize"]);
+const ARTICLE_SORTS = new Set<ArticleSort>(["difference", "currentAverage", "previousAverage", "sampleSize"]);
 const ARTICLE_SORT_ORDERS = new Set<ArticleSortOrder>(["ascending", "descending"]);
 export const DEFAULT_ARTICLE_VIEW: ArticleViewState = {
   version: 1,
