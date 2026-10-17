@@ -87,6 +87,33 @@ tags:
   - name: daily-lunch
     description: Unit and business-date scoped daily lunch offers
 paths:
+  /companies/{companyId}/vat-submissions/{submissionId}/mark-submitted:
+    post:
+      operationId: markVatSubmissionSubmitted
+      summary: Računovodja potrdi ročno oddajo KIR/KPR v eDavke
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: submissionId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Oddaja in pripadajoče vrstice so označene kot oddane
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status, submittedAt]
+                properties:
+                  id: { type: string }
+                  status: { type: string, enum: [submitted, accepted] }
+                  submittedAt: { type: string, format: date-time }
+        "400":
+          description: Neveljaven identifikator
+        "403":
+          description: Potrebna je vloga računovodje v podjetju
+        "404":
+          description: Oddaja ni najdena v podjetju
+        "409":
+          description: Evidenca se je spremenila ali oddaje ni mogoče potrditi
   /companies/{companyId}/erp-smtp:
     parameters:
       - {name: companyId, in: path, required: true, schema: {type: string}}

@@ -20,8 +20,8 @@ import { companiesTable } from "./companies";
  *
  * XML je shranjen v object storage; `xmlStoragePath` je relativna pot oblike
  * `/objects/vat-xml/<companyId>/<period>/<id>.xml`.
- * Ker FURS eDavki SOAP integracija še ni implementirana, ostane status pri
- * `draft` in računovodja XML prenese ročno.
+ * Računovodja XML prenese in odda ročno, nato izrecno potrdi oddajo.
+ * Prenos sam ne spremeni statusa v `submitted`.
  */
 export const vatSubmissionsTable = pgTable(
   "vat_submissions",
@@ -52,7 +52,7 @@ export const vatSubmissionsTable = pgTable(
     /**
      * Životni cikel oddaje:
      *   draft     — XML je generiran, ni bil še poslan
-     *   submitted — poslan prek eDavki (za prihodnjo integracijo)
+     *   submitted — računovodja je potrdil ročno oddajo prek eDavkov
      *   accepted  — FURS sprejel
      *   rejected  — FURS zavrnil
      */
@@ -89,7 +89,7 @@ export const vatSubmissionsTable = pgTable(
       .notNull()
       .defaultNow(),
 
-    /** Kdaj je bil poslan prek eDavki */
+    /** Kdaj je računovodja potrdil oddajo prek eDavkov */
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
 
     /** Kdaj je FURS sprejel / zavrnil */

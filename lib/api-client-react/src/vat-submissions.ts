@@ -16,6 +16,9 @@ export interface VatSubmission {
   companyId: string;
   periodYear: number;
   period: string;
+  /** Exact archived XML scope; distinguishes March from Q1. */
+  periodFrom?: string | null;
+  periodTo?: string | null;
   kind: "KIR" | "KPR" | "BOTH";
   status: "draft" | "submitted" | "accepted" | "rejected";
   schemaVersion: string;

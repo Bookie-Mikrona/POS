@@ -17,6 +17,7 @@ import {
   useGetVatLedgerReport,
   useListVatSubmissions,
   useCreateVatSubmission,
+  useMarkVatSubmissionSubmitted,
   useDdvZakljucekOsnutek,
   vatSubmissionsQueryKey,
   downloadVatSubmission,
@@ -535,12 +536,57 @@ function SubmissionsPanel({
 }) {
   const { data, isLoading } = useListVatSubmissions(companyId);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState<VatSubmission | null>(null);
+  const [markDialogOpen, setMarkDialogOpen] = useState(false);
+  const [markError, setMarkError] = useState<string | null>(null);
+  const [markedId, setMarkedId] = useState<string | null>(null);
+  const markSubmitted = useMarkVatSubmissionSubmitted();
+  const queryClient = useQueryClient();
   const activeCompanyRef = useRef(companyId);
   activeCompanyRef.current = companyId;
+  const archivedMode = downloaded?.periodFrom?.slice(5, 7) === downloaded?.period.slice(2)
+    ? "mesecno" : "trimesecno";
+  const archivedReport = useGetVatLedgerReport(companyId, {
+    year: downloaded?.periodYear ?? currentYear,
+    period: downloaded?.period ?? currentPeriod,
+    periodMode: archivedMode,
+  }, { query: { enabled: !!downloaded?.periodFrom && !!downloaded?.periodTo } });
+  const canMarkArchive = !!downloaded?.periodFrom && !!downloaded?.periodTo &&
+    !!archivedReport.data && !archivedReport.isLoading && !archivedReport.error &&
+    !archivedReport.data.hasErrors && !markSubmitted.isPending && downloaded?.status === "draft";
+
+  useEffect(() => {
+    setDownloaded(null);
+    setMarkedId(null);
+    setMarkDialogOpen(false);
+    setMarkError(null);
+    setDownloadError(null);
+  }, [companyId]);
+
+  const handleMarkArchive = async () => {
+    if (!downloaded || !canMarkArchive) return;
+    setMarkError(null);
+    try {
+      await markSubmitted.mutateAsync({ companyId, submissionId: downloaded.id });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: vatSubmissionsQueryKey(companyId) }),
+        queryClient.invalidateQueries({ queryKey: ["companies", companyId, "vat-ledger-report"] }),
+      ]);
+      if (activeCompanyRef.current !== companyId) return;
+      setMarkedId(downloaded.id);
+      setDownloaded(null);
+      setMarkDialogOpen(false);
+      trackEvent("vat_submission_marked_submitted", { period_granularity: archivedMode === "mesecno" ? "monthly" : "quarterly" });
+    } catch (err) {
+      if (activeCompanyRef.current !== companyId) return;
+      setMarkError(err instanceof Error ? err.message : "Označitev oddaje ni uspela.");
+    }
+  };
 
   const handleDownload = useCallback(
     async (s: VatSubmission) => {
       setDownloadError(null);
+      setDownloaded(null);
       try {
         const blob = await downloadVatSubmission(companyId, s.id);
         if (activeCompanyRef.current !== companyId) return;
@@ -550,7 +596,9 @@ function SubmissionsPanel({
         a.download = `KIR_KPR_${s.periodYear}_${s.period}_${s.kind}.zip`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setDownloaded(s);
       } catch (err) {
+        if (activeCompanyRef.current !== companyId) return;
         setDownloadError(err instanceof Error ? err.message : "Prenos ZIP ni uspel.");
       }
     },
@@ -576,6 +624,7 @@ function SubmissionsPanel({
         Arhiv izvozov KIR/KPR — prenos ZIP ni davčna oddaja
       </div>
       {downloadError && <Alert variant="destructive"><AlertDescription>{downloadError}</AlertDescription></Alert>}
+      {markedId && <Alert><AlertDescription>Arhivirani izvoz je označen kot oddan.</AlertDescription></Alert>}
       <Table className="text-xs">
         <TableHeader>
           <TableRow>
@@ -596,6 +645,7 @@ function SubmissionsPanel({
               <TableRow key={s.id} className={isCurrent ? "bg-primary/5" : ""}>
                 <TableCell className="font-mono font-medium">
                   {s.periodYear}/{s.period}
+                  {s.periodFrom && s.periodTo && <span className="block text-xs text-muted-foreground">{fmtDate(s.periodFrom)} – {fmtDate(s.periodTo)}</span>}
                   {isCurrent && <span className="ml-1 text-primary text-xs">◀ trenutno</span>}
                 </TableCell>
                 <TableCell>
@@ -624,12 +674,42 @@ function SubmissionsPanel({
                     <Download className="h-3 w-3 mr-1" />
                     ZIP
                   </Button>
+                  {s.status === "draft" && s.id !== markedId && (
+                    <Button size="sm" variant="outline" className="ml-2 h-6 px-2"
+                      disabled={downloaded?.id !== s.id || !canMarkArchive}
+                      title="Ponovno prenesite ta arhivirani XML, nato potrdite njegovo dejansko oddajo v eDavke."
+                      onClick={() => { setMarkError(null); setMarkDialogOpen(true); }}>
+                      Označi kot oddano
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
+      <Dialog open={markDialogOpen} onOpenChange={open => {
+        if (!markSubmitted.isPending) setMarkDialogOpen(open);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Potrdi oddajo arhiviranega XML</DialogTitle>
+            <DialogDescription>
+              Potrdite samo, če ste ta XML dejansko oddali FURS-u prek eDavkov.
+              Obdobje: {fmtDate(downloaded?.periodFrom)} – {fmtDate(downloaded?.periodTo)}.
+              Ta gumb ne pošlje XML FURS-u. Vrstice bodo trajno zaščitene pred spreminjanjem in brisanjem.
+            </DialogDescription>
+          </DialogHeader>
+          {markError && <Alert variant="destructive"><AlertDescription>{markError}</AlertDescription></Alert>}
+          <DialogFooter>
+            <Button variant="outline" disabled={markSubmitted.isPending} onClick={() => setMarkDialogOpen(false)}>Prekliči</Button>
+            <Button disabled={!canMarkArchive} onClick={handleMarkArchive}>
+              {markSubmitted.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Potrdi oddajo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -663,6 +743,11 @@ export function KirKprEvidenceTab() {
   const [zakljucekPreview, setZakljucekPreview] = useState<DdvZakljucekOsnutekResponse | null>(null);
   const [zakljucekCreated, setZakljucekCreated] = useState<{ entryId: string; period: string } | null>(null);
   const [zakljucekError, setZakljucekError] = useState<string | null>(null);
+  const [downloadedSubmissionId, setDownloadedSubmissionId] = useState<string | null>(null);
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const markSubmitted = useMarkVatSubmissionSubmitted();
 
   // Ponastavi izbiro in zaključek ob menjavi obdobja
   useEffect(() => {
@@ -670,6 +755,10 @@ export function KirKprEvidenceTab() {
     setZakljucekCreated(null);
     setExportError(null);
     setExportDetails([]);
+    setDownloadedSubmissionId(null);
+    setSubmitDialogOpen(false);
+    setSubmitError(null);
+    setSubmitted(false);
   }, [activeCompany?.id, year, period, periodMode]);
 
   // Ko se zamenja mode, nastavi privzeto obdobje
@@ -742,6 +831,7 @@ export function KirKprEvidenceTab() {
     setExportError(null);
     setExportDetails([]);
     const requestedScope = exportScope.current;
+    setDownloadedSubmissionId(null);
     try {
       // Prenesi vracilo: true samo če je računovodja eksplicitno izbral vračilo
       const result = await createSubmission.mutateAsync({
@@ -764,6 +854,8 @@ export function KirKprEvidenceTab() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setDownloadedSubmissionId(result.id);
+      setSubmitted(false);
       // Osveži seznam oddaj
       queryClient.invalidateQueries({ queryKey: vatSubmissionsQueryKey(activeCompany.id) });
     } catch (err: unknown) {
@@ -783,6 +875,32 @@ export function KirKprEvidenceTab() {
   }, [activeCompany, year, period, periodMode, vraciloChoice, createSubmission, queryClient]);
 
   const hasErrors = data?.hasErrors ?? false;
+  const canMarkSubmitted = !!activeCompany?.id && !!downloadedSubmissionId &&
+    !!data && !isLoading && !error && !hasErrors && !createSubmission.isPending &&
+    !markSubmitted.isPending && !submitted;
+
+  const handleMarkSubmitted = async () => {
+    if (!canMarkSubmitted || !activeCompany || !downloadedSubmissionId) return;
+    const companyId = activeCompany.id;
+    const requestedScope = exportScope.current;
+    setSubmitError(null);
+    try {
+      await markSubmitted.mutateAsync({ companyId, submissionId: downloadedSubmissionId });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: vatSubmissionsQueryKey(companyId) }),
+        queryClient.invalidateQueries({ queryKey: ["companies", companyId, "vat-ledger-report"] }),
+      ]);
+      if (requestedScope !== exportScope.current) return;
+      setSubmitted(true);
+      setSubmitDialogOpen(false);
+      trackEvent("vat_submission_marked_submitted", {
+        period_granularity: periodMode === "mesecno" ? "monthly" : "quarterly",
+      });
+    } catch (err) {
+      if (requestedScope !== exportScope.current) return;
+      setSubmitError(err instanceof Error ? err.message : "Označitev oddaje ni uspela.");
+    }
+  };
   const totalWarnings = (data?.errorCount ?? 0) + (data?.warningCount ?? 0);
   const isEmpty = (data?.kirCount ?? 0) + (data?.kprCount ?? 0) === 0;
   // Izračun presežka za prikaz PresezekPanel in blokado izvoza
@@ -866,7 +984,45 @@ export function KirKprEvidenceTab() {
             : <Download className="h-4 w-4 mr-2" />}
           Izvozi ZIP
         </Button>
+        <Button
+          variant="outline"
+          disabled={!canMarkSubmitted}
+          onClick={() => { setSubmitError(null); setSubmitDialogOpen(true); }}
+          title="Po prenosu XML in dejanski oddaji v eDavke potrdite oddajo evidence."
+        >
+          <CheckCheck className="h-4 w-4 mr-2" />
+          {submitted ? "Označeno kot oddano" : "Označi kot oddano"}
+        </Button>
       </div>
+
+      {submitted && (
+        <Alert>
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertDescription>Evidenca je označena kot oddana. Oddane vrstice so zaščitene pred spremembami.</AlertDescription>
+        </Alert>
+      )}
+      <Dialog open={submitDialogOpen} onOpenChange={open => {
+        if (!markSubmitted.isPending) setSubmitDialogOpen(open);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Označi evidenco kot oddano?</DialogTitle>
+            <DialogDescription>
+              Potrdite samo, če ste preneseni XML dejansko oddali FURS-u prek eDavkov.
+              Ta gumb ne pošlje XML FURS-u. Vrstice oddane evidence bodo trajno zaščitene
+              pred spreminjanjem in brisanjem.
+            </DialogDescription>
+          </DialogHeader>
+          {submitError && <Alert variant="destructive"><AlertDescription>{submitError}</AlertDescription></Alert>}
+          <DialogFooter>
+            <Button variant="outline" disabled={markSubmitted.isPending} onClick={() => setSubmitDialogOpen(false)}>Prekliči</Button>
+            <Button disabled={!canMarkSubmitted} onClick={handleMarkSubmitted}>
+              {markSubmitted.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Potrdi oddajo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Napaka pri izvozu */}
       {exportError && (

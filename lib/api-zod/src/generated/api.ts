@@ -8,6 +8,21 @@
 import * as zod from 'zod';
 
 
+/**
+ * @summary Računovodja potrdi ročno oddajo KIR/KPR v eDavke
+ */
+export const MarkVatSubmissionSubmittedParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "submissionId": zod.coerce.string()
+})
+
+export const MarkVatSubmissionSubmittedResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['submitted', 'accepted']),
+  "submittedAt": zod.coerce.date()
+})
+
+
 export const GetErpSmtpSettingsParams = zod.object({
   "companyId": zod.coerce.string()
 })

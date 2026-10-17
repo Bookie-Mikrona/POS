@@ -130,11 +130,12 @@ export async function generateKirKprXml(
     opomba?: string;
     tujec1?: string;  // ISO 3166, za davčno zastopanje tujcev
     tujec2?: string;  // davčna številka tujca brez kode
-  } = {}
+  } = {},
+  executor: Pick<typeof db, "execute"> = db,
 ): Promise<XmlGenResult> {
 
   // ── 1. Preberi vat_ledger vrstice za to podjetje/obdobje ─────────────────
-  const rawRows = await db.execute<RawVatRow>(sql`
+  const rawRows = await executor.execute<RawVatRow>(sql`
     SELECT
       vl.id                              AS "id",
       vl.journal_entry_id                AS "journalEntryId",

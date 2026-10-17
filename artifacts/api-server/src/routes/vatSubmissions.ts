@@ -22,9 +22,43 @@ import { vatSubmissionPeriodBounds } from "../lib/vatSubmissionPreflight";
 import { buildKirKprZip } from "../lib/vatZip";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { objectStorageClient } from "../lib/objectStorage";
+import { z } from "zod";
+import { markVatSubmission, VatSubmissionConflict } from "../lib/markVatSubmission";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
+
+router.post(
+  "/companies/:companyId/vat-submissions/:submissionId/mark-submitted",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const companyId = extractParam(req.params.companyId);
+    const submissionId = extractParam(req.params.submissionId);
+    if (!z.string().uuid().safeParse(companyId).success ||
+        !z.string().uuid().safeParse(submissionId).success) {
+      res.status(400).json({ error: "Neveljaven identifikator podjetja ali oddaje." });
+      return;
+    }
+    const access = await resolveAccess((req as AuthenticatedRequest).clerkUserId, companyId, res);
+    if (!access) return;
+    try {
+      const result = await markVatSubmission(companyId, submissionId,
+        (tx, bounds) => getVatSubmissionErrors(tx, companyId, bounds));
+      if (!result) {
+        res.status(404).json({ error: "Oddaja ni najdena" });
+        return;
+      }
+      res.json(result);
+    } catch (err) {
+      if (err instanceof VatSubmissionConflict || (err as { code?: string }).code === "40001") {
+        res.status(409).json({ error: err instanceof VatSubmissionConflict
+          ? err.message : "Evidenca se je med potrditvijo spremenila. Poskusite znova." });
+        return;
+      }
+      throw err;
+    }
+  },
+);
 
 // ─── Pomočniki ────────────────────────────────────────────────────────────────
 
@@ -138,45 +172,13 @@ function validateCreateBody(body: CreateSubmissionBody): {
   };
 }
 
-router.post(
-  "/companies/:companyId/vat-submissions",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    const auth = req as AuthenticatedRequest;
-    const companyId = extractParam(req.params.companyId);
-
-    const access = await resolveAccess(auth.clerkUserId, companyId, res, "accountant");
-    if (!access) return;
-
-    // Validiraj body
-    const parsed = validateCreateBody(req.body as CreateSubmissionBody);
-    if ("error" in parsed) {
-      res.status(400).json({ error: parsed.error });
-      return;
-    }
-    const { year, period, periodMode, odbdelez, vracilo, nacin, opomba } = parsed;
-
-    // Pridobi davčno številko podjetja
-    const [company] = await db
-      .select({ podjetjeDavcna: companiesTable.podjetjeDavcna })
-      .from(companiesTable)
-      .where(eq(companiesTable.id, companyId))
-      .limit(1);
-
-    if (!company) {
-      res.status(404).json({ error: "Podjetje ni najdeno" });
-      return;
-    }
-
-    const bounds = vatSubmissionPeriodBounds(year, period, periodMode);
-    if (!bounds) {
-      res.status(400).json({ error: "Neveljavno obdobje" });
-      return;
-    }
-
-    // Pred oddajo preveri tako formalne D4 kontrole kot popolnost preslikave.
-    // Brez tega bi generator manjkajoče P-polje tiho izpustil iz XML.
-    const errorsResult = await db.execute<{
+export async function getVatSubmissionErrors(
+  executor: Pick<typeof db, "execute">,
+  companyId: string,
+  bounds: { from: string; to: string },
+) {
+    // Generation and manual confirmation must pass the same preflight.
+    return executor.execute<{
       documentNo: string | null;
       recordId: string | null;
       direction: string | null;
@@ -350,7 +352,37 @@ router.post(
       UNION ALL
       SELECT * FROM coded_line_errors
     `);
+}
 
+router.post(
+  "/companies/:companyId/vat-submissions",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const auth = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const access = await resolveAccess(auth.clerkUserId, companyId, res, "accountant");
+    if (!access) return;
+    const parsed = validateCreateBody(req.body as CreateSubmissionBody);
+    if ("error" in parsed) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+    const { year, period, periodMode, odbdelez, vracilo, nacin, opomba } = parsed;
+    const [company] = await db
+      .select({ podjetjeDavcna: companiesTable.podjetjeDavcna })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, companyId))
+      .limit(1);
+    if (!company) {
+      res.status(404).json({ error: "Podjetje ni najdeno" });
+      return;
+    }
+    const bounds = vatSubmissionPeriodBounds(year, period, periodMode);
+    if (!bounds) {
+      res.status(400).json({ error: "Neveljavno obdobje" });
+      return;
+    }
+    const errorsResult = await getVatSubmissionErrors(db, companyId, bounds);
     const errorCount = errorsResult.rows.length;
     if (errorCount > 0) {
       res.status(422).json({
@@ -447,6 +479,8 @@ router.get(
         companyId: vatSubmissionsTable.companyId,
         periodYear: vatSubmissionsTable.periodYear,
         period: vatSubmissionsTable.period,
+        periodFrom: sql<string | null>`substring(${vatSubmissionsTable.xmlInline} from '<OBDOBJE_OD>([0-9-]+)</OBDOBJE_OD>')`,
+        periodTo: sql<string | null>`substring(${vatSubmissionsTable.xmlInline} from '<OBDOBJE_DO>([0-9-]+)</OBDOBJE_DO>')`,
         kind: vatSubmissionsTable.kind,
         status: vatSubmissionsTable.status,
         schemaVersion: vatSubmissionsTable.schemaVersion,

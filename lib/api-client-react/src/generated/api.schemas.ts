@@ -13566,6 +13566,20 @@ export type ConflictResponse = ErrorResponse;
  */
 export type NotFoundResponse = ErrorResponse;
 
+export type MarkVatSubmissionSubmitted200Status = typeof MarkVatSubmissionSubmitted200Status[keyof typeof MarkVatSubmissionSubmitted200Status];
+
+
+export const MarkVatSubmissionSubmitted200Status = {
+  submitted: 'submitted',
+  accepted: 'accepted',
+} as const;
+
+export type MarkVatSubmissionSubmitted200 = {
+  id: string;
+  status: MarkVatSubmissionSubmitted200Status;
+  submittedAt: string;
+};
+
 export type GetVatFormPreviewParams = {
 form: GetVatFormPreviewForm;
 /**

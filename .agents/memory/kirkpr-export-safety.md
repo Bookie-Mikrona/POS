@@ -9,6 +9,18 @@ Predogled, predizvozna kontrola in XML morajo uporabljati isti eksplicitno izbra
 
 **How to apply:** Vsaka sprememba KIR/KPR mora skupaj preveriti predogled, strežniško kontrolo in generator. Prenos XML je ločen od potrjene oddaje; neposredne oddaje na eDavke ne predstavljaj kot implementirane brez odziva eDavkov.
 
+Ročna potrditev sme za kratek čas ustaviti vse zapise v DDV evidenco. Tega ne nadomesti samo z zaklepanjem obstoječih vrstic ali s ponovljivim branjem.
+
+**Why:** Zaklepi vrstic ne preprečijo novih vpisov v isto obdobje, ponovljivo branje pa skrije tudi vpis, ki se potrdi med čakanjem na zaklep. Kratek globalni zapisni zaklep je nameren kompromis za redko ročno opravilo, dokler vsi pisci ne delijo enotnega protokola po podjetju in obdobju.
+
+**How to apply:** Morebitna optimizacija mora uskladiti vse poti zapisovanja, ne le potrditve. Svoje jamstvo preveri z dejanskima ločenima povezavama v bazo, tudi ko pisec začne pred potrditvijo.
+
+Ročno oddajo je treba omogočiti za točno izbrani arhivirani XML tudi po vrnitvi iz eDavkov ali ponovnem odprtju programa; nov izvoz ne nadomesti potrditve že oddanega zapisa.
+
+**Why:** Računovodja oddajo opravi zunaj aplikacije. Potrditev, vezana samo na trenutno odprti zaslon, izgubi povezavo z dejansko oddanim izvozom.
+
+**How to apply:** Preveri tok ponovnega obiska, ponovnega prenosa arhiviranega XML in potrditve istega zapisa, ne le neposrednega izvoza in potrditve brez navigacije.
+
 Podpora eDavkom mora vključevati samostojna sklopa RP-O in PD-O z izračunom, kontrolami, izvozom, popravki ter sledjo oddaje.
 
 **Why:** Uporabnik je pri nadaljnjem osnutku izrecno zahteval: »pri edavkih ne pozabi na poročila rpo in pdo.« Pogojna zavezanost posameznega podjetja ne pomeni, da sta obrazca izbirna ali izpuščena iz zahtevanega razvojnega obsega.

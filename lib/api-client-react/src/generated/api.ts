@@ -317,6 +317,7 @@ import type {
   MalicaPartnerGroupPrice,
   MalicaPartnerGroupPriceInput,
   MalicaQuote,
+  MarkVatSubmissionSubmitted200,
   MatchBankTransactionsBody,
   MatchBankTransactionsResponse,
   MatchImportedReceiptLine200,
@@ -607,6 +608,79 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getMarkVatSubmissionSubmittedUrl = (companyId: string,
+    submissionId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/vat-submissions/${submissionId}/mark-submitted`
+}
+
+/**
+ * @summary Računovodja potrdi ročno oddajo KIR/KPR v eDavke
+ */
+export const markVatSubmissionSubmitted = async (companyId: string,
+    submissionId: string, options?: RequestInit): Promise<MarkVatSubmissionSubmitted200> => {
+
+  return customFetch<MarkVatSubmissionSubmitted200>(getMarkVatSubmissionSubmittedUrl(companyId,submissionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkVatSubmissionSubmittedMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markVatSubmissionSubmitted>>, TError,{companyId: string;submissionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markVatSubmissionSubmitted>>, TError,{companyId: string;submissionId: string}, TContext> => {
+
+const mutationKey = ['markVatSubmissionSubmitted'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markVatSubmissionSubmitted>>, {companyId: string;submissionId: string}> = (props) => {
+          const {companyId,submissionId} = props ?? {};
+
+          return  markVatSubmissionSubmitted(companyId,submissionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkVatSubmissionSubmittedMutationResult = NonNullable<Awaited<ReturnType<typeof markVatSubmissionSubmitted>>>
+
+    export type MarkVatSubmissionSubmittedMutationError = ErrorType<void>
+
+    /**
+ * @summary Računovodja potrdi ročno oddajo KIR/KPR v eDavke
+ */
+export const useMarkVatSubmissionSubmitted = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markVatSubmissionSubmitted>>, TError,{companyId: string;submissionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markVatSubmissionSubmitted>>,
+        TError,
+        {companyId: string;submissionId: string},
+        TContext
+      > => {
+      return useMutation(getMarkVatSubmissionSubmittedMutationOptions(options));
+    }
 
 export const getGetErpSmtpSettingsUrl = (companyId: string,) => {
 
