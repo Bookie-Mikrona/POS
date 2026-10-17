@@ -437,6 +437,62 @@ describe("supplier order print view", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7032&nacin=ogled");
   });
 
+  it("highlights price increases, decreases, unchanged prices, and zero-price comparisons", () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalPriceHistory = mapping.priceHistory;
+    mapping.priceHistory = [
+      { receiptId: 7101, date: "2026-10-17", receiptNumber: "R-7101", unitPrice: 5 },
+      { receiptId: 7102, date: "2026-10-16", receiptNumber: "R-7102", unitPrice: 4 },
+      { receiptId: 7103, date: "2026-10-15", receiptNumber: "R-7103", unitPrice: 5 },
+      { receiptId: 7104, date: "2026-10-14", receiptNumber: "R-7104", unitPrice: 5 },
+      { receiptId: 7105, date: "2026-10-13", receiptNumber: "R-7105", unitPrice: 0 },
+      { receiptId: 7106, date: "2026-10-12", receiptNumber: "R-7106", unitPrice: 3 },
+      { receiptId: 7107, date: "2026-10-11", receiptNumber: "R-7107", unitPrice: 0 },
+      { receiptId: 7108, date: "2026-10-10", receiptNumber: "R-7108", unitPrice: 0 },
+    ];
+
+    try {
+      renderSupplierOrderPage();
+      const history = screen.getByTestId("price-history-7042");
+      fireEvent.click(within(history).getByText(/Zgodovina potrjenih cen/));
+      const changeFor = (receiptId: number) =>
+        screen.getByTestId(`price-history-change-7042-${receiptId}`).textContent ?? "";
+
+      expect(changeFor(7101)).toContain("Podražitev");
+      expect(changeFor(7101)).toMatch(/\+1,00\s?€/);
+      expect(changeFor(7101)).toMatch(/\+25\s?%/);
+
+      expect(changeFor(7102)).toContain("Pocenitev");
+      expect(changeFor(7102)).toMatch(/−1,00\s?€/);
+      expect(changeFor(7102)).toMatch(/−20\s?%/);
+
+      expect(changeFor(7103)).toContain("Brez spremembe");
+      expect(changeFor(7103)).toMatch(/0,00\s?€/);
+      expect(changeFor(7103)).toMatch(/0\s?%/);
+
+      expect(changeFor(7104)).toContain("Podražitev");
+      expect(changeFor(7104)).toMatch(/\+5,00\s?€/);
+      expect(changeFor(7104)).toContain("odstotek ni izračunljiv");
+      expect(changeFor(7104)).not.toContain("%");
+
+      expect(changeFor(7105)).toContain("Pocenitev");
+      expect(changeFor(7105)).toMatch(/−3,00\s?€/);
+      expect(changeFor(7105)).toMatch(/−100\s?%/);
+
+      expect(changeFor(7106)).toContain("Podražitev");
+      expect(changeFor(7106)).toMatch(/\+3,00\s?€/);
+      expect(changeFor(7106)).toContain("odstotek ni izračunljiv");
+      expect(changeFor(7106)).not.toContain("%");
+
+      expect(changeFor(7107)).toContain("Brez spremembe");
+      expect(changeFor(7107)).toMatch(/0,00\s?€/);
+      expect(changeFor(7107)).not.toContain("%");
+      expect(screen.queryByTestId("price-history-change-7042-7108")).toBeNull();
+    } finally {
+      mapping.priceHistory = originalPriceHistory;
+    }
+  });
+
   it("shows savings against the preferred supplier only for valid comparable prices", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;

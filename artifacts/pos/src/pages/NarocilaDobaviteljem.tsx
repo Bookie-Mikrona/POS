@@ -82,6 +82,31 @@ const formatUnitMoney = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
   }).format(value);
+const comparePriceHistoryEntries = (
+  unitPrice: number,
+  previousUnitPrice: number,
+): { label: string; className: string } | null => {
+  if (!Number.isFinite(unitPrice) || !Number.isFinite(previousUnitPrice)) return null;
+
+  const difference = unitPrice - previousUnitPrice;
+  const absoluteChange = formatUnitMoney(Math.abs(difference));
+  if (difference === 0) {
+    return {
+      label: `Brez spremembe: ${absoluteChange}${previousUnitPrice > 0 ? " (0 %)" : ""}`,
+      className: "text-[#68756e]",
+    };
+  }
+
+  const isRise = difference > 0;
+  const sign = isRise ? "+" : "−";
+  const percentage = previousUnitPrice > 0
+    ? ` (${sign}${formatQty(Math.abs(difference) / previousUnitPrice * 100, 1)} %)`
+    : ` (odstotek ni izračunljiv pri prejšnji ceni ${formatUnitMoney(previousUnitPrice)})`;
+  return {
+    label: `${isRise ? "Podražitev" : "Pocenitev"}: ${sign}${absoluteChange}${percentage}`,
+    className: isRise ? "text-rose-700" : "text-emerald-700",
+  };
+};
 const supplierOfferName = (mapping: {
   supplierName: string;
   supplierItemName?: string | null;
@@ -769,22 +794,39 @@ export default function NarocilaDobaviteljem() {
                                 Zgodovina potrjenih cen ({supplierMapping.priceHistory.length})
                               </summary>
                               <ol className="mt-1 space-y-1 border-l border-[#dce4dd] pl-2">
-                                {supplierMapping.priceHistory.map(entry => (
-                                  <li key={`${entry.receiptId}-${entry.receiptNumber}`} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-                                    <span>
-                                      {formatReceiptDate(entry.date)} · {formatUnitMoney(entry.unitPrice)} / {article.baseUnit?.trim() || "enoto (ni določena)"}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      data-testid={`price-history-receipt-${supplierMapping.id}-${entry.receiptId}`}
-                                      aria-label={`Odpri prejemnico št. ${entry.receiptNumber}`}
-                                      onClick={() => navigate(`/zaloge?prejemnica=${entry.receiptId}&nacin=ogled`)}
-                                      className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
-                                    >
-                                      Prejemnica št. {entry.receiptNumber}
-                                    </button>
-                                  </li>
-                                ))}
+                                {supplierMapping.priceHistory.map((entry, historyIndex) => {
+                                  const previousEntry = supplierMapping.priceHistory[historyIndex + 1];
+                                  const priceChange = previousEntry
+                                    ? comparePriceHistoryEntries(entry.unitPrice, previousEntry.unitPrice)
+                                    : null;
+                                  return (
+                                    <li key={`${entry.receiptId}-${entry.receiptNumber}`} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+                                      <div className="min-w-0">
+                                        <div>
+                                          {formatReceiptDate(entry.date)} · {formatUnitMoney(entry.unitPrice)} / {article.baseUnit?.trim() || "enoto (ni določena)"}
+                                        </div>
+                                        {priceChange && (
+                                          <div
+                                            className={`font-medium ${priceChange.className}`}
+                                            data-testid={`price-history-change-${supplierMapping.id}-${entry.receiptId}`}
+                                            title="Sprememba glede na naslednjo starejšo potrjeno ceno"
+                                          >
+                                            Glede na prejšnjo potrjeno ceno: {priceChange.label}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        data-testid={`price-history-receipt-${supplierMapping.id}-${entry.receiptId}`}
+                                        aria-label={`Odpri prejemnico št. ${entry.receiptNumber}`}
+                                        onClick={() => navigate(`/zaloge?prejemnica=${entry.receiptId}&nacin=ogled`)}
+                                        className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
+                                      >
+                                        Prejemnica št. {entry.receiptNumber}
+                                      </button>
+                                    </li>
+                                  );
+                                })}
                               </ol>
                             </details>
                             : <div className="mt-1 text-xs text-[#858d87]" data-testid={`price-history-empty-${supplierMapping.id}`}>
