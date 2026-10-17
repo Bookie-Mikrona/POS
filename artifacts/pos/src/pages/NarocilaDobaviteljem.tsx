@@ -134,6 +134,24 @@ function supplierUnitSavings(
   return { amount, percent: (amount / preferredUnitPrice) * 100 };
 }
 
+function supplierTotalSavings(
+  savingsPerBaseUnit: number | null,
+  suggestedBaseQuantity: number | null | undefined,
+  baseUnit: string | null,
+): number | null {
+  if (savingsPerBaseUnit == null
+    || !Number.isFinite(savingsPerBaseUnit)
+    || savingsPerBaseUnit <= 0
+    || suggestedBaseQuantity == null
+    || !Number.isFinite(suggestedBaseQuantity)
+    || suggestedBaseQuantity <= 0
+    || !baseUnit?.trim()) {
+    return null;
+  }
+  const total = savingsPerBaseUnit * suggestedBaseQuantity;
+  return Number.isFinite(total) && total > 0 ? total : null;
+}
+
 function comparableUnitPrice(
   mapping: {
     packageFactor: number;
@@ -736,6 +754,11 @@ export default function NarocilaDobaviteljem() {
                         const savings = supplierMapping.id === article.preferredMappingId
                           ? null
                           : supplierUnitSavings(unitPrice, preferredUnitPrice);
+                        const totalSavings = supplierTotalSavings(
+                          savings?.amount ?? null,
+                          article.suggestedBaseQuantity,
+                          article.baseUnit,
+                        );
                         return <div key={supplierMapping.id} className="rounded-lg border border-[#eee8dc] bg-[#fbfaf6] px-2.5 py-2">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="font-medium text-[#40574f]">{supplierMapping.supplierName}</span>
@@ -768,6 +791,14 @@ export default function NarocilaDobaviteljem() {
                                 className="font-semibold text-emerald-800"
                               >
                                 Ponudba {supplierOfferName(supplierMapping)} je {formatUnitMoney(savings.amount)} / {article.baseUnit} ({formatQty(savings.percent, 1)} %) cenejša od prednostne ponudbe {supplierOfferName(preferredOffer.mapping)}.
+                              </div>
+                            )}
+                            {totalSavings != null && preferredOffer && article.baseUnit?.trim() && (
+                              <div
+                                data-testid={`supplier-total-savings-${supplierMapping.id}`}
+                                className="font-semibold text-emerald-800"
+                              >
+                                Ocenjen skupni prihranek za predlagano količino {formatQty(article.suggestedBaseQuantity)} {article.baseUnit}: {formatMoney(totalSavings)}, če izberete ponudbo {supplierOfferName(supplierMapping)} namesto prednostne ponudbe {supplierOfferName(preferredOffer.mapping)}.
                               </div>
                             )}
                             {supplierMapping.lastPriceReceipt

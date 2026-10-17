@@ -640,11 +640,21 @@ describe("supplier order print view", () => {
       expect(savings.textContent).toMatch(/1,25\s*€ \/ L/);
       expect(savings.textContent).toContain("33,3 %");
       expect(savings.textContent).toContain("Mlekarna Planika · Mleko polnomastno");
+      const totalSavings = screen.getByTestId("supplier-total-savings-7047");
+      expect(totalSavings.textContent).toContain("15 L");
+      expect(totalSavings.textContent).toMatch(/18,75\s*€/);
+      expect(totalSavings.textContent).toContain("Mlekarna Ugodna · Mleko v kartonu");
+      expect(totalSavings.textContent).toContain("Mlekarna Planika · Mleko polnomastno");
+      expect(article.preferredMappingId).toBe(7042);
       expect(screen.queryByTestId("supplier-savings-7042")).toBeNull();
+      expect(screen.queryByTestId("supplier-total-savings-7042")).toBeNull();
       expect(screen.queryByTestId("supplier-savings-7048")).toBeNull();
       expect(screen.queryByTestId("supplier-savings-7049")).toBeNull();
       expect(screen.queryByTestId("supplier-savings-7050")).toBeNull();
       expect(screen.queryByTestId("supplier-savings-7051")).toBeNull();
+      for (const mappingId of [7048, 7049, 7050, 7051]) {
+        expect(screen.queryByTestId(`supplier-total-savings-${mappingId}`)).toBeNull();
+      }
       expect(screen.getByTestId("unavailable-unit-price-7048").textContent).toContain("velikost pakiranja ni veljavna");
       expect(screen.getByTestId("unavailable-unit-price-7050").textContent).toContain("velikost pakiranja ni veljavna");
       expect(screen.getByText("Zadnja cena ni zabeležena.")).toBeTruthy();
@@ -653,6 +663,48 @@ describe("supplier order print view", () => {
       expect(screen.queryByTestId("last-unit-price-7050")).toBeNull();
     } finally {
       Object.assign(article, { mappings: originalMappings });
+    }
+  });
+
+  it("does not show total savings when the suggested base quantity is unavailable", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const originalSuggestedBaseQuantity = article.suggestedBaseQuantity;
+    const [preferred] = originalMappings;
+    const cheaperOffer = {
+      ...preferred,
+      id: 7056,
+      supplierId: "supplier-714",
+      supplierName: "Mlekarna Ugodna",
+      packageFactor: 8,
+      lastPackagePrice: 20,
+      lastUnitPrice: 2.5,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    Object.assign(article, {
+      suggestedBaseQuantity: null,
+      mappings: [preferred, cheaperOffer],
+    });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      expect(screen.getByTestId("supplier-savings-7056").textContent).toContain("cenejša");
+      expect(screen.queryByTestId("supplier-total-savings-7056")).toBeNull();
+      expect(article.preferredMappingId).toBe(7042);
+    } finally {
+      Object.assign(article, {
+        suggestedBaseQuantity: originalSuggestedBaseQuantity,
+        mappings: originalMappings,
+      });
     }
   });
 
@@ -728,6 +780,7 @@ describe("supplier order print view", () => {
           .toContain("osnovna enota ni določena");
       }
       expect(screen.queryByTestId("supplier-savings-7055")).toBeNull();
+      expect(screen.queryByTestId("supplier-total-savings-7055")).toBeNull();
     } finally {
       Object.assign(article, { baseUnit: originalBaseUnit, mappings: originalMappings });
     }
@@ -772,6 +825,7 @@ describe("supplier order print view", () => {
 
       expect(screen.getByTestId("last-unit-price-7052")).toBeTruthy();
       expect(screen.queryByTestId("supplier-savings-7052")).toBeNull();
+      expect(screen.queryByTestId("supplier-total-savings-7052")).toBeNull();
     } finally {
       Object.assign(article, { mappings: originalMappings });
     }
