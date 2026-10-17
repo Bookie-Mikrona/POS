@@ -471,6 +471,8 @@ import type {
   ReconcileBankStatementLineResponse,
   ReconcileOfflineFiscalReceiptBody,
   ReconcileZalogeResult,
+  RefundEvidenceUpload,
+  RefundEvidenceUploaded,
   RegisterDocumentBody,
   RegistracijaProstoraOdgovor,
   RegistracijaProstoraTelo,
@@ -19806,6 +19808,145 @@ export const useUpdateVivaRefundApprovalPolicy = <TError = ErrorType<void>,
       > => {
       return useMutation(getUpdateVivaRefundApprovalPolicyMutationOptions(options));
     }
+
+export const getUploadVivaRefundEvidenceUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/terminal/viva/terminal/refund/${sessionId}/evidence`
+}
+
+export const uploadVivaRefundEvidence = async (sessionId: string,
+    refundEvidenceUpload: RefundEvidenceUpload, options?: RequestInit): Promise<RefundEvidenceUploaded> => {
+    const formData = new FormData();
+formData.append(`file`, refundEvidenceUpload.file);
+
+  return customFetch<RefundEvidenceUploaded>(getUploadVivaRefundEvidenceUrl(sessionId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadVivaRefundEvidenceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadVivaRefundEvidence>>, TError,{sessionId: string;data: BodyType<RefundEvidenceUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadVivaRefundEvidence>>, TError,{sessionId: string;data: BodyType<RefundEvidenceUpload>}, TContext> => {
+
+const mutationKey = ['uploadVivaRefundEvidence'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadVivaRefundEvidence>>, {sessionId: string;data: BodyType<RefundEvidenceUpload>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  uploadVivaRefundEvidence(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadVivaRefundEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof uploadVivaRefundEvidence>>>
+    export type UploadVivaRefundEvidenceMutationBody = BodyType<RefundEvidenceUpload>
+    export type UploadVivaRefundEvidenceMutationError = ErrorType<unknown>
+
+    export const useUploadVivaRefundEvidence = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadVivaRefundEvidence>>, TError,{sessionId: string;data: BodyType<RefundEvidenceUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadVivaRefundEvidence>>,
+        TError,
+        {sessionId: string;data: BodyType<RefundEvidenceUpload>},
+        TContext
+      > => {
+      return useMutation(getUploadVivaRefundEvidenceMutationOptions(options));
+    }
+
+export const getViewVivaRefundEvidenceUrl = (id: string,) => {
+
+
+
+
+  return `/api/terminal/viva/terminal/refund-evidence/${id}`
+}
+
+export const viewVivaRefundEvidence = async (id: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getViewVivaRefundEvidenceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getViewVivaRefundEvidenceQueryKey = (id: string,) => {
+    return [
+    `/api/terminal/viva/terminal/refund-evidence/${id}`
+    ] as const;
+    }
+
+
+export const getViewVivaRefundEvidenceQueryOptions = <TData = Awaited<ReturnType<typeof viewVivaRefundEvidence>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof viewVivaRefundEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getViewVivaRefundEvidenceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof viewVivaRefundEvidence>>> = ({ signal }) => viewVivaRefundEvidence(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof viewVivaRefundEvidence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ViewVivaRefundEvidenceQueryResult = NonNullable<Awaited<ReturnType<typeof viewVivaRefundEvidence>>>
+export type ViewVivaRefundEvidenceQueryError = ErrorType<unknown>
+
+
+
+export function useViewVivaRefundEvidence<TData = Awaited<ReturnType<typeof viewVivaRefundEvidence>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof viewVivaRefundEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getViewVivaRefundEvidenceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getResolveUnknownVivaRefundUrl = (sessionId: string,) => {
 

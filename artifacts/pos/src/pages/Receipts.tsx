@@ -1,4 +1,5 @@
 import { formatEur } from "@/lib/formatEur";
+import { customFetch } from "@workspace/api-client-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNaprava } from "@/contexts/NapravaContext";
@@ -632,7 +633,43 @@ function statusVivaVracilaBadge(status: string) {
   return <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-medium text-yellow-800">V teku</span>;
 }
 
-function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
+export function RefundEvidencePreview({ evidence }: { evidence: { id: string; name: string; sha256: string } }) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
+  async function open() {
+    setLoading(true);
+    try {
+      const blob = await customFetch<Blob>(`/api/terminal/viva/terminal/refund-evidence/${encodeURIComponent(evidence.id)}`, { responseType: "blob" });
+      if (!["application/pdf", "image/png", "image/jpeg", "image/webp"].includes(blob.type)) {
+        throw new Error("Vrsta dokazila ni dovoljena za varen ogled.");
+      }
+      setPreview(URL.createObjectURL(blob));
+    } catch (err) {
+      toast({ title: "Ogled ni uspel", description: err instanceof Error ? err.message : "Dokazilo ni dosegljivo.", variant: "destructive" });
+    } finally { setLoading(false); }
+  }
+  return (
+    <span className="block">
+      <Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => void open()}>
+        {loading ? "Preverjanje…" : `Ogled dokazila: ${evidence.name}`}
+      </Button>
+      <span className="block break-all text-xs">SHA-256: {evidence.sha256}</span>
+      <Dialog open={preview !== null} onOpenChange={value => { if (!value) setPreview(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader><DialogTitle>Dokazilo: {evidence.name}</DialogTitle></DialogHeader>
+          {/* Chromium blocks its native PDF viewer in sandboxed frames. The blob
+              contains only server-hash-verified, allowlisted PDF/raster bytes. */}
+          {preview && <iframe title="Dokazilo vračila" src={preview} referrerPolicy="no-referrer" className="h-[70vh] w-full border" />}
+        </DialogContent>
+      </Dialog>
+    </span>
+  );
+}
+
+export function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data, isLoading } = useListUnknownVivaRefunds({
@@ -646,6 +683,49 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
   const [status, setStatus] = useState<"paid" | "failed">("paid");
   const [razlog, setRazlog] = useState("");
   const [dokaz, setDokaz] = useState("");
+  const [priponka, setPriponka] = useState<{ id: string; name: string; sha256: string } | null>(null);
+  const [nalaga, setNalaga] = useState(false);
+  const uploadVersion = useRef(0);
+  const filePickerOpen = useRef(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onFocus = () => {
+      timer = setTimeout(() => { filePickerOpen.current = false; }, 500);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => { window.removeEventListener("focus", onFocus); clearTimeout(timer); };
+  }, []);
+
+  useEffect(() => {
+    uploadVersion.current += 1;
+    setPriponka(null);
+    setNalaga(false);
+  }, [izbrano?.refundSessionId]);
+
+  async function naloziDokazilo(file: File | undefined) {
+    if (!file || !izbrano) return;
+    const version = ++uploadVersion.current;
+    setPriponka(null);
+    if (file.size > 10 * 1024 * 1024 || !["application/pdf", "image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      toast({ title: "Neveljavno dokazilo", description: "Izberite PDF, PNG, JPEG ali WebP do 10 MB.", variant: "destructive" });
+      return;
+    }
+    setNalaga(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const result = await customFetch<{ id: string; name: string; sha256: string }>(
+        `/api/terminal/viva/terminal/refund/${encodeURIComponent(izbrano.refundSessionId)}/evidence`,
+        { method: "POST", body },
+      );
+      if (version === uploadVersion.current) setPriponka(result);
+    } catch (err) {
+      if (version === uploadVersion.current) toast({ title: "Nalaganje ni uspelo", description: err instanceof Error ? err.message : "Poskusite znova.", variant: "destructive" });
+    } finally {
+      if (version === uploadVersion.current) setNalaga(false);
+    }
+  }
 
   if (!enabled || isLoading || !data) return null;
 
@@ -669,9 +749,9 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
   }
 
   function potrdiRazresitev() {
-    if (!izbrano) return;
+    if (!izbrano || !priponka || nalaga) return;
     resolveRefund.mutate(
-      { sessionId: izbrano.refundSessionId, data: { status, razlog: razlog.trim(), dokazReferenca: dokaz.trim() } },
+      { sessionId: izbrano.refundSessionId, data: { status, razlog: razlog.trim(), dokazReferenca: dokaz.trim(), dokazPriponkaId: priponka.id } },
       {
         onSuccess: async odgovor => {
           await Promise.all([
@@ -752,8 +832,8 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
           ))}
         </div>
       </div>
-      <Dialog open={!!izbrano} onOpenChange={open => !open && setIzbrano(null)}>
-        <DialogContent>
+      <Dialog open={!!izbrano} onOpenChange={open => { if (!open && !filePickerOpen.current && !nalaga && !resolveRefund.isPending) setIzbrano(null); }}>
+        <DialogContent onInteractOutside={event => { if (filePickerOpen.current || nalaga) event.preventDefault(); }}>
           <DialogHeader><DialogTitle>Ročna razrešitev Viva vračila</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-900">
@@ -779,9 +859,16 @@ function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
               <Label htmlFor="refund-resolution-proof">Dokaz ali referenca</Label>
               <Input id="refund-resolution-proof" value={dokaz} onChange={e => setDokaz(e.target.value)} placeholder="ID transakcije, št. izpiska ali interna referenca" />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="refund-resolution-file">Priponka dokazila (obvezno)</Label>
+              <Input key={izbrano?.refundSessionId} id="refund-resolution-file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" disabled={nalaga || resolveRefund.isPending} onClick={() => { filePickerOpen.current = true; }} onChange={e => { filePickerOpen.current = false; void naloziDokazilo(e.target.files?.[0]); }} />
+              <p className="text-xs text-muted-foreground">PDF, PNG, JPEG ali WebP do 10 MB. Po zaključku dokazila ni mogoče spreminjati.</p>
+              {nalaga && <p role="status" className="text-sm">Nalaganje dokazila…</p>}
+              {priponka && <p role="status" className="break-all text-xs">Shranjeno: {priponka.name}<br />SHA-256: {priponka.sha256}</p>}
+            </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIzbrano(null)}>Prekliči</Button>
-              <Button type="button" onClick={potrdiRazresitev} disabled={resolveRefund.isPending || razlog.trim().length < 10 || dokaz.trim().length < 3}>
+              <Button type="button" onClick={potrdiRazresitev} disabled={resolveRefund.isPending || nalaga || !priponka || razlog.trim().length < 10 || dokaz.trim().length < 3}>
                 {resolveRefund.isPending ? "Shranjevanje…" : izbrano?.status === "awaiting_approval" ? "Potrdi drugo odobritev" : "Shrani odločitev"}
               </Button>
             </div>
@@ -957,6 +1044,7 @@ function VivaVracilaHistory({
                             {prehod.vir === "manual" && (
                               <p className="text-amber-800">
                                 Ročno: {prehod.razlog ?? "brez razloga"} · dokaz: <span className="font-mono">{prehod.dokazReferenca ?? "ni zabeležen"}</span>
+                                {prehod.dokazPriponka && <RefundEvidencePreview evidence={prehod.dokazPriponka} />}
                               </p>
                             )}
                           </div>

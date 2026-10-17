@@ -5415,6 +5415,43 @@ paths:
           description: Neveljaven prag
         "403":
           description: Potrebna je administratorska vloga
+  /terminal/viva/terminal/refund/{sessionId}/evidence:
+    post:
+      operationId: uploadVivaRefundEvidence
+      tags: [pos]
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/RefundEvidenceUpload"
+      responses:
+        "201":
+          description: Immutable private evidence uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundEvidenceUploaded"
+  /terminal/viva/terminal/refund-evidence/{id}:
+    get:
+      operationId: viewVivaRefundEvidence
+      tags: [pos]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Verified private evidence, administrator only
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
   /terminal/viva/terminal/refund/{sessionId}/resolve:
     post:
       operationId: resolveUnknownVivaRefund
@@ -19094,6 +19131,8 @@ components:
           type:
             - string
             - "null"
+        dokazPriponka:
+          $ref: "#/components/schemas/RefundEvidence"
         ustvarjeno:
           type: string
           format: date-time
@@ -19229,12 +19268,35 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/UnknownVivaRefund"
+    RefundEvidenceUpload:
+      type: object
+      required: [file]
+      properties:
+        file: { type: string, format: binary }
+    RefundEvidenceUploaded:
+      type: object
+      required: [id, name, sha256]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        sha256: { type: string }
+    RefundEvidence:
+      type: [object, "null"]
+      required: [id, name, sha256, objectPath, mime, size]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        sha256: { type: string }
+        objectPath: { type: string }
+        mime: { type: string }
+        size: { type: integer }
     ResolveUnknownVivaRefundBody:
       type: object
       required:
         - status
         - razlog
         - dokazReferenca
+        - dokazPriponkaId
       properties:
         status:
           type: string
@@ -19249,6 +19311,8 @@ components:
           type: string
           minLength: 3
           maxLength: 500
+        dokazPriponkaId:
+          type: string
     ResolveUnknownVivaRefundResponse:
       type: object
       required:

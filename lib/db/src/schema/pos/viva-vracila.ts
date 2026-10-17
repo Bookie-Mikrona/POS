@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { racuniTable } from "./racuni";
 
@@ -34,6 +34,7 @@ export const vivaVraciloStatusPrehodiTable = pgTable("viva_vracilo_status_prehod
   vir: text("vir", { enum: ["reservation", "provider", "provider_error", "manual", "legacy"] }).notNull().default("legacy"),
   razlog: text("razlog"),
   dokazReferenca: text("dokaz_referenca"),
+  dokazPriponka: jsonb("dokaz_priponka").$type<RefundEvidence | null>(),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("viva_vracilo_status_prehodi_refund_created_idx").on(t.vivaVraciloId, t.ustvarjeno),
@@ -54,3 +55,21 @@ export const vivaVraciloStatusPrehodiRelations = relations(vivaVraciloStatusPreh
 
 export type VivaVracilo = typeof vivaVracilaTable.$inferSelect;
 export type VivaVraciloStatusPrehod = typeof vivaVraciloStatusPrehodiTable.$inferSelect;
+
+export type RefundEvidence = {
+  id: string;
+  objectPath: string;
+  sha256: string;
+  name: string;
+  mime: string;
+  size: number;
+};
+
+export const vivaVraciloDokazilaTable = pgTable("viva_vracilo_dokazila", {
+  id: text("id").primaryKey(),
+  vivaVraciloId: integer("viva_vracilo_id").notNull().references(() => vivaVracilaTable.id),
+  enotaId: integer("enota_id").notNull(),
+  priponka: jsonb("priponka").$type<RefundEvidence>().notNull(),
+  actorClerkUserId: text("actor_clerk_user_id").notNull(),
+  ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -1,4 +1,31 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
+const isolation = vi.hoisted(() => ({ tx: null as any }));
+vi.mock("@workspace/db", async importOriginal => {
+  const actual = await importOriginal<typeof import("@workspace/db")>();
+  return { ...actual, db: new Proxy(actual.db, {
+    get(target, key) {
+      const executor = isolation.tx ?? target;
+      const value = executor[key];
+      return typeof value === "function" ? value.bind(executor) : value;
+    },
+  }) };
+});
+const evidenceStorage = vi.hoisted(() => ({ bytes: new Map<string, Buffer>(), fail: false }));
+vi.mock("../../lib/objectStorage", async importOriginal => {
+  const actual = await importOriginal<typeof import("../../lib/objectStorage")>();
+  return { ...actual, ObjectStorageService: class extends actual.ObjectStorageService {
+    async saveObjectEntityToNewPath(dir: string, bytes: Buffer) {
+      if (evidenceStorage.fail) throw new Error("Storage unavailable");
+      const path = `/objects/${dir}/test-${evidenceStorage.bytes.size}`;
+      evidenceStorage.bytes.set(path, bytes);
+      return path;
+    }
+    async getObjectEntityFile(path: string): Promise<any> {
+      const bytes = evidenceStorage.bytes.get(path)!;
+      return { getMetadata: async () => [{ size: bytes.length }], download: async () => [bytes] };
+    }
+  } };
+});
 import express from "express";
 import supertest from "supertest";
 import { createHash } from "node:crypto";
@@ -198,6 +225,10 @@ describe("Viva refund audit access", () => {
   });
 
   it("superadmin vidi UNKNOWN in samo ena sočasna ročna razrešitev ustvari audit", async () => {
+    const rollback = new Error("rollback refund evidence fixtures");
+    try {
+    await db.transaction(async tx => {
+    isolation.tx = tx;
     const runId = Math.random().toString(36).slice(2, 10).toUpperCase();
     const [company] = await db.insert(companiesTable).values({
       podjetjeDavcna: `VRSL${runId}`,
@@ -244,20 +275,23 @@ describe("Viva refund audit access", () => {
       vir: "provider_error",
     });
 
+    let role = "superadmin";
+    let activeEnotaId = enota!.id;
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
       Object.assign(req, {
         companyId: company!.id,
-        enotaId: enota!.id,
+        enotaId: activeEnotaId,
         clerkUserId: req.get("X-Test-Actor") === "missing" ? null : req.get("X-Test-Actor") ?? `resolver-${runId}`,
-        vloga: req.get("X-Test-Role") ?? "superadmin",
+        vloga: req.get("X-Test-Role") ?? role,
         napravaKljuc: `admin-device-${runId}`,
         log: { info: () => undefined, warn: () => undefined, error: () => undefined },
       });
       next();
     });
     app.use(terminalRouter);
+    app.use(racuniRouter);
 
     const unknown = await supertest(app).get("/terminal/viva/terminal/refunds/unknown");
     expect(unknown.status, unknown.body).toBe(200);
@@ -265,16 +299,41 @@ describe("Viva refund audit access", () => {
       expect.objectContaining({ refundSessionId, racunId: racun!.id, znesek: 18.4 }),
     ]));
 
+    const route = `/terminal/viva/terminal/refund/${refundSessionId}`;
+    const resolution = { status: "paid", razlog: "Transakcija je potrjena na terminalskem dnevniku.", dokazReferenca: `terminal-log-${runId}` };
+    expect((await supertest(app).post(`${route}/resolve`).send(resolution)).status).toBe(400);
+    role = "uporabnik";
+    expect((await supertest(app).post(`${route}/evidence`).attach("file", Buffer.from("%PDF-1.7\nproof"), { filename: "proof.pdf", contentType: "application/pdf" })).status).toBe(403);
+    role = "superadmin";
+    expect((await supertest(app).post(`${route}/evidence`).attach("file", Buffer.from("<svg/>"), { filename: "proof.svg", contentType: "image/svg+xml" })).status).toBe(400);
+    expect((await supertest(app).post(`${route}/evidence`).attach("file", Buffer.from("<html/>"), { filename: "proof.pdf", contentType: "application/pdf" })).status).toBe(400);
+    expect((await supertest(app).post(`${route}/evidence`).attach("file", Buffer.alloc(10 * 1024 * 1024 + 1), { filename: "large.pdf", contentType: "application/pdf" })).status).toBe(413);
+    evidenceStorage.fail = true;
+    expect((await supertest(app).post(`${route}/evidence`).attach("file", Buffer.from("%PDF-1.7\nproof"), { filename: "proof.pdf", contentType: "application/pdf" })).status).toBe(503);
+    evidenceStorage.fail = false;
+    const bytes = Buffer.from("%PDF-1.7\nproof");
+    const uploaded = await supertest(app).post(`${route}/evidence`).attach("file", bytes, { filename: "proof.pdf", contentType: "application/pdf" });
+    expect(uploaded.status, uploaded.body).toBe(201);
+    expect(uploaded.body.sha256).toBe(createHash("sha256").update(bytes).digest("hex"));
+    const dokazPriponkaId = uploaded.body.id;
+    const previewRoute = `/terminal/viva/terminal/refund-evidence/${dokazPriponkaId}`;
+    expect((await supertest(app).get(previewRoute)).status).toBe(404);
+    activeEnotaId = -1;
+    expect((await supertest(app).post(`${route}/resolve`).send({ ...resolution, dokazPriponkaId })).status).toBe(409);
+    activeEnotaId = enota!.id;
+    expect((await supertest(app).post(`${route}/resolve`).send({ ...resolution, dokazPriponkaId: "00000000-0000-0000-0000-000000000000" })).status).toBe(409);
     const [paid, failed] = await Promise.all([
       supertest(app).post(`/terminal/viva/terminal/refund/${refundSessionId}/resolve`).send({
         status: "paid",
         razlog: "Transakcija je potrjena na terminalskem dnevniku.",
         dokazReferenca: `terminal-log-${runId}`,
+        dokazPriponkaId,
       }),
       supertest(app).post(`/terminal/viva/terminal/refund/${refundSessionId}/resolve`).send({
         status: "failed",
         razlog: "Transakcije ni na terminalskem dnevniku.",
         dokazReferenca: `terminal-log-${runId}`,
+        dokazPriponkaId,
       }),
     ]);
     expect([paid.status, failed.status].sort()).toEqual([200, 409]);
@@ -291,11 +350,45 @@ describe("Viva refund audit access", () => {
       actorClerkUserId: `resolver-${runId}`,
       napravaKljuc: `admin-device-${runId}`,
       dokazReferenca: `terminal-log-${runId}`,
+      dokazPriponka: { id: dokazPriponkaId, sha256: uploaded.body.sha256, name: "proof.pdf" },
     });
 
+    const history = await supertest(app).get(`/racuni/${racun!.id}/vracila`);
+    expect(history.status, history.body).toBe(200);
+    expect(history.body[0].statusPrehodi.find((p: any) => p.vir === "manual").dokazPriponka)
+      .toMatchObject({ id: dokazPriponkaId, sha256: uploaded.body.sha256 });
+    const viewed = await supertest(app).get(previewRoute);
+    expect(viewed.status).toBe(200);
+    expect(viewed.headers["cache-control"]).toBe("private, no-store");
+    expect(viewed.headers["x-content-type-options"]).toBe("nosniff");
+    expect(viewed.body).toEqual(bytes);
+    activeEnotaId = -1;
+    expect((await supertest(app).get(previewRoute)).status).toBe(404);
+    activeEnotaId = enota!.id;
+    role = "uporabnik";
+    expect((await supertest(app).get(previewRoute)).status).toBe(403);
+    const redacted = await supertest(app).get(`/racuni/${racun!.id}/vracila`);
+    expect(redacted.body[0].statusPrehodi).toEqual([]);
+    role = "superadmin";
+    if (stored!.status === "awaiting_approval") {
+      const approved = await supertest(app).post(`${route}/resolve`).set("X-Test-Actor", `final-${runId}`)
+        .send({ ...resolution, dokazPriponkaId });
+      expect(approved.status, approved.body).toBe(200);
+      expect(approved.body.status).toBe("paid");
+    }
+    expect((await supertest(app).post(`${route}/evidence`).attach("file", bytes, { filename: "proof.pdf", contentType: "application/pdf" })).status).toBe(409);
+    const objectPath = manual[0]!.dokazPriponka!.objectPath;
+    evidenceStorage.bytes.set(objectPath, Buffer.from("%PDF-1.7\nfraud"));
+    expect((await supertest(app).get(previewRoute)).status).toBe(503);
+    await expect(db.transaction(async () => {
+      await db.execute(sql`UPDATE viva_vracilo_dokazila SET priponka = '{}' WHERE id = ${dokazPriponkaId}`);
+    })).rejects.toThrow();
+    await expect(db.transaction(async () => {
+      await db.execute(sql`DELETE FROM viva_vracilo_status_prehodi WHERE id = ${manual[0]!.id}`);
+    })).rejects.toThrow();
     const after = await supertest(app).get("/terminal/viva/terminal/refunds/unknown");
     expect(after.body.items.some((item: { refundSessionId: string }) => item.refundSessionId === refundSessionId))
-      .toBe(stored!.status === "awaiting_approval");
+      .toBe(false);
 
     const reason = "Preverjeno v terminalskem dnevniku in bančnem izpisku.";
     const createUnknown = async (suffix: string, amount: string) => {
@@ -305,9 +398,15 @@ describe("Viva refund audit access", () => {
       }).returning();
       return row!;
     };
-    const resolve = (session: string, actor: string, status: "paid" | "failed") =>
-      supertest(app).post(`/terminal/viva/terminal/refund/${session}/resolve`)
-        .set("X-Test-Actor", actor).send({ status, razlog: reason, dokazReferenca: `proof-${actor}` });
+    const resolve = async (session: string, actor: string, status: "paid" | "failed") => {
+      const proof = await supertest(app).post(`/terminal/viva/terminal/refund/${session}/evidence`)
+        .set("X-Test-Actor", actor).attach("file", bytes, { filename: "proof.pdf", contentType: "application/pdf" });
+      return supertest(app).post(`/terminal/viva/terminal/refund/${session}/resolve`)
+        .set("X-Test-Actor", actor).send({
+          status, razlog: reason, dokazReferenca: `proof-${actor}`,
+          dokazPriponkaId: proof.body.id ?? "00000000-0000-0000-0000-000000000000",
+        });
+    };
     const actorA = `first-${runId}`;
     const actorB = `second-${runId}`;
     const actorC = `third-${runId}`;
@@ -345,10 +444,11 @@ describe("Viva refund audit access", () => {
     expect(decisions[1]).toMatchObject({ prejsnjiStatus: "awaiting_approval", noviStatus: "paid", vir: "manual" });
     expect(decisions[1].actorClerkUserId).not.toBe(actorA);
     expect(decisions.filter(item => item.noviStatus === "paid")).toHaveLength(1);
-    await expect(db.update(vivaVraciloStatusPrehodiTable).set({ razlog: "changed" })
-      .where(eq(vivaVraciloStatusPrehodiTable.id, decisions[0].id))).rejects.toThrow();
-    await expect(db.delete(vivaVraciloStatusPrehodiTable)
-      .where(eq(vivaVraciloStatusPrehodiTable.id, decisions[0].id))).rejects.toThrow();
+    expect(decisions.every(decision => decision.dokazPriponka?.sha256 === uploaded.body.sha256)).toBe(true);
+    await expect(db.transaction(tx => tx.update(vivaVraciloStatusPrehodiTable).set({ razlog: "changed" })
+      .where(eq(vivaVraciloStatusPrehodiTable.id, decisions[0].id)))).rejects.toThrow();
+    await expect(db.transaction(tx => tx.delete(vivaVraciloStatusPrehodiTable)
+      .where(eq(vivaVraciloStatusPrehodiTable.id, decisions[0].id)))).rejects.toThrow();
 
     for (const [amount, expected] of [["199.99", "failed"], ["200.00", "awaiting_approval"], ["200.01", "awaiting_approval"]] as const) {
       const item = await createUnknown(`threshold-${amount}`, amount);
@@ -370,6 +470,15 @@ describe("Viva refund audit access", () => {
     for (const invalid of [-1, 1.001, "100", null]) {
       expect((await supertest(app).put("/terminal/viva/terminal/refunds/approval-policy")
         .send({ approvalThreshold: invalid })).status).toBe(400);
+    }
+    throw rollback;
+    });
+    } catch (err) {
+      if (err !== rollback) throw err;
+    } finally {
+      isolation.tx = null;
+      evidenceStorage.fail = false;
+      evidenceStorage.bytes.clear();
     }
   });
 });

@@ -69,6 +69,7 @@
 - [Napitnine: delitev in knjiženje](napitnine-delitev-knjizenje.md) — prostovoljna napitnina, obvezni dodatek, delitveni snapshot, plačni izvoz in GK zapiranje so ločeni tokovi.
 - [Prejemnik razdelitve napitnine](napitnine-prejemnik.md) — do uvedbe modula Plače je zaposleni prejemnik vedno vezan na trajni ID natakarja.
 - [POS obnovljivost operacij](pos-obnovljivost-operacij.md) — zunanji/nejasni izidi se rezervirajo pred izvedbo; replay vrne isti rezultat ali zahteva ročno uskladitev.
+- [Dokazila ročnih vračil](refund-evidence-policy.md) — nova razrešitev zahteva dejansko prilogo; stara besedilna zgodovina ostane pristna, brez izmišljenih dokazil.
 - [FURS offline retry](furs-offline-retry.md) — pravno jedro in ZOI sta nespremenljiva; vsak ponovni prenos je nov append-only poskus z novim MessageID in XML.
 - [Zaključek dostave](preklic-dostave.md) — preklicana ali dostavljena dostava izgine iz aktivnega seznama, glavni status naročila pa ostane za ročno obravnavo.
 - [POS prihodki po kategorijah](pos-prihodki-po-kategorijah.md) — prihodkovni konto sledi nespremenljivemu posnetku POS kategorije; DDV ostane agregiran po stopnji.
@@ -82,11 +83,7 @@
 - [Kartično plačilo darilnega bona](gift-voucher-card-payment.md) — gift intent preživi reload; provider se preveri pred FURS, attempt pa se lahko porabi le enkrat.
 - [PostgreSQL advisory lock in pool](postgres-advisory-lock-pool.md) — sejni lock mora držati isto namensko povezavo od pridobitve do sprostitve.
 - [Drizzle seznami ID-jev](drizzle-array-predicates.md) — JS polje v SQL interpolaciji ni nujno PG array; za zaklepne in druge predikate uporabi inArray.
-- [Viva Android callback](viva-android-callback.md) — Android ECR rezultat zahteva native Activity/custom URI; Chrome PWA ob povratku ne prejme transactionId.
-- [Payten Android attestation](payten-android-attestation.md) — status/checksum nista dokaz plačila; podpisan native rezultat mora vezati attempt, napravo, ECR, total in globalno referenco.
-- [Expo APK NDK na Replitu](expo-apk-ndk-replit.md) — Nix Android SDK je read-only; pred Expo root pluginom uporabi že nameščeni NDK, sicer Gradle skuša nameščati manjkajočo verzijo.
-- [Viva Bridge Android ABI](viva-bridge-android-abi.md) — ARM64 je primaren za moderne telefone; armeabi-v7a je ločen preverjen paket za ZCS Z92.
-- [Expo Metro produkcijski build](expo-metro-production-build.md) — Expo CLI 54 in Metro 0.83 se razhajata v dogodkih watcherja; produkcijski izhod piši zunaj opazovanega projekta.
+- [Android plačila in gradnja](android-payment-guides.md) — native callbacki Viva/Payten, Expo NDK, Android ABI in Metro build.
 - [Windows lokalni POS gateway](windows-local-gateway.md) — en Windows single-writer za offline gotovinske račune; LAN zahteva TLS, OS trust, pairing in brez samodejnega failoverja.
 - [Identiteta natakarja v poročilih](natakar-report-identity.md) — promet združuj po trajnem natakari ID-ju; ime na računu je le zgodovinski posnetek.
 - [Kadrovske POS ure](kadrovske-pos-ure.md) — efektivne ure odštejejo neplačane odmore; nadure so po lokalnem dnevu; poprave, potrditve in napitnine ostanejo sledljive.

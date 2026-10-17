@@ -7572,6 +7572,18 @@ export const VivaVraciloStatusPrehodVir = {
   legacy: 'legacy',
 } as const;
 
+/**
+ * @nullable
+ */
+export type RefundEvidence = {
+  id: string;
+  name: string;
+  sha256: string;
+  objectPath: string;
+  mime: string;
+  size: number;
+} | null;
+
 export interface VivaVraciloStatusPrehod {
   id: number;
   /** @nullable */
@@ -7593,6 +7605,7 @@ export interface VivaVraciloStatusPrehod {
   razlog?: string | null;
   /** @nullable */
   dokazReferenca?: string | null;
+  dokazPriponka?: RefundEvidence | null;
   ustvarjeno: string;
 }
 
@@ -7697,6 +7710,16 @@ export interface UnknownVivaRefundList {
   items: UnknownVivaRefund[];
 }
 
+export interface RefundEvidenceUpload {
+  file: Blob;
+}
+
+export interface RefundEvidenceUploaded {
+  id: string;
+  name: string;
+  sha256: string;
+}
+
 export type ResolveUnknownVivaRefundBodyStatus = typeof ResolveUnknownVivaRefundBodyStatus[keyof typeof ResolveUnknownVivaRefundBodyStatus];
 
 
@@ -7717,6 +7740,7 @@ export interface ResolveUnknownVivaRefundBody {
      * @maxLength 500
      */
   dokazReferenca: string;
+  dokazPriponkaId: string;
 }
 
 export type ResolveUnknownVivaRefundResponseStatus = typeof ResolveUnknownVivaRefundResponseStatus[keyof typeof ResolveUnknownVivaRefundResponseStatus];

@@ -120,6 +120,10 @@ router.get('/storage/objects/*path', requireAuth, async (req: Request, res: Resp
   const raw = req.params.path;
   const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
   const objectPath = `/objects/${wildcardPath}`;
+  if (wildcardPath.startsWith("refund-evidence/")) {
+    res.status(404).json({ error: "Object not found" });
+    return;
+  }
 
   // Lookup which company owns this object via the documents table
   const [doc] = await db

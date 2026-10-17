@@ -8228,6 +8228,14 @@ export const ListVivaVracilaResponseItem = zod.object({
   "vir": zod.enum(['reservation', 'provider', 'provider_error', 'manual', 'legacy']),
   "razlog": zod.string().nullish(),
   "dokazReferenca": zod.string().nullish(),
+  "dokazPriponka": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "sha256": zod.string(),
+  "objectPath": zod.string(),
+  "mime": zod.string(),
+  "size": zod.number()
+}).nullish(),
   "ustvarjeno": zod.coerce.date()
 })),
   "ustvarjeno": zod.coerce.date()
@@ -10675,6 +10683,28 @@ export const UpdateVivaRefundApprovalPolicyResponse = zod.object({
 })
 
 
+export const UploadVivaRefundEvidenceParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const UploadVivaRefundEvidenceBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+export const UploadVivaRefundEvidenceResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "sha256": zod.string()
+})
+
+
+export const ViewVivaRefundEvidenceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ViewVivaRefundEvidenceResponse = zod.unknown()
+
+
 /**
  * @summary Ročno razreši nejasno Viva vračilo po preverjanju dokaza
  */
@@ -10693,7 +10723,8 @@ export const resolveUnknownVivaRefundBodyDokazReferencaMax = 500;
 export const ResolveUnknownVivaRefundBody = zod.object({
   "status": zod.enum(['paid', 'failed']),
   "razlog": zod.string().min(resolveUnknownVivaRefundBodyRazlogMin).max(resolveUnknownVivaRefundBodyRazlogMax),
-  "dokazReferenca": zod.string().min(resolveUnknownVivaRefundBodyDokazReferencaMin).max(resolveUnknownVivaRefundBodyDokazReferencaMax)
+  "dokazReferenca": zod.string().min(resolveUnknownVivaRefundBodyDokazReferencaMin).max(resolveUnknownVivaRefundBodyDokazReferencaMax),
+  "dokazPriponkaId": zod.string()
 })
 
 export const ResolveUnknownVivaRefundResponse = zod.object({

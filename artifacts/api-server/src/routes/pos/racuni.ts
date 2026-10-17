@@ -4578,6 +4578,7 @@ router.get("/racuni/:id/vracila", async (req, res): Promise<void> => {
     vir: vivaVraciloStatusPrehodiTable.vir,
     razlog: vivaVraciloStatusPrehodiTable.razlog,
     dokazReferenca: vivaVraciloStatusPrehodiTable.dokazReferenca,
+    dokazPriponka: vivaVraciloStatusPrehodiTable.dokazPriponka,
     ustvarjeno: vivaVraciloStatusPrehodiTable.ustvarjeno,
   }).from(vivaVraciloStatusPrehodiTable)
     .where(and(

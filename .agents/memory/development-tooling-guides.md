@@ -15,6 +15,7 @@ description: Kazalo posebnosti zaganjalnikov, preverjanja, paketov in prikazovan
 - [PNPM delovni imenik](pnpm-filter-cwd.md) — exec se izvede v mapi paketa.
 - [CodeExecution poti](codeexecution-shell-paths.md) — skriti CR v izhodnih vrsticah.
 - [Prenosi sredstev](present-asset-paths.md) — omejitve Unicode imen pri prenosih iz knjižnice.
+- [PDF blob ogled](blob-pdf-preview.md) — iframe sandbox blokira Chromium PDF viewer; dovoli le preverjen PDF ali rastrsko sliko.
 - [Vrstni red patch odsekov](apply-patch-hunk-order.md) — kontekst od začetka proti koncu.
 - [Recharts testi](recharts-tooltip-testing.md) — omejitve postavitve in hover v jsdom.
 - [Radix izbirniki v jsdom](radix-select-jsdom.md) — navadni MouseEvent ne prenese pointerType; ne sklepaj, da je izbirnik pokvarjen.

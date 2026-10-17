@@ -1,4 +1,8 @@
 import { Router, type IRouter } from "express";
+import multer from "multer";
+import { ObjectStorageService } from "../../lib/objectStorage";
+import { REFUND_EVIDENCE_MAX_BYTES, REFUND_EVIDENCE_MIMES, validateRefundEvidence, refundEvidenceHash } from "../../lib/refundEvidence";
+import { vivaVraciloDokazilaTable } from "@workspace/db";
 import { createHash, randomBytes, randomUUID } from "crypto";
 import { eq, and, count, desc, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { posljiNaTerminal, testTerminalPovezave } from "../../lib/pos-payten";
@@ -1721,6 +1725,7 @@ async function transitionVivaRefundStatus(
     vir: VivaRefundAuditVir;
     razlog?: string | null;
     dokazReferenca?: string | null;
+    dokazPriponkaId?: string;
     zahtevaniStatus?: "pending" | "unknown";
   },
 ): Promise<boolean> {
@@ -1734,6 +1739,11 @@ async function transitionVivaRefundStatus(
       FROM viva_vracila
       WHERE refund_session_id = ${refundSessionId}
         AND enota_id = ${enotaId}
+        AND (${audit.vir} <> 'manual' OR EXISTS (
+          SELECT 1 FROM viva_vracilo_dokazila d
+          WHERE d.id = ${audit.dokazPriponkaId ?? null}
+            AND d.viva_vracilo_id = viva_vracila.id AND d.enota_id = ${enotaId}
+        ))
       FOR UPDATE
     ),
     updated_refund AS (
@@ -1759,7 +1769,8 @@ async function transitionVivaRefundStatus(
       provider_referenca,
       vir,
       razlog,
-      dokaz_referenca
+      dokaz_referenca,
+      dokaz_priponka
     )
     SELECT
       updated.id,
@@ -1773,7 +1784,10 @@ async function transitionVivaRefundStatus(
       ${refundSessionId},
       ${audit.vir},
       ${audit.razlog ?? null},
-      ${audit.dokazReferenca ?? null}
+      ${audit.dokazReferenca ?? null},
+      (SELECT d.priponka FROM viva_vracilo_dokazila d
+       WHERE d.id = ${audit.dokazPriponkaId ?? null}
+         AND d.viva_vracilo_id = updated.id AND d.enota_id = ${enotaId})
     FROM updated_refund AS updated
     RETURNING id
   `);
@@ -2078,6 +2092,93 @@ router.get("/terminal/viva/terminal/refund/status/:sessionId", async (req, res):
   }
 });
 
+const refundEvidenceStorage = new ObjectStorageService();
+const refundEvidenceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: REFUND_EVIDENCE_MAX_BYTES, files: 1, fields: 0 },
+  fileFilter: (_req, file, cb) => {
+    if (!REFUND_EVIDENCE_MIMES.includes(file.mimetype)) cb(new Error("Unsupported evidence MIME"));
+    else cb(null, true);
+  },
+}).single("file");
+
+router.post("/terminal/viva/terminal/refund/:sessionId/evidence", async (req, res): Promise<void> => {
+  const posReq = req as unknown as PosRequest;
+  if (!mayManageUnknownVivaRefund(posReq.vloga) || !posReq.clerkUserId) {
+    res.status(403).json({ error: "Za nalaganje dokazila je potrebna administratorska vloga." });
+    return;
+  }
+  const [refund] = await db.select().from(vivaVracilaTable).where(and(
+    eq(vivaVracilaTable.refundSessionId, req.params.sessionId),
+    eq(vivaVracilaTable.enotaId, posReq.enotaId),
+    inArray(vivaVracilaTable.status, ["unknown", "awaiting_approval"]),
+  )).limit(1);
+  if (!refund) {
+    res.status(409).json({ error: "Vračilo ni v stanju UNKNOWN ali ne pripada aktivni enoti." });
+    return;
+  }
+  refundEvidenceUpload(req, res, async error => {
+    if (error || !req.file || !validateRefundEvidence(req.file.buffer, req.file.mimetype)) {
+      res.status(error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE" ? 413 : 400)
+        .json({ error: "Naložite veljaven PDF, PNG, JPEG ali WebP, velik največ 10 MB." });
+      return;
+    }
+    try {
+      const objectPath = await refundEvidenceStorage.saveObjectEntityToNewPath(
+        `refund-evidence/${posReq.enotaId}`, req.file.buffer, req.file.mimetype,
+      );
+      const priponka = {
+        id: randomUUID(), objectPath, sha256: refundEvidenceHash(req.file.buffer),
+        name: req.file.originalname.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 150) || "dokazilo",
+        mime: req.file.mimetype, size: req.file.size,
+      };
+      await db.insert(vivaVraciloDokazilaTable).values({
+        id: priponka.id, vivaVraciloId: refund.id, enotaId: posReq.enotaId,
+        actorClerkUserId: posReq.clerkUserId!, priponka,
+      });
+      res.status(201).json({ id: priponka.id, name: priponka.name, sha256: priponka.sha256 });
+    } catch (err) {
+      req.log.error({ err }, "Refund evidence upload failed");
+      res.status(503).json({ error: "Dokazila ni bilo mogoče trajno shraniti. Razrešitev ni dovoljena." });
+    }
+  });
+});
+
+router.get("/terminal/viva/terminal/refund-evidence/:id", async (req, res): Promise<void> => {
+  const posReq = req as unknown as PosRequest;
+  res.setHeader("Cache-Control", "private, no-store");
+  if (!mayManageUnknownVivaRefund(posReq.vloga)) {
+    res.status(403).json({ error: "Ogled dokazila je dovoljen le administratorju." });
+    return;
+  }
+  const [audit] = await db.select({ priponka: vivaVraciloStatusPrehodiTable.dokazPriponka })
+    .from(vivaVraciloStatusPrehodiTable).where(and(
+      eq(vivaVraciloStatusPrehodiTable.enotaId, posReq.enotaId),
+      sql`${vivaVraciloStatusPrehodiTable.dokazPriponka}->>'id' = ${req.params.id}`,
+    )).limit(1);
+  if (!audit?.priponka) {
+    res.status(404).json({ error: "Dokazilo ni najdeno." });
+    return;
+  }
+  try {
+    const file = await refundEvidenceStorage.getObjectEntityFile(audit.priponka.objectPath);
+    const [metadata] = await file.getMetadata();
+    if (Number(metadata.size) !== audit.priponka.size || Number(metadata.size) > REFUND_EVIDENCE_MAX_BYTES) {
+      throw new Error("Evidence size mismatch");
+    }
+    const [bytes] = await file.download();
+    if (refundEvidenceHash(bytes) !== audit.priponka.sha256) throw new Error("Evidence hash mismatch");
+    res.setHeader("Content-Type", audit.priponka.mime);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'");
+    res.setHeader("Content-Disposition", `inline; filename="${audit.priponka.name.replace(/["\\]/g, "_")}"`);
+    res.send(bytes);
+  } catch (err) {
+    req.log.error({ err }, "Refund evidence unavailable or integrity check failed");
+    res.status(503).json({ error: "Dokazila ni mogoče varno prikazati ali preveriti njegovega odtisa." });
+  }
+});
+
 router.post("/terminal/viva/terminal/refund/:sessionId/resolve", async (req, res): Promise<void> => {
   const posReq = req as unknown as PosRequest;
   if (!mayManageUnknownVivaRefund(posReq.vloga)) {
@@ -2095,6 +2196,11 @@ router.post("/terminal/viva/terminal/refund/:sessionId/resolve", async (req, res
   const status = req.body?.status;
   const razlog = typeof req.body?.razlog === "string" ? req.body.razlog.trim() : "";
   const dokazReferenca = typeof req.body?.dokazReferenca === "string" ? req.body.dokazReferenca.trim() : "";
+  const dokazPriponkaId = typeof req.body?.dokazPriponkaId === "string" ? req.body.dokazPriponkaId : "";
+  if (!/^[0-9a-f-]{36}$/.test(dokazPriponkaId)) {
+    res.status(400).json({ error: "Pred razrešitvijo naložite dokazilo." });
+    return;
+  }
   if (status !== "paid" && status !== "failed") {
     res.status(400).json({ error: "Ročna razrešitev mora biti paid ali failed." });
     return;
@@ -2120,6 +2226,12 @@ router.post("/terminal/viva/terminal/refund/:sessionId/resolve", async (req, res
     if (!refund || !["unknown", "awaiting_approval"].includes(refund.status)) {
       return { error: "Vračilo ni več nejasno ali ne pripada aktivni enoti. Osvežite seznam." };
     }
+    const [evidence] = await tx.select().from(vivaVraciloDokazilaTable).where(and(
+      eq(vivaVraciloDokazilaTable.id, dokazPriponkaId),
+      eq(vivaVraciloDokazilaTable.vivaVraciloId, refund.id),
+      eq(vivaVraciloDokazilaTable.enotaId, posReq.enotaId),
+    )).limit(1);
+    if (!evidence) return { error: "Dokazilo ne pripada temu vračilu in aktivni enoti." };
     const secondApproval = refund.status === "awaiting_approval";
     if (secondApproval && refund.prviOdobriteljClerkUserId === posReq.clerkUserId) {
       return { error: "Drugi odobritelj mora biti drug Clerk uporabnik." };
@@ -2133,18 +2245,22 @@ router.post("/terminal/viva/terminal/refund/:sessionId/resolve", async (req, res
     const needsApproval = !secondApproval && (status === "paid"
       || exactEuroCents(Number(refund.znesek))! >= exactEuroCents(Number(unit.threshold))!);
     const nextStatus = needsApproval ? "awaiting_approval" as const : status;
-    await tx.update(vivaVracilaTable).set({
+    const updated = await tx.update(vivaVracilaTable).set({
       status: nextStatus,
       predlaganiStatus: status,
       prviOdobriteljClerkUserId: secondApproval ? refund.prviOdobriteljClerkUserId : posReq.clerkUserId,
       napaka: nextStatus === "failed" ? razlog : refund.napaka,
       zakljucenoAt: needsApproval ? null : new Date(),
-    }).where(eq(vivaVracilaTable.id, refund.id));
+    }).where(and(
+      eq(vivaVracilaTable.id, refund.id),
+      eq(vivaVracilaTable.status, refund.status),
+    )).returning({ id: vivaVracilaTable.id });
+    if (!updated.length) return { error: "Vračilo je bilo medtem spremenjeno. Osvežite seznam." };
     await tx.insert(vivaVraciloStatusPrehodiTable).values({
       vivaVraciloId: refund.id, enotaId: posReq.enotaId,
       prejsnjiStatus: refund.status, noviStatus: nextStatus, predlaganiStatus: status,
       ...actor, providerReferenca: req.params.sessionId, vir: "manual",
-      razlog, dokazReferenca,
+      razlog, dokazReferenca, dokazPriponka: evidence.priponka,
     });
     return { status: nextStatus };
   });

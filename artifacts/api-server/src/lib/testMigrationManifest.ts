@@ -572,6 +572,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
   },
   {
+    file: "265-viva-refund-evidence.sql",
+    classification: "integrity",
+    dependsOn: ["174-viva-refund-manual-resolution.sql"],
+  },
+  {
     file: "264-amortizacija-active-entry-unique.sql",
     classification: "integrity",
   },
