@@ -48,7 +48,7 @@ import {
 
 // ── CSV export ────────────────────────────────────────────────────────────────
 
-function exportCsv(
+export function exportCsv(
   rows: DimensionReportRow[],
   grandTotalDebit: string,
   grandTotalCredit: string,
@@ -80,6 +80,16 @@ function exportCsv(
       num(row.totalCredit),
       num(row.balance),
     ].join(";"));
+
+    for (const account of row.accounts ?? []) {
+      lines.push([
+        escape(`  > Konto ${account.code}`),
+        escape(account.name),
+        num(account.totalDebit),
+        num(account.totalCredit),
+        num(account.balance),
+      ].join(";"));
+    }
   }
 
   // Grand total
