@@ -21,6 +21,8 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, like, sql, lte, lt, gte, desc, gt, or, inArray } from "drizzle-orm";
 import Decimal from "decimal.js";
+import { resolveStatusSredstvo } from "./osHelpers";
+import { loadObracunaniOdpisi } from "./osStatusOdpisi";
 import { savedAmortizationExcel, savedAmortizationPdf } from "../lib/os-amortizacija-export";
 import {
   ExportSavedAmortizationParams, ExportSavedAmortizationQueryParams,
@@ -471,6 +473,7 @@ type GlavaRow = {
   kontoStroskaId: string | null;
   kontoPopravkaId: string | null;
   status: string;
+  datumOdtujitve: string | null;
 };
 
 async function loadSredstvaData(companyId: string): Promise<{
@@ -501,6 +504,7 @@ async function loadSredstvaData(companyId: string): Promise<{
       kontoStroskaId: osnovnaSredstvaTable.kontoStroskaId,
       kontoPopravkaId: osnovnaSredstvaTable.kontoPopravkaId,
       status: osnovnaSredstvaTable.status,
+      datumOdtujitve: osnovnaSredstvaTable.datumOdtujitve,
     })
     .from(osnovnaSredstvaTable)
     .where(eq(osnovnaSredstvaTable.companyId, companyId));
@@ -1522,9 +1526,7 @@ router.post(
       .where(and(eq(osAmortizacijaObracunTable.companyId, companyId), eq(osAmortizacijaObracunTable.leto, prevLeto)))
       .limit(1);
 
-    // Stare prazne glave so bile shranjene kot odprte. Odsotnost vrstic sama
-    // ni dokaz praznega obračuna (npr. sredstvo brez skupine), zato preverimo
-    // tudi register podjetja. Ob kakršnih koli sredstvih zaklep ostane.
+    // Odsotnost vrstic ni dovolj za prazen obračun: preveri še register podjetja.
     let prazenPrejsnjiObracun = false;
     if (prevObracun?.status === "odprt") {
       const [vrstice, sredstva] = await Promise.all([
@@ -1704,7 +1706,7 @@ router.post(
     const vhodniPodpis = computeVhodniPodpis(pravilo, flatDoknjizbeForHash);
 
     // ── UPSERT glava ──────────────────────────────────────────────────────────
-    // Prazen obračun nima sredstev za nadaljnji obračun in ne sme blokirati naslednjega leta.
+    // Prazen obračun ne sme blokirati naslednjega leta.
     const novStatus = doMeseca >= 12 || obracunResult.sredstva.length === 0 ? "zakljucen" : "odprt";
 
     const [glava] = await db
@@ -1889,6 +1891,34 @@ router.post(
         glkOsnutek.sporocilo    = glkOsnutek.posodobljen
           ? `Obstoječi GLK osnutek posodobljen (ref: ${glkRef})`
           : `Osnutek temeljnice dodan v glavno knjigo (ref: ${glkRef})`;
+      }
+    }
+
+    // Shranjeni status uskladi šele ob zaključku leta, iz vrednosti PO obračunu.
+    // Nabavnih/odpisanih vrednosti doknjižb ne spreminjamo (ponovni obračun je upsert).
+    if (novStatus === "zakljucen") {
+      const glaveById = new Map(glaveRows.map((g) => [g.id, g]));
+      const odpisi = await loadObracunaniOdpisi(companyId, glaveRows.map(g => g.id));
+      for (const sredstvo of obracunResult.sredstva) {
+        const g = glaveById.get(sredstvo.id)!;
+        const computedStatus = resolveStatusSredstvo(
+          g.status,
+          {
+            nabavna: sredstvo.doknjizbe.reduce((sum, d) => sum + Number(d.nabavnaVrednost), 0),
+            odpisana: sredstvo.doknjizbe.reduce((sum, d) => sum + Number(d.odpisanaVrednost), 0),
+            hasAktivirana: sredstvo.doknjizbe.some((d) => !!d.datumAktivacije),
+            obracunaniOdpisi: odpisi.get(g.id) ?? 0,
+          },
+          g.datumOdtujitve,
+        );
+        if (computedStatus !== g.status) {
+          await db.update(osnovnaSredstvaTable)
+            .set({ status: computedStatus, updatedAt: new Date() })
+            .where(and(
+              eq(osnovnaSredstvaTable.id, g.id),
+              eq(osnovnaSredstvaTable.companyId, companyId),
+            ));
+        }
       }
     }
 

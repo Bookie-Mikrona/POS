@@ -32,6 +32,7 @@
 - [UBL InvoiceLine AllowanceCharge](ubl-linijski-rabat.md) — parser-eslog ni bral InvoiceLine/AllowanceCharge (samo Price/AllowanceCharge); POS007 validacija zdaj primerja min(bruto, neto) razliko
 - [bizBox Faza B](bizbox-faza-b.md) — ročna oddaja e-SLOG prek ZZI; modul bizbox.ts; JSZip STORE; eDDress iz davčne; env poverilnice; UBL≠EDIFACT opozorilo
 - [Amortizacija osnovnih sredstev](os-amortizacija-guides.md) — pravila začetka, odtujitve, negativnih korekcij in oslabitve.
+- [Viri statusa osnovnega sredstva](os-status-source-policy.md) — izhodiščni odpis in shranjeni obračuni so ločeni; status upošteva oba brez prepisa izhodišča.
 - [Zgodovinski obračun ur](obracun-ur-zgodovinski-snapshot.md) — izmene morajo hraniti nespremenljivo kodo in naziv stroškovnega mesta ob odprtju.
 - [Obračun ur nočnih izmen](obracun-ur-nocne-izmene.md) — izmeno razdeli po lokalnih dnevih Europe/Ljubljana; DST uporablja dejanski pretečeni čas.
 - [Telefonski naročniki](telefonski-narocniki.md) — vsak telefonski prevzem ali dostava trajno razreši naročnika po normaliziranem telefonu znotraj enote

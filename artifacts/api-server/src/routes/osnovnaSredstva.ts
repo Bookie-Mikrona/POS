@@ -67,6 +67,7 @@ import {
   type EnrichedMedletniVrstica,
 } from "./osRegisterMedletni";
 import { calcKarticaVrednosti } from "./osKarticaVrednosti";
+import { loadObracunaniOdpisi } from "./osStatusOdpisi";
 import { calcKronoloskiPregled } from "./osKronoloskiPregled";
 import { generateKarticaPdf, generateOsRegisterPdf } from "../lib/report-pdf";
 import ExcelJS from "exceljs";
@@ -547,12 +548,15 @@ router.get(
       totalsMap.set(d.sredstvoId, cur);
     }
 
+    const odpisi = await loadObracunaniOdpisi(companyId, srIds);
     const enriched = glave.map((g) => {
       const t = totalsMap.get(g.id) ?? { nabavna: 0, odpisana: 0, stevilo: 0, hasAktivirana: false };
       // Status se izračuna iz vseh doknjižb (ne le shranjeno polje glave).
       // Pravilo: "v_uporabi" če katerakoli doknjižba ima sedanjaVrednost > 0;
       //          "odpisano" šele ko so vse polno odpisane.
-      const computedStatus = resolveStatusSredstvo(g.status, t, g.datumOdtujitve ?? undefined);
+      const computedStatus = resolveStatusSredstvo(g.status, {
+        ...t, obracunaniOdpisi: odpisi.get(g.id) ?? 0,
+      }, g.datumOdtujitve ?? undefined);
       return {
         ...g,
         status: computedStatus,
@@ -630,7 +634,6 @@ router.get(
     // Agregirani status — isto pravilo kot register (resolveStatusSredstvo):
     // "v_uporabi" dokler ima katerakoli doknjižba sedanjaVrednost > 0.
     const hasAktivirana = doknjizbe.some((d) => !!d.datumAktivacije);
-    const computedStatus = resolveStatusSredstvo(glava.status, { nabavna, odpisana, hasAktivirana }, glava.datumOdtujitve ?? undefined);
 
     // Amortizirljiva baza za vsako doknjižbo (pred obogatitvijo — potrebujemo za calcKarticaVrednosti)
     const doknjizbeZBazo = doknjizbe.map((d) => ({
@@ -699,6 +702,10 @@ router.get(
       (s, v) => s + parseFloat(v.obracunano),
       0,
     );
+    const computedStatus = resolveStatusSredstvo(glava.status, {
+      nabavna, odpisana, hasAktivirana,
+      obracunaniOdpisi: amortVrstice.reduce((sum, v) => sum + Number(v.obracunano) + Number(v.oslabitev), 0),
+    }, glava.datumOdtujitve);
 
     // Vrednosti pred/po obračunu — čista funkcija
     const karticaVrednosti = calcKarticaVrednosti(
@@ -854,7 +861,10 @@ router.get(
         datumAktivacije: seqZero?.datumAktivacije ?? null,
         datumOdtujitve: glava.datumOdtujitve ?? null,
         razlogIzlocitve: glava.razlogIzlocitve ?? null,
-        status: resolveStatusSredstvo(glava.status, { nabavna, odpisana, hasAktivirana: doknjizbe.some((d) => !!d.datumAktivacije) }, glava.datumOdtujitve ?? undefined),
+        status: resolveStatusSredstvo(glava.status, {
+          nabavna, odpisana, hasAktivirana: doknjizbe.some((d) => !!d.datumAktivacije),
+          obracunaniOdpisi: amortVrstice.reduce((sum, v) => sum + Number(v.obracunano) + Number(v.oslabitev), 0),
+        }, glava.datumOdtujitve ?? undefined),
         opomba: glava.opomba,
         skupnaNabavna: nabavna.toFixed(2),
         skupnaOdpisana: odpisana.toFixed(2),
@@ -1530,12 +1540,13 @@ async function buildEnrichedRegisterData(
     totalsMap.set(d.sredstvoId, cur);
   }
 
+  const odpisi = await loadObracunaniOdpisi(companyId, srIds, leto);
   const vrstice = glave.map((g) => {
     const doknjizbe = doknjizbeMap.get(g.id) ?? [];
     const t = totalsMap.get(g.id) ?? { nabavna: 0, odpisana: 0, hasAktivirana: false };
     const input: RegisterSredstvoInput = {
       id: g.id, inventarnaSt: g.inventarnaSt, naziv: g.naziv, skupinaId: g.skupinaId ?? null,
-      status: resolveStatusSredstvo(g.status, t),
+      status: resolveStatusSredstvo(g.status, { ...t, obracunaniOdpisi: odpisi.get(g.id) ?? 0 }, g.datumOdtujitve),
       steviloDoknjizb: doknjizbe.filter((d) => d.seq > 0).length,
       doknjizbe, obracuniPoLetih: obracuniByIdMap.get(g.id) ?? new Map<number, string>(),
       oslabitevPoLetih: oslabitevByIdMap.get(g.id), datumOdtujitve: g.datumOdtujitve ?? null,
@@ -1811,11 +1822,12 @@ router.get(
     }
 
     // Izračun medletnega registra
+    const odpisi = await loadObracunaniOdpisi(companyId, srIds, leto);
     const vrstice = glave.map((g) => {
       const doknjizbe = doknjizbeMap.get(g.id) ?? [];
       const obracuniPoLetih = obracuniByIdMap.get(g.id) ?? new Map<number, string>();
       const t = totalsMap.get(g.id) ?? { nabavna: 0, odpisana: 0, hasAktivirana: false };
-      const computedStatus = resolveStatusSredstvo(g.status, t);
+      const computedStatus = resolveStatusSredstvo(g.status, { ...t, obracunaniOdpisi: odpisi.get(g.id) ?? 0 }, g.datumOdtujitve);
       const steviloDoknjizb = doknjizbe.filter((d) => d.seq > 0).length;
 
       const input: RegisterSredstvoInput = {

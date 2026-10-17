@@ -24,19 +24,19 @@ export function formatObracunPeriod(leto: number, doMeseca: number): string {
  *  - "v_uporabi" → vsaj ena doknjižba je neodpisana (Σ sedanjaVrednost > 0.005 €)
  *  - "odpisano"  → vse doknjižbe so polno odpisane (Σ sedanjaVrednost ≤ 0.005 €)
  *
- * Ne gledamo status polja glave (ki je shranjeno ob vpisu in se ne posodablja samodejno),
- * ampak računamo iz dejanskih vrednosti doknjižb.
+ * Poleg uvoženega odpisa upoštevamo shranjene obračune in oslabitve.
+ * Polje glave je le usklajena kopija, ne vir resnice za prikaz.
  *
  * @param datumOdtujitve  Ko je nastavljeno, sredstvo velja za izločeno.
  */
 export function resolveStatusSredstvo(
   glavaStatus: string,
-  totals: { nabavna: number; odpisana: number; hasAktivirana: boolean },
+  totals: { nabavna: number; odpisana: number; hasAktivirana: boolean; obracunaniOdpisi?: number },
   datumOdtujitve?: string | null,
 ): string {
   if (glavaStatus === "izloceno" || datumOdtujitve) return "izloceno";
   if (!totals.hasAktivirana) return "v_teku"; // nobena doknjižba ni aktivirana
-  const sedanja = totals.nabavna - totals.odpisana;
+  const sedanja = totals.nabavna - totals.odpisana - (totals.obracunaniOdpisi ?? 0);
   if (sedanja > 0.005) return "v_uporabi"; // vsaj 1 cent neodpisano
   return "odpisano";
 }
