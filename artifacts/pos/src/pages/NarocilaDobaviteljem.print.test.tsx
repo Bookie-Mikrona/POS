@@ -607,6 +607,96 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("warns only about changed open lines and prepares the receipt without fully received lines", async () => {
+    const originalOrder = {
+      status: mocks.order.status,
+      lineCount: mocks.order.lineCount,
+      openQuantity: mocks.order.openQuantity,
+      lines: mocks.order.lines,
+    };
+    const receivedLine = {
+      ...mocks.order.lines[0],
+      id: 7041,
+      articleId: 7043,
+      articleName: "Že prevzeto mleko",
+      packageQuantity: 1,
+      packageFactor: 6,
+      currentPackageFactor: 8,
+      orderedBaseQuantity: 6,
+      receivedBaseQuantity: 6,
+      openBaseQuantity: 0,
+    };
+    const openLine = {
+      ...mocks.order.lines[0],
+      id: 7051,
+      supplierMappingId: 7052,
+      articleId: 7053,
+      articleName: "Odprta smetana",
+      supplierItemName: "Smetana",
+      packageQuantity: 1,
+      packageFactor: 4,
+      currentPackageFactor: 7,
+      packageName: "paket",
+      orderedBaseQuantity: 4,
+      receivedBaseQuantity: 0,
+      openBaseQuantity: 4,
+      unitPrice: 20,
+    };
+    mocks.order.status = "partially_received";
+    mocks.order.lineCount = 2;
+    mocks.order.openQuantity = 4;
+    mocks.order.lines = [receivedLine, openLine];
+    mocks.mutation.mockResolvedValue({ id: 7047 });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      fireEvent.click(screen.getByRole("button", { name: "Pripravi prejemnico" }));
+
+      const warning = await screen.findByRole("alertdialog");
+      expect(warning.textContent).toContain("Odprta smetana");
+      expect(warning.textContent).not.toContain("Že prevzeto mleko");
+      expect(warning.textContent).toContain("4 L / pak.");
+      expect(warning.textContent).toContain("7 L / pak.");
+      expect(warning.textContent).not.toContain("6 L / pak.");
+      expect(mocks.mutation).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("checkbox", { name: /Preveril\/-a sem dejansko količino/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Nadaljuj na prejemnico" }));
+
+      await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          postavke: [{
+            artikelId: 7053,
+            supplierOrderLineId: 7051,
+            kolicina: 4,
+            cenaKos: 5,
+            skupaj: undefined,
+            izvKolicina: 4,
+            izvCena: 5,
+            izvEnota: "L",
+            enotVPaketu: 1,
+          }],
+        }),
+      }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7047");
+    } finally {
+      mocks.order.status = originalOrder.status;
+      mocks.order.lineCount = originalOrder.lineCount;
+      mocks.order.openQuantity = originalOrder.openQuantity;
+      mocks.order.lines = originalOrder.lines;
+    }
+  });
+
   it("prepares a receipt without a warning when the package is unchanged", async () => {
     const originalStatus = mocks.order.status;
     mocks.order.status = "sent";
