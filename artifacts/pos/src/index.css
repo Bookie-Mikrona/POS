@@ -207,6 +207,7 @@
   }
   .supplier-order-print__header {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
@@ -231,6 +232,9 @@
     margin: 4px 0 0;
     color: #4f5a54;
     font-size: 9pt;
+    max-width: 100%;
+    margin-left: auto;
+    overflow-wrap: anywhere;
     text-align: right;
   }
   .supplier-order-print__meta {
@@ -268,6 +272,10 @@
     font-size: 8pt;
     text-align: left;
     text-transform: uppercase;
+  }
+  .supplier-order-print__table thead .supplier-order-print__number {
+    text-align: left !important;
+    white-space: normal;
   }
   .supplier-order-print__table tbody tr {
     break-inside: avoid-page;

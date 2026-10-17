@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer as createNetServer } from "node:net";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -183,9 +183,158 @@ function readWords(markup) {
   }));
 }
 
+function stopProcessGroup(child) {
+  if (!child || child.exitCode !== null) return Promise.resolve();
+
+  const exited = new Promise(resolve => child.once("exit", resolve));
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    child.kill("SIGTERM");
+  }
+
+  return Promise.race([exited, delay(5_000)]).then(() => {
+    if (child.exitCode === null) {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        child.kill("SIGKILL");
+      }
+    }
+  });
+}
+
+async function sendWebDriverCommand(baseUrl, route, { method = "POST", body } = {}) {
+  const response = await fetch(`${baseUrl}${route}`, {
+    method,
+    headers: { "content-type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const result = await response.json();
+  if (!response.ok || result.value?.error) {
+    throw new Error(`WebDriver ${route} failed (${response.status}): ${JSON.stringify(result)}`);
+  }
+  return result.value;
+}
+
+async function waitForWebDriver(baseUrl, child, logs) {
+  const deadline = Date.now() + 20_000;
+  let spawnError;
+  child.once("error", error => { spawnError = error; });
+
+  while (Date.now() < deadline) {
+    if (spawnError) throw spawnError;
+    if (child.exitCode !== null) {
+      throw new Error(`Firefox WebDriver exited before startup:\n${logs.join("")}`);
+    }
+    try {
+      const response = await fetch(`${baseUrl}/status`, { signal: AbortSignal.timeout(1_000) });
+      if (response.ok) return;
+    } catch {
+      // The driver starts asynchronously and may not accept requests immediately.
+    }
+    await delay(100);
+  }
+
+  throw new Error(`Firefox WebDriver did not start in time:\n${logs.join("")}`);
+}
+
+async function printWithFirefox(url, tempDir) {
+  const driverBinary = process.env.GECKODRIVER_BIN ?? "geckodriver";
+  const driverPort = await getAvailablePort();
+  const driverUrl = `http://127.0.0.1:${driverPort}`;
+  const profileRoot = path.join(tempDir, "firefox-profile");
+  await mkdir(profileRoot, { recursive: true });
+  const driverLogs = [];
+  const driverProcess = spawn(driverBinary, [
+    "--host", "127.0.0.1",
+    "--port", String(driverPort),
+    "--profile-root", profileRoot,
+    "--log", "error",
+  ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  driverProcess.stdout.setEncoding("utf8");
+  driverProcess.stderr.setEncoding("utf8");
+  driverProcess.stdout.on("data", chunk => driverLogs.push(chunk));
+  driverProcess.stderr.on("data", chunk => driverLogs.push(chunk));
+
+  let sessionId;
+  try {
+    await waitForWebDriver(driverUrl, driverProcess, driverLogs);
+    const firefoxOptions = { args: ["-headless"] };
+    if (process.env.FIREFOX_BIN) firefoxOptions.binary = process.env.FIREFOX_BIN;
+    const session = await sendWebDriverCommand(driverUrl, "/session", {
+      body: {
+        capabilities: {
+          alwaysMatch: {
+            browserName: "firefox",
+            "moz:firefoxOptions": firefoxOptions,
+          },
+        },
+      },
+    });
+    sessionId = session.sessionId;
+    assert(sessionId, `Firefox WebDriver did not create a session: ${JSON.stringify(session)}`);
+    const sessionUrl = `/session/${sessionId}`;
+    await sendWebDriverCommand(driverUrl, `${sessionUrl}/timeouts`, {
+      body: { implicit: 0, pageLoad: 30_000, script: 30_000 },
+    });
+    await sendWebDriverCommand(driverUrl, `${sessionUrl}/url`, { body: { url } });
+
+    const renderDeadline = Date.now() + 30_000;
+    let rendered = false;
+    while (Date.now() < renderDeadline) {
+      const result = await sendWebDriverCommand(driverUrl, `${sessionUrl}/execute/sync`, {
+        body: {
+          script: `return Boolean(document.querySelector('[data-testid="text-supplier-order-print-instructions"]')?.textContent?.includes("KONEC-NAVODILA-100"))`,
+          args: [],
+        },
+      });
+      if (result === true) {
+        rendered = true;
+        break;
+      }
+      await delay(100);
+    }
+    assert(rendered, "Firefox did not render the supplier order print fixture.");
+
+    const pdfBase64 = await sendWebDriverCommand(driverUrl, `${sessionUrl}/print`, {
+      body: {
+        orientation: "portrait",
+        scale: 1,
+        background: true,
+        shrinkToFit: false,
+        page: {
+          // WebDriver print dimensions are in centimeters.
+          width: 21,
+          height: 29.7,
+          margin: {
+            top: 1.4,
+            right: 1.4,
+            bottom: 1.4,
+            left: 1.4,
+          },
+        },
+      },
+    });
+    assert(typeof pdfBase64 === "string" && pdfBase64.startsWith("JVBER"), "Firefox print endpoint returned no PDF.");
+    return Buffer.from(pdfBase64, "base64");
+  } finally {
+    if (sessionId) {
+      await sendWebDriverCommand(driverUrl, `/session/${sessionId}`, { method: "DELETE" }).catch(() => {});
+    }
+    await stopProcessGroup(driverProcess);
+  }
+}
+
 async function main() {
+  const selectedBrowser = process.env.SUPPLIER_ORDER_PRINT_BROWSER ?? "chromium";
+  assert(
+    selectedBrowser === "chromium" || selectedBrowser === "firefox",
+    `Unsupported print test browser "${selectedBrowser}". Choose chromium or firefox.`,
+  );
   const chromium = process.env.CHROMIUM_BIN ?? "/repl/tools/bin/chromium";
-  if (!existsSync(chromium)) {
+  if (selectedBrowser === "chromium" && !existsSync(chromium)) {
     throw new Error(`Chromium was not found at ${chromium}; set CHROMIUM_BIN to a browser executable.`);
   }
 
@@ -209,67 +358,81 @@ async function main() {
     await vite.listen();
 
     const url = `http://127.0.0.1:${port}/pos/tests/browser/supplier-order-print.html`;
-    const profileDir = path.join(tempDir, "profile");
-    const browserLogs = [];
-    browserProcess = spawn(chromium, [
-      "--headless=new",
-      "--no-sandbox",
-      "--disable-gpu",
-      "--disable-dev-shm-usage",
-      "--disable-background-networking",
-      "--no-first-run",
-      "--no-default-browser-check",
-      "--remote-allow-origins=*",
-      "--remote-debugging-port=0",
-      `--user-data-dir=${profileDir}`,
-      "about:blank",
-    ], { stdio: ["ignore", "ignore", "pipe"] });
-    browserProcess.stderr.setEncoding("utf8");
-    browserProcess.stderr.on("data", chunk => browserLogs.push(chunk));
+    if (selectedBrowser === "chromium") {
+      const profileDir = path.join(tempDir, "profile");
+      const browserLogs = [];
+      browserProcess = spawn(chromium, [
+        "--headless=new",
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-background-networking",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--remote-allow-origins=*",
+        "--remote-debugging-port=0",
+        `--user-data-dir=${profileDir}`,
+        "about:blank",
+      ], { stdio: ["ignore", "ignore", "pipe"] });
+      browserProcess.stderr.setEncoding("utf8");
+      browserProcess.stderr.on("data", chunk => browserLogs.push(chunk));
 
-    const pageTarget = await findPageTarget(browserProcess, profileDir, browserLogs);
-    devTools = connectDevTools(pageTarget.webSocketDebuggerUrl);
-    await devTools.ready;
-    await devTools.send("Page.enable");
-    await devTools.send("Runtime.enable");
-    const pageErrors = [];
-    const exceptionListener = params => {
-      pageErrors.push(params.exceptionDetails?.exception?.description ?? params.exceptionDetails?.text ?? "Unknown page error");
-    };
-    const removePageErrorListener = devTools.onEvent("Runtime.exceptionThrown", exceptionListener);
+      const pageTarget = await findPageTarget(browserProcess, profileDir, browserLogs);
+      devTools = connectDevTools(pageTarget.webSocketDebuggerUrl);
+      await devTools.ready;
+      await devTools.send("Page.enable");
+      await devTools.send("Runtime.enable");
+      const pageErrors = [];
+      const exceptionListener = params => {
+        pageErrors.push(params.exceptionDetails?.exception?.description ?? params.exceptionDetails?.text ?? "Unknown page error");
+      };
+      const removePageErrorListener = devTools.onEvent("Runtime.exceptionThrown", exceptionListener);
 
-    const pageLoaded = devTools.waitForEvent("Page.loadEventFired");
-    await devTools.send("Page.navigate", { url });
-    await pageLoaded;
+      const pageLoaded = devTools.waitForEvent("Page.loadEventFired");
+      await devTools.send("Page.navigate", { url });
+      await pageLoaded;
 
-    const renderDeadline = Date.now() + 30_000;
-    let rendered = false;
-    while (Date.now() < renderDeadline) {
-      const result = await devTools.send("Runtime.evaluate", {
-        expression: `Boolean(document.querySelector('[data-testid="text-supplier-order-print-instructions"]')?.textContent?.includes("KONEC-NAVODILA-100"))`,
-        returnByValue: true,
-      });
-      if (result.result?.value === true) {
-        rendered = true;
-        break;
+      const renderDeadline = Date.now() + 30_000;
+      let rendered = false;
+      while (Date.now() < renderDeadline) {
+        const result = await devTools.send("Runtime.evaluate", {
+          expression: `Boolean(document.querySelector('[data-testid="text-supplier-order-print-instructions"]')?.textContent?.includes("KONEC-NAVODILA-100"))`,
+          returnByValue: true,
+        });
+        if (result.result?.value === true) {
+          rendered = true;
+          break;
+        }
+        await delay(100);
       }
-      await delay(100);
+      assert(rendered, `Supplier order print harness did not render: ${pageErrors.join("; ") || "instruction sentinel not found"}.`);
+      assert.deepEqual(pageErrors, [], `Browser page errors: ${pageErrors.join("; ")}`);
+      removePageErrorListener();
+      await devTools.send("Emulation.setEmulatedMedia", { media: "print" });
+      const printed = await devTools.send("Page.printToPDF", {
+        printBackground: true,
+        displayHeaderFooter: false,
+        preferCSSPageSize: true,
+        transferMode: "ReturnAsBase64",
+      });
+      await writeFile(pdfPath, Buffer.from(printed.data, "base64"));
+    } else {
+      await writeFile(pdfPath, await printWithFirefox(url, tempDir));
     }
-    assert(rendered, `Supplier order print harness did not render: ${pageErrors.join("; ") || "instruction sentinel not found"}.`);
-    assert.deepEqual(pageErrors, [], `Browser page errors: ${pageErrors.join("; ")}`);
-    removePageErrorListener();
-    await devTools.send("Emulation.setEmulatedMedia", { media: "print" });
-    const printed = await devTools.send("Page.printToPDF", {
-      printBackground: true,
-      displayHeaderFooter: false,
-      preferCSSPageSize: true,
-      transferMode: "ReturnAsBase64",
-    });
-    await writeFile(pdfPath, Buffer.from(printed.data, "base64"));
+    if (process.env.SUPPLIER_ORDER_PRINT_PDF_OUT) {
+      await writeFile(process.env.SUPPLIER_ORDER_PRINT_PDF_OUT, await readFile(pdfPath));
+    }
 
     const pdfInfo = run(process.env.PDFINFO_BIN ?? "pdfinfo", [pdfPath]);
     const pageCount = Number(pdfInfo.match(/^Pages:\s+(\d+)/m)?.[1]);
     assert(Number.isInteger(pageCount) && pageCount >= 3, `Expected a multi-page PDF; got ${pageCount} pages.`);
+    const pageSize = pdfInfo.match(/^Page size:\s+([\d.]+) x ([\d.]+) pts/m);
+    assert(pageSize, "Could not read the printed page dimensions.");
+    assert(
+      Math.abs(Number(pageSize[1]) - (210 / 25.4) * 72) <= 1
+        && Math.abs(Number(pageSize[2]) - (297 / 25.4) * 72) <= 1,
+      `Expected A4 portrait pages; got ${pageSize[1]} x ${pageSize[2]} pt.`,
+    );
 
     const extracted = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-layout", pdfPath, "-"]);
     const normalizedPdfText = normalizeText(extracted);
@@ -277,16 +440,28 @@ async function main() {
     assert.equal(pages.length, pageCount, "Extracted PDF page count differs from pdfinfo.");
     const tablePages = pages.filter(page => /POSTAVKA-\d{3}/.test(page));
     const notePages = pages.filter(page => /NAVODILO-\d{3}/.test(page));
-    assert(tablePages.length >= 2, `Expected table rows on multiple pages; got ${tablePages.length} table pages.`);
-    assert(notePages.length >= 2, `Expected long supplier instructions to continue across pages; got ${notePages.length} note pages.`);
+    assert(
+      tablePages.length >= 2,
+      `Expected table rows on multiple pages; got ${tablePages.length} table pages. Extracted text: ${normalizeText(extracted).slice(0, 1_200)}`,
+    );
+    assert(
+      notePages.length >= 2,
+      `Expected long supplier instructions to continue across pages; got ${notePages.length} note pages.`,
+    );
 
-    const headerLabels = ["artikel", "pakiranje", "količina paketov", "cena paketa", "znesek"];
+    const headerLabels = [
+      ["artikel"],
+      ["pakiranje"],
+      ["količina", "paketov"],
+      ["cena", "paketa"],
+      ["znesek"],
+    ];
     for (const [index, page] of tablePages.entries()) {
       const normalizedPage = page.toLocaleLowerCase("sl");
       for (const label of headerLabels) {
         assert(
-          normalizedPage.includes(label),
-          `Table page ${index + 1} is missing its repeated header label "${label}".`,
+          label.every(part => normalizedPage.includes(part)),
+          `Table page ${index + 1} is missing a repeated header label "${label.join(" ")}".`,
         );
       }
     }
@@ -417,15 +592,10 @@ async function main() {
       }
     }
 
-    console.log(`Supplier-order print browser regression passed: ${pageCount} PDF pages, ${tablePages.length} table pages, ${notePages.length} note pages, 55 rows, and 100 note paragraphs.`);
+    console.log(`Supplier-order print ${selectedBrowser} regression passed: ${pageCount} PDF pages, ${tablePages.length} table pages, ${notePages.length} note pages, 55 rows, and 100 note paragraphs.`);
   } finally {
     devTools?.close();
-    if (browserProcess && browserProcess.exitCode === null) {
-      const exited = new Promise(resolve => browserProcess.once("exit", resolve));
-      browserProcess.kill("SIGTERM");
-      await Promise.race([exited, delay(5_000)]);
-      if (browserProcess.exitCode === null) browserProcess.kill("SIGKILL");
-    }
+    await stopProcessGroup(browserProcess);
     if (vite) await vite.close();
     await rm(tempDir, { recursive: true, force: true });
     for (const key of Object.keys(originalEnv)) {

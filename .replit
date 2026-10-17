@@ -56,7 +56,7 @@ timeoutMs = 120000
 
 [nix]
 channel = "stable-25_05"
-packages = ["android-tools", "cargo", "freetype", "glibcLocales", "gradle", "gumbo", "harfbuzz", "jbig2dec", "jdk17", "lcms2", "libiconv", "libimagequant", "libjpeg", "libjpeg_turbo", "libtiff", "libwebp", "libxcrypt", "mupdf", "openjpeg", "openssl", "pkg-config", "rustc", "swig", "tcl", "tk", "xcbuild", "xcodebuild", "zlib"]
+packages = ["android-tools", "cargo", "freetype", "glibcLocales", "gradle", "gumbo", "harfbuzz", "jbig2dec", "jdk17", "lcms2", "libiconv", "libimagequant", "libjpeg", "libjpeg_turbo", "libtiff", "libwebp", "libxcrypt", "mupdf", "openjpeg", "openssl", "pkg-config", "rustc", "swig", "tcl", "tk", "xcbuild", "xcodebuild", "zlib", "firefox", "geckodriver"]
 
 [userenv]
 

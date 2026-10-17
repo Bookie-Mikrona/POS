@@ -23,7 +23,7 @@
 - [QR alkohol brez blokade](qr-alkohol-brez-blokade.md) — QR alkohol gre takoj v pripravo; osebje starost in opitost preveri ob postrežbi pri mizi.
 - [Zapiranje POS 109](pos-109-zapiranje.md) — prejemnico je dovoljeno zapreti le iz natančnega POS posnetka v temeljnici in z usklajenim zaklepanjem računa
 - [Bon za pico logika](bon-za-pico-logika.md) — skupaj/ddv je že neto; bon za pico je info vrstica; buildBonPicaAdjustedPostavke za tiskanje; statistike ne odštevajo bonPica
-- [POS tiskanje](pos-tiskanje.md) — povezani zapisi za ZCS pakete, kodne strani po napravah ter potrjene širine in format računov.
+- [POS tiskanje](pos-tiskanje.md) — potrjeni profili tiskalnikov; WebKit headless v Replit Linux pade, Safari je treba preveriti na delujočem WebKit runnerju.
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
 - [Vertex AI image/PDF omejitev](vertex-ai-image-pdf.md) — Vertex AI proxy zavrne image/base64 (PNG+JPEG); rešitev: pdfkit PNG→PDF wrapper, pošlji kot application/pdf document
 - [Samodejno iskanje dobavitelja](poisci-dobavitelja.md) — DDG Lite → bizi.si slug → scrape davčne; brez API ključa; vsi 3 MANJKA_DOBAVITELJ bloki pokrite
