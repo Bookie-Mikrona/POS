@@ -31,7 +31,8 @@ import {
   db, companiesTable, accountingRolesTable, accountingPeriodsTable,
   accountsTable, counterpartiesTable, documentsTable, invoicesTable,
   invoiceLinesTable, journalEntriesTable, journalEntryLinesTable,
-  vatCodeTable, vatCodesTable, vatLedgerTable, enoteTable, auditLogTable,
+  vatCodeTable, vatCodesTable, vatLedgerTable, enoteTable,
+  auditLogTable,
 } from "@workspace/db";
 import journalsRouter from "./journalEntries";
 import invoicesRouter from "./invoices";
@@ -216,6 +217,64 @@ describe.sequential("automatic journal VAT provenance", () => {
     const after = await db.select({ id: journalEntriesTable.id }).from(journalEntriesTable)
       .where(eq(journalEntriesTable.companyId, companyId));
     expect(after).toEqual(before);
+  });
+
+  it("creates a posted journal with lines, resolved VAT ledger and audit in one transaction", async () => {
+    const created = await request(app).post(`/companies/${companyId}/entries`).send({
+      ...proposalBody({ companyVatCodeId: companyCodeId }),
+      sourceType: "manual", autoPost: true, documentDate: "2026-01-10",
+    }).expect(201);
+    expect(created.body.status).toBe("posted");
+    expect(created.body.lines).toHaveLength(2);
+    expect(await entryVatLines(created.body.id)).toEqual([
+      { vatCodeId: globalId, companyVatCodeId: companyCodeId },
+    ]);
+    const ledger = await db.select().from(vatLedgerTable)
+      .where(eq(vatLedgerTable.journalEntryId, created.body.id));
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({ vatCodeId: globalId, baseAmount: "100.00", vatAmount: "22.00" });
+    const audit = await db.select().from(auditLogTable)
+      .where(eq(auditLogTable.entityId, created.body.id));
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({ companyId, action: "create_and_post", changedBy: "TEST-journal-vat-links" });
+  });
+
+  it("rolls back the journal, lines and VAT ledger if the final audit write fails", async () => {
+    const snapshot = async () => (await db.execute(sql`
+      SELECT
+        (SELECT count(*)::int FROM journal_entries WHERE company_id = ${companyId}) AS entries,
+        (SELECT count(*)::int FROM journal_entry_lines l JOIN journal_entries e ON e.id = l.entry_id
+          WHERE e.company_id = ${companyId}) AS lines,
+        (SELECT count(*)::int FROM vat_ledger v JOIN journal_entries e ON e.id = v.journal_entry_id
+          WHERE e.company_id = ${companyId}) AS vat,
+        (SELECT count(*)::int FROM audit_log WHERE company_id = ${companyId}) AS audits
+    `)).rows;
+    const before = await snapshot();
+    const originalTransaction = isolation.tx.transaction.bind(isolation.tx);
+    const transactionSpy = vi.spyOn(isolation.tx, "transaction").mockImplementation((callback: any) =>
+      originalTransaction(async (tx: any) => {
+        const originalInsert = tx.insert.bind(tx);
+        const insertSpy = vi.spyOn(tx, "insert").mockImplementation((table: any) => {
+          if (table === auditLogTable) throw new Error("TEST final journal audit failure");
+          return originalInsert(table);
+        });
+        try {
+          return await callback(tx);
+        } finally {
+          insertSpy.mockRestore();
+        }
+      }),
+    );
+    try {
+      const failed = await request(app).post(`/companies/${companyId}/entries`).send({
+        ...proposalBody({ companyVatCodeId: companyCodeId }),
+        sourceType: "manual", autoPost: true, documentDate: "2026-01-10",
+      }).expect(500);
+      expect(failed.body.error).toBe("TEST final journal audit failure");
+    } finally {
+      transactionSpy.mockRestore();
+    }
+    expect(await snapshot()).toEqual(before);
   });
 
   it("keeps the selected tenant code from an imported received document through invoice posting and KPR", async () => {

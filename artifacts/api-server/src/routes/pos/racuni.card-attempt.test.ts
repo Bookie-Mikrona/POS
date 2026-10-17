@@ -794,6 +794,216 @@ describe("sočasna izdaja računa iz istega potrjenega plačila", () => {
     expect(replay.body).toMatchObject({ id: issued.body.id, idempotentReplay: true });
   });
 
+  it("ohrani Smart Checkout orderCode, pos-attempt referenco in celotni znesek do računa ter replay", async () => {
+    const runId = Math.random().toString(36).slice(2, 10).toUpperCase();
+    const paymentAttemptId = `smart-payment-${runId}-0001`;
+    const orderCode = `smart-order-${runId}`;
+    const transactionId = `smart-transaction-${runId}`;
+    const deviceKey = `smart-device-${runId}`;
+    const merchantReference = `pos-attempt-${paymentAttemptId}`;
+    const clientId = `smart-client-${runId}`;
+
+    vivaRouteMocks.ustvariNarocilo.mockReset().mockResolvedValue(orderCode);
+    vivaRouteMocks.preveriStatus.mockReset().mockResolvedValue({
+      status: "PAID", orderCode, transactionId,
+    });
+    // Keep the real transaction verifier: only Viva's HTTP responses are fake.
+    // This catches regressions in both the route's arguments and the verifier.
+    const actualViva = await vi.importActual<typeof import("../../lib/pos-viva")>("../../lib/pos-viva");
+    vivaRouteMocks.preveriVivaTransakcijo.mockReset()
+      .mockImplementation(actualViva.preveriVivaTransakcijo);
+    let transaction = {
+      transactionId, amount: 20.4, statusId: "F", merchantTrns: merchantReference,
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/connect/token")) {
+        return Response.json({ access_token: "smart-test-token", expires_in: 3600 });
+      }
+      if (url.endsWith(`/checkout/v2/transactions/${transactionId}`)) {
+        return Response.json(transaction);
+      }
+      throw new Error(`Unexpected external request: ${url}`);
+    });
+
+    try {
+      const [company] = await db.insert(companiesTable).values({
+        podjetjeDavcna: `T606${runId}`,
+        naziv: `Smart Checkout route ${runId}`,
+      }).returning({ id: companiesTable.id });
+      const [enota] = await db.insert(enoteTable).values({
+        companyId: company!.id,
+        ime: `Smart Checkout route ${runId}`,
+        capabilities: ["checkout", "receipts", "simulation"],
+      }).returning({ id: enoteTable.id });
+      await db.insert(napraveTable).values({
+        enotaId: enota!.id,
+        ime: "Smart Checkout testna naprava",
+        napravaKljuc: deviceKey,
+        nastavitveJson: JSON.stringify({
+          vivaAktiven: true,
+          vivaClientId: clientId,
+          vivaClientSecret: "smart-test-secret",
+          vivaSourceCode: "smart-test-source",
+          vivaDemoNacin: true,
+        }),
+      });
+      const [order] = await db.insert(narocilaTable).values({
+        enotaId: enota!.id, skupaj: "18.40", znesekNapitnina: "2.00",
+      }).returning({ id: narocilaTable.id });
+      await db.insert(postavkeTable).values({
+        narociloId: order!.id, ime: "Smart Checkout artikel", kolicina: 1,
+        cenaKos: "18.40", skupaj: "18.40", davek: "22.00",
+      });
+      await db.insert(tipPoliciesTable).values({
+        companyId: company!.id, enotaId: enota!.id, effectiveFrom: "2000-01-01",
+        mode: "direct_employee", evidenceType: "internal_rule",
+        evidenceReference: `Smart Checkout route ${runId}`, agreementConfirmed: true,
+        cardFeeTreatment: "employer_expense", cardFeeKind: "none", createdBy: "test",
+      });
+      const app = express();
+      app.use(express.json());
+      app.use((req, _res, next) => {
+        Object.assign(req, {
+          companyId: company!.id, enotaId: enota!.id,
+          clerkUserId: `smart-user-${runId}`, napravaKljuc: deviceKey,
+          log: { info: () => undefined, warn: () => undefined, error: () => undefined },
+        });
+        next();
+      });
+      app.use(terminalRouter);
+      app.use(racuniRouter);
+      app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+        res.status(500).json({ error: err.message });
+      });
+
+      const startBody = {
+        narociloId: order!.id, znesek: 20.4, znesekNapitninaKartica: 2, paymentAttemptId,
+      };
+      const start = await supertest(app).post("/terminal/viva/pay")
+        .set("X-Naprava-Id", deviceKey).send(startBody);
+      expect(start.status, start.body).toBe(200);
+      expect(start.body).toMatchObject({
+        orderCode, paymentAttemptId, status: "pending",
+        checkoutUrl: `https://checkout.example/${orderCode}`,
+      });
+      expect(vivaRouteMocks.ustvariNarocilo).toHaveBeenCalledExactlyOnceWith(
+        20.4, merchantReference, "smart-test-source", clientId, "smart-test-secret", true,
+      );
+      const startReplay = await supertest(app).post("/terminal/viva/pay")
+        .set("X-Naprava-Id", deviceKey).send(startBody);
+      expect(startReplay.status, startReplay.body).toBe(200);
+      expect(startReplay.body).toEqual(start.body);
+      expect(vivaRouteMocks.ustvariNarocilo).toHaveBeenCalledTimes(1);
+      const [attempt] = await db.select().from(posKarticnaPlacilaAttemptTable)
+        .where(eq(posKarticnaPlacilaAttemptTable.idempotencyKey, paymentAttemptId));
+      expect(attempt).toMatchObject({
+        provider: "viva_smart", providerReferenca: orderCode, status: "pending", znesek: "20.40",
+      });
+      const receiptBody = {
+        narociloId: order!.id, placilnaNacin: "kartica", znesekKartica: 20.4,
+        znesekNapitnina: 2, tipPaymentMethod: "card",
+        paymentAttemptId, vivaOrderCode: orderCode, vivaTransactionId: transactionId,
+      };
+      const assertNoFiscalEffects = async () => {
+        const receipts = await db.select({ id: racuniTable.id }).from(racuniTable)
+          .where(eq(racuniTable.narociloId, order!.id));
+        const requests = await db.select({ id: racunIzdajaZahteveTable.id })
+          .from(racunIzdajaZahteveTable)
+          .where(eq(racunIzdajaZahteveTable.cardPaymentAttemptId, attempt!.id));
+        const furs = await db.execute(sql`
+          SELECT fa.id FROM furs_attempts fa JOIN racuni r ON r.id = fa.racun_id
+          WHERE r.enota_id = ${enota!.id}
+        `);
+        expect(receipts).toHaveLength(0);
+        expect(requests).toHaveLength(0);
+        expect(furs.rows).toHaveLength(0);
+      };
+
+      // Each reply claims a paid order; none is sufficient without matching
+      // transaction ID, total including tip, and the prefixed merchant reference.
+      for (const [label, override] of [
+        ["transaction-id", { transactionId: `${transactionId}-changed` }],
+        ["amount-without-tip", { amount: 18.4 }],
+        ["amount-one-cent", { amount: 20.39 }],
+        ["merchant-reference", { merchantTrns: paymentAttemptId }],
+      ] as const) {
+        transaction = Object.assign({
+          transactionId, amount: 20.4, statusId: "F", merchantTrns: merchantReference,
+        }, override);
+        const status = await supertest(app).get(`/terminal/viva/status/${orderCode}`)
+          .set("X-Naprava-Id", deviceKey);
+        expect(status.status, status.body).toBe(200);
+        expect(status.body.status, label).toBe("UNKNOWN");
+        const [stored] = await db.select().from(posKarticnaPlacilaAttemptTable)
+          .where(eq(posKarticnaPlacilaAttemptTable.id, attempt!.id));
+        expect(stored!.status, label).toBe("unknown");
+        const rejected = await supertest(app).post("/racuni").send({
+          ...receiptBody, idempotencyKey: `smart-rejected-${runId}-${label}`,
+        });
+        expect(rejected.status, rejected.body).toBe(409);
+        await assertNoFiscalEffects();
+      }
+
+      transaction = { transactionId, amount: 20.4, statusId: "F", merchantTrns: merchantReference };
+      const status = await supertest(app).get(`/terminal/viva/status/${orderCode}`)
+        .set("X-Naprava-Id", deviceKey);
+      expect(status.status, status.body).toBe(200);
+      expect(status.body).toMatchObject({ status: "PAID", orderCode, transactionId });
+      expect(vivaRouteMocks.preveriStatus).toHaveBeenLastCalledWith(
+        orderCode, clientId, "smart-test-secret", true,
+      );
+      expect(vivaRouteMocks.preveriVivaTransakcijo).toHaveBeenLastCalledWith(
+        transactionId, 2040, merchantReference, clientId, "smart-test-secret", true,
+      );
+      const [completed] = await db.select().from(posKarticnaPlacilaAttemptTable)
+        .where(eq(posKarticnaPlacilaAttemptTable.id, attempt!.id));
+      expect(completed).toMatchObject({
+        status: "completed", providerReferenca: orderCode, znesek: "20.40",
+      });
+      expect(JSON.parse(completed!.rezultatJson!)).toMatchObject({
+        orderCode, transactionId, amountCents: 2040,
+      });
+
+      for (const wrongOrderCode of [`${orderCode}-changed`, transactionId, paymentAttemptId]) {
+        const rejected = await supertest(app).post("/racuni").send({
+          ...receiptBody, vivaOrderCode: wrongOrderCode,
+          idempotencyKey: `smart-wrong-order-${runId}-${wrongOrderCode}`,
+        });
+        expect(rejected.status, rejected.body).toBe(409);
+        await assertNoFiscalEffects();
+      }
+      const wrongAmount = await supertest(app).post("/racuni").send({
+        ...receiptBody, znesekKartica: 18.4, znesekNapitnina: 0,
+        idempotencyKey: `smart-wrong-amount-${runId}`,
+      });
+      expect(wrongAmount.status, wrongAmount.body).toBe(400);
+      await assertNoFiscalEffects();
+
+      const body = { ...receiptBody, idempotencyKey: `smart-receipt-${runId}` };
+      const issued = await supertest(app).post("/racuni").send(body);
+      expect(issued.status, issued.body).toBe(201);
+      const replay = await supertest(app).post("/racuni").send(body);
+      expect(replay.status, replay.body).toBe(200);
+      expect(replay.body).toMatchObject({ id: issued.body.id, idempotentReplay: true });
+      const receipts = await db.select().from(racuniTable)
+        .where(eq(racuniTable.cardPaymentAttemptId, attempt!.id));
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]).toMatchObject({
+        id: issued.body.id, vivaOrderCode: orderCode, vivaTransactionId: transactionId,
+        vivaTerminalSessionId: null, znesekKartica: "20.40", znesekNapitnina: "2.00",
+      });
+      const furs = await db.execute(sql`
+        SELECT fa.id FROM furs_attempts fa WHERE fa.racun_id = ${issued.body.id}
+      `);
+      expect(furs.rows).toHaveLength(1);
+      expect(vivaRouteMocks.ustvariNarocilo).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+      vivaRouteMocks.preveriVivaTransakcijo.mockReset();
+    }
+  });
+
   it("ustvari največ en račun ter ohrani idempotentno ponovitev", async () => {
     const runId = Math.random().toString(36).slice(2, 10).toUpperCase();
     const [company] = await db.insert(companiesTable).values({
