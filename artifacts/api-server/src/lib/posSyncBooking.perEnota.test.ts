@@ -70,6 +70,8 @@ async function createSale(
   amount: string,
   kategorijaId: number | null = null,
 ) {
+  const gross = new Decimal(amount);
+  const net = gross.div("1.22").toDecimalPlaces(2);
   const [order] = await db
     .insert(narocilaTable)
     .values({ enotaId, status: "zakljuceno", skupaj: amount })
@@ -82,7 +84,8 @@ async function createSale(
       narociloId: order.id,
       stevilkaRacuna: number,
       skupaj: amount,
-      ddv: new Decimal(amount).mul(22).div(122).toFixed(2),
+      osnova: net.toFixed(2),
+      ddv: gross.minus(net).toFixed(2),
       placilnaNacin: "gotovina",
       status: "poslan",
       datumCas: new Date(`${DATE}T10:00:00+02:00`),
