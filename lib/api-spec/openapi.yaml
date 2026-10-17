@@ -15211,7 +15211,7 @@ components:
       type: object
       required: [courseNumber, foodArtikelId, wineArtikelId]
       properties:
-        courseNumber: { type: integer, minimum: 1, maximum: 4 }
+        courseNumber: { type: integer, minimum: 1, maximum: 20 }
         foodArtikelId: { type: integer, minimum: 1 }
         wineArtikelId: { type: integer, minimum: 1 }
     MulticourseMenuOrderInput:
@@ -15224,8 +15224,9 @@ components:
         opomba: { type: ["string", "null"], maxLength: 1000 }
         selections:
           type: array
-          minItems: 3
-          maxItems: 4
+          description: Selected non-informational courses; the server validates the exact count against the active menu configuration.
+          minItems: 1
+          maxItems: 20
           items:
             $ref: "#/components/schemas/MulticourseMenuCourseSelection"
     QrGostNarociloPostavkaInput:

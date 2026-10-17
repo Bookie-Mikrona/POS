@@ -2,6 +2,7 @@ import express from "express";
 import supertest from "supertest";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { AddMulticourseMenuBody } from "@workspace/api-zod";
 import {
   artikliTable,
   companiesTable,
@@ -19,6 +20,30 @@ vi.mock("./kds", () => ({
 }));
 
 import narocilaRouter, { resolveMulticourseSelections } from "./narocila";
+
+describe("AddMulticourseMenuBody bounds", () => {
+  const selection = { courseNumber: 20, foodArtikelId: 1, wineArtikelId: 2 };
+  const payload = { menuArtikelId: 3, quantity: 1 };
+
+  it("allows one to twenty selections, leaving exact counts to the menu configuration", () => {
+    for (const count of [1, 2, 5, 20]) {
+      expect(AddMulticourseMenuBody.safeParse({
+        ...payload, selections: Array.from({ length: count }, () => selection),
+      }).success).toBe(true);
+    }
+  });
+
+  it("rejects empty or oversized selection lists and course numbers outside 1–20", () => {
+    for (const selections of [
+      [],
+      Array.from({ length: 21 }, () => selection),
+      [{ ...selection, courseNumber: 0 }],
+      [{ ...selection, courseNumber: 21 }],
+    ]) {
+      expect(AddMulticourseMenuBody.safeParse({ ...payload, selections }).success).toBe(false);
+    }
+  });
+});
 
 const configuration = {
   izbor: "fixed_four" as const,
@@ -118,6 +143,98 @@ describe("POST /narocila/:id/multicourse PostgreSQL integration", () => {
       await db.delete(companiesTable).where(inArray(companiesTable.id, createdCompanyIds));
     }
     await pool.end();
+  });
+
+  it.each([2, 5, 20])("accepts a configured %i-course menu and rejects too few or too many selections without writes", async (courseCount) => {
+    const runId = Math.random().toString(36).slice(2, 10);
+    const [company] = await db.insert(companiesTable).values({
+      podjetjeDavcna: `MC_RANGE_${runId}`,
+      naziv: `Multicourse range ${runId}`,
+    }).returning({ id: companiesTable.id });
+    createdCompanyIds.push(company!.id);
+    const [enota] = await db.insert(enoteTable).values({
+      companyId: company!.id,
+      ime: `Multicourse range ${runId}`,
+    }).returning({ id: enoteTable.id });
+    const [menuArtikel, food, wine] = await db.insert(artikliTable).values(
+      ["Meni", "Jed", "Vino"].map(ime => ({
+        enotaId: enota!.id,
+        ime: `${ime} ${runId}`,
+        cena: "80.00",
+        davek: "9.50",
+        prodajniArtikel: true,
+      })),
+    ).returning({ id: artikliTable.id });
+    const [menu] = await db.insert(multicourseMenusTable).values({
+      enotaId: enota!.id,
+      menuArtikelId: menuArtikel!.id,
+      izbor: "fixed_four",
+      selectionMode: "fixed",
+      foodPricePercent: "75",
+    }).returning({ id: multicourseMenusTable.id });
+    createdMenuIds.push(menu!.id);
+    const selections = Array.from({ length: courseCount }, (_, index) => ({
+      courseNumber: index + 1,
+      foodArtikelId: food!.id,
+      wineArtikelId: wine!.id,
+    }));
+    await db.insert(multicourseMenuCoursesTable).values(selections.map(selection => ({
+      menuId: menu!.id,
+      courseNumber: selection.courseNumber,
+      foodArtikelId: food!.id,
+      allowedFoodArtikelIds: [food!.id],
+      allowedWineArtikelIds: [wine!.id],
+    })));
+    const [order] = await db.insert(narocilaTable).values({
+      enotaId: enota!.id,
+      stevilkaNarocila: 590000 + courseCount,
+    }).returning({ id: narocilaTable.id });
+    createdOrderIds.push(order!.id);
+
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      Object.assign(req, {
+        companyId: company!.id,
+        enotaId: enota!.id,
+        jeDdvZavezanec: false,
+        log: { info: () => undefined, warn: () => undefined, error: () => undefined },
+      });
+      next();
+    });
+    app.use(narocilaRouter);
+    const endpoint = `/narocila/${order!.id}/multicourse`;
+    const payload = { menuArtikelId: menuArtikel!.id, quantity: 1, selections };
+
+    for (const invalid of [selections.slice(1), [...selections, selections[0]!]]) {
+      const rejected = await supertest(app).post(endpoint).send({ ...payload, selections: invalid });
+      expect(rejected.status, JSON.stringify(rejected.body)).toBe(400);
+      // Counts within the broad contract must reach authoritative configuration validation.
+      if (invalid.length <= 20) {
+        expect(rejected.body.error).toBe("Izbira hodov ali vin večhodnega menija ni veljavna.");
+      }
+      expect(await db.select({ id: postavkeTable.id }).from(postavkeTable)
+        .where(eq(postavkeTable.narociloId, order!.id))).toEqual([]);
+    }
+
+    const created = await supertest(app).post(endpoint).send(payload);
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    const components = await db.select({
+      courseNumber: postavkeTable.courseNumber,
+      artikelId: postavkeTable.artikelId,
+    }).from(postavkeTable).where(and(
+      eq(postavkeTable.narociloId, order!.id),
+      isNotNull(postavkeTable.courseNumber),
+    ));
+    expect(components).toHaveLength(courseCount * 2);
+    for (const selection of selections) {
+      expect(components.filter(row => row.courseNumber === selection.courseNumber)).toEqual(
+        expect.arrayContaining([
+          { courseNumber: selection.courseNumber, artikelId: food!.id },
+          { courseNumber: selection.courseNumber, artikelId: wine!.id },
+        ]),
+      );
+    }
   });
 
   it("ohrani prvotno ime hoda na notranjih food/wine vrsticah tudi po preimenovanju konfiguracije", async () => {

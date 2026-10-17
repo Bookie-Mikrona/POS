@@ -3829,7 +3829,7 @@ export interface PostavkaInput {
 export interface MulticourseMenuCourseSelection {
   /**
      * @minimum 1
-     * @maximum 4
+     * @maximum 20
      */
   courseNumber: number;
   /** @minimum 1 */
@@ -3854,8 +3854,9 @@ export interface MulticourseMenuOrderInput {
      */
   opomba?: string | null;
   /**
-     * @minItems 3
-     * @maxItems 4
+     * Selected non-informational courses; the server validates the exact count against the active menu configuration.
+     * @minItems 1
+     * @maxItems 20
      */
   selections: MulticourseMenuCourseSelection[];
 }
@@ -15052,4 +15053,3 @@ export type PreviewPosMonthlyInvoiceParams = {
 month: string;
 counterpartyId: string;
 };
-
