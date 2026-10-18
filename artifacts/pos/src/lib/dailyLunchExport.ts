@@ -1,12 +1,16 @@
 import { formatEur } from "./formatEur";
 
 export type LunchMenuSection = { title: string; note?: string; items: { name: string; price?: number }[] };
+export type LunchDay = { dateLabel: string; sections: LunchMenuSection[] };
 export type LunchMenuData = {
   restaurant: string;
+  /** Ime poslovne enote (npr. Križišče). */
+  unit?: string;
   address?: string;
-  dateLabel: string;
+  /** Naslov obdobja, npr. »Ponedeljek, 19. oktober 2026« ali »19. 10. – 25. 10. 2026«. */
+  periodLabel: string;
   intro: string;
-  sections: LunchMenuSection[];
+  days: LunchDay[];
 };
 
 const WIDTH = 1080;
@@ -25,11 +29,14 @@ export function formatLunchDate(iso: string): string {
 }
 
 export function lunchMenuText(data: LunchMenuData): string {
-  const lines = [data.restaurant, `Dnevna ponudba kosil – ${data.dateLabel}`, data.intro, ""];
-  for (const section of data.sections) {
-    lines.push(section.title.toUpperCase() + (section.note ? ` (${section.note})` : ""));
-    for (const item of section.items) lines.push(`• ${item.name}${item.price != null ? ` – ${formatEur(item.price)}` : ""}`);
-    lines.push("");
+  const lines = [[data.restaurant, data.unit].filter(Boolean).join(" – "), `Dnevna kosila – ${data.periodLabel}`, data.intro, ""];
+  for (const day of data.days) {
+    if (data.days.length > 1) lines.push(`=== ${day.dateLabel.toUpperCase()} ===`, "");
+    for (const section of day.sections) {
+      lines.push(section.title.toUpperCase() + (section.note ? ` (${section.note})` : ""));
+      for (const item of section.items) lines.push(`• ${item.name}${item.price != null ? ` – ${formatEur(item.price)}` : ""}`);
+      lines.push("");
+    }
   }
   return lines.join("\n").trim();
 }
@@ -57,13 +64,19 @@ export function renderLunchMenuCanvas(data: LunchMenuData): HTMLCanvasElement {
     return wrap(measure, text, innerWidth - priceWidth - 32);
   };
   const HEADER_H = 300;
+  const multi = data.days.length > 1;
+  const DAY_BAR_H = 84;
   let height = HEADER_H + 40;
-  for (const section of data.sections) {
-    height += 90;
-    for (const item of section.items) {
-      height += itemLines(item.name, item.price != null ? 150 : 0).length * ITEM_H + 8;
+  for (const day of data.days) {
+    if (multi) height += DAY_BAR_H + 24;
+    for (const section of day.sections) {
+      height += 90;
+      for (const item of section.items) {
+        height += itemLines(item.name, item.price != null ? 150 : 0).length * ITEM_H + 8;
+      }
+      height += 30;
     }
-    height += 30;
+    if (multi) height += 20;
   }
   height += 120;
 
@@ -80,53 +93,64 @@ export function renderLunchMenuCanvas(data: LunchMenuData): HTMLCanvasElement {
   grad.addColorStop(1, "#f97316");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, WIDTH, HEADER_H);
-  ctx.fillStyle = "rgba(255,255,255,0.8)";
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
   ctx.font = `600 26px ${FONT}`;
-  ctx.fillText(data.restaurant.toUpperCase(), PAD, 78);
+  ctx.fillText([data.restaurant, data.unit].filter(Boolean).join(" · ").toUpperCase(), PAD, 78);
   ctx.fillStyle = "#fff";
   ctx.font = `800 72px ${FONT}`;
   ctx.fillText("Dnevna kosila", PAD, 164);
   ctx.font = `500 36px ${FONT}`;
-  ctx.fillText(data.dateLabel, PAD, 220);
+  ctx.fillText(data.periodLabel, PAD, 220);
   ctx.fillStyle = "rgba(255,255,255,0.85)";
   ctx.font = `400 26px ${FONT}`;
   ctx.fillText(data.intro, PAD, 266);
 
   let y = HEADER_H + 40;
-  for (const section of data.sections) {
-    ctx.fillStyle = ACCENT;
-    ctx.font = `800 30px ${FONT}`;
-    ctx.fillText(section.title.toUpperCase(), PAD, y + 40);
-    if (section.note) {
-      const w = ctx.measureText(section.title.toUpperCase()).width;
-      ctx.fillStyle = MUTED;
-      ctx.font = `400 24px ${FONT}`;
-      ctx.fillText(section.note, PAD + w + 18, y + 40);
+  for (const day of data.days) {
+    if (multi) {
+      ctx.fillStyle = "#fed7aa";
+      ctx.fillRect(PAD - 24, y, innerWidth + 48, DAY_BAR_H);
+      ctx.fillStyle = "#9a3412";
+      ctx.font = `800 36px ${FONT}`;
+      ctx.fillText(day.dateLabel, PAD, y + 56);
+      y += DAY_BAR_H + 24;
     }
-    ctx.fillStyle = ACCENT;
-    ctx.fillRect(PAD, y + 56, 56, 4);
-    y += 90;
-    for (const item of section.items) {
-      const priceText = item.price != null ? formatEur(item.price) : "";
-      const lines = itemLines(item.name, item.price != null ? 150 : 0);
-      ctx.fillStyle = INK;
-      ctx.font = `500 32px ${FONT}`;
-      lines.forEach((line, index) => ctx.fillText(line, PAD, y + 32 + index * ITEM_H));
-      if (priceText) {
-        ctx.font = `700 32px ${FONT}`;
-        ctx.fillStyle = ACCENT;
-        ctx.textAlign = "right";
-        ctx.fillText(priceText, WIDTH - PAD, y + 32);
-        ctx.textAlign = "left";
+    for (const section of day.sections) {
+      ctx.fillStyle = ACCENT;
+      ctx.font = `800 30px ${FONT}`;
+      ctx.fillText(section.title.toUpperCase(), PAD, y + 40);
+      if (section.note) {
+        const w = ctx.measureText(section.title.toUpperCase()).width;
+        ctx.fillStyle = MUTED;
+        ctx.font = `400 24px ${FONT}`;
+        ctx.fillText(section.note, PAD + w + 18, y + 40);
       }
-      y += lines.length * ITEM_H + 8;
+      ctx.fillStyle = ACCENT;
+      ctx.fillRect(PAD, y + 56, 56, 4);
+      y += 90;
+      for (const item of section.items) {
+        const priceText = item.price != null ? formatEur(item.price) : "";
+        const lines = itemLines(item.name, item.price != null ? 150 : 0);
+        ctx.fillStyle = INK;
+        ctx.font = `500 32px ${FONT}`;
+        lines.forEach((line, index) => ctx.fillText(line, PAD, y + 32 + index * ITEM_H));
+        if (priceText) {
+          ctx.font = `700 32px ${FONT}`;
+          ctx.fillStyle = ACCENT;
+          ctx.textAlign = "right";
+          ctx.fillText(priceText, WIDTH - PAD, y + 32);
+          ctx.textAlign = "left";
+        }
+        y += lines.length * ITEM_H + 8;
+      }
+      y += 30;
     }
-    y += 30;
+    if (multi) y += 20;
   }
   ctx.fillStyle = MUTED;
   ctx.font = `400 24px ${FONT}`;
   ctx.textAlign = "center";
-  ctx.fillText([data.restaurant, data.address].filter(Boolean).join(" · "), WIDTH / 2, height - 52);
+  ctx.fillText([data.restaurant, data.unit, data.address].filter(Boolean).join(" · "), WIDTH / 2, height - 52);
   ctx.textAlign = "left";
   return canvas;
 }

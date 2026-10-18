@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { poslovniDatumZaCas } from "@/lib/posCas";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNastavitve } from "@/contexts/NastavitveContext";
 import { formatEur } from "@/lib/formatEur";
 import {
   canvasToPdfBlob, canvasToPngBlob, downloadBlob, formatLunchDate, lunchMenuText, renderLunchMenuCanvas,
-  type LunchMenuData,
+  type LunchDay, type LunchMenuData,
 } from "@/lib/dailyLunchExport";
 import { ChevronLeft, ChevronRight, Copy, FileText, Image as ImageIcon, Mail, Search } from "lucide-react";
 
@@ -37,6 +38,10 @@ export default function KosilaPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const { nastavitve } = useNastavitve();
+  const { user } = useAuth();
+  const unitName = (user?.enote ?? []).find((e) => e.id === user?.enotaId)?.ime ?? (user?.enote ?? [])[0]?.ime;
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
   const { data } = useListDailyLunchOffers();
   const { data: articles } = useListArtikli();
   const client = useQueryClient();
@@ -59,6 +64,7 @@ export default function KosilaPage() {
     setChoices(next);
   }, [offer?.id, businessDate]);
 
+  useEffect(() => { setRangeFrom(""); setRangeTo(""); }, [businessDate]);
   const toggle = (role: string, artikelId: number) => setChoices((current) => ({
     ...current, [role]: (current[role] ?? []).includes(artikelId)
       ? (current[role] ?? []).filter((id) => id !== artikelId)
@@ -93,36 +99,65 @@ export default function KosilaPage() {
   const baseNum = Number(base.replace(",", ".")) || 0;
   const starterNum = Number(starter.replace(",", ".")) || 0;
 
+  const buildSections = (selection: Record<string, number[]>, baseValue: number, starterValue: number) => roles.map((role) => ({
+    title: role === "main" ? "Glavne jedi" : role === "soup" ? "Juhe" : role === "dessert" ? "Sladice" : "Predjedi",
+    note: role === "main" ? "cena kosila s juho in sladico" : role === "starter" ? `4 hodi: doplačilo ${formatEur(starterValue)}` : undefined,
+    items: (selection[role] ?? []).map((id) => byId.get(id)).filter((a): a is NonNullable<typeof a> => !!a)
+      .sort((a, b) => collator.compare(a.ime, b.ime))
+      .map((article) => ({ name: article.ime, price: role === "main" ? Number(article.cena) + baseValue : undefined })),
+  })).filter((section) => section.items.length > 0);
+  const restaurant = nastavitve?.nazivRestavracije || "Dnevna ponudba";
+  const intro = "3 hodi: juha, glavna jed, sladica · 4 hodi: z predjedjo";
+  const previewSections = useMemo(() => buildSections(choices, baseNum, starterNum), [choices, byId, baseNum, starterNum]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const from = rangeFrom || businessDate;
+  const to = rangeTo || businessDate;
+  const rangeInvalid = to < from || shiftDate(from, 14) < to;
+  /** Ponudbe za izbrano obdobje; za trenutno urejani dan se upošteva še neshranjeno stanje. */
+  const buildMenu = (): LunchMenuData => {
+    const days: LunchDay[] = [];
+    for (let date = from; date <= to; date = shiftDate(date, 1)) {
+      let sections;
+      if (date === businessDate) sections = previewSections;
+      else {
+        const row = data?.offers?.find((o) => o.businessDate === date);
+        if (!row) continue;
+        const selection: Record<string, number[]> = {};
+        for (const choice of row.choices) (selection[choice.role] ??= []).push(choice.artikelId);
+        sections = buildSections(selection, Number(row.baseFlatAmount), Number(row.starterFlatAmount));
+      }
+      if (sections.length > 0) days.push({ dateLabel: formatLunchDate(date), sections });
+    }
+    return {
+      restaurant, unit: unitName, address: nastavitve?.naslovRestavracije || undefined, intro, days,
+      periodLabel: from === to ? formatLunchDate(from) : `${formatLunchDate(from)} – ${formatLunchDate(to)}`,
+    };
+  };
   const menu = useMemo<LunchMenuData>(() => ({
-    restaurant: nastavitve?.nazivRestavracije || "Dnevna ponudba",
-    address: nastavitve?.naslovRestavracije || undefined,
-    dateLabel: formatLunchDate(businessDate),
-    intro: "3 hodi: juha, glavna jed, sladica · 4 hodi: z predjedjo",
-    sections: roles.map((role) => ({
-      title: role === "main" ? "Glavne jedi" : role === "soup" ? "Juhe" : role === "dessert" ? "Sladice" : "Predjedi",
-      note: role === "main" ? "cena kosila s juho in sladico" : role === "starter" ? `4 hodi: doplačilo ${formatEur(starterNum)}` : undefined,
-      items: (choices[role] ?? []).map((id) => byId.get(id)).filter((a): a is NonNullable<typeof a> => !!a)
-        .sort((a, b) => collator.compare(a.ime, b.ime))
-        .map((article) => ({ name: article.ime, price: role === "main" ? Number(article.cena) + baseNum : undefined })),
-    })).filter((section) => section.items.length > 0),
-  }), [choices, byId, businessDate, nastavitve, baseNum, starterNum]);
-  const total = roles.reduce((sum, role) => sum + (choices[role]?.length ?? 0), 0);
-  const fileBase = `kosila-${businessDate}`;
+    restaurant, unit: unitName, intro, periodLabel: formatLunchDate(businessDate),
+    days: [{ dateLabel: formatLunchDate(businessDate), sections: previewSections }],
+  }), [restaurant, unitName, businessDate, previewSections]);
+  const weekStart = shiftDate(businessDate, -((new Date(`${businessDate}T00:00:00Z`).getUTCDay() + 6) % 7));
+  const setRange = (a: string, b: string) => { setRangeFrom(a); setRangeTo(b); };
   const exportWith = async (kind: "png" | "pdf") => {
-    if (total === 0) { toast({ title: "Ponudba je prazna", variant: "destructive" }); return; }
+    if (rangeInvalid) { toast({ title: "Neveljavno obdobje", description: "Obdobje je lahko dolgo največ 15 dni.", variant: "destructive" }); return; }
+    const periodMenu = buildMenu();
+    if (periodMenu.days.length === 0) { toast({ title: "V izbranem obdobju ni ponudbe", variant: "destructive" }); return; }
     try {
-      const canvas = renderLunchMenuCanvas(menu);
-      if (kind === "png") downloadBlob(await canvasToPngBlob(canvas), `${fileBase}.png`);
-      else downloadBlob(await canvasToPdfBlob(canvas), `${fileBase}.pdf`);
+      const canvas = renderLunchMenuCanvas(periodMenu);
+      const name = `kosila-${from}${from === to ? "" : `_${to}`}`;
+      if (kind === "png") downloadBlob(await canvasToPngBlob(canvas), `${name}.png`);
+      else downloadBlob(await canvasToPdfBlob(canvas), `${name}.pdf`);
     } catch (error) { toast({ title: "Izvoz ni uspel", description: String(error), variant: "destructive" }); }
   };
   const copyText = async () => {
-    try { await navigator.clipboard.writeText(lunchMenuText(menu)); toast({ title: "Besedilo kopirano" }); }
+    try { await navigator.clipboard.writeText(lunchMenuText(buildMenu())); toast({ title: "Besedilo kopirano" }); }
     catch { toast({ title: "Kopiranje ni uspelo", variant: "destructive" }); }
   };
   const emailIt = () => {
-    const subject = encodeURIComponent(`Dnevna kosila – ${menu.dateLabel}`);
-    window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(lunchMenuText(menu))}`;
+    const periodMenu = buildMenu();
+    const subject = encodeURIComponent(`Dnevna kosila – ${periodMenu.periodLabel}`);
+    window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(lunchMenuText(periodMenu))}`;
   };
 
   return <div className="space-y-6">
@@ -175,19 +210,34 @@ export default function KosilaPage() {
 
       <Card className="order-1 h-fit lg:order-2 lg:sticky lg:top-4">
         <CardHeader className="rounded-t-lg bg-gradient-to-br from-orange-700 to-orange-500 text-white">
-          <p className="text-xs uppercase tracking-wide opacity-80">{menu.restaurant}</p>
+          <p className="text-xs uppercase tracking-wide opacity-80">{[menu.restaurant, menu.unit].filter(Boolean).join(" · ")}</p>
           <CardTitle className="text-2xl">Dnevna kosila</CardTitle>
-          <p className="text-sm opacity-90">{menu.dateLabel}</p>
+          <p className="text-sm opacity-90">{menu.periodLabel}</p>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
-          {menu.sections.length === 0 && <p className="text-sm text-muted-foreground">Za ta dan še ni izbranih jedi.</p>}
-          {menu.sections.map((section) => <section key={section.title}>
+          {previewSections.length === 0 && <p className="text-sm text-muted-foreground">Za ta dan še ni izbranih jedi.</p>}
+          {previewSections.map((section) => <section key={section.title}>
             <h3 className="text-sm font-bold uppercase tracking-wide text-orange-700">{section.title}</h3>
             {section.note && <p className="text-xs text-muted-foreground">{section.note}</p>}
             <ul className="mt-1 space-y-0.5 text-sm">{section.items.map((item) => <li key={item.name} className="flex justify-between gap-3">
               <span>{item.name}</span>{item.price != null && <span className="font-semibold text-orange-700">{formatEur(item.price)}</span>}</li>)}</ul>
           </section>)}
-          <div className="grid grid-cols-2 gap-2 border-t pt-4">
+          <div className="space-y-2 border-t pt-4">
+            <p className="text-sm font-medium">Izvoz za obdobje</p>
+            <div className="flex items-center gap-2">
+              <Input type="date" value={from} onChange={(event) => setRange(event.target.value, to < event.target.value ? event.target.value : to)} />
+              <span className="text-sm text-muted-foreground">do</span>
+              <Input type="date" value={to} onChange={(event) => setRangeTo(event.target.value)} />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <Button size="sm" variant="ghost" onClick={() => setRange(businessDate, businessDate)}>En dan</Button>
+              <Button size="sm" variant="ghost" onClick={() => setRange(weekStart, shiftDate(weekStart, 6))}>Ta teden</Button>
+              <Button size="sm" variant="ghost" onClick={() => setRange(shiftDate(weekStart, 7), shiftDate(weekStart, 13))}>Naslednji teden</Button>
+              <Button size="sm" variant="ghost" onClick={() => setRange(shiftDate(weekStart, 5), shiftDate(weekStart, 6))}>Vikend</Button>
+            </div>
+            {rangeInvalid && <p className="text-xs text-destructive">Obdobje mora biti urejeno in dolgo največ 15 dni.</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => void exportWith("png")}><ImageIcon className="mr-2 h-4 w-4" />Slika (PNG)</Button>
             <Button variant="outline" onClick={() => void exportWith("pdf")}><FileText className="mr-2 h-4 w-4" />PDF</Button>
             <Button variant="outline" onClick={() => void copyText()}><Copy className="mr-2 h-4 w-4" />Kopiraj besedilo</Button>
