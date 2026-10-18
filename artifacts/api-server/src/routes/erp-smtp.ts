@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
-import { db, accountingRolesTable, companiesTable, erpSmtpSettingsTable } from "@workspace/db";
+import { db, accountingRolesTable, auditLogTable, companiesTable, erpSmtpSettingsTable } from "@workspace/db";
 import { GetErpSmtpSettingsResponse, SaveErpSmtpSettingsBody, TestErpSmtpSettingsBody, TestErpSmtpSettingsResponse } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { createErpTransport, encryptSmtpPassword, getErpSmtp, getSmtpRow } from "../lib/erp-smtp-settings";
 import { buildEmailSender } from "../lib/email-sender";
+import { AuditAction } from "../lib/auditLog";
 
 const router: IRouter = Router();
 const path = "/companies/:companyId/erp-smtp";
@@ -60,10 +61,26 @@ router.put(path, async (req, res): Promise<void> => {
   } catch {
     res.status(503).json({ error: "SMTP gesla ni mogoče zaščititi. Obrnite se na skrbnika sistema." }); return;
   }
-  const [saved] = await db.insert(erpSmtpSettingsTable).values({ ...settings, companyId, passwordEncrypted })
-    .onConflictDoUpdate({ target: erpSmtpSettingsTable.companyId,
-      set: { ...settings, passwordEncrypted, updatedAt: new Date() } }).returning();
-  res.json(publicSettings(saved));
+  // Settings and audit entry are one transaction: a save is never reported
+  // (or kept) without its audit record. Never pass credentials or the stored
+  // row; the audit table supplies changedAt using the database clock.
+  const saved = await db.transaction(async tx => {
+    const [row] = await tx.insert(erpSmtpSettingsTable).values({ ...settings, companyId, passwordEncrypted })
+      .onConflictDoUpdate({ target: erpSmtpSettingsTable.companyId,
+        set: { ...settings, passwordEncrypted, updatedAt: new Date() } }).returning();
+    if (!row) throw new Error("SMTP settings save returned no row.");
+    await tx.insert(auditLogTable).values({
+      companyId,
+      entityType: "erp_smtp_settings",
+      entityId: companyId,
+      action: previous ? AuditAction.UPDATE : AuditAction.CREATE,
+      changedBy: (req as unknown as AuthenticatedRequest).clerkUserId,
+      payload: { passwordChanged: !!password },
+    });
+    return row;
+  });
+  const response = publicSettings(saved);
+  res.json(response);
 });
 
 router.post(`${path}/test`, async (req, res): Promise<void> => {
