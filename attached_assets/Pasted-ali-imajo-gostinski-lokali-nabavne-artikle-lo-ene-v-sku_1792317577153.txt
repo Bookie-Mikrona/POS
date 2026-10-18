@@ -1,0 +1,436 @@
+ali imajo gostinski lokali nabavne artikle ločene v skupine (npr. meso, ribe, zelenjava, sadje, pijače, itd.) za lažje naročanje pri dobavitljih? kako imajo to rešeno programi pos gostinstvo?
+
+Da, gostinski lokali imajo nabavne artikle skoraj vedno razvrščene v skupine in podskupine. Razdelitev po kategorijah (kot so meso, ribe, zelenjava, mlečni izdelki, pijače, embalaža, čistila itd.) je ključna za preglednost, hitrejše inventure in učinkovito naročanje pri dobaviteljih.
+
+Tako imajo to področje običajno rešeno sodobni gostinski POS (Point of Sale) in ERP sistemi:
+
+1. Struktura šifranta artiklov in nabavnih kategorij
+Gostinski programi ločujejo prodajne artikle (to, kar vidi gost na računu, npr. Odpokani kratek espresso ali Hišni golaž) od nabavnih artiklov / surovin (to, kar se kupuje od dobaviteljev, npr. Kava v zrnju 1 kg, Goveje stegno 1 kg).
+
+Kategorizacija surovin: V ozadju programa (back-office) se vsaki surovini določi:
+
+Primarna skupina: Pijača, Sveže meso, Ribe in plodovi morja, Sadje in zelenjava, Mlečni izdelki, Suha živila/Začimbe, Čistila in potrošni material.
+
+Podskupina: Npr. Meso -> Govedina, Pijača -> Brezalkoholne pijače -> Gazirane pijače.
+
+Povezava z dobaviteljem: Vsakemu artiklu ali celi skupini artiklov se določi primarni dobavitelj (npr. Zelenjava -> Dobavitelj X, Meso -> Mesarija Y).
+
+2. Kako POS sistemi olajšajo naročanje?
+Moderni gostinski programi ponujajo več načinov za hitro in avtomatizirano sestavo naročilnic:
+
+A. Naročanje po skupinah ali dobaviteljih
+Gostinec ali vodja kuhinje v programu izbere možnost »Novo naročilo« in profil filtrira na dva načina:
+
+Izbira dobavitelja: Program avtomatsko prikaže samo tiste artikle/surovine, ki se običajno kupujejo pri tem dobavitelju.
+
+Izbira skupine: Izbere se npr. skupina Sveže meso, nakar program izpiše vse artikle iz te kategorije z zadnjimi nabavnimi cenami in trenutno zalogo.
+
+B. Avtomatsko predlaganje količin (Minimalne zaloge)
+V POS sistemu se za posamezne artikle določita minimalna zaloga in optimalna zaloga:
+
+Ko zaloga pade pod minimum, program avtomatsko generira predlog naročila za posameznega dobavitelja.
+
+Naročilnico se nato z enim klikom pregleda, po potrebi ročno popravi in potrdi.
+
+C. Normativi in avtomatski izračun porabe
+Sistemi na podlagi prodanih jedi/pijač (preko normativov) samodejno odštevajo surovine iz zaloge. Na podlagi predvidene prodaje ali trenutnega stanja zalog program izračuna primanjkljaj surovin po skupinah.
+
+3. Načini pošiljanja naročil dobaviteljem
+Ko je naročilo v POS sistemu sestavljeno po skupinah in dobaviteljih, omogočajo programi različne poti za oddajo:
+
+E-pošta / PDF naročilnica: Program samodejno oblikuje PDF dokument ali e-sporočilo z vsemi kodbami artiklov dobavitelja ter ga pošlje na e-naslov dobavitelja.
+
+EDI / E-dokumenti: Pri večjih dobaviteljih (npr. veletrgovci) poteka izmenjava naročil neposredno prek elektronske izmenjave podatkov (EDI/e-SLOG).
+
+Mobilne aplikacije za nabavo: Številni sodobni POS sistemi ponujajo mobilne aplikacije za natakarje/kuharje, kjer s tablico ali telefonom hodijo po skladišču ali hladilnici, izbirajo skupine artiklov ter vpisujejo potrebne količine.
+
+Povzetek prednosti
+Manj napak: Kuhar ali natakar ne pozabi naročiti ključnih sestavin, saj se naročilnica ustvarja po sistematičnem seznamu.
+
+Hitrost: Namesto ročnega pisanja seznamov se naročilo sestavi v nekaj klikih.
+
+Nadzor nad stroški: Jasen pregled nad porabo in nabavnimi cenami po posameznih kategorijah (food cost / beverage cost analysis).
+
+rešitev pri nabavi artiklov z dobaviteljevimi šiframi, ean kodami, itd za seznanjanje in povezavo nabavnih artiklov z dobaviteljevimi (pairing) tudi v primeru, ko laho en artikel dobavlja več dobaviteljev. iskanje najugodnejših dobaviteljev, ifd
+
+Povezovanje (angl. pairing ali mapping) internih nabavnih artiklov z dobaviteljevimi šiframi je ena ključnih funkcionalnosti naprednih POS in ERP sistemov v gostinstvu in trgovini. Zlasti takrat, ko isti artikel (npr. Mleko 3,5% m.m. 1L) dobavlja več različnih dobaviteljev pod različnimi šiframi, EAN kodami in cenami, je ustrezna podatkovna struktura nujna.
+
+Spodaj je podroben pregled, kako je ta problem sistemsko rešen v sodobnih programskih rešitvah:
+
+1. Arhitektura baze podatkov: Relacija "Eden proti Mnogim" (1 : N)
+Namesto da bi bil dobaviteljev podatek (šifra ali EAN) zapisan neposredno v osrednji kartici artikla, sistem uporablja ločeno tabelo povezav (katalog dobaviteljev).
+
+[ Interni Nabavni Artikel ] ─── (1 : N) ───< [ Katalog Dobaviteljevih Artiklov ]
+(npr. ID: 10042 - Mleko 3,5%)                   ├─ Dobavitelj A (Šifra: A-991, EAN: 383..., Cena: 0.95 €)
+                                                ├─ Dobavitelj B (Šifra: B-004, EAN: 383..., Cena: 0.92 €)
+                                                └─ Dobavitelj C (Šifra: MET-88, EAN: 383..., Cena: 0.98 €)
+Podatki v povezovalni tabeli:
+ID internih artikla (povezava na vaš interni šifrant)
+
+ID dobavitelja
+
+Šifra artikla pri dobavitelju (koda, ki jo dobavitelj zahteva na naročilnici)
+
+EAN / GTIN koda (lahko je enaka ali specifična za embalažo)
+
+Naziv artikla pri dobavitelju (za izpis na naročilnici)
+
+Faktor pretvorbe enot (npr. interno vodite na litre, dobavitelj prodaja v kartonih po 12L -> faktor = 12)
+
+Zadnja nabavna cena / Pogodbena cena
+
+Oznaka "Primarni dobavitelj" (Main Supplier)
+
+2. Postopek seznanjanja in povezovanja (Pairing / Mapping)
+Povezovanje se v praksi izvaja na tri načine:
+
+Ročno seznanjanje ob vnosu prevzemnice / e-računa:
+Ko od novega dobavitelja prejmete e-račun ali prevzemnico in sistem ne prepozna njegove šifre/EAN kode, vas pozove: »Artikel 'Mleko Alpsko 1L' (Šifra dobavitelja: D123) ni povezan. Izberite interni artikel.« Uporabnik izbere obstoječi interni artikel ali ustvari novega. Sistem si povezavo za naprej zapamti.
+
+Množično uvažanje cenikov (Excel / CSV / XML):
+Ob prejemu novega cenika od dobavitelja program ponudi vmesnik za poravnavo (mapping wizard), kjer na podlagi EAN kod ali opisov avtomatsko ali polavtomatsko poveže artikle.
+
+Avtomatsko povezovanje preko EAN kode:
+Če imajo artikli standardizirane EAN/GTIN črtne kode, sistem samodejno zazna ujemanje in predlaga povezavo.
+
+3. Iskanje in izbira najugodnejšega dobavitelja
+Ko je baza povezav vzpostavljena, POS/ERP sistem omogoča pametno primerjavo cen in optimizacijo nabave:
+
+A. Primerjalna analiza cen (Supplier Price Comparison)
+Pri sestavljanju naročila ali pregledu artikla sistem prikaže matriko dobaviteljev:
+
+Prikaz vseh dobaviteljev, ki ponujajo določen artikel.
+
+Aktualna cena, veljavni popusti ali pogodbene cene.
+
+Preračunana cena na osnovno enoto mere (npr. cena na kg ali liter, ne glede na velikost pakiranja).
+
+Rok dobave (dobavni rok v dneh) in minimalna količina naročila (MOQ - Minimum Order Quantity).
+
+B. Samodejna izbira najugodnejšega dobavitelja (Best Price Sourcing)
+Ob generiranju avtomatskega naročila (ko zaloga pade pod minimum) lahko program ponudi možnosti:
+
+Optimizacija po najnižji ceni: Sistem avtomatsko razdeli naročilo tako, da vsak artikel naroči pri dobavitelju z najnižjo ceno.
+
+Optimizacija po minimalnem številu dobaviteljev: Ker vsak dostavitelj zahteva minimalni znesek naročila ali ima stroške dostave, sistem preračuna celotno košarico in predlaga optimalno kombinacijo (da npr. ne naročate pri 5 različnih dobaviteljih za male zneske).
+
+4. Upravljanje pretvorbenih enot (Embalaža vs. Osnovna enota)
+Pogost izziv v gostinstvu je razlika med nabavno in skladiščno enoto:
+
+Interna enota za normativ: Liter (L), Kilogram (kg), Kos (kos).
+
+Dobavitelj A: Prodaja v gajbicah po 20 steklenic (0,5L) -> Faktor = 10L.
+
+Dobavitelj B: Prodaja v sodih po 30L -> Faktor = 30L.
+
+Dober POS program v povezovalni tabeli preračuna vse cene na osnovno enoto (npr. cena na L ali kg). Le tako je primerjava cen med različnimi dobavitelji ter pakiranji realna in točna.
+
+Povzetek prednosti ureditve
+Popolna prilagodljivost: En interni artikel ima neomejeno število dobaviteljskih šifer in EAN kod.
+
+Prihranek denarja: Takojšen vpogled, kateri dobavitelj ima trenutno najnižjo ceno za določeno surovino.
+
+Natančnost pri naročanju: Na izvozni naročilnici ali e-dokumentu za dobavitelja se vedno izpiše njegova šifra in njegov naziv artikla, kar preprečuje napake pri dostavi.
+
+bolj podrobno
+
+Tehnična in podatkovna arhitektura rešitve
+Za popolno razumevanje, kako napredni POS in ERP sistemi rešujejo problem seznanjanja (pairing/mapping) ter izbire najugodnejšega dobavitelja, si poglejmo podrobno podatkovno strukturo, algoritem izračuna cen in potek dela (workflow).
+
+1. Podatkovni model (Relacijska shema)
+Osnova sistema je ločitev interne definicije surovine od dobaviteljevih specifičnih podatkov. V bazi podatkov to pomeni tri ključne tabele:
+
+Tabela 1: INTERNI_ARTIKEL (Surovina/Nabavni artikel)
+Predstavlja vašo interno evidenco skladišča in osnovo za normative jedi/pijač.
+
+id_artikel (Primarni ključ, npr. 10042)
+
+naziv (npr. Mleko 3,5% m.m.)
+
+osnovna_enota (npr. L, KG, KOS)
+
+kategorija_id (npr. Mlečni izdelki)
+
+min_zaloga, opt_zaloga
+
+Tabela 2: DOBAVITELJ
+id_dobavitelj (npr. SUP-001)
+
+naziv_dobavitelja (npr. Ljubljanske Mlekarne d.o.o.)
+
+min_znesek_narocila (npr. 150.00 EUR – meja za brezplačno dostavo)
+
+rok_dostave_dni (npr. 1)
+
+Tabela 3: DOBAVITELJ_ARTIKEL_POVEZAVA (Povezovalna tabela 1:N)
+To je osrednje mesto za pairing. Vsak interni artikel ima lahko neomejeno vnosov v tej tabeli.
+
+id_povezava (Primarni ključ)
+
+id_artikel (Tuj ključ na INTERNI_ARTIKEL)
+
+id_dobavitelj (Tuj ključ na DOBAVITELJ)
+
+sifra_dobavitelja (Koda artikla pri dobavitelju, npr. LM-9021)
+
+ean_koda (EAN/GTIN črtna koda za skeniranje ob prevzemu)
+
+naziv_pri_dobavitelju (Točno ime artikla, ki se izpiše na naročilnici)
+
+pakiranje_enota (npr. Karton 12L, Zaboj, Sod 30L)
+
+faktor_pretvorbe (Koliko osnovnih enot vsebuje pakiranje dobavitelja; npr. če je osnovna enota L, pakiranje pa 12L karton, je faktor = 12.00)
+
+zadnja_nabavna_cena (Cena za celotno pakiranje dobavitelja)
+
+pogodbena_cena (Dogovorjena cena z rabatom)
+
+je_primarni (Flag/Oznaka: TRUE/FALSE)
+
+2. Izračun in normalizacija cene za primerjavo
+Ker dobavitelji prodajajo artikle v različnih pakiranjih (npr. en v plastenkah po 1L, drugi v kartonih po 12L, tretji v kontejnerjih), sistem ne more neposredno primerjati cene pakiranja.
+
+Sistem izvede normalizacijo cene na osnovno enoto:
+
+Primerjalna cena na osn. enoto= 
+Faktor pretvorbe
+Pogodbena ali nabavna cena pakiranja
+​
+ 
+Primer iz praxe:
+Dobavitelj	Pakiranje dobavitelja	Cena pakiranja	Faktor pretvorbe	Preračunana cena za 1L
+Dobavitelj A	Plastenka 1 L	1,05 €	1,00	1,05 € / L
+Dobavitelj B	Karton (12 × 1 L)	11,40 €	12,00	0,95 € / L (Najugodnejši)
+Dobavitelj C	Zaboj (20 × 1 L)	19,60 €	20,00	0,98 € / L
+Sistem uporabniku samodejno poudari Dobavitelja B kot najugodnejšo izbiro na enoto mere, hkrati pa opozori na minimalno količino nakupa (12 L).
+
+3. Avtomatiziran potek dela (Workflow) ob obdelavi e-računa / prevzemnice
+Ko prejmete e-račun (npr. v formatu e-SLOG XML) ali prevzamete blago s skenerjem, poteka avtomatsko seznanjanje po naslednjem postopku:
+
+[ Prejem e-računa / Skeniranje EAN ]
+                 │
+                 ▼
+     Ali EAN ali Šifra dobavitelja 
+     že obstaja v tabeli POVEZAVA?
+         ├── DA ──> Avtomatsko uveljavi povezavo + Osveži zadnjo nabavno ceno.
+         │
+         └── NE ──> Prikaže se okno za SEZNANJANJE (Pairing Wizard):
+                      1. Predlog ujemanja po imenu (Fuzzy matching).
+                      2. Ročna izbira obstoječega internih artikla ali kreiranje novega.
+                      3. Shranitev povezave (EAN/Šifra) za vsa bodoča naročila.
+4. Algoritmi za optimizacijo nabave (Pametna košarica)
+Ko sistem zazna, da je treba naročiti surovine (zaradi padca pod minimalno zalogo ali na podlagi vnesenega tedenskega plana), ponudi tri načine generiranja naročilnic:
+
+Strogi algoritem najnižje cene (Cenovna optimizacija):
+Sistem razdeli manjkajoče artikle in ustvari ločene naročilnice za vsakega dobavitelja, ki ima najnižjo preračunano ceno na enoto.
+
+Optimizacija z upoštevanjem minimalnega naročila (MOQ & Free Shipping):
+Če naročilo pri najcenejšem dobavitelju ne dosega njegovega minimalnega zneska za brezplačno dostavo (npr. 150 €), algoritem predlaga:
+
+Dodatno dopolnitev zalog hitro obratnih artiklov pri tem dobavitelju.
+
+Preusmeritev naročila k drugemu dobavitelju, kjer je skupna košarica cenovno ugodnejša zaradi brezplačne prevoznine.
+
+Consolidirana nabava (Primarni dobavitelj):
+Vse artikle naroči pri enem glavno izbranem dobavitelju (Primarni dobavitelj), ne glede na posamična odstopanja v ceni, da se zmanjša število dostav in administrativno delo.
+
+kako uporabiti subsritute nabavnih surovin v normativih polizelkov in prodajnih artiklih v gostinstvu
+
+Uporaba nadomestnih oziroma substitucijskih surovin (substitutov) je v gostinskih POS/ERP sistemih izjemno pomembna. Omogoča nemoteno prodajo in natančen razknjiževalni sistem zalog v primerih, ko primarne surovine zmanjka (npr. zamenjava določene znamke mleka, uporaba zamrznjene umesto sveže zelenjave ali zamenjava določenega tipa moke/olja).
+
+Spodaj je podrobno opisano, kako je sistem substitutov vgrajen v strukturo polizdelkov (polizdelčnih normativov) in končnih prodajnih artiklov.
+
+1. Razumevanje ravni v normativih
+V gostinstvu poznamo tronivojsko strukturo normativov:
+
+Nabavne surovine (Osnovni artikli): npr. Sveže mleko 3,5% A, Sveže mleko 3,5% B, UHT mleko 3,5%.
+
+Polizdelki (Prep-items / Baze): npr. Bešamel omaka, Testo za pico, Piščančja osnova, Palačinkino testo. (Polizdelek je sestavljen iz surovin in ima svoj normativ ter lastno ceno/strošek).
+
+Prodajni artikli (Končni izdelki na blagajni): npr. Lasagne Bolognese, Pica Capricciosa, Bela kava. (Lahko vsebujejo mešanico neposrednih surovin in polizdelkov).
+
+2. Podatkovni model za nadomestne surovine (Substitute)
+Da sistem zna samodejno razknjiževati zalogo, ko primarne surovine ni na zalogi, se v bazi podatkov definira tabela substitutov vezana na primarno surovino ali neposredno na vrstico normativa.
+
+Podatkovna struktura pravila substitucije:
+Primarna surovina: ID_Surovina_A (npr. Sveže mleko Mlekarna A)
+
+Substitucijska surovina: ID_Surovina_B (npr. Sveže mleko Mlekarna B)
+
+Prioriteta (Rang): 1 (prva izbira), 2 (druga izbira)
+
+Razmerje pretvorbe (Faktor): Običajno 1.0 (1L = 1L), lahko pa tudi drugače (npr. če nadomeščamo Svež bosiljak 10g s Sušenim bosiljakom 3g, je faktor 0.3).
+
+Način aktivacije:
+
+Avtomatski (FIFO / Zaloga <= 0): Sistem sam preklopi na substitut, ko primarne surovine zmanjka na zalogi.
+
+Ročni (Operator / Kuhar): V sistemu se označi "Trenutno uporabljamo substitut B".
+
+3. Delovanje substitutov v Polizdelkih in Prodajnih artiklih
+A. Substitucija v Polizdelkih (Primer: Bešamel omaka)
+Polizdelek ima svoj normativ (npr. za 5 litrov omake):
+
+Normativ:
+
+Maslo: 0,5 kg
+
+Moka: 0,5 kg
+
+Mleko (Primarno): 5 L (Substitut 1: Mleko znamke B, Substitut 2: Trajno mleko)
+
+Kaj se zgodi ob izvedbi proizvodnje polizdelka (Prevod/Kuhanje)?
+Ko kuhinja v POS/ERP sistemu potrdi izdelavo 5 L Bešamela (ali ko sistem avtomatsko razknjižuje sestavine ob prodaji jedi):
+
+Program preveri zalogo primarnega mleka.
+
+Če je na zalogi le 3 L primarnega mleka, razknjiži 3 L primarnega in avtomatsko 2 L nadomestnega mleka (Substitut 1).
+
+Ponderirana nabavna cena (Food Cost polizdelka): Sistem izračuna dejansko nabavno ceno polizdelka na podlagi dejansko porabljenih surovin (3L po ceni A + 2L po ceni B).
+
+B. Substitucija v Prodajnih artiklih (Primer: Bela kava)
+Prodajni artikel ima normativ:
+
+Kava v zrnju: 8 g
+
+Sveže mleko (Primarno): 0,1 L
+
+Če primarnega mleka zmanjka na zalogi, se ob prodaji Bele kave na blagajni:
+
+Avtomatsko odšteje 0,1 L nadomestnega mleka z zaloge, brez prekinitve dela natakarja ali opozoril na POS blagajni.
+
+Strošek prodanega artikla (Cost of Goods Sold - COGS) se natančno obračuna glede na nabavno ceno dejansko odštetega substituta.
+
+4. Posebni primeri: Ročna izbira substitutov na POS blagajni (Modifikatorji)
+Poleg sistemske/skladiščne substitucije obstaja tudi vsebinska substitucija po želji gosta:
+
+Gost želi namesto navadnega mleka Zobeno mleko ali Laktoza-free mleko.
+
+Kako to rešuje POS:
+
+Na prodajnem artiklu se definira skupina modifikatorjev / doplačil (Sprememba sestavine).
+
+Izbira modifikatorja »Zobeno mleko«:
+
+Odšteje z normativa primarno surovino (Navadno mleko).
+
+Dodaja na normativ substitut (Zobeno mleko).
+
+Po potrebi avtomatsko obračuna razliko v ceni / doplačilo na račun gosta (npr. +0,50 €).
+
+5. Prednosti in vpliv na analitiko ter nadzor zalog
+Preprečevanje "negativne zaloge": Brez substitutov bi zaloga primarnega artikla odšla v minus, medtem ko bi nadomestni artikel na skladišču ostal nepreaknjen.
+
+Natančen obračun Food Cost-a: Ker imajo substituti pogosto različne nabavne cene, sistem ohranja realno sliko marže in stroškov prodanih jedi.
+
+Opozorila nabavi: Ko sistem začne črpati substitute z nižjo prioriteto, avtomatsko sproži obvestilo nabavni službi, da je primarni artikel popolnoma izčrpan.
+
+v šifrantu artiklov je nabavni artikel - surovina jušna zelenjava enota mere kg (por, koleraba, koren zelene, itd.), ali artikel sveže začimbe v kg (lovor, majaron, rožmarin, itd), ki pa jih nabavljamo pri različnih dobaviteljih. Združujejo pa se avtomatsko v en artikel, zato zaloga posamezne surovine ni znana. kako se to reši v šifrantu, da lahko v naročilu vnašamo posamezne surovine in ne skupinske?
+
+Problem, ki ga opisujete, je zelo pogost v gostinstvu: zbirni/skupinski artikli (npr. Jušna zelenjava ali Sveže začimbe) onemogočajo natančno vodenje zalog in neposredno naročanje posameznih komponent, saj dobavitelj ne prodaja "1 kg jušne zelenjave", ampak "0,3 kg pora, 0,5 kg korenja, 0,2 kg zelene".
+
+Za rešitev tega izziva se v POS in ERP sistemih uporabljajo trije uveljavljeni pristopi v šifrantu in normativih:
+
+Rešitev 1: Dvo-nivojska struktura (Razčlenitev v šifrantu na posamezne surovine + Set/Polizdelek) — PRIPOROČENO
+To je najbolj profesionalna in analitično čista rešitev.
+
+A. V šifrantu nabavnih artiklov (surovin):
+Namesto enega zbirnega artikla v šifrant ustvarite posamezne realne surovine:
+
+Por (kg)
+
+Koleraba (kg)
+
+Koren zelene (kg)
+
+Korenje (kg)
+
+Lovor (kg)
+
+Majaron (kg)
+
+Rožmarin (kg)
+
+Vsaka od teh surovin ima svojo zalogo, svojo EAN/šifro dobavitelja in se posamično vnaša na naročilnice ter prevzemnice.
+
+B. V šifrantu polizdelkov / normativov:
+Ustvari se polizdelek ali set »Jušna zelenjava (mešanica)«, ki nima svoje fizikalne zaloge, ampak ima definiran normativ iz posameznih surovin (npr. za 1 kg mešanice):
+
+0,30 kg Por
+
+0,30 kg Korenje
+
+0,20 kg Koleraba
+
+0,20 kg Koren zelene
+
+Prednost te rešitve:
+Naročanje: Kuhinja ali nabava pri dobavitelju naroča točno določeno zelenjavo/začimbo (por, rožmarin itd.).
+
+Kuhanje / Normativi: V receptu za govejo juho kuhar kot sestavino navede le polizdelek »Jušna zelenjava – 0,15 kg«. Sistem ob prodaji juhe avtomatsko razknjiži ustrezne deleže pora, korenja, kolerabe in zelene.
+
+Rešitev 2: Paketni artikli z dinamično sestavo (Kombinirani artikli / Sub-items)
+Če dobavitelj sam prodaja predpripravljen pakiran paket (npr. »Paket Jušna zelenjava 1 kg«), vi pa želite imeti nadzor nad sestavinami:
+
+V šifrantu artiklov ustvarite artikel vrste Kombinirani / Paketni artikel (Jušna zelenjava paket).
+
+Ob vnosu naročila ali prevzemnice sistem omogoča:
+
+Da naročite celoten paket ali pa razstavite paket na osnovne komponente po definiranih odstotkih/razmerjih.
+
+Ob prevzemu prevzemnica samodejno porazdeli nabavno vrednost in količino na posamezne kartice surovin (Por, Koleraba, Zelena).
+
+Rešitev 3: Predlogi za naročanje prek "Skupine artiklov" (Kategorizacija)
+Če ne želite spreminjati obstoječih receptur, ampak želite le olajšati vnos naročil:
+
+V šifrantu ustvarite posamezne surovine (Lovor, Majaron, Rožmarin).
+
+Vsem tem artiklom dodelite isto Nabavno kategorijo / Skupino (npr. 02-05 Sveže začimbe).
+
+Pri kreiranju naročila za dobavitelja v programu izberete filtriranje po skupini »Sveže začimbe«. Program na ekran izpiše vse posamične začimbe s trenutno zalogo, uporabnik pa le vnese želene količine za vsako začimbo posebej.
+
+Primerjalni povzetek delovanja
+Postopek	Staro stanje (Zbirni artikel)	Novo stanje (Razčlenjeni artikli)
+Šifrant	1 artikel: Jušna zelenjava	Posamezni artikli: Por, Koleraba, Zelena, Korenje
+Naročanje	Naroči se "5 kg jušne zelenjave" (dobavitelj ne ve, česa koliko)	Naroči se točno: 2 kg Pora, 1 kg Kolerabe, 2 kg Korenja
+Prevzem	Enostaven, a brez vpogleda v strukturo zaloge	Točen vnos po artiklih in dejanskih cenah dobavitelja
+Poraba / Recept	Razknjiži se "Jušna zelenjava"	Razknjižijo se posamezne surovine (neposredno ali prek polizdelka)
+S prehodom na posamične surovine v šifrantu ter uporabo polizdelkov za mešanice boste ohranili enostavnost vnošenja receptov, hkrati pa pridobili popoln nadzor nad zalogo in naročanjem pri različnih dobaviteljih.
+
+problem je v prevelikem razdrobljenem načinu vodenja zalog - preveliko število artiklov, zato je bila uvedba skupin. drobljenje in uvajanje zalog po posameznih artiklih skupine zato odpade. najdi drugo rešitev.
+
+Če se želite izogniti administrativnemu bremenu in preveliki razdrobljenosti zalog (t. i. "mikro-menedžmentu" vsake posamezne zelenjave ali začimbe), hkrati pa želite omogočiti normalno naročanje in povezovanje z dobavitelji, obstaja elegantna sistemska rešitev: Mnogi proti Enemu (Many-to-One) Mapping z zbirnim vodenjem zalog.
+
+To pomeni, da zaloge ostanejo združene na enem samem artiklu (Jušna zelenjava ali Sveže začimbe), vendar sistem kljub temu omogoča natančno naročanje in obdelavo dobaviteljevih računov.
+
+Kako deluje rešitev: Zbirni artikel z več dobaviteljskimi vhodi
+1. V šifrantu zalog (Skladišče)
+Imate samo en interni artikel:
+
+ID: 5001 - Jušna zelenjava (Enota mere: kg, Zaloga: npr. 15 kg).
+
+Nič kasnejšega drobljenja na por, korenje ali zeleno. Vse je združeno na tej eni kartici.
+
+2. V povezovalni tabeli (Dobaviteljski šifrant)
+Tukaj se zgodi čarovnija sistema. Več različnih dobaviteljevih artiklov je povezanih na isti en interni artikel:
+
+Dobavitelj	Šifra pri dobavitelju	Naziv pri dobavitelju	Povezano na interni artikel
+Dobavitelj A	POR-01	Por sveži 1kg	Jušna zelenjava
+Dobavitelj A	KOR-02	Korenje oprano 5kg	Jušna zelenjava
+Dobavitelj B	ZEL-99	Gomoljna zelena 1kg	Jušna zelenjava
+3. Kako poteka naročanje in prevzem?
+Naročanje: Ko delavec v kuhinji sestavlja naročilo, lahko vidi seznam dobaviteljevih artiklov (lahko naroči točno Por ali Korenje, tako kot piše na dobaviteljevem ceniku), da točno ve, kaj kupuje.
+
+Prevzem e-računa (e-SLOG) ali dobavnice:
+Ko dobavitelj pripelje robo in pošlje e-račun, na katerem sta postavki Por (2 kg) in Korenje (3 kg), program te postavke prepozna, ker sta obe programsko povezani na isti interni artikel Jušna zelenjava.
+
+Kaj naredi sistem? Avtomatski prevzem prišteje skupno količino (2 kg + 3 kg = 5 kg) neposredno na zalogo enotnega artikla Jušna zelenjava.
+
+Vrednosti (cene) se seštejejo, zato ima vaš zbirni artikel vedno točno povprečno nabavno ceno glede na to, kaj ste dejansko tisti teden kupili.
+
+Prednosti tega pristopa za vas
+Brez razdrobljenosti: V skladišču in na inventuri imate še naprej le en artikel (Jušna zelenjava), kar vam prihrani ogromno časa.
+
+Natančnost pri dobaviteljih: Na naročilnici in e-računu so še vedno prava imena in šifre dobavitelja, zato pri dostavi ne prihaja do zmede.
+
+Poenostavljeni normativi: V receptih za juhe ali omake še naprej piše le Jušna zelenjava (0,2 kg), kar pomeni, da se recepture nič ne spreminjajo.
