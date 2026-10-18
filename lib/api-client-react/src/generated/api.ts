@@ -528,6 +528,7 @@ import type {
   SupplierMappingMinimumInput,
   SupplierOrderDashboard,
   SupplierOrderDetail,
+  SupplierOrderEmailInput,
   SupplierOrderInput,
   SupplierOrderSplit,
   SupplierOrderSummary,
@@ -22093,6 +22094,78 @@ export const useMarkSupplierOrderSent = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getMarkSupplierOrderSentMutationOptions(options));
+    }
+
+export const getSendSupplierOrderEmailUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/${id}/send-email`
+}
+
+/**
+ * @summary Pošlji naročilo dobavitelju po e-pošti in osnutek označi kot poslan
+ */
+export const sendSupplierOrderEmail = async (id: number,
+    supplierOrderEmailInput?: SupplierOrderEmailInput, options?: RequestInit): Promise<SupplierOrderDetail> => {
+
+  return customFetch<SupplierOrderDetail>(getSendSupplierOrderEmailUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierOrderEmailInput)
+  }
+);}
+
+
+
+
+
+export const getSendSupplierOrderEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendSupplierOrderEmail>>, TError,{id: number;data?: BodyType<SupplierOrderEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendSupplierOrderEmail>>, TError,{id: number;data?: BodyType<SupplierOrderEmailInput>}, TContext> => {
+
+const mutationKey = ['sendSupplierOrderEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendSupplierOrderEmail>>, {id: number;data?: BodyType<SupplierOrderEmailInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  sendSupplierOrderEmail(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendSupplierOrderEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendSupplierOrderEmail>>>
+    export type SendSupplierOrderEmailMutationBody = BodyType<SupplierOrderEmailInput> | undefined
+    export type SendSupplierOrderEmailMutationError = ErrorType<void>
+
+    /**
+ * @summary Pošlji naročilo dobavitelju po e-pošti in osnutek označi kot poslan
+ */
+export const useSendSupplierOrderEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendSupplierOrderEmail>>, TError,{id: number;data?: BodyType<SupplierOrderEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendSupplierOrderEmail>>,
+        TError,
+        {id: number;data?: BodyType<SupplierOrderEmailInput>},
+        TContext
+      > => {
+      return useMutation(getSendSupplierOrderEmailMutationOptions(options));
     }
 
 export const getCloseSupplierOrderUrl = (id: number,) => {

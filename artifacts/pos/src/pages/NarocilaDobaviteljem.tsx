@@ -24,6 +24,7 @@ import {
   useListSupplierOrdersMissingInstructions,
   useMarkSupplierOrderSent,
   useSaveSupplierReorderSettings,
+  useSendSupplierOrderEmail,
   useUpdateSupplierOrder,
 } from "@workspace/api-client-react";
 import type {
@@ -711,6 +712,7 @@ export default function NarocilaDobaviteljem() {
   const createOrder = useCreateSupplierOrder();
   const updateOrder = useUpdateSupplierOrder();
   const markSent = useMarkSupplierOrderSent();
+  const sendEmail = useSendSupplierOrderEmail();
   const closeOrder = useCloseSupplierOrder();
   const cancelOrder = useCancelSupplierOrder();
   const createReceipt = useCreatePrejemnica();
@@ -1170,6 +1172,20 @@ export default function NarocilaDobaviteljem() {
       await refreshLists(result.id);
     } catch (error) { showError(error, "Osnutka ni bilo mogoče shraniti."); }
   };
+  const emailOrderToSupplier = async () => {
+    if (!orderDetail) return;
+    const entered = window.prompt(
+      `E-poštni naslov dobavitelja ${orderDetail.supplierName}. Pustite prazno za naslov iz kartice dobavitelja.`,
+      "",
+    );
+    if (entered === null) return;
+    try {
+      const recipient = entered.trim();
+      const result = await sendEmail.mutateAsync({ id: orderDetail.id, data: recipient ? { recipient } : {} });
+      setNotice({ text: `Naročilo ${result.number} je poslano po e-pošti.` });
+      await refreshLists(result.id);
+    } catch (error) { showError(error, "E-pošte ni bilo mogoče poslati."); }
+  };
   const performOrderAction = async (action: "send" | "cancel" | "close") => {
     if (!orderDetail) return;
     try {
@@ -1300,7 +1316,7 @@ export default function NarocilaDobaviteljem() {
     : null;
 
   const busy = saveSettings.isPending || createOrder.isPending || updateOrder.isPending ||
-    markSent.isPending || closeOrder.isPending || cancelOrder.isPending || createReceipt.isPending;
+    markSent.isPending || sendEmail.isPending || closeOrder.isPending || cancelOrder.isPending || createReceipt.isPending;
 
   const showSuggestions = () => {
     setActiveView("suggestions");
@@ -2149,6 +2165,7 @@ export default function NarocilaDobaviteljem() {
             </div>
             <div className="flex flex-wrap gap-2">
               {orderDetail.status === "draft" && <Button disabled={busy} onClick={() => void performOrderAction("send")} className="bg-[#285d50] text-white hover:bg-[#204b41]"><Send className="mr-2 h-4 w-4" /> Označi kot poslano</Button>}
+              {(orderDetail.status === "draft" || orderDetail.status === "sent") && orderDetail.lines.length > 0 && <Button variant="outline" disabled={busy} onClick={() => void emailOrderToSupplier()} className="border-[#cdd9d0] text-[#285d50]"><Send className="mr-2 h-4 w-4" /> {orderDetail.status === "draft" ? "Pošlji po e-pošti" : "Ponovno pošlji po e-pošti"}</Button>}
               {["sent", "partially_received"].includes(orderDetail.status) && orderDetail.openQuantity > 0 && <Button disabled={busy} onClick={event => void prepareReceipt(event.currentTarget)} className="bg-[#285d50] text-white hover:bg-[#204b41]"><ArrowDownToLine className="mr-2 h-4 w-4" /> Pripravi prejemnico</Button>}
               <Button variant="outline" onClick={() => { setSelectedOrderId(null); navigate("/zaloge"); }}>Odpri Zaloge <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Button>
             </div>

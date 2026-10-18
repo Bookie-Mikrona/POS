@@ -8555,6 +8555,14 @@ export interface SupplierReorderSettings {
   preferredMappingId: number | null;
 }
 
+export interface SupplierOrderEmailInput {
+  /**
+     * Če manjka, se uporabi e-poštni naslov dobavitelja.
+     * @maxLength 254
+     */
+  recipient?: string;
+}
+
 export interface SupplierTermsInput {
   /**
      * @minimum 0

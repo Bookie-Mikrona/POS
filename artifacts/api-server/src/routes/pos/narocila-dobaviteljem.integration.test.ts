@@ -9,6 +9,17 @@ const context = vi.hoisted(() => ({
   actorNatakarId: 731,
 }));
 
+const mail = vi.hoisted(() => ({
+  result: { uspeh: true } as { uspeh: boolean; napaka?: string },
+  calls: [] as Array<{ recipient: string; order: any }>,
+}));
+vi.mock("../../lib/pos-supplier-order-email", () => ({
+  posljiNarociloDobavitelju: async (_smtp: unknown, recipient: string, order: any) => {
+    mail.calls.push({ recipient, order });
+    return mail.result;
+  },
+}));
+
 vi.mock("../../middlewares/pos", () => ({
   requireEnota(req: any, _res: any, next: any) {
     req.companyId = context.companyId;
@@ -3272,5 +3283,41 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const dashboard = await request(app).get("/narocila-dobaviteljem/pregled");
     expect(dashboard.body.articles.find((entry: any) => entry.articleId === articleId).mappings[0])
       .toMatchObject({ minPackageQuantity: 5 });
+  });
+  it("e-mails a draft order once, marks it sent only on success and never leaks internal notes", async () => {
+    const created = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      expectedDeliveryDate: null,
+      internalNotes: "INTERNA-SKRIVNOST",
+      supplierNotes: "Za dobavitelja",
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 2, unitPrice: 18 }],
+    });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    orderIds.push(created.body.id);
+    const orderId = created.body.id as number;
+
+    const noAddress = await request(app).post(`/narocila-dobaviteljem/${orderId}/send-email`).send({});
+    expect(noAddress.status).toBe(400);
+    const badAddress = await request(app).post(`/narocila-dobaviteljem/${orderId}/send-email`).send({ recipient: "ni-naslov" });
+    expect(badAddress.status).toBe(400);
+
+    mail.result = { uspeh: false, napaka: "SMTP ni dosegljiv" };
+    const failed = await request(app).post(`/narocila-dobaviteljem/${orderId}/send-email`).send({ recipient: "dobavitelj@example.com" });
+    expect(failed.status).toBe(502);
+    const afterFailure = await request(app).get(`/narocila-dobaviteljem/${orderId}`);
+    expect(afterFailure.body.status).toBe("draft");
+
+    mail.result = { uspeh: true };
+    mail.calls.length = 0;
+    const sent = await request(app).post(`/narocila-dobaviteljem/${orderId}/send-email`).send({ recipient: "dobavitelj@example.com" });
+    expect(sent.status, JSON.stringify(sent.body)).toBe(200);
+    expect(sent.body.status).toBe("sent");
+    expect(mail.calls).toHaveLength(1);
+    expect(mail.calls[0]!.recipient).toBe("dobavitelj@example.com");
+    expect(JSON.stringify(mail.calls[0]!.order)).not.toContain("INTERNA-SKRIVNOST");
+    expect(mail.calls[0]!.order.supplierNotes).toBe("Za dobavitelja");
+
+    const closed = await request(app).post(`/narocila-dobaviteljem/${orderId}/cancel`).send({});
+    expect([200, 409]).toContain(closed.status);
   });
 });

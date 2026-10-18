@@ -24,6 +24,9 @@ import {
   getSupplierPriceHistory,
   SupplierOrderReceiptConflict,
 } from "../../lib/pos-supplier-orders";
+import { readAll, toResponse } from "./nastavitve";
+import { loadUnitEmailSender } from "../../lib/company-email-sender";
+import { posljiNarociloDobavitelju } from "../../lib/pos-supplier-order-email";
 import {
   buildSupplierSplit,
   type SplitTerms,
@@ -1133,6 +1136,89 @@ router.post("/narocila-dobaviteljem/:id/send", async (req, res): Promise<void> =
   if (result.rows.length === 0) {
     const detail = await getSupplierOrderDetail(enotaId, id);
     res.status(detail ? 409 : 404).json({ error: detail ? "Naročilo ni več osnutek." : "Naročilo ni najdeno." });
+    return;
+  }
+  res.json(await getSupplierOrderDetail(enotaId, id));
+});
+
+router.post("/narocila-dobaviteljem/:id/send-email", async (req, res): Promise<void> => {
+  const { enotaId, companyId } = requestScope(req);
+  const id = parseId(req.params.id);
+  const parsed = z.object({
+    recipient: z.string().trim().email().max(254).optional(),
+  }).safeParse(req.body ?? {});
+  if (!id || !parsed.success) { res.status(400).json({ error: "Neveljaven e-poštni naslov ali ID naročila." }); return; }
+
+  const detail = await getSupplierOrderDetail(enotaId, id);
+  if (!detail) { res.status(404).json({ error: "Naročilo ni najdeno." }); return; }
+  if (detail.status !== "draft" && detail.status !== "sent") {
+    res.status(409).json({ error: "E-pošto je mogoče poslati samo za osnutek ali že poslano naročilo." });
+    return;
+  }
+  const [supplier] = await db.select({ email: counterpartiesTable.email })
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.id, detail.supplierId), eq(counterpartiesTable.companyId, companyId)))
+    .limit(1);
+  const recipient = parsed.data.recipient ?? supplier?.email?.trim();
+  if (!recipient || !z.string().email().safeParse(recipient).success) {
+    res.status(400).json({ error: "Dobavitelj nima veljavnega e-poštnega naslova; vpišite ga ročno." });
+    return;
+  }
+  if (detail.lines.length === 0) { res.status(400).json({ error: "Naročilo nima postavk." }); return; }
+
+  // Osnutek rezerviramo pred pošiljanjem, da dva hkratna klika ne pošljeta dveh sporočil.
+  let claimedAt: string | null = null;
+  if (detail.status === "draft") {
+    const claim = await db.execute(sql`
+      UPDATE pos_supplier_orders
+      SET status = 'sent', poslano_dne = now(), posodobljeno = now()
+      WHERE id = ${id} AND enota_id = ${enotaId} AND status = 'draft'
+      RETURNING poslano_dne
+    `);
+    if (claim.rows.length === 0) { res.status(409).json({ error: "Naročilo ni več osnutek." }); return; }
+    claimedAt = String((claim.rows[0] as { poslano_dne: string | Date }).poslano_dne instanceof Date
+      ? ((claim.rows[0] as { poslano_dne: Date }).poslano_dne).toISOString()
+      : (claim.rows[0] as { poslano_dne: string }).poslano_dne);
+  }
+
+  let result: { uspeh: boolean; napaka?: string };
+  try {
+    const settingsMap = await readAll("", enotaId);
+    const settings = toResponse(settingsMap);
+    result = await posljiNarociloDobavitelju(
+      { ...settings, smtpPassword: settingsMap["smtpPassword"] ?? "" },
+      recipient,
+      {
+        number: detail.number,
+        supplierName: detail.supplierName,
+        expectedDeliveryDate: detail.expectedDeliveryDate ?? null,
+        supplierNotes: detail.supplierNotes,
+        lines: detail.lines.map(line => ({
+          articleName: line.articleName,
+          supplierItemName: line.supplierItemName,
+          supplierCode: line.supplierCode ?? null,
+          packageQuantity: line.packageQuantity,
+          packageName: line.packageName,
+          unitPrice: line.unitPrice,
+        })),
+      },
+      settings.nazivRestavracije || settings.nazivPodjetja || "",
+      await loadUnitEmailSender(enotaId),
+    );
+  } catch (error) {
+    result = { uspeh: false, napaka: error instanceof Error ? error.message : "E-pošte ni bilo mogoče poslati." };
+  }
+
+  if (!result.uspeh) {
+    if (claimedAt) {
+      await db.execute(sql`
+        UPDATE pos_supplier_orders
+        SET status = 'draft', poslano_dne = NULL, posodobljeno = now()
+        WHERE id = ${id} AND enota_id = ${enotaId} AND status = 'sent'
+          AND poslano_dne = ${claimedAt}::timestamptz
+      `);
+    }
+    res.status(502).json({ error: result.napaka ?? "E-pošte ni bilo mogoče poslati." });
     return;
   }
   res.json(await getSupplierOrderDetail(enotaId, id));

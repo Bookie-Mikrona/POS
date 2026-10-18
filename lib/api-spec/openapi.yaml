@@ -6065,6 +6065,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/SupplierOrderDetail"
         "409": { description: Neveljaven prehod stanja }
+  /narocila-dobaviteljem/{id}/send-email:
+    post:
+      operationId: sendSupplierOrderEmail
+      tags: [nabava]
+      summary: Pošlji naročilo dobavitelju po e-pošti in osnutek označi kot poslan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierOrderEmailInput"
+      responses:
+        "200":
+          description: E-pošta je poslana
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderDetail"
+        "400": { description: Manjka ali je neveljaven naslov prejemnika }
+        "404": { description: Naročilo ni najdeno }
+        "409": { description: "Naročilo ni v stanju, ki dovoljuje pošiljanje" }
+        "502": { description: "Pošiljanje e-pošte ni uspelo, osnutek ostane osnutek" }
   /narocila-dobaviteljem/{id}/close:
     post:
       operationId: closeSupplierOrder
@@ -20634,6 +20661,10 @@ components:
         reorderPoint: { type: number }
         targetStock: { type: number }
         preferredMappingId: { type: [integer, "null"] }
+    SupplierOrderEmailInput:
+      type: object
+      properties:
+        recipient: { type: string, maxLength: 254, description: "Če manjka, se uporabi e-poštni naslov dobavitelja." }
     SupplierTermsInput:
       type: object
       required: [minOrderAmount, leadTimeDays]

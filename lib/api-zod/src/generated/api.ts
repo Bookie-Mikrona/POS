@@ -11582,6 +11582,62 @@ export const MarkSupplierOrderSentResponse = zod.object({
 
 
 /**
+ * @summary Pošlji naročilo dobavitelju po e-pošti in osnutek označi kot poslan
+ */
+export const SendSupplierOrderEmailParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const sendSupplierOrderEmailBodyRecipientMax = 254;
+
+
+
+export const SendSupplierOrderEmailBody = zod.object({
+  "recipient": zod.string().max(sendSupplierOrderEmailBodyRecipientMax).optional().describe('Če manjka, se uporabi e-poštni naslov dobavitelja.')
+})
+
+export const SendSupplierOrderEmailResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.'),
+  "closedReason": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierMappingId": zod.number(),
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "supplierItemName": zod.string().nullable(),
+  "supplierCode": zod.string().nullish(),
+  "packageQuantity": zod.number(),
+  "packageFactor": zod.number(),
+  "currentPackageFactor": zod.number().nullable(),
+  "packageName": zod.string().nullable(),
+  "baseUnit": zod.string().nullable(),
+  "orderedBaseQuantity": zod.number(),
+  "receivedBaseQuantity": zod.number(),
+  "openBaseQuantity": zod.number(),
+  "unitPrice": zod.number().nullable(),
+  "receipts": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "receiptNumber": zod.string().nullable(),
+  "supplierDocumentNumber": zod.string().nullable(),
+  "receiptDate": zod.coerce.date(),
+  "receivedBaseQuantity": zod.number()
+}))
+}))
+})
+
+
+/**
  * @summary Zapre naročilo in zabeleži nedobavljeno količino
  */
 export const CloseSupplierOrderParams = zod.object({
