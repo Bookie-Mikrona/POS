@@ -10,7 +10,7 @@ const router: IRouter = Router();
 const path = "/companies/:companyId/erp-smtp";
 const lastTest = new Map<string, number>();
 
-function publicSettings(row: Awaited<ReturnType<typeof getSmtpRow>>) {
+function publicSettings(row: Awaited<ReturnType<typeof getSmtpRow>> | undefined) {
   return GetErpSmtpSettingsResponse.parse({
     configured: !!row, host: row?.host ?? "", port: row?.port ?? 465,
     user: row?.user ?? "", from: row?.from ?? "", passwordSet: !!row?.passwordEncrypted,
@@ -34,6 +34,13 @@ router.use(path, requireAuth, async (req, res, next) => {
 
 router.get(path, async (req, res): Promise<void> => {
   res.json(publicSettings(await getSmtpRow(String(req.params.companyId))));
+});
+
+router.delete(path, async (req, res): Promise<void> => {
+  const companyId = String(req.params.companyId);
+  // Delete the entire company-specific row, including its encrypted password.
+  await db.delete(erpSmtpSettingsTable).where(eq(erpSmtpSettingsTable.companyId, companyId));
+  res.json(publicSettings(undefined));
 });
 
 router.put(path, async (req, res): Promise<void> => {

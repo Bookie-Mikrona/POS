@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
-import { getGetErpSmtpSettingsQueryKey, useGetErpSmtpSettings, useSaveErpSmtpSettings, useTestErpSmtpSettings } from "@workspace/api-client-react";
+import { getGetErpSmtpSettingsQueryKey, useDeleteErpSmtpSettings, useGetErpSmtpSettings, useSaveErpSmtpSettings, useTestErpSmtpSettings } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ErpSmtpInput } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 function message(error: unknown) {
   return error instanceof Error ? error.message : "Zahteva ni uspela.";
 }
 
 export function ErpSmtpSettings({ companyId }: { companyId: string }) {
+  const queryClient = useQueryClient();
   const query = useGetErpSmtpSettings(companyId, { query: { queryKey: getGetErpSmtpSettingsQueryKey(companyId), refetchOnWindowFocus: false } });
   const save = useSaveErpSmtpSettings();
   const test = useTestErpSmtpSettings();
+  const remove = useDeleteErpSmtpSettings();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [form, setForm] = useState<ErpSmtpInput>({ host: "", port: 465, user: "", from: "", password: "" });
   const [recipient, setRecipient] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -23,10 +28,10 @@ export function ErpSmtpSettings({ companyId }: { companyId: string }) {
       setForm({ host: query.data.host, port: query.data.port as 465 | 587, user: query.data.user, from: query.data.from, password: "" });
     }
   }, [query.data, dirty]);
-  const busy = save.isPending || test.isPending;
+  const busy = save.isPending || test.isPending || remove.isPending;
   const edit = (name: keyof ErpSmtpInput, value: string | number) => {
     setForm(f => ({ ...f, [name]: value })); setDirty(true); setNotice("");
-    save.reset(); test.reset();
+    save.reset(); test.reset(); remove.reset();
   };
   return (
     <Card>
@@ -39,6 +44,7 @@ export function ErpSmtpSettings({ companyId }: { companyId: string }) {
           <div role="alert"><p>{message(query.error)}</p><Button variant="outline" onClick={() => query.refetch()}>Poskusi znova</Button></div>
         ) : (
           <>
+            <p className="text-sm">{query.data?.configured ? "Pošiljanje poročil po e-pošti je nastavljeno." : "Pošiljanje poročil po e-pošti ni nastavljeno. Prenos PDF-jev je na voljo."}</p>
             <form className="space-y-4" onSubmit={async e => {
               e.preventDefault(); setNotice(""); test.reset();
               try {
@@ -77,7 +83,38 @@ export function ErpSmtpSettings({ companyId }: { companyId: string }) {
               <p className="text-xs text-muted-foreground">{dirty ? "Pred testom shranite spremembe." : "Test uporablja shranjene nastavitve."}</p>
               <Button type="submit" variant="outline" disabled={busy || dirty || !query.data?.configured}>{test.isPending ? "Pošiljanje …" : "Pošlji testno e-pošto"}</Button>
             </form>
-            {(save.error || test.error) && <p role="alert" className="text-sm text-destructive">{message(save.error || test.error)}</p>}
+            {query.data?.configured && (
+              <AlertDialog open={confirmOpen} onOpenChange={open => { if (!remove.isPending) setConfirmOpen(open); }}>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="destructive" disabled={busy}>Izklopi pošiljanje poročil</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Izklopim pošiljanje poročil po e-pošti?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Odstranjene bodo SMTP nastavitve tega podjetja in shranjeno geslo. Za ponovni vklop bo treba podatke vnesti znova.
+                      Prenos poročil v PDF ostane na voljo. Nastavitve POS pošte se ne spremenijo.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={remove.isPending}>Prekliči</AlertDialogCancel>
+                    <AlertDialogAction disabled={remove.isPending} onClick={async e => {
+                      e.preventDefault(); setNotice(""); save.reset(); test.reset();
+                      try {
+                        const settings = await remove.mutateAsync({ companyId });
+                        await queryClient.cancelQueries({ queryKey: getGetErpSmtpSettingsQueryKey(companyId) });
+                        queryClient.setQueryData(getGetErpSmtpSettingsQueryKey(companyId), settings);
+                        setForm({ host: "", port: 465, user: "", from: "", password: "" });
+                        setRecipient(""); setDirty(false); setConfirmOpen(false);
+                        setNotice("Pošiljanje poročil po e-pošti je izklopljeno. SMTP nastavitve in geslo so odstranjeni. Prenos PDF-jev ostaja na voljo.");
+                      } catch { /* Keep confirmation open and render the mutation error. */ }
+                    }}>{remove.isPending ? "Izklapljanje …" : "Izklopi in odstrani nastavitve"}</AlertDialogAction>
+                  </AlertDialogFooter>
+                  {remove.error && <p role="alert" className="text-sm text-destructive">{message(remove.error)}</p>}
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            {(save.error || test.error || (!confirmOpen && remove.error)) && <p role="alert" className="text-sm text-destructive">{message(save.error || test.error || remove.error)}</p>}
             {notice && <p role="status" className="text-sm">{notice}</p>}
           </>
         )}

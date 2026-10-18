@@ -286,6 +286,17 @@ paths:
         "400": {description: Invalid settings or missing initial password}
         "403": {description: Requires owner or accountant access}
         "503": {description: Password encryption unavailable}
+    delete:
+      operationId: deleteErpSmtpSettings
+      tags: [erp-smtp]
+      description: Remove company SMTP settings and encrypted password after user confirmation.
+      responses:
+        "200":
+          description: Unconfigured settings without credentials
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErpSmtpSettings"}
+        "403": {description: Requires owner or accountant access}
   /companies/{companyId}/erp-smtp/test:
     parameters:
       - {name: companyId, in: path, required: true, schema: {type: string}}
