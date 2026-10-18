@@ -34,3 +34,9 @@ Chromiumovi robni bloki `@page` za glavo/nogo so v preverjenem PDF-ju delovali; 
 **Why:** Chromium lahko prelomljeni dobaviteljev šifrant izpiše v besedilnem vrstnem redu med vrednostjo sosednjega stolpca, čeprav so vse besede vidne v PDF-ju.
 
 **How to apply:** Za ovite celice primerjaj besede iz PDF-geometrije, filtrirane po vrstici in stolpcu; strnjena besedilna preverjanja uporabljaj le za vrednosti, katerih vrstni red izluščeno besedilo zanesljivo ohrani.
+
+Firefox lahko pri izluščanju PDF-ja zaporedje »fi« predstavi kot Unicode ligaturo U+FB01, čeprav je vsebina PDF-ja pravilna.
+
+**Why:** Različni brskalniki in pisave lahko enako besedilo kodirajo z združenimi glifi, zato natančna primerjava navadnega besedila po brskalnikih lahko napačno odpove.
+
+**How to apply:** Pred primerjavo PDF-besedila uporabi Unicode NFKC normalizacijo ali preveri ustrezne besede in geometrijo; ne sklepaj, da je besedilo manjkajoče samo zaradi ligature.

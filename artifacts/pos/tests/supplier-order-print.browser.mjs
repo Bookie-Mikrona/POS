@@ -190,6 +190,71 @@ function readBlocks(markup) {
   });
 }
 
+function assertShortOrderPages(pages, expectedStartIndex) {
+  const orderCases = [
+    {
+      number: "ONE-ROW-ORDER-CASE",
+      supplier: "Enovrstični preizkusni dobavitelj",
+      item: "ONE-ROW-SUPPLIER-ITEM",
+      code: "SUPPLIER-CODE",
+      article: "ONE-ROW-ARTICLE",
+      quantity: "2",
+      unitPrice: decimalToken(3.5),
+      amount: decimalToken(7),
+      instruction: "ONE-ROW-SUPPLIER-INSTRUCTION",
+    },
+    {
+      number: "EMPTY-ORDER-CASE",
+      supplier: "Dobavitelj praznega osnutka",
+      totalPlaceholder: "—",
+    },
+    {
+      number: "NO-INSTRUCTIONS-ORDER-CASE",
+      supplier: "Dobavitelj brez navodil",
+      item: "NO-INSTRUCTIONS-SUPPLIER-ITEM",
+      code: "INSTRUCTIONS-SUPPLIER-CODE",
+      article: "NO-INSTRUCTIONS-ARTICLE",
+      quantity: "3",
+      unitPrice: decimalToken(1.2),
+      amount: decimalToken(3.6),
+    },
+  ];
+  const orderMarkers = orderCases.map(orderCase => orderCase.number);
+
+  for (const [caseIndex, orderCase] of orderCases.entries()) {
+    const page = pages[expectedStartIndex + caseIndex];
+    assert(page, `${orderCase.number} is missing from the PDF.`);
+    assert(page.includes(orderCase.number), `${orderCase.number} is not on its expected page.`);
+    assert(
+      orderMarkers.filter(marker => page.includes(marker)).length === 1,
+      `${orderCase.number} shares a page with another short supplier order.`,
+    );
+    assert(page.includes(orderCase.supplier), `${orderCase.number} supplier is missing.`);
+    if (orderCase.item) assert(page.includes(orderCase.item), `${orderCase.number} supplier item details are missing.`);
+    if (orderCase.code) assert(page.includes(orderCase.code), `${orderCase.number} supplier code is missing.`);
+    if (orderCase.instruction) assert(page.includes(orderCase.instruction), `${orderCase.number} supplier instructions are missing.`);
+
+    if (orderCase.article) {
+      const articleLine = page.split("\n").map(normalizeText)
+        .find(line => line.includes(orderCase.article));
+      assert(articleLine, `${orderCase.number} article is missing.`);
+      assert(
+        new RegExp(`(?:^|\\s)${orderCase.quantity}(?:\\s|$)`).test(articleLine),
+        `${orderCase.number} article quantity is missing.`,
+      );
+      assert(articleLine.includes(orderCase.unitPrice), `${orderCase.number} article unit price is missing.`);
+      assert(articleLine.includes(orderCase.amount), `${orderCase.number} article amount is missing.`);
+    }
+
+    const totalLine = page.split("\n").map(normalizeText).find(line => line.includes("Skupaj"));
+    assert(totalLine?.includes(orderCase.totalPlaceholder ?? orderCase.amount), `${orderCase.number} total is missing or incomplete.`);
+    assert(
+      !page.includes("Navodilo dobavitelju") || Boolean(orderCase.instruction),
+      `${orderCase.number} printed an empty supplier-instructions section.`,
+    );
+  }
+}
+
 function stopProcessGroup(child) {
   if (!child || child.exitCode !== null) return Promise.resolve();
 
@@ -293,7 +358,7 @@ async function printWithFirefox(url, tempDir) {
     while (Date.now() < renderDeadline) {
       const result = await sendWebDriverCommand(driverUrl, `${sessionUrl}/execute/sync`, {
         body: {
-          script: `return Boolean(document.querySelector('[data-testid="text-supplier-order-print-instructions"]')?.textContent?.includes("KONEC-NAVODILA-100"))`,
+          script: `return Boolean(document.body.textContent?.includes("ONE-ROW-ORDER-CASE"))`,
           args: [],
         },
       });
@@ -364,7 +429,7 @@ async function main() {
     });
     await vite.listen();
 
-    const url = `http://127.0.0.1:${port}/pos/tests/browser/supplier-order-print.html`;
+    const url = `http://127.0.0.1:${port}/pos/tests/browser/supplier-order-print.html${selectedBrowser === "firefox" ? "?shortOnly=true" : ""}`;
     if (selectedBrowser === "chromium") {
       const profileDir = path.join(tempDir, "profile");
       const browserLogs = [];
@@ -402,7 +467,9 @@ async function main() {
       let rendered = false;
       while (Date.now() < renderDeadline) {
         const result = await devTools.send("Runtime.evaluate", {
-          expression: `Boolean(document.querySelector('[data-testid="text-supplier-order-print-instructions"]')?.textContent?.includes("KONEC-NAVODILA-100"))`,
+          expression: selectedBrowser === "firefox"
+            ? `Boolean(document.body.textContent?.includes("ONE-ROW-ORDER-CASE"))`
+            : `Boolean(document.querySelector('[data-testid="text-supplier-order-print-instructions"]')?.textContent?.includes("KONEC-NAVODILA-100"))`,
           returnByValue: true,
         });
         if (result.result?.value === true) {
@@ -444,6 +511,14 @@ async function main() {
     const normalizedPdfText = normalizeText(extracted);
     const pages = extracted.split("\f").map(normalizeText).filter(Boolean);
     assert.equal(pages.length, pageCount, "Extracted PDF page count differs from pdfinfo.");
+    if (selectedBrowser === "firefox") {
+      assert.equal(pageCount, 3, `Expected one A4 page per short order and no blank pages; got ${pageCount} pages.`);
+      assertShortOrderPages(pages, 0);
+      assert(!normalizedPdfText.includes("INTERNAL-NOTE-MUST-NOT-PRINT"), "Internal note leaked into the PDF.");
+      console.log("Supplier-order print firefox regression passed: three short orders on exactly three nonblank A4 pages.");
+      return;
+    }
+
     const lastOrderPageIndex = pages.findIndex(page => page.includes("ONE-ROW-ORDER-CASE")) - 1;
     assert(lastOrderPageIndex > 0, "Could not determine the final page of the multi-page supplier order.");
     if (selectedBrowser === "chromium") {

@@ -197,7 +197,9 @@ const root = document.getElementById("test-root");
 if (!root) throw new Error("Print test root is missing.");
 
 createRoot(root).render(
-  [order, ...shortOrders].map(printOrder =>
+  (new URLSearchParams(window.location.search).get("shortOnly") === "true"
+    ? shortOrders
+    : [order, ...shortOrders]).map(printOrder =>
     <SupplierOrderPrintView key={printOrder.id} order={printOrder} />,
   ),
 );
