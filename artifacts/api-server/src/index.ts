@@ -11,6 +11,7 @@ import { startPublicProfileImageRetentionScheduler } from "./lib/publicProfileIm
 import { startAllergenResearchRunner } from "./lib/allergen-research-runner";
 import { startReportExportRetentionScheduler } from "./lib/reportExportRetention";
 import { startUnknownRefundAlertScheduler } from "./lib/vivaRefundAlerts";
+import { startVatXmlRecoveryScheduler } from "./lib/vatXmlRecovery";
 
 const rawPort = process.env["PORT"];
 
@@ -60,4 +61,5 @@ app.listen(port, (err) => {
   startAllergenResearchRunner();
   startReportExportRetentionScheduler();
   startUnknownRefundAlertScheduler();
+  startVatXmlRecoveryScheduler();
 });

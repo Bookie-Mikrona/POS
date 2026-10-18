@@ -404,6 +404,27 @@ export class ObjectStorageService {
     return `/objects/${normalizedDir}/${objectId}`;
   }
 
+  /** Save to a deterministic private path so interrupted jobs can safely retry. */
+  async savePrivateObject(
+    relativePath: string,
+    contents: Buffer,
+    contentType: string,
+  ): Promise<string> {
+    if (!relativePath || relativePath.split('/').some((part) =>
+      !part || part === '.' || part === '..' || !/^[a-zA-Z0-9_.-]+$/.test(part),
+    )) {
+      throw new Error('Invalid private object destination path');
+    }
+    const privateDir = this.getPrivateObjectDir().replace(/\/+$/, '');
+    const { bucketName, objectName } = parseObjectPath(`${privateDir}/${relativePath}`);
+    await objectStorageClient.bucket(bucketName).file(objectName).save(contents, {
+      resumable: false,
+      timeout: 15_000,
+      metadata: { contentType, cacheControl: 'private, no-store' },
+    });
+    return `/objects/${relativePath}`;
+  }
+
   async saveObjectEntityToNewPath(
     relativeDir: string,
     contents: Buffer,

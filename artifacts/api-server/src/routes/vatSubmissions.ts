@@ -22,6 +22,7 @@ import { vatSubmissionPeriodBounds } from "../lib/vatSubmissionPreflight";
 import { buildKirKprZip } from "../lib/vatZip";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { objectStorageClient } from "../lib/objectStorage";
+import { saveVatXmlArchive } from "../lib/vatXmlStorage";
 import { z } from "zod";
 import { markVatSubmission, VatSubmissionConflict } from "../lib/markVatSubmission";
 
@@ -105,26 +106,12 @@ async function saveXmlToStorage(
   submissionId: string,
 ): Promise<string | null> {
   try {
-    const privateDir = objectStorage.getPrivateObjectDir();
-    const path = `${privateDir}/vat-xml/${companyId}/${year}-${period}/${submissionId}.xml`;
-    const { bucketName, objectName } = parseObjectPath(path);
-    const bucket = objectStorageClient.bucket(bucketName);
-    const file = bucket.file(objectName);
-    await file.save(xml, {
-      contentType: "application/xml",
-      metadata: { contentDisposition: `attachment; filename="KIR_KPR_${year}_${period}.xml"` },
+    return await saveVatXmlArchive({
+      id: submissionId, companyId, periodYear: year, period, xmlInline: xml,
     });
-    // Vrni normalized pot
-    return `/objects/vat-xml/${companyId}/${year}-${period}/${submissionId}.xml`;
   } catch {
     return null; // object storage ni konfiguriran ali je druga napaka
   }
-}
-
-function parseObjectPath(path: string): { bucketName: string; objectName: string } {
-  if (!path.startsWith("/")) path = `/${path}`;
-  const parts = path.split("/");
-  return { bucketName: parts[1], objectName: parts.slice(2).join("/") };
 }
 
 // ─── POST /companies/:companyId/vat-submissions ───────────────────────────────
@@ -137,6 +124,12 @@ interface CreateSubmissionBody {
   vracilo?: unknown;
   nacin?: unknown;
   opomba?: unknown;
+}
+
+function parseObjectPath(path: string): { bucketName: string; objectName: string } {
+  if (!path.startsWith("/")) path = `/${path}`;
+  const parts = path.split("/");
+  return { bucketName: parts[1], objectName: parts.slice(2).join("/") };
 }
 
 function validateCreateBody(body: CreateSubmissionBody): {
