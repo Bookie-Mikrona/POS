@@ -13,12 +13,13 @@ export type LunchMenuData = {
   days: LunchDay[];
 };
 
-const WIDTH = 1080;
-const PAD = 72;
+const PAD = 48;
 const ACCENT = "#ea580c";
 const INK = "#1f2937";
 const MUTED = "#6b7280";
+const LINE = "#e5d5c5";
 const FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+const ROW_ORDER = ["Predjedi", "Juhe", "Glavne jedi", "Sladice"];
 
 export function formatLunchDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -53,104 +54,129 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines;
 }
 
-/** Nariše lično sliko ponudbe (1080 px širine), primerno za družbena omrežja, e-pošto in PDF. */
+/** Nariše tabelo ponudbe: stolpci so dnevi, vrstice so hodi. Ena slika/stran za celo obdobje. */
 export function renderLunchMenuCanvas(data: LunchMenuData): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  const measure = canvas.getContext("2d")!;
-  const innerWidth = WIDTH - PAD * 2;
-  const ITEM_H = 46;
-  const itemLines = (text: string, priceWidth: number) => {
-    measure.font = `500 32px ${FONT}`;
-    return wrap(measure, text, innerWidth - priceWidth - 32);
+  const ctx = canvas.getContext("2d")!;
+  const dayCount = Math.max(1, data.days.length);
+  const LABEL_W = 170;
+  const colW = dayCount <= 2 ? 520 : dayCount <= 4 ? 340 : 270;
+  const width = PAD * 2 + LABEL_W + colW * dayCount;
+  const FS = 22;
+  const LH = 30;
+  const CELL_PAD = 14;
+  const rows = ROW_ORDER.filter((title) => data.days.some((day) => day.sections.some((section) => section.title === title)));
+  const noteFor = (title: string) => data.days.flatMap((day) => day.sections).find((section) => section.title === title)?.note;
+  const rowLabel: Record<string, string> = { Predjedi: "Predjed", Juhe: "Juha", "Glavne jedi": "Glavna jed", Sladice: "Sladica" };
+
+  ctx.font = `500 ${FS}px ${FONT}`;
+  const layout = (day: LunchDay, title: string) => {
+    const section = day.sections.find((s) => s.title === title);
+    if (!section) return [] as { lines: string[]; price?: number }[];
+    return section.items.map((item) => {
+      const priceW = item.price != null ? 96 : 0;
+      ctx.font = `500 ${FS}px ${FONT}`;
+      return { lines: wrap(ctx, item.name, colW - CELL_PAD * 2 - priceW), price: item.price };
+    });
   };
-  const HEADER_H = 300;
-  const multi = data.days.length > 1;
-  const DAY_BAR_H = 84;
-  let height = HEADER_H + 40;
-  for (const day of data.days) {
-    if (multi) height += DAY_BAR_H + 24;
-    for (const section of day.sections) {
-      height += 90;
-      for (const item of section.items) {
-        height += itemLines(item.name, item.price != null ? 150 : 0).length * ITEM_H + 8;
-      }
-      height += 30;
-    }
-    if (multi) height += 20;
-  }
-  height += 120;
+  const rowHeights = rows.map((title) => Math.max(LH + CELL_PAD * 2, ...data.days.map((day) => {
+    const items = layout(day, title);
+    return items.reduce((sum, item) => sum + item.lines.length * LH + 10, 0) + CELL_PAD * 2 - (items.length ? 10 : 0);
+  })));
+  const HEADER_H = 150;
+  const DAYHEAD_H = 84;
+  const FOOT_H = 70;
+  const height = HEADER_H + 24 + DAYHEAD_H + rowHeights.reduce((a, b) => a + b, 0) + FOOT_H + 24;
 
   const scale = 2;
-  canvas.width = WIDTH * scale;
+  canvas.width = width * scale;
   canvas.height = height * scale;
-  const ctx = canvas.getContext("2d")!;
   ctx.scale(scale, scale);
   ctx.fillStyle = "#fffaf5";
-  ctx.fillRect(0, 0, WIDTH, height);
+  ctx.fillRect(0, 0, width, height);
 
-  const grad = ctx.createLinearGradient(0, 0, WIDTH, HEADER_H);
+  const grad = ctx.createLinearGradient(0, 0, width, HEADER_H);
   grad.addColorStop(0, "#c2410c");
   grad.addColorStop(1, "#f97316");
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, WIDTH, HEADER_H);
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = `600 26px ${FONT}`;
-  ctx.fillText([data.restaurant, data.unit].filter(Boolean).join(" · ").toUpperCase(), PAD, 78);
+  ctx.fillRect(0, 0, width, HEADER_H);
+  ctx.fillStyle = "rgba(255,255,255,0.88)";
+  ctx.font = `600 22px ${FONT}`;
+  ctx.fillText([data.restaurant, data.unit].filter(Boolean).join(" · ").toUpperCase(), PAD, 46);
   ctx.fillStyle = "#fff";
-  ctx.font = `800 72px ${FONT}`;
-  ctx.fillText("Dnevna kosila", PAD, 164);
-  ctx.font = `500 36px ${FONT}`;
-  ctx.fillText(data.periodLabel, PAD, 220);
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = `400 26px ${FONT}`;
-  ctx.fillText(data.intro, PAD, 266);
+  ctx.font = `800 54px ${FONT}`;
+  ctx.fillText("Dnevna kosila", PAD, 106);
+  ctx.textAlign = "right";
+  ctx.font = `500 26px ${FONT}`;
+  ctx.fillText(data.periodLabel, width - PAD, 70);
+  ctx.font = `400 20px ${FONT}`;
+  ctx.fillStyle = "rgba(255,255,255,0.88)";
+  ctx.fillText(data.intro, width - PAD, 104);
+  ctx.textAlign = "left";
 
-  let y = HEADER_H + 40;
-  for (const day of data.days) {
-    if (multi) {
-      ctx.fillStyle = "#fed7aa";
-      ctx.fillRect(PAD - 24, y, innerWidth + 48, DAY_BAR_H);
-      ctx.fillStyle = "#9a3412";
-      ctx.font = `800 36px ${FONT}`;
-      ctx.fillText(day.dateLabel, PAD, y + 56);
-      y += DAY_BAR_H + 24;
+  let y = HEADER_H + 24;
+  const x0 = PAD;
+  // glave stolpcev
+  ctx.fillStyle = "#9a3412";
+  ctx.fillRect(x0, y, LABEL_W + colW * dayCount, DAYHEAD_H);
+  data.days.forEach((day, index) => {
+    const [weekday, ...rest] = day.dateLabel.split(", ");
+    const date = rest.join(", ").replace(/\s+\d{4}$/, "");
+    const cx = x0 + LABEL_W + index * colW;
+    ctx.fillStyle = "#fff";
+    ctx.font = `800 28px ${FONT}`;
+    ctx.fillText(weekday, cx + CELL_PAD, y + 36);
+    ctx.font = `400 22px ${FONT}`;
+    ctx.fillStyle = "#fed7aa";
+    ctx.fillText(date, cx + CELL_PAD, y + 64);
+  });
+  y += DAYHEAD_H;
+
+  rows.forEach((title, rowIndex) => {
+    const h = rowHeights[rowIndex];
+    ctx.fillStyle = rowIndex % 2 === 0 ? "#fff" : "#fff3e6";
+    ctx.fillRect(x0, y, LABEL_W + colW * dayCount, h);
+    ctx.fillStyle = ACCENT;
+    ctx.font = `800 22px ${FONT}`;
+    ctx.fillText(rowLabel[title].toUpperCase(), x0 + CELL_PAD, y + CELL_PAD + 22);
+    const note = noteFor(title);
+    if (note) {
+      ctx.fillStyle = MUTED;
+      ctx.font = `400 16px ${FONT}`;
+      wrap(ctx, note, LABEL_W - CELL_PAD * 2).forEach((line, i) => ctx.fillText(line, x0 + CELL_PAD, y + CELL_PAD + 46 + i * 20));
     }
-    for (const section of day.sections) {
-      ctx.fillStyle = ACCENT;
-      ctx.font = `800 30px ${FONT}`;
-      ctx.fillText(section.title.toUpperCase(), PAD, y + 40);
-      if (section.note) {
-        const w = ctx.measureText(section.title.toUpperCase()).width;
-        ctx.fillStyle = MUTED;
-        ctx.font = `400 24px ${FONT}`;
-        ctx.fillText(section.note, PAD + w + 18, y + 40);
+    data.days.forEach((day, index) => {
+      const cx = x0 + LABEL_W + index * colW;
+      ctx.strokeStyle = LINE;
+      ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + h); ctx.stroke();
+      let cy = y + CELL_PAD;
+      const items = layout(day, title);
+      if (items.length === 0) {
+        ctx.fillStyle = MUTED; ctx.font = `400 ${FS}px ${FONT}`; ctx.fillText("—", cx + CELL_PAD, cy + 22);
       }
-      ctx.fillStyle = ACCENT;
-      ctx.fillRect(PAD, y + 56, 56, 4);
-      y += 90;
-      for (const item of section.items) {
-        const priceText = item.price != null ? formatEur(item.price) : "";
-        const lines = itemLines(item.name, item.price != null ? 150 : 0);
+      for (const item of items) {
         ctx.fillStyle = INK;
-        ctx.font = `500 32px ${FONT}`;
-        lines.forEach((line, index) => ctx.fillText(line, PAD, y + 32 + index * ITEM_H));
-        if (priceText) {
-          ctx.font = `700 32px ${FONT}`;
+        ctx.font = `500 ${FS}px ${FONT}`;
+        item.lines.forEach((line, i) => ctx.fillText(line, cx + CELL_PAD, cy + 22 + i * LH));
+        if (item.price != null) {
+          ctx.font = `700 ${FS}px ${FONT}`;
           ctx.fillStyle = ACCENT;
           ctx.textAlign = "right";
-          ctx.fillText(priceText, WIDTH - PAD, y + 32);
+          ctx.fillText(formatEur(item.price), cx + colW - CELL_PAD, cy + 22);
           ctx.textAlign = "left";
         }
-        y += lines.length * ITEM_H + 8;
+        cy += item.lines.length * LH + 10;
       }
-      y += 30;
-    }
-    if (multi) y += 20;
-  }
+    });
+    ctx.strokeStyle = LINE;
+    ctx.beginPath(); ctx.moveTo(x0, y + h); ctx.lineTo(x0 + LABEL_W + colW * dayCount, y + h); ctx.stroke();
+    y += h;
+  });
+
   ctx.fillStyle = MUTED;
-  ctx.font = `400 24px ${FONT}`;
+  ctx.font = `400 20px ${FONT}`;
   ctx.textAlign = "center";
-  ctx.fillText([data.restaurant, data.unit, data.address].filter(Boolean).join(" · "), WIDTH / 2, height - 52);
+  ctx.fillText([data.restaurant, data.unit, data.address].filter(Boolean).join(" · "), width / 2, height - 30);
   ctx.textAlign = "left";
   return canvas;
 }
@@ -159,12 +185,12 @@ export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Slike ni bilo mogoče ustvariti."))), "image/png"));
 }
 
-/** Enostaven enostranski PDF (A4 širina, višina sledi sliki) z vdelano JPEG sliko. */
+/** Enostranski PDF (širina A4 ležeče, višina sledi tabeli) z vdelano JPEG sliko. */
 export async function canvasToPdfBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   const jpeg = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("PDF ni bilo mogoče ustvariti."))), "image/jpeg", 0.92));
   const bytes = new Uint8Array(await jpeg.arrayBuffer());
-  const pageW = 595;
+  const pageW = 842;
   const pageH = Math.round((canvas.height / canvas.width) * pageW);
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
