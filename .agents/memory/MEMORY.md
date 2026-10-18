@@ -3,6 +3,7 @@
 - [Claude konzultacija](claude-konzultacija.md) — pri neznanih SDK/hardware/algoritmičnih problemih pokliči Claude najprej, šele nato implementiraj
 - [Brisanje razvojnih prijav](dev-clerk-user-cleanup.md) — e-pošto razreši v razvojnem Clerku; DB vloge veži na Clerk ID, poslovno/revizijsko zgodovino ohrani.
 - [ERP company header](erp-company-header.md) — ERP poročila morajo aktivno podjetje vedno poslati eksplicitno, ne zanašati se na legacy localStorage fallback.
+- [CSV analitičnega poročila](dimension-report-export-policy.md) — med osveževanjem izvozi zadnji uspešen rezultat z njegovimi metapodatki, ne z novimi URL filtri.
 - [Pravila javnega QR menija](qr-menu-guides.md) — prikaz, izrazi, To Go, več naročil, alkohol, lokacija in zasebnost operativnih podatkov.
 - [Pice: velikosti in poraba](pizza-guides.md) — povezana pravila cen, hlebčkov in razlike med postajo pica ter operativnim tipom.
 - [Pitna voda v receptih](tap-water-recipe-policy.md) — voda iz pipe ostane v navodilih priprave, nikoli kot nabavni artikel ali zalogovna sestavina.

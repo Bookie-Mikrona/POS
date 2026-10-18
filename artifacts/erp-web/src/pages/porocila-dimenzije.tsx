@@ -260,6 +260,27 @@ function DimensionReport() {
   const isLoading = isValid && report.isLoading;
   const error = isValid && report.error;
 
+  // Filters update the URL immediately. Keep CSV data and metadata together
+  // while the request for the next valid view is pending (or fails).
+  const dimensionLabel = (DIM_OPTIONS.find((d) => d.value === applied.dimensionType) ?? DIM_OPTIONS[0]).label;
+  const accountLabel = applied.accountId
+    ? accountsData?.accounts.find((account) => account.id === applied.accountId)?.code
+    : undefined;
+  const [csvReport, setCsvReport] = useState<{
+    data: NonNullable<typeof data>;
+    dimensionLabel: string;
+    dateFrom: string;
+    dateTo: string;
+    accountLabel?: string;
+  } | null>(null);
+  useEffect(() => {
+    if (data && applied.queried && !report.isPlaceholderData) {
+      setCsvReport({
+        data, dimensionLabel, dateFrom: applied.dateFrom, dateTo: applied.dateTo, accountLabel,
+      });
+    }
+  }, [data, applied.queried, report.isPlaceholderData, dimensionLabel, applied.dateFrom, applied.dateTo, accountLabel]);
+
   const expandableRows = (data?.rows ?? []).filter((row) => (row.accounts?.length ?? 0) > 0);
   const allExpanded = expandableRows.length > 0 && expandableRows.every((row) => expandedRows.has(row.id));
 
@@ -407,31 +428,30 @@ function DimensionReport() {
             >
               Prikaži poročilo
             </Button>
-            {applied.queried && data && (
-              <>
+            {applied.queried && isValid && csvReport && (
                 <Button
                   variant="outline"
                   size="icon"
                   className="h-9 w-9 print:hidden"
                   onClick={() =>
                     exportCsv(
-                      data.rows,
-                      data.grandTotalDebit,
-                      data.grandTotalCredit,
-                      data.grandTotalBalance,
-                      dimOption.label,
-                      applied.dateFrom,
-                      applied.dateTo,
-                      applied.accountId
-                        ? (accountsData?.accounts ?? []).find((a: any) => a.id === applied.accountId)
-                            ?.code
-                        : undefined,
+                      csvReport.data.rows,
+                      csvReport.data.grandTotalDebit,
+                      csvReport.data.grandTotalCredit,
+                      csvReport.data.grandTotalBalance,
+                      csvReport.dimensionLabel,
+                      csvReport.dateFrom,
+                      csvReport.dateTo,
+                      csvReport.accountLabel,
                     )
                   }
                   title="Izvozi v CSV"
                 >
                   <Download className="h-4 w-4" />
                 </Button>
+            )}
+            {applied.queried && data && (
+              <>
                 <Button
                   variant="outline"
                   size="sm"
