@@ -1374,12 +1374,29 @@ export default function NarocilaDobaviteljem() {
                                   const priceChange = previousEntry
                                     ? comparePriceHistoryEntries(entry.unitPrice, previousEntry.unitPrice)
                                     : null;
+                                  const historyPriceFreshness = supplierPriceFreshness(entry.date);
                                   return (
                                     <li key={`${entry.receiptId}-${entry.receiptNumber}`} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
                                       <div className="min-w-0">
                                         <div>
                                           {formatReceiptDate(entry.date)} · {formatUnitMoney(entry.unitPrice)} / {article.baseUnit?.trim() || "enoto (ni določena)"}
                                         </div>
+                                        {historyPriceFreshness === "stale" && (
+                                          <div
+                                            className="font-semibold text-amber-800"
+                                            data-testid={`price-history-freshness-${supplierMapping.id}-${entry.receiptId}`}
+                                          >
+                                            Stara cena · {SUPPLIER_PRICE_STALE_AFTER_DAYS} dni ali več
+                                          </div>
+                                        )}
+                                        {historyPriceFreshness === "unknown" && (
+                                          <div
+                                            className="font-medium text-stone-700"
+                                            data-testid={`price-history-freshness-${supplierMapping.id}-${entry.receiptId}`}
+                                          >
+                                            Starost cene ni znana
+                                          </div>
+                                        )}
                                         {priceChange && (
                                           <div
                                             className={`font-medium ${priceChange.className}`}

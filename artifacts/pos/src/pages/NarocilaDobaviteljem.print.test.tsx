@@ -1208,6 +1208,47 @@ describe("supplier order print view", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7032&nacin=ogled");
   });
 
+  it("marks old history prices and labels missing or invalid dates as unknown", () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalPriceHistory = mapping.priceHistory;
+    const recentDate = receiptDateDaysAgo(89);
+    const staleDate = receiptDateDaysAgo(90);
+    mapping.priceHistory = [
+      { receiptId: 7141, date: recentDate, receiptNumber: "R-7141", unitPrice: 4.25 },
+      { receiptId: 7142, date: staleDate, receiptNumber: "R-7142", unitPrice: 4 },
+      { receiptId: 7143, date: null as any, receiptNumber: "R-7143", unitPrice: 3.75 },
+      { receiptId: 7144, date: "not-a-date", receiptNumber: "R-7144", unitPrice: 3.5 },
+    ];
+
+    try {
+      renderSupplierOrderPage();
+      const history = screen.getByTestId("price-history-7042");
+      fireEvent.click(within(history).getByText(/Zgodovina potrjenih cen/));
+
+      expect(within(history).queryByTestId("price-history-freshness-7042-7141")).toBeNull();
+      expect(within(history).getByTestId("price-history-freshness-7042-7142").textContent)
+        .toContain("90 dni ali več");
+      expect(within(history).getByTestId("price-history-freshness-7042-7143").textContent)
+        .toContain("ni znana");
+      expect(within(history).getByTestId("price-history-freshness-7042-7144").textContent)
+        .toContain("ni znana");
+
+      const staleReceipt = within(history).getByTestId("price-history-receipt-7042-7142");
+      expect(history.textContent).toContain("Datum ni znan");
+      expect(history.textContent).toContain("4,00");
+      expect(history.textContent).toContain(expectedReceiptDate(staleDate));
+      expect(staleReceipt.textContent).toContain("R-7142");
+      expect(within(history).getByTestId("price-history-receipt-7042-7143").textContent)
+        .toContain("R-7143");
+      expect(within(history).getByTestId("price-history-receipt-7042-7144").textContent)
+        .toContain("R-7144");
+      fireEvent.click(staleReceipt);
+      expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7142&nacin=ogled");
+    } finally {
+      mapping.priceHistory = originalPriceHistory;
+    }
+  });
+
   it("highlights price increases, decreases, unchanged prices, and zero-price comparisons", () => {
     const mapping = mocks.dashboard.articles[0].mappings[0];
     const originalPriceHistory = mapping.priceHistory;
