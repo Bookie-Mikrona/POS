@@ -11,7 +11,7 @@
  */
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, screen } from "@testing-library/react";
+import { render, fireEvent, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import Receipts from "./Receipts";
@@ -50,12 +50,17 @@ const vivaVracilaRef = vi.hoisted(() => ({ current: {} as Record<number, unknown
 const mockToast = vi.hoisted(() => vi.fn());
 const userRoleRef = vi.hoisted(() => ({ current: "blagajnik" }));
 const unknownRefundsRef = vi.hoisted(() => ({ current: [] as unknown[] }));
+const customFetchMock = vi.hoisted(() => vi.fn());
 const resolveUnknownMutate = vi.hoisted(() => vi.fn());
 const refundStatusCheck = vi.hoisted(() => vi.fn());
 
 // ── Moki modulov ──────────────────────────────────────────────────────────────
 
 vi.mock("@workspace/api-client-react", () => ({
+  useUpdateVivaRefundApprovalPolicy: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useGetVivaRefundAlertOverview: () => ({ data: undefined, isLoading: false, isError: false }),
+  getGetVivaRefundAlertOverviewQueryKey: () => ["/api/viva-refund-alerts"],
+  useUpdateVivaRefundAlertSettings: () => ({ mutate: vi.fn(), isPending: false }),
   useListPosMonthlyInvoicePartners: () => ({ data: [], isLoading: false }),
   useListRacuni: () => ({ data: dataRef.current, isLoading: false }),
   usePonoviPosiljanjeRacuna: () => ({ mutate: vi.fn(), isPending: false }),
@@ -68,7 +73,8 @@ vi.mock("@workspace/api-client-react", () => ({
     isFetching: false,
   }),
   useListFursAttempts: () => ({ data: { items: [] }, isLoading: false }),
-  useListUnknownVivaRefunds: () => ({ data: { items: unknownRefundsRef.current }, isLoading: false }),
+  customFetch: customFetchMock,
+  useListUnknownVivaRefunds: () => ({ data: { items: unknownRefundsRef.current, approvalThreshold: 100 }, isLoading: false }),
   getListUnknownVivaRefundsQueryKey: () => ["/api/terminal/viva/terminal/refunds/unknown"],
   useResolveUnknownVivaRefund: () => ({ mutate: resolveUnknownMutate, isPending: false }),
   vivaTerminalRefundStatus: refundStatusCheck,
@@ -304,7 +310,9 @@ describe("VivaVracilaHistory — barvno kodiranje statusov", () => {
       actorNatakarId: 77,
       napravaKljuc: "POS-BAR-01",
       ustvarjeno: "2024-06-01T10:30:00.000Z",
+      canApprove: true,
     }];
+    customFetchMock.mockResolvedValue({ id: "evidence-1", name: "dokaz.pdf", sha256: "abc123" });
     renderReceipts();
 
     expect(screen.getByText("Nejasna Viva vračila (1)")).toBeInTheDocument();
@@ -312,7 +320,7 @@ describe("VivaVracilaHistory — barvno kodiranje statusov", () => {
     expect(refundStatusCheck).toHaveBeenCalledWith("refund-unknown-91");
 
     fireEvent.click(screen.getByRole("button", { name: "Ročno razreši" }));
-    const confirm = screen.getByRole("button", { name: "Potrdi ročno razrešitev" });
+    const confirm = screen.getByRole("button", { name: "Shrani odločitev" });
     expect(confirm).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Razlog odločitve"), {
       target: { value: "Preverjeno na terminalskem dnevniku." },
@@ -320,7 +328,11 @@ describe("VivaVracilaHistory — barvno kodiranje statusov", () => {
     fireEvent.change(screen.getByLabelText("Dokaz ali referenca"), {
       target: { value: "TX-REF-991" },
     });
-    expect(confirm).toBeEnabled();
+    expect(confirm).toBeDisabled(); // brez priložene datoteke dokazila
+    fireEvent.change(screen.getByLabelText("Priponka dokazila (obvezno)"), {
+      target: { files: [new File(["%PDF"], "dokaz.pdf", { type: "application/pdf" })] },
+    });
+    await waitFor(() => expect(confirm).toBeEnabled());
     fireEvent.click(confirm);
     expect(resolveUnknownMutate).toHaveBeenCalledWith(
       {
@@ -329,6 +341,7 @@ describe("VivaVracilaHistory — barvno kodiranje statusov", () => {
           status: "paid",
           razlog: "Preverjeno na terminalskem dnevniku.",
           dokazReferenca: "TX-REF-991",
+          dokazPriponkaId: "evidence-1",
         },
       },
       expect.any(Object),

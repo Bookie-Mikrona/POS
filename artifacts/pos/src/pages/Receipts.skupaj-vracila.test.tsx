@@ -108,6 +108,10 @@ const mockToast = vi.hoisted(() => vi.fn());
 // ── Moki modulov ─────────────────────────────────────────────────────────────
 
 vi.mock("@workspace/api-client-react", () => ({
+  useUpdateVivaRefundApprovalPolicy: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useGetVivaRefundAlertOverview: () => ({ data: undefined, isLoading: false, isError: false }),
+  getGetVivaRefundAlertOverviewQueryKey: () => ["/api/viva-refund-alerts"],
+  useUpdateVivaRefundAlertSettings: () => ({ mutate: vi.fn(), isPending: false }),
   useListRacuni: () => ({ data: dataRef.current, isLoading: false }),
   usePonoviPosiljanjeRacuna: () => ({ mutate: vi.fn(), isPending: false }),
   useStornirajRacun: () => ({ mutate: vi.fn(), isPending: false }),

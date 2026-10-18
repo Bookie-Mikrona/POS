@@ -111,8 +111,8 @@ function generateReport() {
   fireEvent.click(screen.getByRole("button", { name: "Prikaži poročilo" }));
   expect(mocks.report).toHaveBeenLastCalledWith("company-1", {
     dimensionType: "costCenter", dateFrom: "2026-01-01", dateTo: "2026-01-31",
-    accountId: "acc-1", groupBy: "account",
-  }, { query: { enabled: true } });
+    accountId: "acc-1", groupBy: "account", untaggedPage: 1, untaggedPageSize: 20,
+  }, { query: { enabled: true, refetchOnMount: "always" } });
   expect(screen.getByRole("button", { name: "Razširi vse" })).toHaveAttribute("aria-expanded", "false");
   expect(screen.getByText("Kuhinja")).toBeInTheDocument();
   for (const name of ['Material; "živila"', "Popravki", "Material za bar"]) {
@@ -166,8 +166,8 @@ describe("CSV download from the dimension report page", () => {
     fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "acc-2" } });
     expect(mocks.report).toHaveBeenLastCalledWith("company-1", {
       dimensionType: "project", dateFrom: "2025-02-01", dateTo: "2025-02-28",
-      accountId: "acc-2", groupBy: "account",
-    }, { query: { enabled: true } });
+      accountId: "acc-2", groupBy: "account", untaggedPage: 1, untaggedPageSize: 20,
+    }, { query: { enabled: true, refetchOnMount: "always" } });
     // No second click on "Prikaži poročilo", and no response for the new filters.
     await expectDownloadedReport();
   });
