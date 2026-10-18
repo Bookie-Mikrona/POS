@@ -175,7 +175,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   });
 
   it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", function verifiesIsolatedSmallSampleDot() {
-    const chartData = buildTrendChartData(feedbackReport.trends);
+    const chartData = buildTrendChartData(trends);
     expect(chartData[0]).toMatchObject({
       foodReliable: 4.5,
       ambienceReliable: 3,

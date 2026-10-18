@@ -20,8 +20,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAu
 import { generateKirKprXml } from "../lib/vatXmlGenerator";
 import { vatSubmissionPeriodBounds } from "../lib/vatSubmissionPreflight";
 import { buildKirKprZip } from "../lib/vatZip";
-import { ObjectStorageService } from "../lib/objectStorage";
-import { objectStorageClient } from "../lib/objectStorage";
+import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import { saveVatXmlArchive } from "../lib/vatXmlStorage";
 import { z } from "zod";
 import { markVatSubmission, VatSubmissionConflict } from "../lib/markVatSubmission";
@@ -549,20 +548,27 @@ router.get(
 
     // Najprej poskusi object storage, potem fallback na inline
     if (submission.xmlStoragePath) {
+      let archivedXml: string | undefined;
       try {
-        const { bucketName, objectName } = parseObjectPath(
-          submission.xmlStoragePath.replace("/objects/", "/"),
-        );
-        const bucket = objectStorageClient.bucket(bucketName);
-        const file = bucket.file(objectName);
-        const [exists] = await file.exists();
-        if (exists) {
-          const [bytes] = await file.download();
-          await sendArchived(bytes.toString("utf8"));
-          return;
-        }
-      } catch {
-        // pademo na inline
+        const file = await objectStorage.getObjectEntityFile(submission.xmlStoragePath);
+        const [bytes] = await file.download();
+        archivedXml = bytes.toString("utf8");
+      } catch (err) {
+        const code = (err as { code?: unknown } | null)?.code;
+        req.log.warn({
+          event: "vat_submission_storage_read_failed",
+          companyId,
+          submissionId,
+          xmlStoragePath: submission.xmlStoragePath,
+          reason: err instanceof ObjectNotFoundError || code === 404 || code === "404"
+            ? "missing_object" : "storage_error",
+          fallbackAvailable: Boolean(submission.xmlInline),
+          err,
+        }, "Branje arhiviranega DDV XML iz App Storage ni uspelo; poskus prenosa iz rezervne kopije.");
+      }
+      if (archivedXml !== undefined) {
+        await sendArchived(archivedXml);
+        return;
       }
     }
 
