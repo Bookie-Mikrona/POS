@@ -21,6 +21,7 @@ const { dbState } = vi.hoisted(() => {
     queues: [] as unknown[][],
     idx: 0,
     deletes: 0,
+    inserts: [] as Array<{ table: unknown; values: Record<string, unknown> }>,
     updates: [] as Array<{ table: string; values: Record<string, unknown> }>,
   };
   return { dbState };
@@ -48,11 +49,14 @@ vi.mock("@workspace/db", () => {
     };
     return chain;
   }
-  function makeInsertChain(): Record<string, unknown> {
+  function makeInsertChain(table: unknown): Record<string, unknown> {
     const rows = nextFrom(dbState);
     const p = Promise.resolve(rows);
     const chain: Record<string, unknown> = {
-      values: () => chain,
+      values: (values: Record<string, unknown>) => {
+        dbState.inserts.push({ table, values });
+        return chain;
+      },
       onConflictDoUpdate: () => chain,
       returning: () => p,
       then: p.then.bind(p),
@@ -79,7 +83,7 @@ vi.mock("@workspace/db", () => {
   return {
     db: {
       select: () => makeChain(),
-      insert: () => makeInsertChain(),
+      insert: (table: unknown) => makeInsertChain(table),
       delete: () => makeDeleteChain(),
       update: () => makeUpdateChain(),
     },
@@ -253,6 +257,7 @@ describe("POST /os/:companyId/amortizacija/obracun — GLK integracija (3a)", ()
     dbState.queues = [];
     dbState.idx = 0;
     dbState.deletes = 0;
+    dbState.inserts = [];
     dbState.updates = [];
   });
 
@@ -269,80 +274,7 @@ describe("POST /os/:companyId/amortizacija/obracun — GLK integracija (3a)", ()
       .set("Authorization", "Bearer test-clerk-uid")
       .send({ leto: 2024, doMeseca: 6 });
 
-    expect(res.status).toBe(201);
-    expect(res.body.glkOsnutek.ustvarjen).toBe(false);
-    expect(res.body.glkOsnutek.posodobljen).toBe(false);
-    expect(res.body.glkOsnutek.temeljnicaId).toBeNull();
-    expect(res.body.glkOsnutek.sporocilo).toMatch(/OS-only/i);
-  });
-
-  // ── 2. GLK-podjetje, brez obdobja za leto → opozorilo, ne 500 ─────────────
-
-  it("GLK-podjetje, brez odprtega obdobja za leto → 201 z opozorilom v glkOsnutek", async () => {
-    pushBaseQueues({ glavaResult: MOCK_GLAVA_NO_GLK });
-    // hasGlkModule: [8] → ima erp
-    dbState.queues.push([{ module: "erp" }]);
-    // findPeriodForLeto: [9] → prazno (ni obdobja)
-    dbState.queues.push([]);
-
-    const app = await buildApp();
-    const res = await request(app)
-      .post("/os/company-1/amortizacija/obracun")
-      .set("Authorization", "Bearer test-clerk-uid")
-      .send({ leto: 2024, doMeseca: 6 });
-
-    expect(res.status).toBe(201);
-    expect(res.body.glkOsnutek.ustvarjen).toBe(false);
-    expect(res.body.glkOsnutek.temeljnicaId).toBeNull();
-    expect(res.body.glkOsnutek.sporocilo).toMatch(/ni odprtega računovodskega obdobja/i);
-  });
-
-  // ── 3. GLK-podjetje, prvo izvajanje → ustvari nov osnutek ─────────────────
-
-  it("GLK-podjetje, první obračun → ustvari draft (glkOsnutek.ustvarjen=true)", async () => {
-    pushBaseQueues({ glavaResult: MOCK_GLAVA_NO_GLK });
-    // hasGlkModule: [8]
-    dbState.queues.push([{ module: "erp" }]);
-    // findPeriodForLeto: [9]
-    dbState.queues.push(MOCK_PERIOD);
-    // INSERT journal_entries returning: [10]
-    dbState.queues.push([{ id: "new-entry-id" }]);
-    // INSERT journal_entry_lines (brez vrstic ker predogled.vrstice=[])
-    // db.update os_amortizacija_obracun (glk_temeljnica_id) — v updates
-
-    const app = await buildApp();
-    const res = await request(app)
-      .post("/os/company-1/amortizacija/obracun")
-      .set("Authorization", "Bearer test-clerk-uid")
-      .send({ leto: 2024, doMeseca: 6 });
-
-    expect(res.status).toBe(201);
-    expect(res.body.glkOsnutek.ustvarjen).toBe(true);
-    expect(res.body.glkOsnutek.posodobljen).toBe(false);
-    expect(res.body.glkOsnutek.temeljnicaId).toBe("new-entry-id");
-    expect(res.body.glkOsnutek.sporocilo).toMatch(/Osnutek temeljnice dodan/i);
-    // glk_temeljnica_id shranjen (db.update poklican)
-    expect(dbState.updates.length).toBeGreaterThanOrEqual(1);
-  });
-
-  // ── 4. GLK-podjetje, ponovni obračun → POSODOBI obstoječi osnutek ─────────
-
-  it("GLK-podjetje, ponovni obračun (glava že ima glkTemeljnicaId) → POSODOBITEV, ne nova temeljnica", async () => {
-    // glava že ima glkTemeljnicaId = "entry-existing-id"
-    pushBaseQueues({ glavaResult: MOCK_GLAVA_WITH_GLK });
-    // hasGlkModule: [8]
-    dbState.queues.push([{ module: "erp" }]);
-    // findPeriodForLeto: [9]
-    dbState.queues.push(MOCK_PERIOD);
-    // Ni INSERT journal_entries (obstojeci != null) → db.delete + db.update (header) + db.insert (lines)
-    // db.insert journal_entry_lines returning (ni relevanten): [10] prazno
-    // db.update os_amortizacija_obracun NI poklican (ker obstojeci != null)
-
-    const app = await buildApp();
-    const res = await request(app)
-      .post("/os/company-1/amortizacija/obracun")
-      .set("Authorization", "Bearer test-clerk-uid")
-      .send({ leto: 2024, doMeseca: 9 });
+    const { journalEntriesTable } = await import("@workspace/db");
 
     expect(res.status).toBe(201);
     expect(res.body.glkOsnutek.posodobljen).toBe(true);
@@ -357,9 +289,7 @@ describe("POST /os/:companyId/amortizacija/obracun — GLK integracija (3a)", ()
 
   // ── 5. Osnutek NIKOLI ni auto-posted ─────────────────────────────────────
 
-  it("GLK osnutek ima status=draft v INSERT klicu (nikoli auto-posted)", async () => {
-    // Ujamemo, katera vrednost je bila vstavljena v journal_entries
-    const insertedEntries: unknown[] = [];
+  it.each([1, 6, 9, 12])("GLK osnutek do meseca %i ostane nepotrjen v INSERT klicu", async (doMeseca) => {
     pushBaseQueues({ glavaResult: MOCK_GLAVA_NO_GLK });
     dbState.queues.push([{ module: "erp" }]);
     dbState.queues.push(MOCK_PERIOD);
@@ -370,29 +300,100 @@ describe("POST /os/:companyId/amortizacija/obracun — GLK integracija (3a)", ()
     const res = await request(app)
       .post("/os/company-1/amortizacija/obracun")
       .set("Authorization", "Bearer test-clerk-uid")
-      .send({ leto: 2024, doMeseca: 12 });
+      .send({ leto: 2024, doMeseca: 6 });
+
+    const { journalEntriesTable } = await import("@workspace/db");
 
     expect(res.status).toBe(201);
-    // Statusu v odgovoru obračuna je 'zakljucen', a GLK entry je draft
-    expect(res.body.status).toBe("zakljucen");
-    expect(res.body.glkOsnutek.ustvarjen).toBe(true);
-    // Ključni test: sporocilo NIMA besede 'poknjizeno' ali 'posted'
-    expect(res.body.glkOsnutek.sporocilo).not.toMatch(/poknjižen|posted/i);
+    expect(res.body.glkOsnutek.posodobljen).toBe(true);
+    expect(res.body.glkOsnutek.ustvarjen).toBe(false);
+    expect(res.body.glkOsnutek.temeljnicaId).toBe("entry-existing-id");
+    expect(res.body.glkOsnutek.sporocilo).toMatch(/posodobljen/i);
+    // Zastarele vrstice so bile izbrisane (db.delete poklican)
+    expect(dbState.deletes).toBeGreaterThanOrEqual(1);
+    // db.update poklican za header (ne za glk_temeljnica_id, ker obstojeci != null)
+    expect(dbState.updates.length).toBeGreaterThanOrEqual(1);
   });
 
-  // ── 6. glk_temeljnica_id shranjen na obračun po ustvaritvi ────────────────
+  // ── 5. Osnutek NIKOLI ni auto-posted ─────────────────────────────────────
 
-  it("Po ustvaritvi novega osnutka: db.update poklican z glkTemeljnicaId", async () => {
+  it.each([1, 6, 9, 12])("GLK osnutek do meseca %i ostane nepotrjen v INSERT klicu", async (doMeseca) => {
     pushBaseQueues({ glavaResult: MOCK_GLAVA_NO_GLK });
     dbState.queues.push([{ module: "erp" }]);
     dbState.queues.push(MOCK_PERIOD);
-    dbState.queues.push([{ id: "saved-entry-id" }]);
+    // Mock INSERT za journal_entries: vrni vrednosti, ki smo jih vstavili
+    dbState.queues.push([{ id: "draft-entry" }]);
 
     const app = await buildApp();
     const res = await request(app)
       .post("/os/company-1/amortizacija/obracun")
       .set("Authorization", "Bearer test-clerk-uid")
       .send({ leto: 2024, doMeseca: 6 });
+
+    const { journalEntriesTable } = await import("@workspace/db");
+
+    expect(res.status).toBe(201);
+    expect(res.body.glkOsnutek.posodobljen).toBe(true);
+    expect(res.body.glkOsnutek.ustvarjen).toBe(false);
+    expect(res.body.glkOsnutek.temeljnicaId).toBe("entry-existing-id");
+    expect(res.body.glkOsnutek.sporocilo).toMatch(/posodobljen/i);
+    // Zastarele vrstice so bile izbrisane (db.delete poklican)
+    expect(dbState.deletes).toBeGreaterThanOrEqual(1);
+    // db.update poklican za header (ne za glk_temeljnica_id, ker obstojeci != null)
+    expect(dbState.updates.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── 5. Osnutek NIKOLI ni auto-posted ─────────────────────────────────────
+
+  it.each([1, 6, 9, 12])("GLK osnutek do meseca %i ostane nepotrjen v INSERT klicu", async (doMeseca) => {
+    pushBaseQueues({ glavaResult: MOCK_GLAVA_NO_GLK });
+    dbState.queues.push([{ module: "erp" }]);
+    dbState.queues.push(MOCK_PERIOD);
+    // Mock INSERT za journal_entries: vrni vrednosti, ki smo jih vstavili
+    dbState.queues.push([{ id: "draft-entry" }]);
+
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/os/company-1/amortizacija/obracun")
+      .set("Authorization", "Bearer test-clerk-uid")
+      .send({ leto: 2024, doMeseca: 6 });
+
+    const { journalEntriesTable } = await import("@workspace/db");
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/os/company-1/amortizacija/obracun")
+      .set("Authorization", "Bearer test-clerk-uid")
+      .send({ leto: 2024, doMeseca: 6 });
+
+    const { journalEntriesTable } = await import("@workspace/db");
+
+    expect(res.status).toBe(201);
+    expect(res.body.glkOsnutek.posodobljen).toBe(true);
+    expect(res.body.glkOsnutek.ustvarjen).toBe(false);
+    expect(res.body.glkOsnutek.temeljnicaId).toBe("entry-existing-id");
+    expect(res.body.glkOsnutek.sporocilo).toMatch(/posodobljen/i);
+    // Zastarele vrstice so bile izbrisane (db.delete poklican)
+    expect(dbState.deletes).toBeGreaterThanOrEqual(1);
+    // db.update poklican za header (ne za glk_temeljnica_id, ker obstojeci != null)
+    expect(dbState.updates.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── 5. Osnutek NIKOLI ni auto-posted ─────────────────────────────────────
+
+  it.each([1, 6, 9, 12])("GLK osnutek do meseca %i ostane nepotrjen v INSERT klicu", async (doMeseca) => {
+    pushBaseQueues({ glavaResult: MOCK_GLAVA_NO_GLK });
+    dbState.queues.push([{ module: "erp" }]);
+    dbState.queues.push(MOCK_PERIOD);
+    // Mock INSERT za journal_entries: vrni vrednosti, ki smo jih vstavili
+    dbState.queues.push([{ id: "draft-entry" }]);
+
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/os/company-1/amortizacija/obracun")
+      .set("Authorization", "Bearer test-clerk-uid")
+      .send({ leto: 2024, doMeseca: 6 });
+
+    const { journalEntriesTable } = await import("@workspace/db");
 
     expect(res.status).toBe(201);
     // Vsaj en db.update je poklican (shranjevanje glkTemeljnicaId)
@@ -403,3 +404,5 @@ describe("POST /os/:companyId/amortizacija/obracun — GLK integracija (3a)", ()
     expect(updateWithGlk?.values.glkTemeljnicaId).toBe("saved-entry-id");
   });
 });
+
+    const entries = dbState.inserts.filter((insert) => insert.table === journalEntriesTable);

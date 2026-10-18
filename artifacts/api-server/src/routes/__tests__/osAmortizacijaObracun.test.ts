@@ -39,6 +39,7 @@ vi.mock("@workspace/db", () => {
       where: () => chain,
       innerJoin: () => chain,
       leftJoin: () => chain,
+      groupBy: () => p,
       limit: () => p,
       orderBy: () => p,
       then: p.then.bind(p),
@@ -68,6 +69,12 @@ vi.mock("@workspace/db", () => {
     db: {
       select: () => makeChain(),
       insert: () => makeInsertChain(),
+      update: () => ({
+        set: (values: Record<string, unknown>) => {
+          dbState.updated.push(values);
+          return { where: () => Promise.resolve() };
+        },
+      }),
     },
     // Tabele — string vrednosti so dovolj (Drizzle mock)
     osAmortizacijaObracunTable: {
@@ -682,22 +689,26 @@ describe("POST /os/:companyId/amortizacija/obracun", () => {
     expect(res.body.doMeseca).toBe(12);
   });
 
-  it("doMeseca<12 s sredstvom brez amortizacije → ostane odprt", async () => {
+  it.each([1, 6, 9, 12])("obračun s sredstvom do meseca %i loči status obračuna od knjiženja", async (doMeseca) => {
+    const status = doMeseca === 12 ? "zakljucen" : "odprt";
     pushAccessQueues("os_admin");
     pushObracunQueues(
       [],
-      [{ id: "obr-4", companyId: "company-1", leto: 2024, doMeseca: 9, status: "odprt" }],
+      [{ id: "obr-4", companyId: "company-1", leto: 2024, doMeseca, status }],
       true,
     );
     const app = await buildApp();
     const res = await request(app)
       .post("/os/company-1/amortizacija/obracun")
       .set("Authorization", "Bearer test-clerk-uid")
-      .send({ leto: 2024, doMeseca: 9 });
+      .send({ leto: 2024, doMeseca });
     expect(res.status).toBe(201);
-    expect(res.body.status).toBe("odprt");
-    expect(dbState.inserted[0].status).toBe("odprt");
-    expect(dbState.updated[0].status).toBe("odprt");
+    expect(res.body.status).toBe(status);
+    expect(dbState.inserted[0].status).toBe(status);
+    expect(dbState.updated[0].status).toBe(status);
+    expect(res.body.glkOsnutek).toMatchObject({
+      ustvarjen: false, posodobljen: false, temeljnicaId: null,
+    });
   });
 
   it.each([1, 6, 9, 12])("prazen obračun do meseca %i se shrani kot zakljucen tudi pri posodobitvi", async (doMeseca) => {
