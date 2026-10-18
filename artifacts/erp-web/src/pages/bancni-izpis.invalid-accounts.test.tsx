@@ -85,12 +85,12 @@ function start(config: Record<string, string | null>, accountsFirst: boolean, ac
 
 describe.each([true, false])("validacija shranjenih kontov; konti prispejo prvi: %s", accountsFirst => {
   it.each(configKeys)("počisti neveljaven %s in pokaže opozorilo, druge konte pa ohrani", async key => {
-    const config = { bankAccountId: "bank", arAccountId: "ar", apAccountId: "ap", [key]: "inactive-account" };
-    await start(config, accountsFirst).finish();
+    const invalidSavedConfig = { bankAccountId: "bank", arAccountId: "ar", apAccountId: "ap", [key]: "inactive-account" };
+    await start(invalidSavedConfig, accountsFirst).finish();
     await waitFor(() => expect(screen.getByText(warning)).toBeTruthy());
     const controls = screen.getAllByRole("combobox");
     configKeys.forEach((field, index) => {
-      expect(controls[index + 1]!.getAttribute("data-value")).toBe(field === key ? "" : config[field]);
+      expect(controls[index + 1]!.getAttribute("data-value")).toBe(field === key ? "" : invalidSavedConfig[field]);
     });
   });
 

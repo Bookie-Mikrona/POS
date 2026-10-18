@@ -6,6 +6,7 @@
 
 # No need to store the pnpm store twice.
 .local
+/generated-artifacts/
 
 # Dependencies are installed again inside the publishing build image.
 node_modules

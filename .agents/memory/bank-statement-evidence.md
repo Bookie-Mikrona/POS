@@ -37,4 +37,4 @@ Obnovitev mora ohraniti tudi uspešno evidentiranje izpiska, ne le ustvarjenih p
 
 **Why:** Evidentiranje istega datotečnega odtisa je namenoma zavrnjeno. Če nadaljevanje ponovno evidentira datoteko, se ustavi še pred neobdelanimi plačili.
 
-**How to apply:** Identiteto izpiska in njegovih vrstic shrani pred prvim ustvarjanjem plačila ter ju ob nadaljevanju ponovno uporabi.
+**How to apply:** Identiteto izpiska in njegovih vrstic shrani pred prvim ustvarjanjem plačila ter ju ob nadaljevanju ponovno uporabi. Časovni iztek neoddanega pregleda ne sme izbrisati že potrjenega evidentiranja ali plačil: sicer nadaljevanje izgubi dokaz, katere zapise mora preskočiti.

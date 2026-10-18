@@ -353,6 +353,17 @@ async function clearImportConfigApi(companyId: string): Promise<void> {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function BancniIzpis() {
+  const { activeCompany, userId } = useCompany();
+  const [wizardCompanyId, setWizardCompanyId] = useState(activeCompany?.id);
+  // Identity changes must discard in-memory choices. Company changes remount
+  // only after the existing leave guard has approved departure.
+  return <BankImportWizard
+    key={`${userId ?? ""}:${wizardCompanyId ?? ""}`}
+    onCompanyReady={setWizardCompanyId}
+  />;
+}
+
+function BankImportWizard({ onCompanyReady }: { onCompanyReady: (companyId: string | undefined) => void }) {
   const { activeCompany, setActiveCompany } = useCompany();
   const { user, isLoaded } = useUser();
   const userId = isLoaded ? user?.id : undefined;
@@ -380,6 +391,8 @@ export default function BancniIzpis() {
   // Load saved config when the active company changes
   useEffect(() => {
     if (!activeCompany) return;
+    // Strict Mode can replay configuration loading after restoring the draft.
+    if (wizardCompanyIdRef.current === activeCompany.id) return;
     // Clear immediately to prevent stale values from a previous company
     setBankAccountId("");
     setArAccountId("");
@@ -462,7 +475,10 @@ export default function BancniIzpis() {
   const hasUnrecoverableWarnings = !!confirmResult?.postErrors.length && !canRestore;
   const confirmLeave = useBankImportLeaveGuard(hasUnrecoverableWarnings);
   useEffect(() => {
-    if (resultCompany?.id === activeCompany?.id) return;
+    if (resultCompany?.id === activeCompany?.id) {
+      onCompanyReady(activeCompany?.id);
+      return;
+    }
     if (hasUnrecoverableWarnings) {
       if (!confirmLeave()) {
         try { setActiveCompany(resultCompany); } catch { /* In-memory selection is restored even if storage is blocked. */ }
@@ -477,7 +493,8 @@ export default function BancniIzpis() {
       setStep("upload");
     }
     setResultCompany(activeCompany);
-  }, [activeCompany?.id, userId]);
+    onCompanyReady(activeCompany?.id);
+  }, [activeCompany?.id, userId, onCompanyReady]);
   const [confirmProgress, setConfirmProgress] = useState<{
     current: number;
     total: number;

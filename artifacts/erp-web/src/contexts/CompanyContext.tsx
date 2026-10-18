@@ -3,6 +3,7 @@ import { useUser } from "@clerk/react";
 import type { CompanyWithRole } from "@workspace/api-client-react";
 
 interface CompanyContextValue {
+  userId: string | null;
   activeCompany: CompanyWithRole | null;
   setActiveCompany: (company: CompanyWithRole | null) => void;
 }
@@ -17,7 +18,12 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoaded } = useUser();
   const prevUserIdRef = useRef<string | null>(null);
 
-  const [activeCompany, setActiveCompanyState] = useState<CompanyWithRole | null>(null);
+  const [selection, setSelection] = useState<{ userId: string | null; company: CompanyWithRole | null }>({ userId: null, company: null });
+  const userId = isLoaded ? user?.id ?? null : null;
+  const activeCompany = userId && selection.userId === userId ? selection.company : null;
+  const setActiveCompanyState = (company: CompanyWithRole | null) => {
+    setSelection({ userId, company });
+  };
 
   // Ko je Clerk naložen in poznamo userId, naložimo pravo shranjen izbor
   useEffect(() => {
@@ -68,7 +74,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <CompanyContext.Provider value={{ activeCompany, setActiveCompany }}>
+    <CompanyContext.Provider value={{ userId, activeCompany, setActiveCompany }}>
       {children}
     </CompanyContext.Provider>
   );

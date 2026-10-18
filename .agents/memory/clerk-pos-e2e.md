@@ -45,3 +45,9 @@ nastavitvijo brez posega v skupno okolje.
 **How to apply:** Uporabi pravo aplikacijo in preverjanje Clerk v ločenem
 razvojnem procesu brez poslovnih schedulerjev; po preizkusu ga vedno ustavi.
 Ne dodajaj testnega obvoda avtorizacije.
+
+Obnovo ERP pregleda je mogoče preveriti z resničnimi enkratnimi Clerk prijavnimi listki, aplikacijsko odjavo in osvežitvijo med odjavo, ne da bi pisali finančne podatke. Poslovni API je pri takem preizkusu lahko izoliran s sintetičnimi odgovori, avtentikacija in zaščitene poti pa morajo ostati resnične.
+
+**Why:** Simulirani `useUser` in lastna testna prijavna meja ne dokazujeta prehoda skozi pravi Clerk in aplikacijsko usmerjanje. Po drugi strani preizkus obnove odjemalca ne potrebuje zapisovanja v poslovne evidence.
+
+**How to apply:** Uporabi začasne razvojne uporabnike in jih odstrani tudi ob neuspehu. Jasno loči dokaz obnove odjemalca od dokaza strežniških pravic, razčlenjevanja datotek in ročnega vnosa gesla; izolirani poslovni odgovori teh drugih stvari ne preverijo.
