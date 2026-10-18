@@ -9,6 +9,20 @@ import {
 } from "@/lib/pos-actor-session";
 
 const LAST_NATAKAR_ID_KEY = "pos_last_natakar_id";
+const LAST_NATAKAR_NAME_KEY = "pos_last_natakar_name";
+
+function getRememberedNatakarName(id: string): string {
+  try {
+    const raw = localStorage.getItem(LAST_NATAKAR_NAME_KEY);
+    const parsed = raw ? JSON.parse(raw) as { id?: string; ime?: string } : null;
+    return parsed?.id === id && parsed.ime ? parsed.ime : "";
+  } catch {
+    return "";
+  }
+}
+function rememberNatakarName(id: string, ime: string) {
+  try { localStorage.setItem(LAST_NATAKAR_NAME_KEY, JSON.stringify({ id, ime })); } catch { /* ni pomembno */ }
+}
 type ActiveShift = { natakariId: number; natakarIme: string; konec: string | null; naOdmoru?: boolean };
 
 function getRememberedNatakarId(): string {
@@ -90,6 +104,8 @@ export function QuickSwitch() {
       className="fixed right-2 top-0 z-40 rounded-b-md bg-muted px-3 py-2 text-xs shadow"
     ><RefreshCw className="mr-1 inline h-4 w-4" />{hasActorSession ? "Zamenjaj natakarja" : "Izberi natakarja"}</button>;
   }
+  const selectedName = activeShifts.find(shift => String(shift.natakariId) === natakarId)?.natakarIme
+    ?? getRememberedNatakarName(natakarId);
   const switchActor = async () => {
     setError(null);
     try {
@@ -112,6 +128,7 @@ export function QuickSwitch() {
       try {
         localStorage.setItem(LAST_NATAKAR_ID_KEY, natakarId);
         localStorage.setItem("pos_last_operator_id", natakarId);
+        if (selectedName) rememberNatakarName(natakarId, selectedName);
       } catch {
         // Odklep deluje tudi, kadar brskalnik ne dovoli trajnega pomnilnika.
       }
@@ -167,6 +184,7 @@ export function QuickSwitch() {
                   type="button"
                   onClick={() => {
                     setNatakarId(String(shift.natakariId));
+                    rememberNatakarName(String(shift.natakariId), shift.natakarIme);
                     setUsingRememberedId(true);
                     setPin("");
                     setError(null);
@@ -183,7 +201,7 @@ export function QuickSwitch() {
       )}
       {usingRememberedId && (
         <div className="flex items-center justify-between rounded border bg-muted/40 px-3 py-2">
-          <span className="text-sm font-medium">Natakar ID: {natakarId}</span>
+          <span className="text-sm font-medium">{selectedName ? `Natakar: ${selectedName}` : `Natakar ID: ${natakarId}`}</span>
           <button type="button" onClick={() => setUsingRememberedId(false)} className="text-xs underline underline-offset-2">Izberi drugega natakarja</button>
         </div>
       )}
