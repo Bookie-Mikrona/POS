@@ -25,6 +25,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAu
 import { writeAuditLog } from "../lib/auditLog";
 import { accountingError } from "../lib/accountingErrors";
 import { getJournalEntryPostingFailure } from "../lib/journalEntryPostingPolicy";
+import { hasMissingPosSalesTaxEvidenceForEntry, MISSING_POS_SALES_TAX_EVIDENCE } from "../lib/posSalesTaxEvidence";
 import {
   createVatLedgerEntries,
   reverseVatLedgerEntries,
@@ -751,6 +752,11 @@ router.post(
       })
       .from(journalEntryLinesTable)
       .where(eq(journalEntryLinesTable.entryId, id));
+
+    if (await hasMissingPosSalesTaxEvidenceForEntry(companyId, entry.reference, lines)) {
+      res.status(409).json(accountingError("VAT_LEDGER_ERROR", MISSING_POS_SALES_TAX_EVIDENCE));
+      return;
+    }
 
     // §68 — Balance check z Decimal natančnostjo
     const balanceErr = checkBalance(lines);

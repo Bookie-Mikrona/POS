@@ -81,6 +81,7 @@ async function fixture(companyId: string, revenueCode: string, monthly = false) 
     vat22AccountId: vat.id, vat95AccountId: vat.id, vat5AccountId: vat.id,
     lastnaPorabaAccountId: expense.id, reprezentancaAccountId: expense.id,
     kirArAccountId: ar.id, salesBookingFrequency: monthly ? "monthly" : "daily",
+    advancePaymentsAccountId: vat.id,
     // Deliberately no vat*VatCodeId configuration: mapping is automatic.
   });
   return { cash, revenue, vat, ar, unit };
@@ -88,6 +89,7 @@ async function fixture(companyId: string, revenueCode: string, monthly = false) 
 
 async function receipt(unitId: number, rate: number, opts: {
   negative?: boolean; own?: boolean; repr?: boolean; customer?: string; paidBusiness?: boolean;
+  missingLines?: boolean; giftVoucher?: boolean;
 } = {}) {
   const sign = opts.negative ? -1 : 1;
   const net = new Decimal(100).times(sign);
@@ -110,12 +112,14 @@ async function receipt(unitId: number, rate: number, opts: {
     kupecNaziv: opts.customer ? "TEST Kupec" : null,
     kupecDavcnaStevilka: opts.customer ? "12345678" : null,
     jeStorno: opts.negative ?? false,
+    jeDarilniBonIzdaja: opts.giftVoucher ?? false,
   }).returning();
-  await db.insert(postavkeTable).values({
+  if (!opts.missingLines) await db.insert(postavkeTable).values({
     narociloId: order.id, racunId: row.id, ime: "TEST Prodaja", kolicina: sign,
     cenaKos: gross.abs().toFixed(2), skupaj: gross.toFixed(2),
     davek: rate.toFixed(2), vrstaArtikla: "storitev",
   });
+  return row;
 }
 
 async function vatRows(entryId: string) {
@@ -127,6 +131,90 @@ async function vatRows(entryId: string) {
 }
 
 describe("POS → ERP automatic sales VAT", () => {
+  it.each([false, true])("blocks missing tax sources before creating a %s monthly draft", async monthly => {
+    await isolated(async companyId => {
+      const { unit } = await fixture(companyId, "8000", monthly);
+      // Missing VAT=0 is still missing evidence, NOT proof of exemption.
+      await receipt(unit.id, 0, { missingLines: true });
+      // A valid receipt must not conceal another receipt's missing source.
+      await receipt(unit.id, 22);
+      const result = monthly
+        ? await syncPosBookingForMonth(companyId, DATE.slice(0, 7))
+        : await syncPosBookingForDay(companyId, DATE);
+      expect(result.skipped).toEqual(expect.arrayContaining([
+        expect.objectContaining({ reason: expect.stringContaining("zanesljiv davčni razrez") }),
+      ]));
+      expect(await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId))).toHaveLength(0);
+      expect(await db.select({ id: vatLedgerTable.id }).from(vatLedgerTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, vatLedgerTable.journalEntryId))
+        .where(eq(journalEntriesTable.companyId, companyId))).toHaveLength(0);
+    });
+  });
+
+  it.each([false, true])("does not hide missing evidence when sale and refund cancel (%s monthly)", async monthly => {
+    await isolated(async companyId => {
+      const { unit } = await fixture(companyId, "8000", monthly);
+      await receipt(unit.id, 22, { missingLines: true });
+      await receipt(unit.id, 22, { missingLines: true, negative: true });
+      const result = monthly
+        ? await syncPosBookingForMonth(companyId, DATE.slice(0, 7))
+        : await syncPosBookingForDay(companyId, DATE);
+      expect(result.skipped.some(row => row.reason.includes("zanesljiv davčni razrez"))).toBe(true);
+    });
+  });
+
+  it.each([false, true])("accepts evidenced zero-rate sales and voucher advances (%s monthly)", async monthly => {
+    await isolated(async companyId => {
+      const { unit } = await fixture(companyId, "8000", monthly);
+      await receipt(unit.id, 0);
+      await receipt(unit.id, 0, { missingLines: true, giftVoucher: true });
+      const result = monthly
+        ? await syncPosBookingForMonth(companyId, DATE.slice(0, 7))
+        : await syncPosBookingForDay(companyId, DATE);
+      expect(result.skipped).toEqual([]);
+      const entries = await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
+      expect(entries).toHaveLength(1);
+      const response = await request(app).post(`/companies/${companyId}/entries/${entries[0].id}/post`);
+      expect(response.status, JSON.stringify(response.body)).toBe(200);
+      expect(await vatRows(entries[0].id)).toEqual([]);
+    });
+  });
+
+  it.each([false, true])("rejects legacy fallback posting without changing the draft (%s monthly)", async monthly => {
+    await isolated(async (companyId, periodId) => {
+      const { unit, cash, revenue } = await fixture(companyId, "8000", monthly);
+      const [entry] = await db.insert(journalEntriesTable).values({
+        companyId, periodId, documentDate: DATE, entryDate: DATE, description: "TEST legacy fallback",
+        reference: `POS:PRODAJA:${monthly ? DATE.slice(0, 7) : DATE}:E${unit.id}`,
+        sourceType: "document", createdBy: "pos-sync", status: "draft",
+      }).returning();
+      await db.insert(journalEntryLinesTable).values([
+        { entryId: entry.id, accountId: cash.id, side: "debit", amount: "122.00", sequence: 0 },
+        { entryId: entry.id, accountId: revenue.id, side: "credit", amount: "122.00", sequence: 1,
+          description: monthly ? "Prihodki od prodaje (fallback)" : "Prihodki od prodaje (neto, fallback)" },
+      ]);
+      const response = await request(app).post(`/companies/${companyId}/entries/${entry.id}/post`);
+      expect(response.status, JSON.stringify(response.body)).toBe(409);
+      expect(response.body).toMatchObject({ code: "VAT_LEDGER_ERROR", message: expect.stringContaining("KIR") });
+      expect((await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.id, entry.id)))[0].status).toBe("draft");
+      expect(await vatRows(entry.id)).toEqual([]);
+    });
+  });
+
+  it("rechecks missing receipt evidence when posting an existing non-fallback draft", async () => {
+    await isolated(async companyId => {
+      const { unit } = await fixture(companyId, "8000");
+      const source = await receipt(unit.id, 22);
+      await syncPosBookingForDay(companyId, DATE);
+      const [entry] = await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
+      await db.delete(postavkeTable).where(eq(postavkeTable.racunId, source.id));
+      const response = await request(app).post(`/companies/${companyId}/entries/${entry.id}/post`);
+      expect(response.status).toBe(409);
+      expect(response.body.message).toContain("KIR");
+      expect(await vatRows(entry.id)).toEqual([]);
+    });
+  });
+
   it.each(["8000", "8002", "8003", "8004"])("Križišče dnevni iztržek na %s: net bases, mixed rates, no duplication", async code => {
     await isolated(async companyId => {
       const { revenue, vat, unit } = await fixture(companyId, code);

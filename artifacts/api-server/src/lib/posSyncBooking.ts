@@ -72,6 +72,7 @@ import { businessDateForInstant, getBusinessDayBounds } from "./pos-business-day
 import { resolvePosBookingPeriod } from "./posBookingPeriod";
 import { bookingReceiptStatus, loadReceiptTaxGroups, sumReceiptTaxGroups } from "./pos-receipt-tax";
 import { loadPosSalesVatCodes, posRevenueVat } from "./posSalesVat";
+import { hasMissingPosSalesTaxEvidence, MISSING_POS_SALES_TAX_EVIDENCE } from "./posSalesTaxEvidence";
 
 import { slovenskiDatumZaSporocilo } from "./slovenian-date-message";
 import { posAccountDimensionWarning } from "./posAccountDimensions";
@@ -886,6 +887,12 @@ async function syncPosBookingForDayUnlocked(
 
     const skupaj = dec(sales.skupaj);
     const izdaniDarilniBoni = dec(giftVoucherIssues.skupaj);
+    if (await hasMissingPosSalesTaxEvidence(and(
+      enotaOk, datumWhere, statusOk, not(retainedPostedArWhere), not(separatePaidB2bWhere),
+    )!)) {
+      skipped.push({ ref: prodajaRef, reason: MISSING_POS_SALES_TAX_EVIDENCE });
+      return;
+    }
     if (skupaj.abs().lte("0.005") && izdaniDarilniBoni.abs().lte("0.005")) {
         await deleteExistingUnitDrafts(companyId, datum, enota.id, "PRODAJA");
       return;
@@ -1110,14 +1117,10 @@ async function syncPosBookingForDayUnlocked(
       pushSignedLine(lines, settings.tipsVatAccountId, "credit", employerTipVat, "DDV napitnin pod nadzorom delodajalca");
     }
 
-    // Fallback: brez postavk
-    if (skupaj.abs().gt("0.005") && (prodajaVrstice.length === 0 || skupajBruto.abs().lte("0.005"))) {
-      const fallbackAcc = settings.revenueAccountId;
-      if (!fallbackAcc) {
-        skipped.push({ ref: prodajaRef, reason: "Ni postavk in splošni konto prihodkov ni nastavljen" });
-        return;
-      }
-      pushSignedLine(lines, fallbackAcc, "credit", skupaj, "Prihodki od prodaje (neto, fallback)");
+    // No generic revenue fallback: gross receipts are not a tax source.
+    if (skupaj.minus(skupajBruto.minus(employerTipGross)).abs().gt("0.005")) {
+      skipped.push({ ref: prodajaRef, reason: MISSING_POS_SALES_TAX_EVIDENCE });
+      return;
     }
 
     const merged = mergeLines(withEnotaDimensions(lines));
@@ -2283,6 +2286,12 @@ async function syncPosBookingForMonthUnlocked(
       ));
       const skupaj = dec(sales.skupaj);
       const issuedVouchers = dec(giftIssues.skupaj);
+      if (await hasMissingPosSalesTaxEvidence(and(
+        enotaOk, rangeWhere, statusOk, not(retainedPostedArWhere), not(separatePaidB2bWhere),
+      )!)) {
+        skipped.push({ ref: prodajaRef, reason: MISSING_POS_SALES_TAX_EVIDENCE });
+        continue;
+      }
       if (skupaj.abs().lte("0.005") && issuedVouchers.abs().lte("0.005")) {
         await deleteMonthlySalesDraft(companyId, month, enota.id);
       } else {
@@ -2411,12 +2420,9 @@ async function syncPosBookingForMonthUnlocked(
           pushSignedLine(lines, settings.tipsVatAccountId, "credit", employerTipVat, "DDV napitnin pod nadzorom delodajalca");
         }
         if (configurationError) continue;
-        if (skupaj.abs().gt("0.005") && (revenueRows.length === 0 || grossLines.abs().lte("0.005"))) {
-          if (!settings.revenueAccountId) {
-            skipped.push({ ref: prodajaRef, reason: "Ni postavk in splošni konto prihodkov ni nastavljen" });
-            continue;
-          }
-          pushSignedLine(lines, settings.revenueAccountId, "credit", skupaj, "Prihodki od prodaje (fallback)");
+        if (skupaj.minus(grossLines.minus(employerTipGross)).abs().gt("0.005")) {
+          skipped.push({ ref: prodajaRef, reason: MISSING_POS_SALES_TAX_EVIDENCE });
+          continue;
         }
         const merged = mergeLines(withDimensions(lines));
         if (!isBalanced(merged)) {

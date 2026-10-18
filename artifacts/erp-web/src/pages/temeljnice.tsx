@@ -6,6 +6,7 @@ import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react";
 import { getJournalEntryDeletionErrorMessage } from "@/lib/journalEntryDeletionError";
+import { getJournalEntryPostingErrorMessage } from "@/lib/journalEntryPostingError";
 import { defaultAccountingPeriod } from "@/lib/defaultAccountingPeriod";
 import { AccountDimensionHint } from "@/components/account-dimension-hint";
 import { useJournalFilters } from "@/hooks/useJournalFilters";
@@ -219,7 +220,10 @@ export default function Temeljnice() {
         onSuccess: () => {
           trackEvent("journal_entry_posted");
           queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey(activeCompany.id) });
-        }
+        },
+        onError: (error: unknown) => {
+          window.alert(getJournalEntryPostingErrorMessage(error));
+        },
       });
     }
   };
