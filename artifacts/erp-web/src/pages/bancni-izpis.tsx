@@ -45,16 +45,9 @@ import { BankStatementDetail } from "@/components/bank-statement-detail";
 import { bankImportDimensionWarnings } from "@/lib/bank-import-dimensions";
 import { bankImportDraftKey, readBankImportDraft, writeBankImportDraft, type ImportedBankPayment } from "@/lib/bank-import-draft";
 import { useBankPostingRefresh } from "@/hooks/use-bank-posting-refresh";
+import { useBankImportResult } from "@/hooks/use-bank-import-result";
 
 type ImportError = { message: string; paymentId?: string };
-type ConfirmResult = {
-  userId: string;
-  companyId: string;
-  created: number;
-  skipped: number;
-  posted: number;
-  postErrors: ImportError[];
-};
 
 // ─── Types mirrored from backend ─────────────────────────────────────────────
 
@@ -456,9 +449,8 @@ export default function BancniIzpis() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [pendingConfirms, setPendingConfirms] = useState<PendingReconcileConfirm[]>([]);
   const [retryBusy, setRetryBusy] = useState<string | null>(null);
-  const [storedConfirmResult, setConfirmResult] = useState<ConfirmResult | null>(null);
-  const confirmResult = userId && storedConfirmResult?.userId === userId
-    && storedConfirmResult.companyId === activeCompany?.id ? storedConfirmResult : null;
+  const { result: confirmResult, setResult: setConfirmResult, storageMessage } =
+    useBankImportResult(userId, activeCompany?.id);
   const [confirmProgress, setConfirmProgress] = useState<{
     current: number;
     total: number;
@@ -482,7 +474,6 @@ export default function BancniIzpis() {
       setDecisions(new Map());
       setStep("upload");
       setRestored(false);
-      setConfirmResult(null);
       setConfirmError(null);
     }
     setHydratedKey(draftKey);
@@ -1060,6 +1051,22 @@ export default function BancniIzpis() {
 
       <Separator />
 
+      {!!confirmResult?.postErrors.length && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Napake pri obdelavi izpiska</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 space-y-1 text-left list-disc list-inside">
+              {confirmResult.postErrors.map((error, index) => (
+                <li key={index} className="text-xs">{error.message}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs">Preverite navedene transakcije. Uspešno ustvarjeni osnutki so v seznamu plačil; neuspešne vrstice ostanejo v evidenci izpiska.</p>
+            <p className="mt-2 text-xs">{storageMessage}</p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {step === "upload" && registeredStatements.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">Evidentirani bančni izpiski</h2>
@@ -1564,20 +1571,6 @@ export default function BancniIzpis() {
               )}
             </div>
           </div>
-          {confirmResult.postErrors.length > 0 && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Napake pri obdelavi izpiska</AlertTitle>
-              <AlertDescription>
-                <ul className="mt-1 space-y-1 text-left list-disc list-inside">
-                  {confirmResult.postErrors.map((e, i) => (
-                    <li key={i} className="text-xs">{e.message}</li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-xs">Preverite navedene transakcije. Uspešno ustvarjeni osnutki so v seznamu plačil; neuspešne vrstice ostanejo v evidenci izpiska.</p>
-              </AlertDescription>
-            </Alert>
-          )}
           {confirmError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />

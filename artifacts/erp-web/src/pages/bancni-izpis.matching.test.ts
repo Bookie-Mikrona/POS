@@ -1,6 +1,7 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { bankImportStorageMessages, useBankImportResult } from "@/hooks/use-bank-import-result";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const recovery = vi.hoisted(() => ({
@@ -86,9 +87,10 @@ function suggestionEvent(index: number) {
 
 afterEach(() => {
   cleanup();
-  sessionStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  sessionStorage.clear();
+  localStorage.clear();
 });
 
 const draftKey = bankImportDraftKey("user-1", "company-1");
@@ -150,10 +152,10 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
 
   it("po vsaki uspešni vrstici shrani napredek in po 401 ponovno pošlje le preostalo vrstico", async () => {
     seedDraft();
-    const create = vi.fn(() => {
-      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Quota exceeded"); });
-      return Response.json({ id: "payment-1" });
-    });
+    const create = vi.fn()
+      .mockResolvedValueOnce(Response.json({ id: "payment-1" }))
+      .mockResolvedValueOnce(Response.json({ error: "Prijavite se" }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ id: "payment-2" }));
     mockImportApi(create);
     const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
@@ -162,21 +164,19 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     first.unmount();
     mountWizard();
     await screen.findByText("Že ustvarjeno plačilo");
-    expect(readDraft().imported["tx-1"].posting).toBe("posted");
-    expect(recovery.reconcile).toHaveBeenCalledTimes(2);
+    confirmImport(1);
+    await waitFor(() => expect(readDraft().imported["tx-2"]?.paymentId).toBe("payment-2"));
+    expect(readDraft().imported["tx-1"].posting).toBe("draft");
+    expect(create).toHaveBeenCalledTimes(3);
   });
 
-  it("ne začne potrjevanja, če osnutka ni mogoče zapisati", async () => {
+  it("po 401 pred ustvaritvijo ohrani registracijo in ponovno pošlje neustvarjene vrstice", async () => {
     seedDraft();
-    const create = vi.fn(() => {
-      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Quota exceeded"); });
-      return Response.json({ id: "payment-1" });
-    });
-    const post = vi.fn(() => {
-      expect(readDraft().imported["tx-1"]).toEqual({ paymentId: "existing-tx-1", posting: "pending" });
-      return Response.json({ error: "Prijavite se" }, { status: 401 });
-    });
-    mockImportApi(() => Response.json({}), post);
+    const create = vi.fn()
+      .mockResolvedValueOnce(Response.json({ error: "Prijavite se" }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ id: "payment-1" }))
+      .mockResolvedValueOnce(Response.json({ id: "payment-2" }));
+    const fetchMock = mockImportApi(create);
     const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
@@ -196,7 +196,7 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     sessionStorage.setItem(draftKey, JSON.stringify({
       ...draft, imported: { "tx-1": { paymentId: "payment-1", posting: "pending" } },
     }));
-    const fetchMock = mockImportApi(create);
+    const fetchMock = mockImportApi(() => Response.json({}));
     mountWizard();
     await screen.findByText("Že ustvarjeno plačilo");
     expect(screen.getByText(/Knjiženje ni potrjeno/)).toBeTruthy();
@@ -206,10 +206,7 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
   it("ohrani potrjeno knjiženje in pri popolnem uvozu onemogoči novo potrjevanje", async () => {
     seedDraft(true);
     let id = 0;
-    const create = vi.fn(() => {
-      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Quota exceeded"); });
-      return Response.json({ id: "payment-1" });
-    });
+    const create = vi.fn(() => Response.json({ id: `payment-${++id}` }));
     mockImportApi(create);
     const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
@@ -232,7 +229,7 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
       .mockRejectedValueOnce({ status: 401 });
     const post = vi.fn(() => {
       expect(readDraft().imported["tx-1"]).toEqual({ paymentId: "existing-tx-1", posting: "pending" });
-      return Response.json({ error: "Prijavite se" }, { status: 401 });
+      return Response.json({});
     });
     mockImportApi(() => Response.json({}), post);
     const first = mountWizard();
@@ -321,6 +318,102 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     await screen.findByRole("button", { name: "Nadaljuj" });
     expect(screen.queryByText("Osnutek uvoza je obnovljen")).toBeNull();
     expect(sessionStorage.getItem(draftKey)).not.toBeNull();
+  });
+});
+
+describe("obnova napak pri knjiženju", () => {
+  const failed = {
+    userId: "user-a", companyId: "company-a",
+    created: 2, skipped: 1, posted: 1,
+    postErrors: [{ paymentId: "payment-1", message: "Knjiženje ni uspelo" }],
+  };
+
+  function storage() {
+    const entries = new Map<string, string>();
+    return {
+      getItem: vi.fn((key: string) => entries.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => { entries.set(key, value); }),
+      removeItem: vi.fn((key: string) => { entries.delete(key); }),
+    };
+  }
+
+  it("po zavrnjenem lokalnem zapisu obnovi napake v istem zavihku", () => {
+    const local = storage();
+    const session = storage();
+    local.setItem.mockImplementation(() => { throw new DOMException("Quota", "QuotaExceededError"); });
+    vi.stubGlobal("localStorage", local);
+    vi.stubGlobal("sessionStorage", session);
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
+    act(() => first.result.current.setResult(failed));
+    expect(first.result.current.storageMessage).toBe(bankImportStorageMessages.session);
+    expect(session.setItem).toHaveBeenLastCalledWith(expect.any(String), JSON.stringify(failed));
+    first.unmount();
+    const restored = renderHook(() => useBankImportResult("user-a", "company-a"));
+    expect(restored.result.current.result).toEqual(failed);
+    expect(restored.result.current.storageMessage).toContain("po osvežitvi istega zavihka");
+    expect(restored.result.current.storageMessage).toContain("ne pa v drugem zavihku");
+  });
+
+  it("ob odpovedi obeh shramb ohrani napake v pomnilniku in pojasni izgubo ob osvežitvi", () => {
+    vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new Error("blocked"); });
+    vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => { throw new Error("blocked"); });
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
+    act(() => first.result.current.setResult(failed));
+    expect(first.result.current.result).toEqual(failed);
+    expect(first.result.current.storageMessage).toBe(bankImportStorageMessages.none);
+    expect(first.result.current.storageMessage).toContain("ne bo mogoče obnoviti");
+    first.unmount();
+    expect(renderHook(() => useBankImportResult("user-a", "company-a")).result.current.result).toBeNull();
+  });
+
+  it("rezervni zapis loči po uporabniku in podjetju ter ga ne izbriše ob odjavi", () => {
+    const local = storage();
+    const session = storage();
+    local.setItem.mockImplementation(() => { throw new Error("blocked"); });
+    vi.stubGlobal("localStorage", local);
+    vi.stubGlobal("sessionStorage", session);
+    const { result, rerender } = renderHook(
+      ({ user, company }) => useBankImportResult(user, company),
+      { initialProps: { user: "user-a" as string | undefined, company: "company-a" } },
+    );
+    act(() => result.current.setResult(failed));
+    rerender({ user: "user-a", company: "company-b" });
+    expect(result.current.result).toBeNull();
+    rerender({ user: "user-b", company: "company-a" });
+    expect(result.current.result).toBeNull();
+    const writes = session.setItem.mock.calls.length;
+    rerender({ user: undefined, company: "company-a" });
+    expect(result.current.result).toBeNull();
+    expect(session.setItem).toHaveBeenCalledTimes(writes);
+    rerender({ user: "user-a", company: "company-a" });
+    expect(result.current.result).toEqual(failed);
+  });
+
+  it("uporabi novejšo rezervno kopijo in po razrešitvi ne obnovi stare lokalne napake", () => {
+    const local = storage();
+    const session = storage();
+    const key = `bank-import-result:${JSON.stringify(["user-a", "company-a"])}`;
+    local.setItem(key, JSON.stringify({ ...failed, postErrors: [{ message: "Stara napaka" }] }));
+    session.setItem(key, JSON.stringify(failed));
+    local.setItem.mockImplementation(() => { throw new Error("blocked"); });
+    vi.stubGlobal("localStorage", local);
+    vi.stubGlobal("sessionStorage", session);
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
+    expect(first.result.current.result).toEqual(failed);
+    act(() => first.result.current.setResult(current => current && { ...current, postErrors: [] }));
+    first.unmount();
+    expect(renderHook(() => useBankImportResult("user-a", "company-a")).result.current.result).toBeNull();
+  });
+
+  it("pri delujočem localStorage trajno obnovi napake", () => {
+    vi.stubGlobal("localStorage", storage());
+    vi.stubGlobal("sessionStorage", storage());
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
+    act(() => first.result.current.setResult(failed));
+    expect(first.result.current.storageMessage).toBe(bankImportStorageMessages.local);
+    first.unmount();
+    vi.stubGlobal("sessionStorage", storage());
+    expect(renderHook(() => useBankImportResult("user-a", "company-a")).result.current.result).toEqual(failed);
   });
 });
 
