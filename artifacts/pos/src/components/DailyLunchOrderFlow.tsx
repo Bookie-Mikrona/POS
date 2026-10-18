@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuoteDailyLunch, useListDailyLunchOffers, useAddDailyLunchToOrder, useListArtikli, ApiError, type ModSkupinaFull } from "@workspace/api-client-react";
+import { useQuoteDailyLunch, useListDailyLunchOffers, useAddDailyLunchToOrder, useListArtikli, useGetPreparedFoodAvailability, getGetPreparedFoodAvailabilityQueryKey, ApiError, type ModSkupinaFull } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { dailyLunchPrice, requiredDailyLunchRoles, type DailyLunchMode, type DailyLunchRole } from "@/lib/dailyLunchHelpers";
 
@@ -20,6 +20,14 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
   const { data: articles } = useListArtikli();
   const articleNames = useMemo(() => new Map((articles ?? []).map((article) => [article.id, article.ime])), [articles]);
   const articlesById = useMemo(() => new Map((articles ?? []).map((article) => [article.id, article])), [articles]);
+  const { data: availability } = useGetPreparedFoodAvailability({
+    query: { queryKey: getGetPreparedFoodAvailabilityQueryKey(), refetchInterval: (query) => (query.state.status === "error" ? false : 5_000), retry: false, staleTime: 2_000 },
+  });
+  const modifierStock = useMemo(
+    () => new Map((availability?.modifierItems ?? []).map((item) => [item.modifierId, item.availableQuantity] as const)),
+    [availability],
+  );
+  const soldOut = (modId: number) => { const q = modifierStock.get(modId); return q != null && q <= 0; };
   const quote = useQuoteDailyLunch();
   const add = useAddDailyLunchToOrder();
   const idempotencyKey = useRef(crypto.randomUUID());
@@ -41,12 +49,13 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
     setModifiers((current) => ({
       ...current,
       [role]: activeGroups(articlesById.get(artikelId)).flatMap((group) =>
-        group.modifikatorji.filter((mod) => mod.privzet).slice(0, group.maxIzbir > 0 ? group.maxIzbir : undefined).map((mod) => mod.id)),
+        group.modifikatorji.filter((mod) => mod.privzet && !soldOut(mod.id)).slice(0, group.maxIzbir > 0 ? group.maxIzbir : undefined).map((mod) => mod.id)),
     }));
   };
   const toggleModifier = (role: DailyLunchRole, group: ModSkupinaFull, modId: number) => setModifiers((current) => {
     const chosen = current[role] ?? [];
     const inGroup = group.modifikatorji.map((mod) => mod.id);
+    if (soldOut(modId)) return current;
     if (chosen.includes(modId)) return { ...current, [role]: chosen.filter((id) => id !== modId) };
     const others = chosen.filter((id) => !inGroup.includes(id));
     const mine = chosen.filter((id) => inGroup.includes(id));
@@ -91,8 +100,8 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
         <div className="mb-1 text-sm font-medium">{group.ime}{minRequired(group) > 0 && <span className="ml-1 text-xs text-destructive">(obvezno)</span>}</div>
         <div className="flex flex-wrap gap-2">{group.modifikatorji.map((mod) => {
           const on = (modifiers[role] ?? []).includes(mod.id);
-          return <button key={mod.id} type="button" aria-pressed={on} className={`rounded border px-2 py-1 text-sm ${on ? "border-primary bg-primary/10" : ""}`} onClick={() => toggleModifier(role, group, mod.id)}>
-            {mod.ime}{Number(mod.cenaDodatek) > 0 ? ` +${Number(mod.cenaDodatek).toFixed(2).replace(".", ",")} €` : ""}
+          return <button key={mod.id} type="button" aria-pressed={on} disabled={soldOut(mod.id)} className={`rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50 ${on ? "border-primary bg-primary/10" : ""}`} onClick={() => toggleModifier(role, group, mod.id)}>
+            {mod.ime}{soldOut(mod.id) ? " (razprodano)" : ""}{Number(mod.cenaDodatek) > 0 ? ` +${Number(mod.cenaDodatek).toFixed(2).replace(".", ",")} €` : ""}
           </button>;
         })}</div>
       </div>)}
