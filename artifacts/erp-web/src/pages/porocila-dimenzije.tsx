@@ -220,10 +220,12 @@ function DimensionReport() {
 
   // Expanded dimension rows (set of row ids)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [showAllUntagged, setShowAllUntagged] = useState(false);
-  useEffect(() => {
-    setShowAllUntagged(false);
-  }, [dimensionType, dateFrom, dateTo, accountId, queried, companyId]);
+  const pageScope = JSON.stringify([companyId, dimensionType, dateFrom, dateTo, accountId, queried]);
+  const [pagination, setPagination] = useState({ scope: pageScope, page: 1 });
+  const untaggedPage = pagination.scope === pageScope ? pagination.page : 1;
+  function changeUntaggedPage(page: number) {
+    setPagination({ scope: pageScope, page });
+  }
   useEffect(() => {
     setExpandedRows(new Set());
   }, [companyId]);
@@ -257,6 +259,8 @@ function DimensionReport() {
     {
       ...(isValid ? reportParams : undefined),
       groupBy: "account",
+      untaggedPage,
+      untaggedPageSize: 20,
     },
     { query: { enabled: !!companyId && applied.queried && isValid } as any },
   );
@@ -296,6 +300,7 @@ function DimensionReport() {
 
   function handleGenerate() {
     updateFilters();
+    changeUntaggedPage(1);
     setExpandedRows(new Set());
   }
 
@@ -313,7 +318,7 @@ function DimensionReport() {
         grandTotalDebit: data.grandTotalDebit,
         grandTotalCredit: data.grandTotalCredit,
         grandTotalBalance: data.grandTotalBalance,
-        untagged: data.untaggedLines.length > 0 ? {
+        untagged: data.untaggedCount > 0 ? {
           debit: data.untaggedDebit,
           credit: data.untaggedCredit,
           balance: data.untaggedBalance,
@@ -573,12 +578,18 @@ function DimensionReport() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Napaka</AlertTitle>
-          <AlertDescription>Napaka pri nalaganju poročila.</AlertDescription>
+          <AlertDescription>
+            <p>Napaka pri nalaganju poročila.</p>
+            <Button variant="outline" onClick={() => void report.refetch()}>Poskusi znova</Button>
+            {untaggedPage > 1 && (
+              <Button variant="link" onClick={() => changeUntaggedPage(untaggedPage - 1)}>Prejšnje vrstice</Button>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 
       {/* Untagged lines warning */}
-      {data && applied.queried && data.untaggedLines.length > 0 && (
+      {data && applied.queried && data.untaggedCount > 0 && (
         <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle className="font-semibold">Poročilo ni popolno — obstajajo knjižbe brez dimenzije</AlertTitle>
@@ -606,7 +617,7 @@ function DimensionReport() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(showAllUntagged ? data.untaggedLines : data.untaggedLines.slice(0, 20)).map((line) => (
+                {data.untaggedLines.map((line) => (
                   <TableRow key={line.lineId}>
                     <TableCell className="whitespace-nowrap">{formatDatum(line.entryDate)}</TableCell>
                     <TableCell>
@@ -633,19 +644,30 @@ function DimensionReport() {
                 ))}
               </TableBody>
             </Table>
-            {data.untaggedLines.length > 20 && (
+            {data.untaggedCount > 0 && (
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span>
-                  Prikazanih {showAllUntagged ? data.untaggedLines.length : 20} od {data.untaggedLines.length} vrstic.
+                  {data.untaggedLines.length > 0
+                    ? `Prikazanih ${(data.untaggedPage - 1) * data.untaggedPageSize + 1}–${(data.untaggedPage - 1) * data.untaggedPageSize + data.untaggedLines.length} od ${data.untaggedCount} vrstic.`
+                    : `Na tej strani ni vrstic. Skupaj: ${data.untaggedCount} vrstic.`}
                 </span>
                 <Button
                   variant="link"
                   size="sm"
                   className="h-auto p-0 text-inherit print:hidden"
-                  onClick={() => setShowAllUntagged((value) => !value)}
-                  aria-expanded={showAllUntagged}
+                  onClick={() => changeUntaggedPage(Math.max(1, untaggedPage - 1))}
+                  disabled={untaggedPage <= 1 || report.isFetching}
                 >
-                  {showAllUntagged ? "Prikaži manj" : "Prikaži vse"}
+                  Prejšnje vrstice
+                </Button>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-inherit print:hidden"
+                  onClick={() => changeUntaggedPage(untaggedPage + 1)}
+                  disabled={untaggedPage * data.untaggedPageSize >= data.untaggedCount || report.isFetching}
+                >
+                  Naslednje vrstice
                 </Button>
               </div>
             )}

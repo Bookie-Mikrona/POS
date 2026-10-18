@@ -608,6 +608,9 @@ interface DimensionReportResponse {
   untaggedCredit: string;
   /** Net balance (debit - credit) of untagged lines */
   untaggedBalance: string;
+  untaggedCount: number;
+  untaggedPage: number;
+  untaggedPageSize: number;
   untaggedLines: {
     lineId: string;
     entryId: string;
@@ -635,6 +638,22 @@ router.get(
 
     const { dimensionType, dateFrom, dateTo, accountId, groupBy } =
       req.query as Record<string, string | undefined>;
+    // Bound detail transfers independently of the full-scope aggregates.
+    const pageValue = req.query.untaggedPage ?? "1";
+    const sizeValue = req.query.untaggedPageSize ?? "20";
+    if (typeof pageValue !== "string" || !/^[1-9]\d*$/.test(pageValue)
+      || typeof sizeValue !== "string" || !/^[1-9]\d*$/.test(sizeValue)) {
+      res.status(400).json({ error: "Neveljavno stranjevanje knjižb brez dimenzije" });
+      return;
+    }
+    const untaggedPage = Number(pageValue);
+    const untaggedPageSize = Number(sizeValue);
+    const offset = (untaggedPage - 1) * untaggedPageSize;
+    if (!Number.isSafeInteger(untaggedPage) || untaggedPageSize > 100
+      || !Number.isSafeInteger(offset) || offset > 2147483647) {
+      res.status(400).json({ error: "Neveljavno stranjevanje knjižb brez dimenzije" });
+      return;
+    }
 
     const dimType = (dimensionType ?? "costCenter") as DimensionType;
     if (!["costCenter", "project", "department"].includes(dimType)) {
@@ -742,6 +761,17 @@ router.get(
     }
 
     // Untagged details use exactly the report's tenant/date/account/status scope.
+    const untaggedConditions = and(...jeConditions, isNull(dimFkCol), ...lineConditions);
+    const [untaggedTotals] = await db
+      .select({
+        count: sql<number>`COUNT(*)::integer`,
+        debit: sql<string>`COALESCE(SUM(CASE WHEN ${journalEntryLinesTable.side} = 'debit' THEN ${journalEntryLinesTable.amount}::numeric ELSE 0 END), 0)`,
+        credit: sql<string>`COALESCE(SUM(CASE WHEN ${journalEntryLinesTable.side} = 'credit' THEN ${journalEntryLinesTable.amount}::numeric ELSE 0 END), 0)`,
+      })
+      .from(journalEntryLinesTable)
+      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+      .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+      .where(untaggedConditions);
     const untaggedLines = await db
       .select({
         lineId: journalEntryLinesTable.id,
@@ -758,13 +788,13 @@ router.get(
       .from(journalEntryLinesTable)
       .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
       .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
-      .where(and(...jeConditions, isNull(dimFkCol), ...lineConditions))
+      .where(untaggedConditions)
       .orderBy(journalEntriesTable.entryDate, journalEntriesTable.id,
-        journalEntryLinesTable.sequence, journalEntryLinesTable.id);
-    const untaggedDebit = untaggedLines.reduce((sum, line) =>
-      sum + (line.side === "debit" ? Number(line.amount) : 0), 0);
-    const untaggedCredit = untaggedLines.reduce((sum, line) =>
-      sum + (line.side === "credit" ? Number(line.amount) : 0), 0);
+        journalEntryLinesTable.sequence, journalEntryLinesTable.id)
+      .limit(untaggedPageSize)
+      .offset(offset);
+    const untaggedDebit = Number(untaggedTotals.debit);
+    const untaggedCredit = Number(untaggedTotals.credit);
 
     const accountsByDimension = new Map<string, AccountBreakdownRow[]>();
     for (const account of accountMap.values()) {
@@ -808,6 +838,9 @@ router.get(
       untaggedDebit: untaggedDebit.toFixed(2),
       untaggedCredit: untaggedCredit.toFixed(2),
       untaggedBalance: (untaggedDebit - untaggedCredit).toFixed(2),
+      untaggedCount: untaggedTotals.count,
+      untaggedPage,
+      untaggedPageSize,
       untaggedLines,
     };
 

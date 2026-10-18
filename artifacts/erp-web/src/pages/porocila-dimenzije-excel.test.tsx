@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   report: {
     rows: [{ id: "1", code: "001", name: "Kuhinja", totalDebit: "10.50", totalCredit: "0", balance: "10.50" }],
     grandTotalDebit: "10.50", grandTotalCredit: "0", grandTotalBalance: "10.50",
-    untaggedDebit: "0", untaggedCredit: "0", untaggedBalance: "0", untaggedLines: [] as UntaggedDimensionLine[],
+    untaggedDebit: "0", untaggedCredit: "0", untaggedBalance: "0", untaggedCount: 0, untaggedPage: 1, untaggedPageSize: 20, untaggedLines: [] as UntaggedDimensionLine[],
   },
 }));
 
@@ -26,7 +26,7 @@ vi.mock("@/lib/dimensionReportExcel", () => ({ exportDimensionReportExcel: mocks
 beforeEach(() => {
   window.history.replaceState(null, "", "/porocila/dimenzije");
   Object.assign(mocks.report, {
-    untaggedDebit: "0", untaggedCredit: "0", untaggedBalance: "0", untaggedLines: [],
+    untaggedDebit: "0", untaggedCredit: "0", untaggedBalance: "0", untaggedCount: 0, untaggedPage: 1, untaggedPageSize: 20, untaggedLines: [],
   });
 });
 
@@ -62,7 +62,7 @@ describe("Gumb Excel analitičnega poročila", () => {
 
   it("posreduje neoznačene vsote ločeno tudi pri ničelnem saldu", async () => {
     Object.assign(mocks.report, {
-      untaggedDebit: "30.25", untaggedCredit: "30.25", untaggedBalance: "0",
+      untaggedDebit: "30.25", untaggedCredit: "30.25", untaggedBalance: "0", untaggedCount: 1,
       untaggedLines: [{
         lineId: "line-1", entryId: "entry-1", entryDate: "2026-01-02",
         reference: "T-1", entryDescription: "Knjižba", accountCode: "4000",

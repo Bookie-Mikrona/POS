@@ -46,6 +46,9 @@ const reportData = {
   untaggedDebit: "0",
   untaggedCredit: "0",
   untaggedBalance: "0",
+  untaggedCount: 0,
+  untaggedPage: 1,
+  untaggedPageSize: 20,
   untaggedLines: [],
 };
 
@@ -72,9 +75,12 @@ afterEach(cleanup);
 describe("untagged journal lines", () => {
   function showUntagged(count: number) {
     window.history.replaceState(null, "", `${path}?${firstView}`);
-    mocks.report.mockReturnValue({
+    mocks.report.mockImplementation((_company, filters) => ({
       data: {
         ...reportData,
+        untaggedCount: count,
+        untaggedPage: filters.untaggedPage,
+        untaggedPageSize: filters.untaggedPageSize,
         // Zero net (and even zero debit/credit totals) must not hide actual lines.
         untaggedLines: Array.from({ length: count }, (_, index) => ({
           lineId: `line-${index}`,
@@ -87,23 +93,27 @@ describe("untagged journal lines", () => {
           accountName: "Stroški",
           side: index % 2 === 0 ? "debit" : "credit",
           amount: "125.50",
-        })),
+        })).slice((filters.untaggedPage - 1) * filters.untaggedPageSize, filters.untaggedPage * filters.untaggedPageSize),
       },
       isLoading: false,
       error: null,
-    });
+    }));
   }
 
-  it("shows at most 20 lines initially, expands all and collapses again", () => {
+  it("requests 20 lines per page and navigates without fetching all lines", () => {
     showUntagged(21);
     render(<PorocilaAnalitika />);
     const table = screen.getByRole("table", { name: "Knjižbe brez dimenzije" });
     expect(within(table).getAllByRole("row")).toHaveLength(21); // header + 20
     expect(screen.queryByText("Vrstica 20")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Prikaži vse" }));
-    expect(within(table).getAllByRole("row")).toHaveLength(22);
+    expect(lastRequest()[1]).toMatchObject({ untaggedPage: 1, untaggedPageSize: 20 });
+    fireEvent.click(screen.getByRole("button", { name: "Naslednje vrstice" }));
+    expect(lastRequest()[1]).toMatchObject({ untaggedPage: 2, untaggedPageSize: 20 });
+    expect(within(table).getAllByRole("row")).toHaveLength(2);
     expect(screen.getByText("Vrstica 20")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Prikaži manj" }));
+    expect((screen.getByRole("button", { name: "Naslednje vrstice" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("link", { name: "Odpri temeljnico TEM-20" }).getAttribute("href")).toBe("/temeljnice?id=entry-20");
+    fireEvent.click(screen.getByRole("button", { name: "Prejšnje vrstice" }));
     expect(within(table).getAllByRole("row")).toHaveLength(21);
   });
 
@@ -121,13 +131,13 @@ describe("untagged journal lines", () => {
     expect(screen.queryByRole("button", { name: "Prikaži vse" })).toBeNull();
   });
 
-  it("resets expansion when the report dimension changes", () => {
+  it("resets the server page when the report dimension changes", () => {
     showUntagged(21);
     render(<PorocilaAnalitika />);
-    fireEvent.click(screen.getByRole("button", { name: "Prikaži vse" }));
+    fireEvent.click(screen.getByRole("button", { name: "Naslednje vrstice" }));
     fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value: "department" } });
     expect(screen.queryByText("Vrstica 20")).toBeNull();
-    expect(screen.getByRole("button", { name: "Prikaži vse" })).toBeTruthy();
+    expect(lastRequest()[1]).toMatchObject({ dimensionType: "department", untaggedPage: 1 });
   });
 
   it("does not show a warning for an empty untagged list", () => {
@@ -160,7 +170,7 @@ describe("dimension report URL filters", () => {
     render(<PorocilaAnalitika />);
     expect(screen.getByRole("alert").textContent).toContain(message);
     expect(lastRequest()[2].query.enabled).toBe(false);
-    expect(lastRequest()[1]).toEqual({ groupBy: "account" });
+    expect(lastRequest()[1]).toEqual({ groupBy: "account", untaggedPage: 1, untaggedPageSize: 20 });
     expect((screen.getByRole("button", { name: "Prikaži poročilo" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByText("Ni knjižb z dimenzijami za izbrane filtre.")).toBeNull();
     expect(screen.queryByTitle("Izvozi v CSV")).toBeNull();
@@ -268,7 +278,7 @@ describe("dimension report URL filters", () => {
     const page = render(<PorocilaAnalitika />);
     expect(lastRequest()).toEqual([
       "company-1",
-      { dimensionType: "project", dateFrom: "2025-01-01", dateTo: "2025-12-31", accountId: "acc-1", groupBy: "account" },
+      { dimensionType: "project", dateFrom: "2025-01-01", dateTo: "2025-12-31", accountId: "acc-1", groupBy: "account", untaggedPage: 1, untaggedPageSize: 20 },
       { query: { enabled: true } },
     ]);
     expect((screen.getAllByRole("combobox")[0] as HTMLSelectElement).value).toBe("project");

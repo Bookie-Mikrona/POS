@@ -37,7 +37,7 @@ app.use(router);
 afterAll(() => pool.end());
 
 describe("dimension report untagged line evidence", () => {
-  it("returns every matching line and reconciled totals, scoped by tenant, status, date, account and dimension", async () => {
+  it("pages matching lines with full reconciled totals, scoped by tenant, status, date, account and dimension", async () => {
     const rollback = new Error("rollback dimension report fixtures");
     let companyId = "";
     try {
@@ -108,8 +108,18 @@ describe("dimension report untagged line evidence", () => {
               && line[dimensionColumn] === null
               && (!accountId || line.accountId === accountId),
             );
-            expect(response.body.untaggedLines.map((line: any) => line.lineId)).toEqual(expected.map(line => line.id));
-            expect(response.body.untaggedLines.length).toBeGreaterThan(20);
+            expect(response.body.untaggedLines.map((line: any) => line.lineId)).toEqual(expected.slice(0, 20).map(line => line.id));
+            expect(response.body).toMatchObject({ untaggedCount: expected.length, untaggedPage: 1, untaggedPageSize: 20 });
+            const second = await request(app).get(`/companies/${companyId}/reports/dimensions`)
+              .query({ ...query, untaggedPage: 2 });
+            expect(second.status).toBe(200);
+            expect(second.body.untaggedLines.map((line: any) => line.lineId)).toEqual(expected.slice(20).map(line => line.id));
+            for (const key of ["rows", "untaggedDebit", "untaggedCredit", "untaggedBalance", "untaggedCount",
+              "grandTotalDebit", "grandTotalCredit", "grandTotalBalance"]) {
+              expect(second.body[key]).toEqual(response.body[key]);
+            }
+            const repeat = await request(app).get(`/companies/${companyId}/reports/dimensions`).query(query);
+            expect(repeat.body.untaggedLines).toEqual(response.body.untaggedLines);
             expect(response.body.untaggedLines[0]).toMatchObject({
               entryId: posted.id, entryDate: "2026-06-01", reference: "TEST-TEM",
               entryDescription: "TEST knjižba", description: "Vrstica 0",
@@ -123,10 +133,45 @@ describe("dimension report untagged line evidence", () => {
             });
           }
         }
+        // Thousands of additional lines must not enlarge the default response.
+        await db.insert(journalEntryLinesTable).values(Array.from({ length: 2000 }, (_, index) => ({
+          entryId: posted.id, accountId: account.id, sequence: index + 100,
+          side: index % 2 === 0 ? "debit" as const : "credit" as const, amount: "1.00",
+        })));
+        const largeQuery = { dimensionType: "costCenter", dateFrom: "2026-06-01", dateTo: "2026-06-30" };
+        const large = await request(app).get(`/companies/${companyId}/reports/dimensions`).query(largeQuery);
+        expect(large.status).toBe(200);
+        expect(large.body.untaggedLines).toHaveLength(20);
+        expect(large.body.untaggedCount).toBeGreaterThan(2000);
+        const allIds = new Set<string>();
+        for (let page = 1; page <= Math.ceil(large.body.untaggedCount / 100); page++) {
+          const result = await request(app).get(`/companies/${companyId}/reports/dimensions`)
+            .query({ ...largeQuery, untaggedPage: page, untaggedPageSize: 100 });
+          expect(result.status).toBe(200);
+          expect(result.body.untaggedLines.length).toBeLessThanOrEqual(100);
+          expect(result.body.untaggedDebit).toBe(large.body.untaggedDebit);
+          expect(result.body.untaggedCredit).toBe(large.body.untaggedCredit);
+          for (const line of result.body.untaggedLines) {
+            expect(allIds.has(line.lineId)).toBe(false);
+            allIds.add(line.lineId);
+          }
+        }
+        expect(allIds.size).toBe(large.body.untaggedCount);
+        const beyond = await request(app).get(`/companies/${companyId}/reports/dimensions`)
+          .query({ ...largeQuery, untaggedPage: 10000 });
+        expect(beyond.body.untaggedLines).toEqual([]);
+        expect(beyond.body.untaggedCount).toBe(large.body.untaggedCount);
+        for (const invalid of [
+          { untaggedPage: "0" }, { untaggedPage: "-1" }, { untaggedPage: "1.5" },
+          { untaggedPage: "abc" }, { untaggedPage: "9007199254740992" },
+          { untaggedPageSize: "101" }, { untaggedPageSize: "0" },
+        ]) {
+          expect((await request(app).get(`/companies/${companyId}/reports/dimensions`).query(invalid)).status).toBe(400);
+        }
         const empty = await request(app).get(`/companies/${companyId}/reports/dimensions`)
           .query({ dateFrom: "2026-08-01", dateTo: "2026-08-31" });
         expect(empty.status).toBe(200);
-        expect(empty.body).toMatchObject({ untaggedLines: [], untaggedDebit: "0.00", untaggedCredit: "0.00" });
+        expect(empty.body).toMatchObject({ untaggedLines: [], untaggedCount: 0, untaggedDebit: "0.00", untaggedCredit: "0.00" });
         expect((await request(app).get(`/companies/${foreign.id}/reports/dimensions`)).status).toBe(403);
         throw rollback;
       });
