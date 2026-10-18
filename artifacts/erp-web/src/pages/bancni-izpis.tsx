@@ -46,6 +46,7 @@ import { bankImportDimensionWarnings } from "@/lib/bank-import-dimensions";
 import { bankImportDraftKey, readBankImportDraft, writeBankImportDraft, type ImportedBankPayment } from "@/lib/bank-import-draft";
 import { useBankPostingRefresh } from "@/hooks/use-bank-posting-refresh";
 import { useBankImportResult } from "@/hooks/use-bank-import-result";
+import { useBankImportLeaveGuard } from "@/hooks/use-bank-import-leave-guard";
 
 type ImportError = { message: string; paymentId?: string };
 
@@ -352,7 +353,7 @@ async function clearImportConfigApi(companyId: string): Promise<void> {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function BancniIzpis() {
-  const { activeCompany } = useCompany();
+  const { activeCompany, setActiveCompany } = useCompany();
   const { user, isLoaded } = useUser();
   const userId = isLoaded ? user?.id : undefined;
   const queryClient = useQueryClient();
@@ -449,8 +450,30 @@ export default function BancniIzpis() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [pendingConfirms, setPendingConfirms] = useState<PendingReconcileConfirm[]>([]);
   const [retryBusy, setRetryBusy] = useState<string | null>(null);
-  const { result: confirmResult, setResult: setConfirmResult, storageMessage } =
-    useBankImportResult(userId, activeCompany?.id);
+  // Hold the result's scope until departure has been approved, so switching
+  // companies cannot discard the only in-memory copy before asking.
+  const [resultCompany, setResultCompany] = useState(activeCompany);
+  const { result: confirmResult, setResult: setConfirmResult, storageMessage, canRestore } =
+    useBankImportResult(userId, resultCompany?.id);
+  const hasUnrecoverableWarnings = !!confirmResult?.postErrors.length && !canRestore;
+  const confirmLeave = useBankImportLeaveGuard(hasUnrecoverableWarnings);
+  useEffect(() => {
+    if (resultCompany?.id === activeCompany?.id) return;
+    if (hasUnrecoverableWarnings) {
+      if (!confirmLeave()) {
+        try { setActiveCompany(resultCompany); } catch { /* In-memory selection is restored even if storage is blocked. */ }
+        return;
+      }
+      wizardCompanyIdRef.current = null;
+      draftRef.current = null;
+      importedRef.current = {};
+      setImported({});
+      setPendingConfirms([]);
+      setShowCompanyChangedDialog(false);
+      setStep("upload");
+    }
+    setResultCompany(activeCompany);
+  }, [activeCompany?.id, userId]);
   const [confirmProgress, setConfirmProgress] = useState<{
     current: number;
     total: number;
@@ -459,6 +482,7 @@ export default function BancniIzpis() {
   } | null>(null);
 
   useEffect(() => {
+    if (hasUnrecoverableWarnings) return;
     if (!draftKey || restoredKeyRef.current === draftKey) return;
     const previousKey = restoredKeyRef.current;
     restoredKeyRef.current = draftKey;
@@ -499,7 +523,7 @@ export default function BancniIzpis() {
     } catch {
       setParseError("Osnutka bančnega uvoza ni bilo mogoče obnoviti. Preverite obstoječa plačila pred ponovnim uvozom.");
     }
-  }, [draftKey, activeCompany?.id]);
+  }, [draftKey, activeCompany?.id, hasUnrecoverableWarnings]);
 
   const saveDraft = (): boolean => {
     if (!draftKey || hydratedKey !== draftKey || !parsedStatement || wizardCompanyIdRef.current !== activeCompany?.id) return false;
@@ -560,7 +584,8 @@ export default function BancniIzpis() {
       };
     });
   }, [userId, activeCompany?.id, draftKey]);
-  useBankPostingRefresh(userId, activeCompany?.id,
+  useBankPostingRefresh(userId,
+    resultCompany?.id === activeCompany?.id ? activeCompany?.id : undefined,
     [
       ...(confirmResult?.postErrors.flatMap(error => error.paymentId ? [error.paymentId] : []) ?? []),
       ...Object.values(imported).filter(payment => payment.posting === "pending" || payment.posting === "failed")
@@ -598,6 +623,7 @@ export default function BancniIzpis() {
     if (!activeCompany) return;
     if (!wizardCompanyIdRef.current) return;
     if (activeCompany.id === wizardCompanyIdRef.current) return;
+    if (hasUnrecoverableWarnings) return;
     // Company changed while wizard is in progress — show warning dialog.
     // The actual reset + ref clear happens when the user confirms the dialog.
     setShowCompanyChangedDialog(true);
@@ -982,6 +1008,7 @@ export default function BancniIzpis() {
   };
 
   const reset = () => {
+    if (!confirmLeave()) return;
     // A company switch must not delete the new company's recoverable draft.
     if (user?.id && wizardCompanyIdRef.current) {
       sessionStorage.removeItem(bankImportDraftKey(user.id, wizardCompanyIdRef.current));
@@ -1067,6 +1094,10 @@ export default function BancniIzpis() {
             </ul>
             <p className="mt-2 text-xs">Preverite navedene transakcije. Uspešno ustvarjeni osnutki so v seznamu plačil; neuspešne vrstice ostanejo v evidenci izpiska.</p>
             <p className="mt-2 text-xs">{storageMessage}</p>
+            <Button variant="outline" className="mt-3"
+              onClick={() => setConfirmResult(cur => cur && { ...cur, postErrors: [] })}>
+              Napake so ročno rešene
+            </Button>
           </AlertDescription>
         </Alert>
       )}

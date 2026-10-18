@@ -102,6 +102,7 @@ export function useBankImportResult(userId: string | undefined, companyId: strin
   return {
     result: key && snapshot.key === key ? snapshot.value : null,
     setResult,
+    canRestore: snapshot.durability !== "none",
     storageMessage: bankImportStorageMessages[snapshot.durability],
   };
 }

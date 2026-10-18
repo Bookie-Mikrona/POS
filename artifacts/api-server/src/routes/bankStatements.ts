@@ -936,7 +936,7 @@ router.get(
 router.get(
   "/companies/:companyId/bank-statements/detail/:statementId",
   requireAuth,
-  async (req: Request, res: Response): Promise<void> => {
+  async function getBankStatementDetail(req: Request, res: Response): Promise<void> {
     const authReq = req as AuthenticatedRequest;
     const parsed = GetBankStatementDetailParams.safeParse(req.params);
     if (!parsed.success) {
@@ -1110,7 +1110,7 @@ router.get(
 router.post(
   "/companies/:companyId/bank-statements/register",
   requireAuth,
-  async (req: Request, res: Response): Promise<void> => {
+  async function registerBankStatement(req: Request, res: Response): Promise<void> {
     const authReq = req as AuthenticatedRequest;
     const companyId = extractParam(req.params.companyId);
     const access = await resolveAccess(authReq.clerkUserId, companyId, res);

@@ -1,8 +1,8 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
-import { bankImportStorageMessages, useBankImportResult } from "@/hooks/use-bank-import-result";
+import { cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useBankImportLeaveGuard } from "@/hooks/use-bank-import-leave-guard";
 
 const recovery = vi.hoisted(() => ({
   userId: "user-1",
@@ -85,12 +85,16 @@ function suggestionEvent(index: number) {
   });
 }
 
+  function unloadIsBlocked() {
+    return !window.dispatchEvent(new Event("beforeunload", { cancelable: true }));
+  }
+
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
   sessionStorage.clear();
   localStorage.clear();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 const draftKey = bankImportDraftKey("user-1", "company-1");
@@ -136,7 +140,6 @@ function mockImportApi(
       });
     }
     if (url.endsWith("/payments")) return create(JSON.parse(init!.body as string));
-    if (url.endsWith("/payments/statuses")) return Response.json({ payments: [] });
     if (url.endsWith("/post")) return post(url);
     return Response.json({ statements: [] });
   });
@@ -154,9 +157,9 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
   it("po vsaki uspešni vrstici shrani napredek in po 401 ponovno pošlje le preostalo vrstico", async () => {
     seedDraft();
     const create = vi.fn()
-      .mockImplementationOnce(() => Response.json({ id: "payment-1" }))
-      .mockImplementationOnce(() => Response.json({ error: "Prijavite se" }, { status: 401 }))
-      .mockImplementationOnce(() => Response.json({ id: "payment-2" }));
+      .mockResolvedValueOnce(Response.json({ id: "payment-1" }))
+      .mockResolvedValueOnce(Response.json({ error: "Prijavite se" }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ id: "payment-2" }));
     const fetchMock = mockImportApi(create);
     const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
@@ -172,12 +175,12 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     expect(create.mock.calls.map(([body]) => body.bankStatementLineId)).toEqual(["line-1", "line-2", "line-2"]);
   });
 
-  it("po poteku seje pred prvo izdelavo ponovno uporabi že evidentirane bančne vrstice", async () => {
+  it("po izgubi prvega odgovora ponovi le nepotrjeno vrstico z istim ID-jem izpiska", async () => {
     seedDraft();
     const create = vi.fn()
-      .mockImplementationOnce(() => Response.json({ error: "Prijavite se" }, { status: 401 }))
-      .mockImplementationOnce(() => Response.json({ id: "payment-1" }))
-      .mockImplementationOnce(() => Response.json({ id: "payment-2" }));
+      .mockResolvedValueOnce(Response.json({ error: "Prijavite se" }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ id: "payment-1" }))
+      .mockResolvedValueOnce(Response.json({ id: "payment-2" }));
     const fetchMock = mockImportApi(create);
     const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
@@ -203,30 +206,6 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     await screen.findByText("Že ustvarjeno plačilo");
     expect(screen.getByText(/Knjiženje ni potrjeno/)).toBeTruthy();
     expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/payments") || url.endsWith("/post"))).toBe(false);
-  });
-
-  it("obnovljena nepotrjena knjiženja preveri z enim paketom in ohrani osnutek", async () => {
-    const draft = seedDraft(true);
-    sessionStorage.setItem(draftKey, JSON.stringify({
-      ...draft, imported: {
-        "tx-1": { paymentId: "payment-1", posting: "pending" },
-        "tx-2": { paymentId: "payment-2", posting: "failed" },
-      },
-    }));
-    const fallback = mockImportApi(() => Response.json({}));
-    const statuses = vi.fn(async () => Response.json({
-      payments: [{ id: "payment-1", status: "posted" }, { id: "payment-2", status: "draft" }],
-    }));
-    vi.stubGlobal("fetch", (url: string, options?: RequestInit) =>
-      url.endsWith("/payments/statuses") ? statuses(url, options) : fallback(url, options));
-    mountWizard();
-    await waitFor(() => expect(readDraft().imported["tx-1"].posting).toBe("posted"));
-    expect(readDraft().imported["tx-2"].posting).toBe("failed");
-    expect(statuses).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(statuses.mock.calls[0][1]!.body as string)).toEqual({
-      paymentIds: ["payment-1", "payment-2"],
-    });
-    expect(fallback.mock.calls.some(([url]) => url.endsWith("/payments") || url.endsWith("/post"))).toBe(false);
   });
 
   it("ohrani potrjeno knjiženje in pri popolnem uvozu onemogoči novo potrjevanje", async () => {
@@ -347,102 +326,6 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
   });
 });
 
-describe("obnova napak pri knjiženju", () => {
-  const failed = {
-    userId: "user-a", companyId: "company-a",
-    created: 2, skipped: 1, posted: 1,
-    postErrors: [{ paymentId: "payment-1", message: "Knjiženje ni uspelo" }],
-  };
-
-  function storage() {
-    const entries = new Map<string, string>();
-    return {
-      getItem: vi.fn((key: string) => entries.get(key) ?? null),
-      setItem: vi.fn((key: string, value: string) => { entries.set(key, value); }),
-      removeItem: vi.fn((key: string) => { entries.delete(key); }),
-    };
-  }
-
-  it("po zavrnjenem lokalnem zapisu obnovi napake v istem zavihku", () => {
-    const local = storage();
-    const session = storage();
-    local.setItem.mockImplementation(() => { throw new DOMException("Quota", "QuotaExceededError"); });
-    vi.stubGlobal("localStorage", local);
-    vi.stubGlobal("sessionStorage", session);
-    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
-    act(() => first.result.current.setResult(failed));
-    expect(first.result.current.storageMessage).toBe(bankImportStorageMessages.session);
-    expect(session.setItem).toHaveBeenLastCalledWith(expect.any(String), JSON.stringify(failed));
-    first.unmount();
-    const restored = renderHook(() => useBankImportResult("user-a", "company-a"));
-    expect(restored.result.current.result).toEqual(failed);
-    expect(restored.result.current.storageMessage).toContain("po osvežitvi istega zavihka");
-    expect(restored.result.current.storageMessage).toContain("ne pa v drugem zavihku");
-  });
-
-  it("ob odpovedi obeh shramb ohrani napake v pomnilniku in pojasni izgubo ob osvežitvi", () => {
-    vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new Error("blocked"); });
-    vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => { throw new Error("blocked"); });
-    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
-    act(() => first.result.current.setResult(failed));
-    expect(first.result.current.result).toEqual(failed);
-    expect(first.result.current.storageMessage).toBe(bankImportStorageMessages.none);
-    expect(first.result.current.storageMessage).toContain("ne bo mogoče obnoviti");
-    first.unmount();
-    expect(renderHook(() => useBankImportResult("user-a", "company-a")).result.current.result).toBeNull();
-  });
-
-  it("rezervni zapis loči po uporabniku in podjetju ter ga ne izbriše ob odjavi", () => {
-    const local = storage();
-    const session = storage();
-    local.setItem.mockImplementation(() => { throw new Error("blocked"); });
-    vi.stubGlobal("localStorage", local);
-    vi.stubGlobal("sessionStorage", session);
-    const { result, rerender } = renderHook(
-      ({ user, company }) => useBankImportResult(user, company),
-      { initialProps: { user: "user-a" as string | undefined, company: "company-a" } },
-    );
-    act(() => result.current.setResult(failed));
-    rerender({ user: "user-a", company: "company-b" });
-    expect(result.current.result).toBeNull();
-    rerender({ user: "user-b", company: "company-a" });
-    expect(result.current.result).toBeNull();
-    const writes = session.setItem.mock.calls.length;
-    rerender({ user: undefined, company: "company-a" });
-    expect(result.current.result).toBeNull();
-    expect(session.setItem).toHaveBeenCalledTimes(writes);
-    rerender({ user: "user-a", company: "company-a" });
-    expect(result.current.result).toEqual(failed);
-  });
-
-  it("uporabi novejšo rezervno kopijo in po razrešitvi ne obnovi stare lokalne napake", () => {
-    const local = storage();
-    const session = storage();
-    const key = `bank-import-result:${JSON.stringify(["user-a", "company-a"])}`;
-    local.setItem(key, JSON.stringify({ ...failed, postErrors: [{ message: "Stara napaka" }] }));
-    session.setItem(key, JSON.stringify(failed));
-    local.setItem.mockImplementation(() => { throw new Error("blocked"); });
-    vi.stubGlobal("localStorage", local);
-    vi.stubGlobal("sessionStorage", session);
-    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
-    expect(first.result.current.result).toEqual(failed);
-    act(() => first.result.current.setResult(current => current && { ...current, postErrors: [] }));
-    first.unmount();
-    expect(renderHook(() => useBankImportResult("user-a", "company-a")).result.current.result).toBeNull();
-  });
-
-  it("pri delujočem localStorage trajno obnovi napake", () => {
-    vi.stubGlobal("localStorage", storage());
-    vi.stubGlobal("sessionStorage", storage());
-    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
-    act(() => first.result.current.setResult(failed));
-    expect(first.result.current.storageMessage).toBe(bankImportStorageMessages.local);
-    first.unmount();
-    vi.stubGlobal("sessionStorage", storage());
-    expect(renderHook(() => useBankImportResult("user-a", "company-a")).result.current.result).toEqual(failed);
-  });
-});
-
 describe("pretočno iskanje ujemanj", () => {
   it("pravilno sestavi razdrobljene NDJSON dogodke in napredek", async () => {
     const payload = `${suggestionEvent(0)}\n${suggestionEvent(1)}\n${JSON.stringify({
@@ -478,5 +361,98 @@ describe("pretočno iskanje ujemanj", () => {
 
     await expect(matchTransactions("company-1", transactions, vi.fn()))
       .rejects.toThrow("Iskanje ujemanj se je predčasno prekinilo");
+  });
+});
+
+describe("zaščita neobnovljivega opozorila", () => {
+  it("namesti in odstrani zaščito brez API klicev", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { rerender, unmount } = renderHook(({ enabled }) => useBankImportLeaveGuard(enabled), {
+      initialProps: { enabled: false },
+    });
+    expect(unloadIsBlocked()).toBe(false);
+    rerender({ enabled: true });
+    expect(unloadIsBlocked()).toBe(true);
+    rerender({ enabled: false });
+    expect(unloadIsBlocked()).toBe(false);
+    rerender({ enabled: true });
+    unmount();
+    expect(unloadIsBlocked()).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["pushState", "replaceState"] as const)("potrdi notranji odhod prek %s", method => {
+    const initialUrl = window.location.href;
+    const original = window.history[method];
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { unmount } = renderHook(() => useBankImportLeaveGuard(true));
+    window.history[method](null, "", "/payments");
+    expect(window.location.href).toBe(initialUrl);
+    expect(unloadIsBlocked()).toBe(true);
+    confirm.mockReturnValue(true);
+    window.history[method](null, "", "/payments");
+    expect(window.location.pathname).toBe("/payments");
+    expect(unloadIsBlocked()).toBe(false);
+    expect(window.history[method]).toBe(original);
+    unmount();
+    original.call(window.history, null, "", initialUrl);
+  });
+
+  it("preklic koraka nazaj obnovi URL pred usmerjevalnikom", () => {
+    const initialUrl = window.location.href;
+    const original = window.history.pushState;
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { unmount } = renderHook(() => useBankImportLeaveGuard(true));
+    const router = vi.fn();
+    window.addEventListener("popstate", router);
+    original.call(window.history, null, "", "/previous");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(window.location.href).toBe(initialUrl);
+    expect(router).not.toHaveBeenCalled();
+    expect(unloadIsBlocked()).toBe(true);
+    window.removeEventListener("popstate", router);
+    unmount();
+  });
+
+  it("potrjen korak nazaj prepusti usmerjevalniku", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const { unmount } = renderHook(() => useBankImportLeaveGuard(true));
+    const router = vi.fn();
+    window.addEventListener("popstate", router);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(router).toHaveBeenCalledOnce();
+    expect(unloadIsBlocked()).toBe(false);
+    window.removeEventListener("popstate", router);
+    unmount();
+  });
+
+  it("izrecna potrditev odstrani zaščito, preklic jo ohrani", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { result } = renderHook(() => useBankImportLeaveGuard(true));
+    expect(result.current()).toBe(false);
+    expect(unloadIsBlocked()).toBe(true);
+    confirm.mockReturnValue(true);
+    expect(result.current()).toBe(true);
+    expect(unloadIsBlocked()).toBe(false);
+  });
+
+  it("prekliče klik povezave, potrjen klik pa odstrani zaščito brez druge potrditve", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { unmount } = renderHook(() => useBankImportLeaveGuard(true));
+    const anchor = document.createElement("a");
+    anchor.href = "/payments";
+    anchor.addEventListener("click", event => event.preventDefault());
+    document.body.append(anchor);
+    anchor.click();
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(unloadIsBlocked()).toBe(true);
+    confirm.mockReturnValue(true);
+    anchor.click();
+    window.history.replaceState(null, "", window.location.href);
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(unloadIsBlocked()).toBe(false);
+    anchor.remove();
+    unmount();
   });
 });

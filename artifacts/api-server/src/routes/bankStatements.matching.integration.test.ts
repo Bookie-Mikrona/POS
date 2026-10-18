@@ -15,6 +15,7 @@ import {
   invoiceLinesTable,
   paymentsTable,
   paymentAllocationsTable,
+  bankStatementsTable,
 } from "@workspace/db";
 
 // Only authentication is mocked: matching queries run against PostgreSQL.
@@ -38,6 +39,7 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 let companyId: string | undefined;
 let firstInvoiceId: string;
 let secondInvoiceId: string;
+let bankAccountId: string;
 const partnerName = "Kupec integracijskega testa banke";
 
 beforeAll(async () => {
@@ -59,6 +61,7 @@ beforeAll(async () => {
     { companyId, code: "1200000", name: "Terjatve", type: "asset" },
     { companyId, code: "7600000", name: "Prihodki", type: "revenue" },
   ]).returning();
+  bankAccountId = bank.id;
   const [partner] = await db.insert(counterpartiesTable).values({
     companyId, type: "customer", name: partnerName,
   }).returning();
@@ -119,6 +122,7 @@ afterAll(async () => {
         // Payments cascade to allocations; invoices cascade to invoice lines.
         await tx.delete(paymentsTable).where(eq(paymentsTable.companyId, id));
         await tx.delete(invoicesTable).where(eq(invoicesTable.companyId, id));
+        await tx.delete(bankStatementsTable).where(eq(bankStatementsTable.companyId, id));
         await tx.delete(accountsTable).where(eq(accountsTable.companyId, id));
         await tx.delete(counterpartiesTable).where(eq(counterpartiesTable.companyId, id));
         await tx.delete(accountingPeriodsTable).where(eq(accountingPeriodsTable.companyId, id));
@@ -129,6 +133,37 @@ afterAll(async () => {
   } finally {
     await pool.end();
   }
+});
+
+describe("bank statement registration and detail", () => {
+  it("registers the statement and every source line, then returns its tenant-scoped detail", async () => {
+    const sourceSha256 = randomUUID().replaceAll("-", "").repeat(2);
+    const payload = {
+      bankAccountId, sourceFilename: "registration-test.csv", sourceSha256,
+      metadata: { statementNumber: "TEST-REG", currency: "EUR" },
+      transactions: [
+        { id: "register-in", amount: 50 },
+        { id: "register-out", amount: -20 },
+      ].map(transaction => ({
+        ...transaction, date: "2026-09-20", currency: "EUR", reference: null,
+        counterpartyName: "Test", counterpartyIban: null, description: "Registration test",
+      })),
+    };
+    const registered = await supertest(app)
+      .post(`/companies/${companyId}/bank-statements/register`).send(payload);
+    expect(registered.status, JSON.stringify(registered.body)).toBe(201);
+    expect(Object.keys(registered.body.lineIds).sort()).toEqual(["register-in", "register-out"]);
+    const detail = await supertest(app)
+      .get(`/companies/${companyId}/bank-statements/detail/${registered.body.statementId}`);
+    expect(detail.status, JSON.stringify(detail.body)).toBe(200);
+    expect(detail.body.id).toBe(registered.body.statementId);
+    expect(detail.body.sourceFilename).toBe(payload.sourceFilename);
+    expect(detail.body.lines.map((line: { id: string }) => line.id).sort())
+      .toEqual(Object.values(registered.body.lineIds).sort());
+    const duplicate = await supertest(app)
+      .post(`/companies/${companyId}/bank-statements/register`).send(payload);
+    expect(duplicate.status).toBe(409);
+  });
 });
 
 describe("POST bank-statements/match — več računov in delna plačila", () => {
