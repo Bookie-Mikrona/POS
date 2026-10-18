@@ -11143,6 +11143,13 @@ export interface ListPaymentBatchesResponse {
 export type PaymentBatchConflictDuplicateOf = {
   paymentId: string;
 };
+
+export interface PaymentBatchConflict {
+  error: string;
+  /** Existing payment in the same company responsible for the duplicate rejection; absent for other batch conflicts. */
+  duplicateOf?: PaymentBatchConflictDuplicateOf;
+}
+
 /**
  * Exactly one of invoiceId or journalLineId is required; the server validates the target atomically.
  */
@@ -15164,8 +15171,3 @@ month: string;
 counterpartyId: string;
 };
 
-export interface PaymentBatchConflict {
-  error: string;
-  /** Existing payment in the same company responsible for the duplicate rejection; absent for other batch conflicts. */
-  duplicateOf?: PaymentBatchConflictDuplicateOf;
-}
