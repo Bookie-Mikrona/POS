@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import type { BalanceSheetData, IncomeStatementData, ReportSection } from "@workspace/api-client-react";
 import { formatDatum } from "./utils";
+import { mergeFinancialStatementSections } from "./financialStatementComparison";
 
 type Diagnostics = {
   unclassifiedAccounts?: { code: string; name: string; net: number; debit: number; credit: number; reason: string }[];
@@ -48,18 +49,17 @@ export function buildFinancialStatementWorkbook(options: FinancialStatementExcel
   header.font = { bold: true };
   sheet.views = [{ state: "frozen", ySplit: header.number }];
 
-  function valueRow(code: string, label: string, value: string | number, comparison?: string | number, bold = false) {
-    const row = sheet.addRow([code, label, amount(value), ...(showCompare ? [comparison == null ? null : amount(comparison)] : [])]);
+  function valueRow(code: string, label: string, value: string | number | undefined, comparison?: string | number, bold = false) {
+    const row = sheet.addRow([code, label, value == null ? "—" : amount(value), ...(showCompare ? [comparison == null ? null : amount(comparison)] : [])]);
     if (bold) row.font = { bold: true };
   }
 
   function side(label: string, current: { sections: ReportSection[]; total: string }, compare?: { sections: ReportSection[]; total: string }) {
     sheet.addRow(["", label]).font = { bold: true };
-    for (const section of current.sections) {
-      const comparison = compare?.sections.find((s) => s.class === section.class);
-      valueRow("", section.label, section.subtotal, comparison?.subtotal, true);
+    for (const section of mergeFinancialStatementSections(current.sections, compare?.sections)) {
+      valueRow("", section.entry.label, section.current?.subtotal, section.compare?.subtotal, true);
       for (const item of section.items) {
-        valueRow(item.accountCode, item.accountName, item.balance, comparison?.items.find((i) => i.accountId === item.accountId)?.balance);
+        valueRow(item.entry.accountCode, item.entry.accountName, item.current?.balance, item.compare?.balance);
       }
     }
     valueRow("", `SKUPAJ ${label}`, current.total, compare?.total, true);

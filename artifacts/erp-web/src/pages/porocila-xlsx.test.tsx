@@ -126,15 +126,28 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
         }],
         total: balance,
       });
+      const comparison = () => ({
+        sections: [
+          { class: "0", label: "Preizkusni razdelek", subtotal: "950", items: [
+            { accountId: "a", accountCode: "0010000", accountName: "=Naziv čšž", balance: "650" },
+            { accountId: "b", accountCode: "0020000", accountName: "Samo primerjalni konto", balance: "300" },
+          ] },
+          { class: "1", label: "Samo primerjalni razdelek", subtotal: "50", items: [
+            { accountId: "c", accountCode: "1100000", accountName: "Konto primerjalnega razdelka", balance: "50" },
+          ] },
+        ],
+        total: "1000",
+      });
+      const emptySide = { sections: [], total: "0" };
       state.useGetBalanceSheet.mockReturnValue({
         ...praznaPoizvedba,
-        data: { current: { aktiva: section("1234.56"), pasiva: section("1234.56") },
-          compare: { aktiva: section("1000"), pasiva: section("1000") } },
+        data: { current: { aktiva: section("1234.56"), pasiva: emptySide },
+          compare: { aktiva: comparison(), pasiva: comparison() } },
       });
       state.useGetIncomeStatement.mockReturnValue({
         ...praznaPoizvedba,
-        data: { current: { revenue: section("1234.56"), expenses: section("1300"), netResult: "-65.44" },
-          compare: { revenue: section("1000"), expenses: section("900"), netResult: "100" } },
+        data: { current: { revenue: section("1234.56"), expenses: emptySide, netResult: "1234.56" },
+          compare: { revenue: comparison(), expenses: comparison(), netResult: "0" } },
       });
       state.useGetTrialBalance.mockReturnValue(praznaPoizvedba);
       const { container } = render(<Porocila />);
@@ -150,6 +163,22 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
       const values = isBalance ? ["2026-06-30", "2025-12-31"] : ["2026-01-01", "2026-06-30", "2025-01-01", "2025-06-30"];
       values.forEach((value, i) => fireEvent.change(dates[i], { target: { value } }));
       fireEvent.click(screen.getByRole("button", { name: "Prikaži poročilo" }));
+      for (const [name, balance] of [["Samo primerjalni konto", "300,00"], ["Konto primerjalnega razdelka", "50,00"]]) {
+        const names = screen.getAllByText(name);
+        expect(names).toHaveLength(2);
+        for (const nameElement of names) {
+          const row = nameElement.parentElement!;
+          expect(row.children[2]).toHaveTextContent("—");
+          expect(row.children[3]).toHaveTextContent(balance);
+        }
+      }
+      const comparisonSections = screen.getAllByText("Samo primerjalni razdelek");
+      expect(comparisonSections).toHaveLength(2);
+      for (const label of comparisonSections) {
+        expect(label.nextElementSibling).toHaveTextContent("—");
+        expect(label.nextElementSibling?.nextElementSibling).toHaveTextContent("50,00");
+      }
+      expect(screen.queryByText(/Ni knjiženih/)).not.toBeInTheDocument();
       // Editing a filter does not change the already displayed/exported report.
       fireEvent.change(dates[0], { target: { value: "2024-01-01" } });
       fireEvent.click(screen.getByRole("button", { name: "Izvozi XLSX" }));
@@ -170,9 +199,19 @@ describe("Bruto bilanca – XLSX karakterizacija", () => {
       expect(findRow("Preizkusni razdelek").font.bold).toBe(true);
       expect(findRow("=Naziv čšž").getCell(1).value).toBe("0010000");
       expect(findRow(isBalance ? "SKUPAJ AKTIVA" : "SKUPAJ PRIHODKI").getCell(3).value).toBe(1234.56);
+      for (const [label, value] of [["Samo primerjalni konto", 300], ["Konto primerjalnega razdelka", 50], ["Samo primerjalni razdelek", 50]] as const) {
+        const rows: ExcelJS.Row[] = [];
+        sheet.eachRow((row) => { if (row.getCell(2).value === label) rows.push(row); });
+        expect(rows).toHaveLength(2);
+        for (const row of rows) {
+          expect(row.getCell(3).value).toBe("—");
+          expect(row.getCell(4).value).toBe(value);
+          expect(row.getCell(4).numFmt).toBe("#,##0.00");
+        }
+      }
       const total = findRow(isBalance ? "SKUPAJ PASIVA" : "POSLOVNI IZID OBDOBJA");
-      expect(total.getCell(3).value).toBe(isBalance ? 1234.56 : -65.44);
-      expect(total.getCell(4).value).toBe(isBalance ? 1000 : 100);
+      expect(total.getCell(3).value).toBe(isBalance ? 0 : 1234.56);
+      expect(total.getCell(4).value).toBe(isBalance ? 1000 : 0);
       expect(total.getCell(3).numFmt).toBe("#,##0.00");
       expect(URL.revokeObjectURL).toHaveBeenCalled();
     },

@@ -24,6 +24,7 @@ import {
 import ExcelJS from "exceljs";
 import { AjpesAnnualReportTab } from "@/components/reports/ajpes-annual-report-tab";
 import { FinancialStatementXlsxButton } from "@/components/reports/financial-statement-xlsx-button";
+import { mergeFinancialStatementSections, type ComparedFinancialSection } from "@/lib/financialStatementComparison";
 import { trialBalanceNet, formatTrialBalanceNet } from "@/lib/trial-balance-net";
 import { useTrialBalanceFilters } from "@/hooks/useTrialBalanceFilters";
 import { useFinancialStatementFilters } from "@/hooks/useFinancialStatementFilters";
@@ -33,7 +34,6 @@ import {
   useGetIncomeStatement,
   useListPeriods,
   useGetTrialBalance,
-  type ReportSection,
   type BalanceSheetData,
   type IncomeStatementData,
   type TrialBalanceRow,
@@ -269,16 +269,12 @@ function EmailDialog({
 
 function SectionBlock({
   section,
-  compareSection,
   showCompare,
 }: {
-  section: ReportSection;
-  compareSection?: ReportSection | null;
+  section: ComparedFinancialSection;
   showCompare: boolean;
 }) {
   const [open, setOpen] = useState(true);
-  const subtotal = parseFloat(section.subtotal);
-  const cmpSubtotal = compareSection ? parseFloat(compareSection.subtotal) : null;
 
   return (
     <div className="mb-1">
@@ -292,13 +288,13 @@ function SectionBlock({
         ) : (
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
         )}
-        <span className="flex-1 text-sm font-medium text-foreground">{section.label}</span>
+        <span className="flex-1 text-sm font-medium text-foreground">{section.entry.label}</span>
         <span className="text-sm font-semibold tabular-nums text-foreground min-w-[110px] text-right">
-          {fmt(subtotal)}
+          {fmt(section.current?.subtotal)}
         </span>
         {showCompare && (
           <span className="text-sm tabular-nums text-muted-foreground min-w-[110px] text-right">
-            {cmpSubtotal !== null ? fmt(cmpSubtotal) : "—"}
+            {fmt(section.compare?.subtotal)}
           </span>
         )}
       </button>
@@ -306,8 +302,7 @@ function SectionBlock({
       {/* Account lines */}
       {open && (
         <div className="mt-0.5 ml-5 border-l border-border/40 pl-3 space-y-px">
-          {section.items.map((item) => {
-            const cmpItem = compareSection?.items.find((ci) => ci.accountId === item.accountId);
+          {section.items.map(({ entry: item, current, compare }) => {
             return (
               <div
                 key={item.accountId}
@@ -318,11 +313,11 @@ function SectionBlock({
                 </span>
                 <span className="flex-1 text-sm text-foreground truncate">{item.accountName}</span>
                 <span className="text-sm tabular-nums text-foreground min-w-[110px] text-right">
-                  {fmt(item.balance)}
+                  {fmt(current?.balance)}
                 </span>
                 {showCompare && (
                   <span className="text-sm tabular-nums text-muted-foreground min-w-[110px] text-right">
-                    {cmpItem ? fmt(cmpItem.balance) : "—"}
+                    {fmt(compare?.balance)}
                   </span>
                 )}
               </div>
@@ -801,14 +796,13 @@ function BalanceSheetContent() {
                 Skupaj: {fmt(current.aktiva.total)} EUR
               </Badge>
             </div>
-            {current.aktiva.sections.length === 0 ? (
+            {current.aktiva.sections.length === 0 && !compare?.aktiva.sections.length ? (
               <p className="text-sm text-muted-foreground px-3">Ni knjiženih postavk na aktivnih kontih.</p>
             ) : (
-              current.aktiva.sections.map((sec) => (
+              mergeFinancialStatementSections(current.aktiva.sections, compare?.aktiva.sections).map((sec) => (
                 <SectionBlock
-                  key={sec.class}
+                  key={sec.entry.class}
                   section={sec}
-                  compareSection={compare?.aktiva.sections.find((s) => s.class === sec.class)}
                   showCompare={showCompare}
                 />
               ))
@@ -832,14 +826,13 @@ function BalanceSheetContent() {
                 Skupaj: {fmt(current.pasiva.total)} EUR
               </Badge>
             </div>
-            {current.pasiva.sections.length === 0 ? (
+            {current.pasiva.sections.length === 0 && !compare?.pasiva.sections.length ? (
               <p className="text-sm text-muted-foreground px-3">Ni knjiženih postavk na pasivnih kontih.</p>
             ) : (
-              current.pasiva.sections.map((sec) => (
+              mergeFinancialStatementSections(current.pasiva.sections, compare?.pasiva.sections).map((sec) => (
                 <SectionBlock
-                  key={sec.class}
+                  key={sec.entry.class}
                   section={sec}
-                  compareSection={compare?.pasiva.sections.find((s) => s.class === sec.class)}
                   showCompare={showCompare}
                 />
               ))
@@ -1238,14 +1231,13 @@ function IncomeStatementContent() {
                 {fmt(current.revenue.total)} EUR
               </Badge>
             </div>
-            {current.revenue.sections.length === 0 ? (
+            {current.revenue.sections.length === 0 && !compare?.revenue.sections.length ? (
               <p className="text-sm text-muted-foreground px-3">Ni knjiženih prihodkov v izbranem obdobju.</p>
             ) : (
-              current.revenue.sections.map((sec) => (
+              mergeFinancialStatementSections(current.revenue.sections, compare?.revenue.sections).map((sec) => (
                 <SectionBlock
-                  key={sec.class}
+                  key={sec.entry.class}
                   section={sec}
-                  compareSection={compare?.revenue.sections.find((s) => s.class === sec.class)}
                   showCompare={showCompare}
                 />
               ))
@@ -1268,14 +1260,13 @@ function IncomeStatementContent() {
                 {fmt(current.expenses.total)} EUR
               </Badge>
             </div>
-            {current.expenses.sections.length === 0 ? (
+            {current.expenses.sections.length === 0 && !compare?.expenses.sections.length ? (
               <p className="text-sm text-muted-foreground px-3">Ni knjiženih odhodkov v izbranem obdobju.</p>
             ) : (
-              current.expenses.sections.map((sec) => (
+              mergeFinancialStatementSections(current.expenses.sections, compare?.expenses.sections).map((sec) => (
                 <SectionBlock
-                  key={sec.class}
+                  key={sec.entry.class}
                   section={sec}
-                  compareSection={compare?.expenses.sections.find((s) => s.class === sec.class)}
                   showCompare={showCompare}
                 />
               ))
