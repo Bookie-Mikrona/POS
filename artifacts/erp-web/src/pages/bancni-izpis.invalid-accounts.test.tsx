@@ -2,6 +2,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+vi.mock("@clerk/react", () => ({ useUser: () => ({ isLoaded: true, user: { id: "user" } }) }));
 
 const state = vi.hoisted(() => ({
   company: { id: "test-company", role: "owner" },

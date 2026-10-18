@@ -1,5 +1,6 @@
 import { formatDatum } from "@/lib/utils";
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useUser } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Upload,
@@ -42,6 +43,17 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BankStatementDetail } from "@/components/bank-statement-detail";
 import { bankImportDimensionWarnings } from "@/lib/bank-import-dimensions";
+import { useBankPostingRefresh } from "@/hooks/use-bank-posting-refresh";
+
+type ImportError = { message: string; paymentId?: string };
+type ConfirmResult = {
+  userId: string;
+  companyId: string;
+  created: number;
+  skipped: number;
+  posted: number;
+  postErrors: ImportError[];
+};
 
 // ─── Types mirrored from backend ─────────────────────────────────────────────
 
@@ -333,6 +345,8 @@ async function clearImportConfigApi(companyId: string): Promise<void> {
 
 export default function BancniIzpis() {
   const { activeCompany } = useCompany();
+  const { user, isLoaded } = useUser();
+  const userId = isLoaded ? user?.id : undefined;
   const queryClient = useQueryClient();
 
   const [step, setStep] = useState<Step>("upload");
@@ -418,7 +432,24 @@ export default function BancniIzpis() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [pendingConfirms, setPendingConfirms] = useState<PendingReconcileConfirm[]>([]);
   const [retryBusy, setRetryBusy] = useState<string | null>(null);
-  const [confirmResult, setConfirmResult] = useState<{ created: number; skipped: number; posted: number; postErrors: string[] } | null>(null);
+  const [storedConfirmResult, setConfirmResult] = useState<ConfirmResult | null>(null);
+  const confirmResult = userId && storedConfirmResult?.userId === userId
+    && storedConfirmResult.companyId === activeCompany?.id ? storedConfirmResult : null;
+  const clearPostedWarnings = useCallback((postedIds: Set<string>) => {
+    setConfirmResult(cur => {
+      if (!cur || cur.userId !== userId || cur.companyId !== activeCompany?.id) return cur;
+      const resolved = new Set(cur.postErrors.flatMap(error =>
+        error.paymentId && postedIds.has(error.paymentId) ? [error.paymentId] : []));
+      return {
+        ...cur,
+        posted: cur.posted + resolved.size,
+        postErrors: cur.postErrors.filter(error => !error.paymentId || !resolved.has(error.paymentId)),
+      };
+    });
+  }, [userId, activeCompany?.id]);
+  useBankPostingRefresh(userId, activeCompany?.id,
+    confirmResult?.postErrors.flatMap(error => error.paymentId ? [error.paymentId] : []) ?? [],
+    clearPostedWarnings);
   const [confirmProgress, setConfirmProgress] = useState<{
     current: number;
     total: number;
@@ -591,7 +622,7 @@ export default function BancniIzpis() {
   // ─── Step 3: Confirm ──────────────────────────────────────────────────────
 
   const handleConfirm = async () => {
-    if (!activeCompany) return;
+    if (!activeCompany || !userId) return;
     // Hard invariant: the active company must be set and must match the company
     // this wizard session was started for. A null ref means the session was
     // already reset; a mismatch means the user switched company after suggestions
@@ -627,7 +658,7 @@ export default function BancniIzpis() {
     let created = 0;
     let skipped = 0;
     let posted = 0;
-    const postErrors: string[] = [];
+    const postErrors: ImportError[] = [];
     const pendingList: PendingReconcileConfirm[] = [];
 
     // Count only matched transactions for the progress total
@@ -670,7 +701,7 @@ export default function BancniIzpis() {
           // Reconcile never posts; post explicitly only a draft and only if the user chose posting.
           if (autoPost && rec.status === "draft" && rec.requiresExplicitPosting) {
             try { await postPayment(activeCompany.id, rec.paymentId); posted++; }
-            catch (e: any) { postErrors.push(`${tx.reference ?? tx.date}: ${e.message ?? "Napaka pri knjiženju"}`); }
+            catch (e: any) { postErrors.push({ paymentId: rec.paymentId, message: `${tx.reference ?? tx.date}: ${e.message ?? "Napaka pri knjiženju"}` }); }
           }
         } catch (e: any) {
           if (e?.status === 409 && e?.data?.confirmationRequired) {
@@ -683,7 +714,7 @@ export default function BancniIzpis() {
             continue;
           }
           skipped++;
-          postErrors.push(`${tx.reference ?? tx.date}: povezava ni uspela - ${e?.data?.error ?? e.message ?? "napaka"}`);
+          postErrors.push({ message: `${tx.reference ?? tx.date}: povezava ni uspela - ${e?.data?.error ?? e.message ?? "napaka"}` });
         }
         continue;
       }
@@ -737,7 +768,7 @@ export default function BancniIzpis() {
       } catch (e: any) {
         // Record partial failure but continue
         skipped++;
-        postErrors.push(`${txLabel}: ${e.message ?? "Plačila ni bilo mogoče ustvariti"}`);
+        postErrors.push({ message: `${txLabel}: ${e.message ?? "Plačila ni bilo mogoče ustvariti"}` });
         continue;
       }
 
@@ -754,7 +785,7 @@ export default function BancniIzpis() {
           posted++;
         } catch (e: any) {
           const ref = tx.reference ?? tx.date;
-          postErrors.push(`${ref}: ${e.message ?? "Napaka pri knjiženju"}`);
+          postErrors.push({ paymentId, message: `${ref}: ${e.message ?? "Napaka pri knjiženju"}` });
         }
       }
     }
@@ -762,7 +793,7 @@ export default function BancniIzpis() {
     queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
     await loadRegisteredStatements();
     setPendingConfirms(pendingList);
-    setConfirmResult({ created, skipped, posted, postErrors });
+    setConfirmResult({ userId, companyId: activeCompany.id, created, skipped, posted, postErrors });
     setConfirmProgress(null);
     setConfirming(false);
     setStep("confirm");
@@ -778,10 +809,10 @@ export default function BancniIzpis() {
         ...(c.required.includes("confirmReferenceMismatch") ? { confirmReferenceMismatch: true } : {}),
       });
       let posted = 0;
-      const errs: string[] = [];
+      const errs: ImportError[] = [];
       if (autoPost && rec.status === "draft" && rec.requiresExplicitPosting) {
         try { await postPayment(activeCompany.id, rec.paymentId); posted = 1; }
-        catch (e: any) { errs.push(`${c.txReference ?? formatDatum(c.txDate)}: ${e.message ?? "Napaka pri knjiženju"}`); }
+        catch (e: any) { errs.push({ paymentId: rec.paymentId, message: `${c.txReference ?? formatDatum(c.txDate)}: ${e.message ?? "Napaka pri knjiženju"}` }); }
       }
       setPendingConfirms(cur => cur.filter(x => x.lineId !== c.lineId));
       setConfirmResult(cur => cur && { ...cur, created: cur.created + 1, posted: cur.posted + posted, postErrors: [...cur.postErrors, ...errs] });
@@ -1359,7 +1390,7 @@ export default function BancniIzpis() {
               <AlertDescription>
                 <ul className="mt-1 space-y-1 text-left list-disc list-inside">
                   {confirmResult.postErrors.map((e, i) => (
-                    <li key={i} className="text-xs">{e}</li>
+                    <li key={i} className="text-xs">{e.message}</li>
                   ))}
                 </ul>
                 <p className="mt-2 text-xs">Preverite navedene transakcije. Uspešno ustvarjeni osnutki so v seznamu plačil; neuspešne vrstice ostanejo v evidenci izpiska.</p>

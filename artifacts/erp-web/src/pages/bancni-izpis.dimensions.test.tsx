@@ -1,9 +1,11 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+vi.mock("@clerk/react", () => ({ useUser: () => ({ isLoaded: true, user: { id: "user" } }) }));
 
 const state = vi.hoisted(() => ({
+  company: { id: "company", role: "owner" },
   accounts: [
     { id: "bank", code: "1100000", name: "Banka", isActive: true, allowsPosting: true },
     { id: "required", code: "4150000", name: "Strošek", isActive: true, allowsPosting: true, requiresPartner: true, requiresCostCenter: true, requiresProject: true },
@@ -11,7 +13,7 @@ const state = vi.hoisted(() => ({
   ],
 }));
 vi.mock("@/contexts/CompanyContext", () => ({
-  useCompany: () => ({ activeCompany: { id: "company", role: "owner" } }),
+  useCompany: () => ({ activeCompany: state.company }),
 }));
 vi.mock("@workspace/api-client-react", async () => ({
   ...await vi.importActual("@workspace/api-client-react"),
@@ -34,9 +36,9 @@ vi.mock("@/components/ui/select", () => ({
 }));
 import BancniIzpis from "./bancni-izpis";
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-async function openReview() {
+async function openReview(autoPost = false) {
   const transaction = { id: "tx", date: "2026-10-01", amount: -25, reference: "REF",
     counterpartyName: "Partner", counterpartyIban: null, description: null, currency: "EUR" };
   const fetchMock = vi.fn(async (url: string) => {
@@ -63,6 +65,7 @@ async function openReview() {
   fireEvent.change(view.container.querySelector('input[type="file"]')!, {
     target: { files: [new File(["test"], "test.csv", { type: "text/csv" })] },
   });
+  if (autoPost) fireEvent.click(screen.getByRole("checkbox", { name: /Samodejno poknjiži/ }));
   fireEvent.click(screen.getByRole("button", { name: "Nadaljuj" }));
   await screen.findByText("Protikonto računa: 4150000 — Strošek");
   return fetchMock;
@@ -97,5 +100,27 @@ describe("warnings before confirming bank imports", () => {
     confirmButtons().forEach(button => expect(button.disabled).toBe(true));
     fireEvent.click(screen.getByRole("button", { name: "Preskoči" }));
     expect(screen.queryByText("Preverite obvezne dimenzije")).toBeNull();
+  });
+
+  it.each(["focus", "visibilitychange"])("removes a posting warning on %s without remounting the page", async event => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const fetchMock = await openReview(true);
+    fireEvent.click(screen.getByRole("button", { name: /Brez računa/ }));
+    fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "partner" } });
+    let paymentStatus = "draft";
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith("/register")) return Response.json({ statementId: "statement", lineIds: { tx: "line" } });
+      if (url.endsWith("/post")) return Response.json({ error: "Posting failed" }, { status: 500 });
+      if (url.endsWith("/payments/payment-1")) return Response.json({ id: "payment-1", status: paymentStatus });
+      if (url.endsWith("/payments")) return Response.json({ id: "payment-1" });
+      return Response.json({ statements: [] });
+    });
+    fireEvent.click(confirmButtons()[0]);
+    await screen.findByText("Napake pri obdelavi izpiska");
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/payments/payment-1"))).toBe(true));
+    paymentStatus = "posted";
+    await act(async () => fireEvent(event === "focus" ? window : document, new Event(event)));
+    await waitFor(() => expect(screen.queryByText("Napake pri obdelavi izpiska")).toBeNull());
+    expect(screen.getByText("Uvoz zaključen")).toBeTruthy();
   });
 });

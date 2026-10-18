@@ -18,8 +18,8 @@ const { mockUseFeedback, mockUseComments, mockExportFeedback } = vi.hoisted(() =
   mockExportFeedback: vi.fn(),
 }));
 
-vi.mock("@workspace/api-client-react", async () => {
-  const actual = await importOriginal<typeof import("recharts")>();
+vi.mock("@workspace/api-client-react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@workspace/api-client-react")>();
   return {
     ...actual as object,
     useGetOperativnaPorocilaQrFeedback: mockUseFeedback,
@@ -207,7 +207,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   });
 
   it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", () => {
-    const chartData = buildTrendChartData(trends);
+    const chartData = buildTrendChartData(feedbackReport.trends);
     expect(chartData[0]).toMatchObject({
       foodReliable: 4.5,
       ambienceReliable: 3,
@@ -221,11 +221,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
       ambienceSmallSample: 4,
     });
 
-    const { rerender } = render(
-      <QueryClientProvider client={queryClient}>
-        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
-      </QueryClientProvider>
-    );
+    const { rerender } = render(<svg><SmallSampleDot cx={20} cy={30} /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("stroke")).toBe("#f59e0b");
     rerender(<svg><SmallSampleDot cx={20} cy={30} active /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("r")).toBe("7");
@@ -233,11 +229,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
 
   it("tooltip pokaže odzive in opozori samo pri nezanesljivi točki", () => {
     const [reliable, unreliable] = buildTrendChartData(feedbackReport.trends);
-    const { rerender } = render(
-      <QueryClientProvider client={queryClient}>
-        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
-      </QueryClientProvider>
-    );
+    const { rerender } = render(<TrendTooltip active payload={[{ payload: reliable }]} />);
     expect(screen.getByTestId("trend-tooltip").textContent).toContain("6 odzivov");
     expect(screen.queryByTestId("trend-tooltip-small-sample")).toBeNull();
 
