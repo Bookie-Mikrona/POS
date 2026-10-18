@@ -40,7 +40,8 @@ describe("bančni trend", () => {
       { date: "2026-09-01", balance: 100 },
       { date: "2026-09-02", balance: 140 },
     ]} />);
-    fireEvent.mouseMove(screen.getByTestId("line-chart"));
-    expect(screen.getByText("01.09.2026")).toBeTruthy();
+    const chart = screen.getByTestId("line-chart");
+    fireEvent.mouseMove(chart);
+    expect(chart.textContent).toBe("01.09.2026");
   });
 });
