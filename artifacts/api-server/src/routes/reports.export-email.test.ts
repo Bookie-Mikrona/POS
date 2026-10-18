@@ -99,13 +99,67 @@ describe("report email export audit trail", () => {
     });
   });
 
-  function exportReport(email?: string, params: Record<string, string | undefined> = {}) {
+  function exportReport(email?: string, params: Record<string, unknown> = {}) {
     return fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reportType: "income-statement", dateFrom: "2026-01-01", dateTo: "2026-12-31", email, ...params }),
     });
   }
+
+  describe("direct API account filters", () => {
+    const invalidTypes = [
+      [], ["0"], {}, { length: 1 }, 0, 4, false, true, null,
+    ];
+
+    for (const field of ["accountClass", "searchTerm"]) {
+      it.each(invalidTypes.map((value) => [JSON.stringify(value), value]))(
+        `rejects ${field}=%s before generating or saving an export`,
+        async (_label, value) => {
+          const res = await exportReport(undefined, {
+            reportType: "trial-balance", [field]: value,
+          });
+          expect(res.status).toBe(400);
+          expect(await res.json()).toEqual({
+            error: `Neveljaven filter ${field}: pričakovan je niz.`,
+          });
+          expect(mocks.pdf).not.toHaveBeenCalled();
+          expect(mocks.getUser).not.toHaveBeenCalled();
+          expect(mocks.send).not.toHaveBeenCalled();
+          expect(mocks.insert).not.toHaveBeenCalled();
+        },
+      );
+    }
+
+    it.each([
+      { accountClass: "00" }, { accountClass: "10" },
+      { accountClass: "a" }, { accountClass: " " },
+      { accountClass: "-1" }, { searchTerm: "a".repeat(101) },
+    ])("rejects invalid string filter %j", async (filters) => {
+      const res = await exportReport(undefined, { reportType: "trial-balance", ...filters });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "Neveljaven filter kontov." });
+      expect(mocks.pdf).not.toHaveBeenCalled();
+      expect(mocks.insert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {}, { accountClass: "", searchTerm: "" }, { searchTerm: "   " },
+      { searchTerm: "a".repeat(100) },
+      ...Array.from({ length: 10 }, (_, digit) => ({ accountClass: String(digit) })),
+      { accountClass: "0", searchTerm: "  STORITVE  " },
+    ])("preserves valid filters %j", async (filters) => {
+      const res = await exportReport(undefined, { reportType: "trial-balance", ...filters });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/pdf");
+      expect(mocks.pdf).toHaveBeenCalledOnce();
+      expect(saved).toHaveLength(1);
+      if ("accountClass" in filters && filters.accountClass) {
+        expect(mocks.pdf.mock.calls[0]?.[0].accountClass).toBe(filters.accountClass);
+        expect(saved[0]?.params).toMatchObject({ accountClass: filters.accountClass });
+      }
+    });
+  });
 
   it("records one successful email only after SMTP has succeeded", async () => {
     mocks.send.mockImplementation(async () => {

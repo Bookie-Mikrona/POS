@@ -814,7 +814,24 @@ router.get(
 
     const accountsByDimension = new Map<string, AccountBreakdownRow[]>();
     for (const account of accountMap.values()) {
-      const rows = accountsByDimension.get(account.dimId) ?? [];
+    const rows = await db
+      .select({
+        id: reportExportsTable.id,
+        reportType: reportExportsTable.reportType,
+        params: reportExportsTable.params,
+        filename: reportExportsTable.filename,
+        exportedBy: reportExportsTable.exportedBy,
+        exportedByName: reportExportsTable.exportedByName,
+        exportedAt: reportExportsTable.exportedAt,
+        emailSentTo: reportExportsTable.emailSentTo,
+      })
+      .from(reportExportsTable)
+      .where(and(
+        eq(reportExportsTable.companyId, companyId),
+        gte(reportExportsTable.exportedAt, reportExportCutoff()),
+      ))
+      .orderBy(desc(reportExportsTable.exportedAt))
+      .limit(200);
       rows.push({
         accountId: account.accountId,
         code: account.code,
@@ -1075,12 +1092,21 @@ router.post(
       compareDateFrom?: string;
       compareDateTo?: string;
       statementView?: "bilanca" | "zakljucni";
-      accountClass?: string;
-      searchTerm?: string;
+      accountClass?: unknown;
+      searchTerm?: unknown;
     };
 
     if (!reportType) {
       res.status(400).json({ error: "reportType je obvezen." });
+      return;
+    }
+
+    if (accountClass !== undefined && typeof accountClass !== "string") {
+      res.status(400).json({ error: "Neveljaven filter accountClass: pričakovan je niz." });
+      return;
+    }
+    if (searchTerm !== undefined && typeof searchTerm !== "string") {
+      res.status(400).json({ error: "Neveljaven filter searchTerm: pričakovan je niz." });
       return;
     }
 
