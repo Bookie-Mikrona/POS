@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { z } from "zod";
 import { logger } from "./logger";
 import type { StripeSyncNotification } from "./stripeSyncFailureMonitor";
 
@@ -31,32 +32,54 @@ export async function deliverStripeSyncNotification(
 }
 
 async function sendEmail(notification: StripeSyncNotification): Promise<void> {
+  const result = await sendStripeSyncOperationalNotification(notification);
+  if (!result.success) throw new Error(result.code);
+}
+
+export type StripeSyncNotificationResult = {
+  success: boolean;
+  code: "sent" | "recipient_missing" | "recipient_invalid" | "smtp_unconfigured" | "delivery_failed";
+};
+
+/** Shared SMTP only. Tests never touch the monitor store, cooldown or fallback. */
+export async function sendStripeSyncOperationalNotification(
+  notification: StripeSyncNotification | { type: "test" },
+): Promise<StripeSyncNotificationResult> {
   const to = process.env.STRIPE_SYNC_ALERT_EMAIL?.trim();
+  if (!to) return { success: false, code: "recipient_missing" };
+  if (!z.string().email().safeParse(to).success) return { success: false, code: "recipient_invalid" };
   const host = process.env.SMTP_HOST?.trim();
   const from = process.env.SMTP_FROM?.trim();
-  if (!to || !host || !from) throw new Error("Operational SMTP is not configured");
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASSWORD;
   const port = Number(process.env.SMTP_PORT || 465);
-  const transport = nodemailer.createTransport({
-    host, port, secure: port === 465,
-    auth: process.env.SMTP_USER ? {
-      user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD,
-    } : undefined,
-    connectionTimeout: 5_000,
-    greetingTimeout: 5_000,
-    socketTimeout: 5_000,
-    tls: { rejectUnauthorized: true },
-  });
+  if (!host || !from || (user && !pass) || !Number.isInteger(port) || port < 1 || port > 65535) {
+    return { success: false, code: "smtp_unconfigured" };
+  }
+  const test = "type" in notification && notification.type === "test";
   try {
-    const result = await transport.sendMail({
-      from, to,
-      subject: `Stripe synchronization: ${notification.status}`,
-      text: JSON.stringify(notification),
+    const transport = nodemailer.createTransport({
+      host, port, secure: port === 465, requireTLS: true,
+      auth: user ? { user, pass } : undefined,
+      connectionTimeout: 5_000, greetingTimeout: 5_000, socketTimeout: 5_000,
+      tls: { rejectUnauthorized: true },
     });
-    if (!result.accepted?.length || result.rejected?.length) {
-      throw new Error("Operational SMTP did not accept all recipients");
+    try {
+      const result = await transport.sendMail({
+        from, to,
+        subject: test ? "[TEST] Stripe operativno obvestilo" : `Stripe synchronization: ${"status" in notification ? notification.status : "test"}`,
+        text: test
+          ? "To je TESTNO Stripe operativno obvestilo, sproženo iz administracije sistema. Ne pomeni dejanskega incidenta in ne spreminja stanja monitorja ali omejitve pogostosti opozoril."
+          : JSON.stringify(notification),
+      });
+      if (!result.accepted?.length || result.rejected?.length) return { success: false, code: "delivery_failed" };
+      return { success: true, code: "sent" };
+    } finally {
+      transport.close();
     }
-  } finally {
-    transport.close();
+  } catch {
+    // SMTP errors may contain credentials and recipient addresses.
+    return { success: false, code: "delivery_failed" };
   }
 }
 

@@ -1,6 +1,8 @@
 import { pool } from "@workspace/db";
 import { logger } from "./logger";
 import { deliverStripeSyncNotification } from "./stripeSyncNotifications";
+export { sendStripeSyncOperationalNotification } from "./stripeSyncNotifications";
+export type { StripeSyncNotificationResult } from "./stripeSyncNotifications";
 
 export type StripeSyncAlertEvent = {
   type: "alert";

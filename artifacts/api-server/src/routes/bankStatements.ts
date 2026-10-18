@@ -1143,14 +1143,241 @@ router.post(
       return;
     }
     try {
-      const result = await persistBankStatement({
-        companyId,
-        bankAccountId,
-        createdBy: authReq.clerkUserId,
-        sourceFilename,
-        sourceSha256,
-        transactions,
-        metadata,
+      const result = await db.transaction(async tx => {
+        const [line] = await tx.select({
+          amount: bankStatementLinesTable.amount,
+          currency: bankStatementLinesTable.currency,
+          bookingDate: bankStatementLinesTable.bookingDate,
+          reference: bankStatementLinesTable.reference,
+          bankAccountId: bankStatementsTable.bankAccountId,
+        }).from(bankStatementLinesTable)
+          .innerJoin(bankStatementsTable, eq(bankStatementsTable.id, bankStatementLinesTable.statementId))
+          .where(and(eq(bankStatementLinesTable.id, lineId), eq(bankStatementsTable.companyId, companyId)))
+          .for("update").limit(1);
+        if (!line) throw Object.assign(new Error("Vrstica izpiska ni najdena"), { status: 404 });
+        if (line.currency !== "EUR") throw Object.assign(new Error("Uskladitev plačila podpira samo transakcije v EUR"), { status: 400 });
+        if (Number(line.amount) >= 0) throw Object.assign(new Error("Ta vrstica ni odhodno plačilo"), { status: 400 });
+        const [payment] = await tx.select({
+          id: paymentsTable.id, status: paymentsTable.status, direction: paymentsTable.direction,
+          amount: paymentsTable.amount, paymentDate: paymentsTable.paymentDate,
+          bankAccountId: paymentsTable.bankAccountId, reference: paymentsTable.reference,
+          bankStatementLineId: paymentsTable.bankStatementLineId,
+          counterpartyId: paymentsTable.counterpartyId, periodId: paymentsTable.periodId,
+          arApAccountId: paymentsTable.arApAccountId, notes: paymentsTable.notes,
+          createdBy: paymentsTable.createdBy,
+        }).from(paymentsTable)
+          .where(and(eq(paymentsTable.id, paymentId), eq(paymentsTable.companyId, companyId)))
+          .for("update").limit(1);
+        if (!payment) throw Object.assign(new Error("Plačilo ni najdeno"), { status: 404 });
+        if (payment.bankStatementLineId && payment.bankStatementLineId !== lineId) {
+          throw Object.assign(new Error("Plačilo je že povezano z drugo vrstico bančnega izpiska"), { status: 409 });
+        }
+        const actual = Math.round(Math.abs(Number(line.amount)) * 100) / 100;
+        const planned = Math.round(Number(payment.amount) * 100) / 100;
+        if (payment.direction !== "outbound" || payment.bankAccountId !== line.bankAccountId) {
+          throw Object.assign(new Error("Smer ali izvorni bančni konto plačila se ne ujema z vrstico"), { status: 400 });
+        }
+        const norm = (value: string | null) => (value ?? "").replace(/[\s-]/g, "").toUpperCase();
+        const dateMismatch = payment.paymentDate !== line.bookingDate;
+        const referenceMismatch = Boolean(line.reference) !== Boolean(payment.reference)
+          || Boolean(line.reference && payment.reference && norm(line.reference) !== norm(payment.reference));
+        const warnings: string[] = [];
+        if (dateMismatch) warnings.push(`Datum naloga ${payment.paymentDate} se razlikuje od datuma bančne izvedbe ${line.bookingDate}`);
+        if (referenceMismatch) warnings.push("Sklic naloga se razlikuje od sklica bančne vrstice");
+        const unconfirmedWarnings = [
+          ...(dateMismatch && !confirmDateMismatch ? ["confirmDateMismatch"] : []),
+          ...(referenceMismatch && !confirmReferenceMismatch ? ["confirmReferenceMismatch"] : []),
+        ];
+        if (unconfirmedWarnings.length) {
+          throw Object.assign(new Error("Pred uskladitvijo izrecno potrdite opozorilo o datumu/sklicu"), {
+            status: 409, confirmationRequired: true, warnings, requiredConfirmations: unconfirmedWarnings,
+          });
+        }
+        if (actual <= 0 || actual > planned + 0.005) throw Object.assign(new Error("Dejanski znesek presega znesek naloga"), { status: 400 });
+        if (payment.status === "posted" && Math.abs(actual - planned) > 0.005) {
+          throw Object.assign(new Error("Knjiženega plačila ni mogoče delno spreminjati"), { status: 409 });
+        }
+        if (payment.status !== "draft" && payment.status !== "posted") throw Object.assign(new Error("Plačilo ni več mogoče uskladiti"), { status: 409 });
+        if (dateMismatch && payment.status === "draft") {
+          const [period] = await tx.select({
+            startDate: accountingPeriodsTable.startDate,
+            endDate: accountingPeriodsTable.endDate,
+            status: accountingPeriodsTable.status,
+          }).from(accountingPeriodsTable).where(and(
+            eq(accountingPeriodsTable.id, payment.periodId),
+            eq(accountingPeriodsTable.companyId, companyId),
+          )).for("update").limit(1);
+          if (!period || period.status === "locked" || line.bookingDate < period.startDate || line.bookingDate > period.endDate) {
+            throw Object.assign(new Error("Dejanski datum ni v odprtem obračunskem obdobju plačila"), { status: 409 });
+          }
+        }
+        const allocations = await tx.select({
+          id: paymentAllocationsTable.id, amount: paymentAllocationsTable.allocatedAmount,
+          invoiceId: paymentAllocationsTable.invoiceId,
+        }).from(paymentAllocationsTable).where(eq(paymentAllocationsTable.paymentId, paymentId))
+          .orderBy(asc(paymentAllocationsTable.invoiceId));
+        const ledgerAllocations = await tx.select({
+          id: paymentLedgerAllocationsTable.id,
+          amount: paymentLedgerAllocationsTable.allocatedAmount,
+          journalLineId: paymentLedgerAllocationsTable.journalLineId,
+        }).from(paymentLedgerAllocationsTable)
+          .where(eq(paymentLedgerAllocationsTable.paymentId, paymentId))
+          .orderBy(asc(paymentLedgerAllocationsTable.journalLineId));
+        if (payment.status === "draft" && allocations.length) {
+          const invoiceIds = [...new Set(allocations.map(allocation => allocation.invoiceId))].sort();
+          const lockedInvoices = await tx.select({ id: invoicesTable.id }).from(invoicesTable)
+            .where(and(eq(invoicesTable.companyId, companyId), inArray(invoicesTable.id, invoiceIds)))
+            .orderBy(asc(invoicesTable.id))
+            .for("update");
+          if (lockedInvoices.length !== invoiceIds.length) {
+            throw Object.assign(new Error("Dodelitev osnutka vključuje račun iz drugega podjetja ali neobstoječ račun"), { status: 409 });
+          }
+        }
+        if (payment.status === "draft" && ledgerAllocations.length) {
+          await lockNativeSourceLines(tx as unknown as typeof db, companyId, ledgerAllocations.map(allocation => allocation.journalLineId));
+          await validateNativeAllocations(tx as unknown as typeof db, {
+            companyId,
+            partnerId: payment.counterpartyId,
+            accountId: payment.arApAccountId,
+            paymentDirection: "outbound",
+            allocations: ledgerAllocations.map(allocation => ({
+              journalLineId: allocation.journalLineId,
+              allocatedAmount: Number(allocation.amount),
+            })),
+            asOfDate: line.bookingDate,
+            excludePaymentId: payment.id,
+          });
+        }
+        const [batchItem] = await tx.select({
+          id: paymentBatchItemsTable.id,
+          batchId: paymentBatchItemsTable.batchId,
+          instruction: paymentBatchItemsTable.instruction,
+        }).from(paymentBatchItemsTable).where(and(
+          eq(paymentBatchItemsTable.paymentId, paymentId),
+          isNull(paymentBatchItemsTable.releasedAt),
+        )).limit(1);
+        if (batchItem) {
+          await tx.update(paymentBatchItemsTable).set({
+            lifecycleStatus: actual < planned - 0.005 ? "partially_executed" : "executed",
+            resolvedBy: authReq.clerkUserId,
+            resolvedAt: new Date(),
+          }).where(eq(paymentBatchItemsTable.id, batchItem.id));
+        }
+        const allocated = allocations.reduce((sum, row) => sum + Number(row.amount), 0)
+          + ledgerAllocations.reduce((sum, row) => sum + Number(row.amount), 0);
+        if (payment.status === "draft" && actual > allocated + 0.005) {
+          throw Object.assign(new Error("Dejanski znesek presega dodeljene odprte postavke naloga"), { status: 400 });
+        }
+        if (payment.status === "draft") {
+          let remaining = actual;
+          const remainderAllocations: Array<{ invoiceId: string; amount: number }> = [];
+          const remainderLedgerAllocations: Array<{ journalLineId: string; amount: number }> = [];
+          for (const allocation of allocations) {
+            const original = Math.round(Number(allocation.amount) * 100) / 100;
+            const amount = Math.min(original, remaining);
+            const remainder = Math.round((original - amount) * 100) / 100;
+            if (amount <= 0) await tx.delete(paymentAllocationsTable).where(eq(paymentAllocationsTable.id, allocation.id));
+            else await tx.update(paymentAllocationsTable).set({ allocatedAmount: amount.toFixed(2) }).where(eq(paymentAllocationsTable.id, allocation.id));
+            if (remainder > 0) remainderAllocations.push({ invoiceId: allocation.invoiceId, amount: remainder });
+            remaining = Math.round((remaining - amount) * 100) / 100;
+          }
+          for (const allocation of ledgerAllocations) {
+            const original = Math.round(Number(allocation.amount) * 100) / 100;
+            const amount = Math.min(original, remaining);
+            const remainder = Math.round((original - amount) * 100) / 100;
+            if (amount <= 0) await tx.delete(paymentLedgerAllocationsTable).where(eq(paymentLedgerAllocationsTable.id, allocation.id));
+            else await tx.update(paymentLedgerAllocationsTable).set({ allocatedAmount: amount.toFixed(2) })
+              .where(eq(paymentLedgerAllocationsTable.id, allocation.id));
+            if (remainder > 0) remainderLedgerAllocations.push({ journalLineId: allocation.journalLineId, amount: remainder });
+            remaining = Math.round((remaining - amount) * 100) / 100;
+          }
+          await tx.update(paymentsTable).set({
+            amount: actual.toFixed(2),
+            bankStatementLineId: lineId,
+            ...(dateMismatch ? { paymentDate: line.bookingDate } : {}),
+          }).where(eq(paymentsTable.id, paymentId));
+          const remainder = Math.round((planned - actual) * 100) / 100;
+          if (remainder > 0) {
+            const [remainderPayment] = await tx.insert(paymentsTable).values({
+              companyId,
+              counterpartyId: payment.counterpartyId,
+              periodId: payment.periodId,
+              direction: "outbound",
+              paymentDate: dateMismatch ? line.bookingDate : payment.paymentDate,
+              amount: remainder.toFixed(2),
+              reference: payment.reference,
+              bankAccountId: payment.bankAccountId,
+              arApAccountId: payment.arApAccountId,
+              status: "draft",
+              notes: payment.notes,
+              createdBy: payment.createdBy,
+            }).returning({ id: paymentsTable.id });
+            if (remainderAllocations.length) await tx.insert(paymentAllocationsTable).values(remainderAllocations.map(allocation => ({
+              paymentId: remainderPayment.id,
+              invoiceId: allocation.invoiceId,
+              allocatedAmount: allocation.amount.toFixed(2),
+            })));
+            if (remainderLedgerAllocations.length) await tx.insert(paymentLedgerAllocationsTable).values(remainderLedgerAllocations.map(allocation => ({
+              paymentId: remainderPayment.id,
+              journalLineId: allocation.journalLineId,
+              allocatedAmount: allocation.amount.toFixed(2),
+            })));
+            if (batchItem) {
+              const originalInstruction = batchItem.instruction as Record<string, unknown>;
+              await tx.insert(paymentBatchItemsTable).values({
+                batchId: batchItem.batchId,
+                paymentId: remainderPayment.id,
+                instruction: {
+                  ...originalInstruction,
+                  paymentId: remainderPayment.id,
+                  amount: remainder.toFixed(2),
+                },
+              });
+              await tx.update(paymentBatchesTable).set({ status: "partially_executed" })
+                .where(eq(paymentBatchesTable.id, batchItem.batchId));
+            }
+          }
+        } else {
+          await tx.update(paymentsTable).set({ bankStatementLineId: lineId }).where(eq(paymentsTable.id, paymentId));
+        }
+        if (batchItem) {
+          const batchItems = await tx.select({ lifecycleStatus: paymentBatchItemsTable.lifecycleStatus })
+            .from(paymentBatchItemsTable).where(eq(paymentBatchItemsTable.batchId, batchItem.batchId));
+          const statuses = batchItems.map(item => item.lifecycleStatus);
+          const nextStatus = statuses.length > 0 && statuses.every(status => status === "executed")
+            ? "executed"
+            : statuses.some(status => status === "executed" || status === "partially_executed")
+              ? "partially_executed"
+              : statuses.length > 0 && statuses.every(status => status === "cancelled")
+                ? "cancelled"
+                : statuses.length > 0 && statuses.every(status => status === "rejected")
+                  ? "rejected"
+                  : null;
+          if (nextStatus) await tx.update(paymentBatchesTable).set({ status: nextStatus })
+            .where(eq(paymentBatchesTable.id, batchItem.batchId));
+        }
+        await tx.insert(auditLogTable).values({
+          companyId,
+          entityType: "payment",
+          entityId: paymentId,
+          action: "bank_statement_reconcile",
+          changedBy: authReq.clerkUserId,
+          payload: {
+            bankStatementLineId: lineId,
+            actualAmount: actual.toFixed(2),
+            priorAmount: payment.amount,
+            status: payment.status,
+            plannedPaymentDate: payment.paymentDate,
+            actualExecutionDate: line.bookingDate,
+            plannedReference: payment.reference,
+            bankReference: line.reference,
+            warnings,
+          },
+        });
+        return {
+          paymentId, bankStatementLineId: lineId, actualAmount: actual.toFixed(2),
+          status: payment.status, requiresExplicitPosting: payment.status === "draft", warnings,
+        };
       });
       res.status(201).json(result);
     } catch (error: any) {

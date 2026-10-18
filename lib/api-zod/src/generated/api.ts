@@ -1500,6 +1500,16 @@ export const IssueKdsNarociloResponse = zod.object({
 
 
 /**
+ * Super admin only. Does not change monitor state or alert cooldown. No recipient or SMTP details are returned.
+ * @summary Send a clearly marked test via the Stripe operational notification transport
+ */
+export const TestStripeSyncNotificationResponse = zod.object({
+  "success": zod.boolean(),
+  "code": zod.enum(['sent', 'recipient_missing', 'recipient_invalid', 'smtp_unconfigured', 'delivery_failed'])
+})
+
+
+/**
  * @summary Uvoz uporabnikov iz CSV datoteke
  */
 export const ImportUsersResponse = zod.object({

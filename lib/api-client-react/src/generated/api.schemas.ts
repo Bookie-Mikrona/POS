@@ -9447,6 +9447,22 @@ export interface UserProfile {
   imageUrl?: string | null;
 }
 
+export type StripeSyncNotificationResultCode = typeof StripeSyncNotificationResultCode[keyof typeof StripeSyncNotificationResultCode];
+
+
+export const StripeSyncNotificationResultCode = {
+  sent: 'sent',
+  recipient_missing: 'recipient_missing',
+  recipient_invalid: 'recipient_invalid',
+  smtp_unconfigured: 'smtp_unconfigured',
+  delivery_failed: 'delivery_failed',
+} as const;
+
+export interface StripeSyncNotificationResult {
+  success: boolean;
+  code: StripeSyncNotificationResultCode;
+}
+
 export interface ErrorResponse {
   error: string;
 }

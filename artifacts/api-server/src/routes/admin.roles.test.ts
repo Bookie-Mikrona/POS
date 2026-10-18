@@ -2,6 +2,11 @@ import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const notificationMock = vi.hoisted(() => vi.fn());
+vi.mock("../lib/stripeSyncFailureMonitor", () => ({
+  sendStripeSyncOperationalNotification: notificationMock,
+}));
+
 const { dbState, diagnosticsMock, detailMock, movementDetailMock } = vi.hoisted(() => ({
   dbState: {
     rows: [] as unknown[],
@@ -135,6 +140,35 @@ vi.mock("../lib/seedDefaultAccountSettings", () => ({
 }));
 
 import adminRouter from "./admin";
+
+describe("Stripe operational test endpoint", () => {
+  it.each([
+    [undefined, 401],
+    ["ordinary-user", 403],
+  ])("blocks unauthorized user %s before sending", async (user, status) => {
+    notificationMock.mockClear();
+    const app = express().use("/admin", adminRouter);
+    const req = request(app).post("/admin/stripe-sync/test-notification");
+    if (user) req.set("x-test-user", user);
+    expect((await req).status).toBe(status);
+    expect(notificationMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { success: true, code: "sent" },
+    { success: false, code: "recipient_missing" },
+    { success: false, code: "delivery_failed" },
+  ])("returns the safe transport result %j for super admin", async (result) => {
+    notificationMock.mockClear().mockResolvedValue(result);
+    const app = express().use("/admin", adminRouter);
+    const res = await request(app).post("/admin/stripe-sync/test-notification")
+      .set("x-test-user", "superadmin").send({ recipient: "ignored@example.test" });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(result);
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(notificationMock).toHaveBeenCalledExactlyOnceWith({ type: "test" });
+  });
+});
 
 function makeApp() {
   const app = express();

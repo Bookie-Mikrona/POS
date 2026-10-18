@@ -25,6 +25,7 @@ import { loadEventTransferDiagnostics } from "../lib/loadEventTransferDiagnostic
 import { loadEventTransferDetail, loadEventTransferMovementDetail } from "../lib/loadEventTransferDetail";
 import companyOffboardingRouter from "./adminCompanyOffboarding";
 import companyOffboardingCasesRouter from "./adminCompanyOffboardingCases";
+import { sendStripeSyncOperationalNotification } from "../lib/stripeSyncFailureMonitor";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,13 @@ const router: IRouter = Router();
 router.use(requireAuth, requireSuperAdmin);
 router.use("/companies/:id/offboarding", companyOffboardingRouter);
 router.use("/companies/:id/offboarding", companyOffboardingCasesRouter);
+
+// Uses the incident transport directly, never the shared monitor.
+router.post("/stripe-sync/test-notification", async (_req: Request, res: Response): Promise<void> => {
+  res.set("Cache-Control", "no-store");
+  const result = await sendStripeSyncOperationalNotification({ type: "test" });
+  res.json(result);
+});
 
 // ── Podjetja ──────────────────────────────────────────────────────────────────
 

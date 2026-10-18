@@ -508,6 +508,7 @@ import type {
   SpojiNarocili400,
   Statistike,
   StripePregledBona,
+  StripeSyncNotificationResult,
   StripeWebhookInput,
   StripeWebhookResult,
   SumupPayBody,
@@ -3473,6 +3474,78 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getIssueKdsNarociloMutationOptions(options));
+    }
+
+export const getTestStripeSyncNotificationUrl = () => {
+
+
+
+
+  return `/api/admin/stripe-sync/test-notification`
+}
+
+/**
+ * Super admin only. Does not change monitor state or alert cooldown. No recipient or SMTP details are returned.
+ * @summary Send a clearly marked test via the Stripe operational notification transport
+ */
+export const testStripeSyncNotification = async ( options?: RequestInit): Promise<StripeSyncNotificationResult> => {
+
+  return customFetch<StripeSyncNotificationResult>(getTestStripeSyncNotificationUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTestStripeSyncNotificationMutationOptions = <TError = ErrorType<UnauthorizedResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testStripeSyncNotification>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testStripeSyncNotification>>, TError,void, TContext> => {
+
+const mutationKey = ['testStripeSyncNotification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testStripeSyncNotification>>, void> = () => {
+
+
+          return  testStripeSyncNotification(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestStripeSyncNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof testStripeSyncNotification>>>
+
+    export type TestStripeSyncNotificationMutationError = ErrorType<UnauthorizedResponse | void>
+
+    /**
+ * @summary Send a clearly marked test via the Stripe operational notification transport
+ */
+export const useTestStripeSyncNotification = <TError = ErrorType<UnauthorizedResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testStripeSyncNotification>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testStripeSyncNotification>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getTestStripeSyncNotificationMutationOptions(options));
     }
 
 export const getImportUsersUrl = () => {

@@ -34,6 +34,7 @@ import {
   type EventTransferMovementDetail,
   type EventTransferDiagnosticMovement,
   type EventTransferDiagnosticViolation,
+  type StripeSyncNotificationResult,
 } from "@workspace/api-client-react";
 import { CompanyOffboarding } from "@/components/admin/CompanyOffboarding";
 import {
@@ -2696,6 +2697,58 @@ function MovementDetails({
 
 // ── Page root ─────────────────────────────────────────────────────────────────
 
+const stripeNotificationMessages: Record<StripeSyncNotificationResult["code"], string> = {
+  sent: "Poštni strežnik je sprejel testno obvestilo. Preverite prejem in mapo z neželeno pošto; sprejem na strežniku še ne potrjuje dostave v predal.",
+  recipient_missing: "Prejemnik operativnih Stripe obvestil ni nastavljen. Preverite nastavitev STRIPE_SYNC_ALERT_EMAIL.",
+  recipient_invalid: "Naslov prejemnika operativnih Stripe obvestil ni veljaven. Preverite nastavitev STRIPE_SYNC_ALERT_EMAIL.",
+  smtp_unconfigured: "Skupne SMTP nastavitve manjkajo ali niso veljavne.",
+  delivery_failed: "Pošiljanje ni uspelo. Preverite skupne SMTP nastavitve, prejemnika in dosegljivost poštnega strežnika.",
+};
+
+export function StripeOperationalNotificationTest() {
+  const apiFetch = useApiFetch();
+  const testNotification = useMutation({
+    mutationFn: () => apiFetch<StripeSyncNotificationResult>(
+      "/api/admin/stripe-sync/test-notification", { method: "POST" },
+    ),
+    retry: false,
+  });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Stripe operativna obvestila</CardTitle>
+        <CardDescription>
+          Pošljite jasno označeno testno e-pošto nastavljenemu operativnemu prejemniku.
+          Test uporablja isti transport kot pravi incident in ne spreminja stanja monitorja
+          ali omejitve pogostosti opozoril.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Button
+          variant="outline"
+          disabled={testNotification.isPending}
+          onClick={() => testNotification.mutate()}
+        >
+          {testNotification.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {testNotification.isPending ? "Pošiljanje testnega obvestila …" : "Pošlji testno Stripe obvestilo"}
+        </Button>
+        <div role="status" aria-live="polite">
+          {!testNotification.isPending && testNotification.isError && (
+            <p className="text-sm text-destructive">
+              Testne zahteve ni bilo mogoče dokončati. Preverite povezavo in skrbniški dostop.
+            </p>
+          )}
+          {!testNotification.isPending && testNotification.data && (
+            <p className={`text-sm ${testNotification.data.success ? "text-green-700" : "text-destructive"}`}>
+              {stripeNotificationMessages[testNotification.data.code] ?? "Test je vrnil nepričakovan odgovor."}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminPage() {
   return (
     <div className="space-y-6 max-w-4xl">
@@ -2709,6 +2762,7 @@ export default function AdminPage() {
         </div>
       </div>
 
+      <StripeOperationalNotificationTest />
       <Tabs defaultValue="podjetja" className="space-y-5">
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="podjetja" className="gap-2">
