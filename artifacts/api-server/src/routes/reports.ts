@@ -968,6 +968,24 @@ async function aggregateRaw(
 }
 
 async function loadTrialBalance(companyId: string, dateFrom?: string, dateTo?: string): Promise<TrialBalanceResponse> {
+  // Without either bound historicalOpening cannot select a year. Do not let
+  // cumulative aggregation add annual carry-forwards to the preceding years.
+  if (!dateFrom && !dateTo) {
+    const [historical] = await db.select({ id: journalEntriesTable.id })
+      .from(journalEntriesTable)
+      .where(and(
+        eq(journalEntriesTable.companyId, companyId),
+        or(
+          sql`${journalEntriesTable.reference} LIKE 'BOOKIE-OLD/K2/%/00/%'`,
+          sql`${journalEntriesTable.reference} LIKE 'OTV-%-01'`,
+        ),
+        or(eq(journalEntriesTable.status, "posted"), eq(journalEntriesTable.status, "reversed")),
+      ))
+      .limit(1);
+    if (historical) {
+      throw new Error("Za uvožena zgodovinska leta izberite datuma znotraj istega koledarskega leta.");
+    }
+  }
   const opening = await historicalOpening(companyId, dateTo ?? dateFrom);
   if (opening && (!dateFrom || !dateTo || dateFrom.slice(0, 4) !== dateTo.slice(0, 4))) {
     throw new Error("Za uvožena zgodovinska leta izberite datuma znotraj istega koledarskega leta.");
