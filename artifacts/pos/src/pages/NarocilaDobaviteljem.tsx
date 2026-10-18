@@ -445,9 +445,16 @@ function Metric({ label, value, caption, tone = "normal" }: { label: string; val
 export default function NarocilaDobaviteljem() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const [activeView, setActiveView] = useState<"suggestions" | "orders">("suggestions");
   const dashboardKey = getGetSupplierOrderDashboardQueryKey();
   const { data: dashboard, isLoading: dashboardLoading, isError: dashboardError, refetch: refetchDashboard } =
-    useGetSupplierOrderDashboard({ query: { queryKey: dashboardKey } });
+    useGetSupplierOrderDashboard({
+      query: {
+        queryKey: dashboardKey,
+        refetchInterval: activeView === "suggestions" ? 30_000 : false,
+        refetchIntervalInBackground: false,
+      },
+    });
   const [orderSearch, setOrderSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<SupplierOrderStatus | "all">("all");
   const [missingSupplierInstructionsOnly, setMissingSupplierInstructionsOnly] = useState(false);
@@ -513,7 +520,6 @@ export default function NarocilaDobaviteljem() {
   const cancelOrder = useCancelSupplierOrder();
   const createReceipt = useCreatePrejemnica();
 
-  const [activeView, setActiveView] = useState<"suggestions" | "orders">("suggestions");
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [exportingMappingId, setExportingMappingId] = useState<number | null>(null);
@@ -1047,6 +1053,11 @@ export default function NarocilaDobaviteljem() {
   const busy = saveSettings.isPending || createOrder.isPending || updateOrder.isPending ||
     markSent.isPending || closeOrder.isPending || cancelOrder.isPending || createReceipt.isPending;
 
+  const showSuggestions = () => {
+    setActiveView("suggestions");
+    void refetchDashboard();
+  };
+
   return <main className="orders-page min-w-0 flex-1 overflow-auto bg-[#f7f4ec] p-3 sm:p-5 lg:p-7">
     {selectedOrderId !== null && !detailLoading && !detailError && orderDetail && (
       <SupplierOrderPrintView order={orderDetail} />
@@ -1084,7 +1095,7 @@ export default function NarocilaDobaviteljem() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-xl border border-[#ded6c7] bg-[#eee9de] p-1">
-          <button type="button" onClick={() => setActiveView("suggestions")} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeView === "suggestions" ? "bg-[#fffefa] text-[#234d43] shadow-sm" : "text-[#64706a] hover:text-[#234d43]"}`}>
+          <button type="button" onClick={showSuggestions} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeView === "suggestions" ? "bg-[#fffefa] text-[#234d43] shadow-sm" : "text-[#64706a] hover:text-[#234d43]"}`}>
             Predlogi <span className="ml-1.5 rounded-full bg-[#e7eee8] px-2 py-0.5 text-[11px]">{suggestions.length}</span>
           </button>
           <button type="button" data-testid="tab-supplier-orders" onClick={() => setActiveView("orders")} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeView === "orders" ? "bg-[#fffefa] text-[#234d43] shadow-sm" : "text-[#64706a] hover:text-[#234d43]"}`}>

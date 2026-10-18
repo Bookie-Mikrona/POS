@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   aroundNavigation: null as any,
   supplierOrderSummaries: null as any[] | null,
   supplierOrderListFetches: [] as Array<{ status?: string; missingSupplierInstructionsOnly?: boolean }>,
+  dashboardRefetchIntervals: [] as Array<number | false | undefined>,
+  dashboardFetches: 0,
+  queryDashboard: false,
   querySupplierOrderLists: false,
   order: {
     id: 704,
@@ -105,12 +108,32 @@ vi.mock("@workspace/api-client-react", async () => {
   const mutation = () => ({ mutateAsync: mocks.mutation, isPending: false });
   return {
     ...actual as any,
-    useGetSupplierOrderDashboard: () => ({
-      data: mocks.dashboard,
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    }),
+    useGetSupplierOrderDashboard: (options?: any) => {
+      mocks.dashboardRefetchIntervals.push(options?.query?.refetchInterval);
+      if (mocks.queryDashboard) {
+        const query = useQuery({
+          ...options?.query,
+          queryKey: actual.getGetSupplierOrderDashboardQueryKey(),
+          queryFn: () => {
+            mocks.dashboardFetches += 1;
+            return mocks.dashboard;
+          },
+          initialData: mocks.dashboard,
+        });
+        return {
+          data: query.data,
+          isLoading: query.isLoading,
+          isError: query.isError,
+          refetch: query.refetch,
+        };
+      }
+      return {
+        data: mocks.dashboard,
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      };
+    },
     useListSupplierOrders: (params?: { status?: string; missingSupplierInstructionsOnly?: boolean }) => {
       const getSummaries = () => {
         const summaries = mocks.supplierOrderSummaries ?? [{
@@ -300,6 +323,9 @@ describe("supplier order print view", () => {
     mocks.aroundNavigation = aroundPosNavigation;
     mocks.supplierOrderSummaries = null;
     mocks.supplierOrderListFetches = [];
+    mocks.dashboardRefetchIntervals = [];
+    mocks.dashboardFetches = 0;
+    mocks.queryDashboard = false;
     mocks.querySupplierOrderLists = false;
     mocks.order.id = 704;
     mocks.order.number = "N-2026-0704";
@@ -311,6 +337,88 @@ describe("supplier order print view", () => {
   });
 
   afterEach(() => cleanup());
+
+  it("polls the reorder dashboard only while suggestions are open", () => {
+    renderSupplierOrderPage();
+
+    expect(mocks.dashboardRefetchIntervals.at(-1)).toBe(30_000);
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    expect(mocks.dashboardRefetchIntervals.at(-1)).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Predlogi/ }));
+    expect(mocks.dashboardRefetchIntervals.at(-1)).toBe(30_000);
+  });
+
+  it("updates reorder savings on refresh without replacing edited order quantities", async () => {
+    const originalDashboard = mocks.dashboard;
+    const article = originalDashboard.articles[0];
+    const alternateOffer = {
+      ...article.mappings[0],
+      id: 7061,
+      supplierId: "supplier-7061",
+      supplierName: "Mlekarna Ugodna",
+      supplierItemName: "Mleko akcijsko",
+      lastPackagePrice: 18,
+      lastUnitPrice: 3,
+    };
+    mocks.dashboard = {
+      ...originalDashboard,
+      articles: [{
+        ...article,
+        mappings: [...article.mappings, alternateOffer],
+      }],
+    };
+    mocks.queryDashboard = true;
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+      expect(screen.getByTestId("supplier-total-savings-7061").textContent).toContain("15 L");
+      expect(screen.getByTestId("supplier-total-savings-7061").textContent).toContain("11,25");
+
+      fireEvent.click(screen.getByRole("button", { name: "Novo naročilo" }));
+      fireEvent.change(screen.getByRole("combobox", { name: "Dobavitelj" }), {
+        target: { value: "supplier-704" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: "Dodaj postavko" }), {
+        target: { value: "7042" },
+      });
+      const quantityInput = screen.getByRole("spinbutton", { name: "Količina pakiranj Mleko 3,5 %" });
+      fireEvent.change(quantityInput, { target: { value: "8" } });
+
+      const previousFetches = mocks.dashboardFetches;
+      mocks.dashboard = {
+        ...mocks.dashboard,
+        articles: [{
+          ...mocks.dashboard.articles[0],
+          onHand: 1,
+          openOrderQuantity: 4,
+          suggestedBaseQuantity: 12,
+          suggestedPackageQuantity: 2,
+        }],
+      };
+
+      fireEvent.click(screen.getByRole("button", { name: "Osveži" }));
+
+      await waitFor(() => {
+        expect(mocks.dashboardFetches).toBeGreaterThan(previousFetches);
+        expect(screen.getByTestId("supplier-total-savings-7061").textContent).toContain("12 L");
+        expect(screen.getByTestId("supplier-total-savings-7061").textContent).toContain("9,00");
+      });
+      expect(quantityInput).toHaveProperty("value", "8");
+    } finally {
+      cleanup();
+      queryClient.clear();
+      mocks.dashboard = originalDashboard;
+      mocks.queryDashboard = false;
+    }
+  });
 
   it("prints the selected order details without marking it as sent", () => {
     const supplierInstructions = "Prosimo za dostavo do 10.00. 🚚\nOdložite pri zadnjem vhodu.\nHvala.";
