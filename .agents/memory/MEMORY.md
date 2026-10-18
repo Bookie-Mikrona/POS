@@ -149,3 +149,4 @@
 - [Naročila dobaviteljem in prevzemi](supplier-orders-and-receipts.md) — naročilo ne spreminja zaloge; interne opombe so ločene, dolga navodila pa se varno paginirajo.
 - [POS Zod resolver tipi](pos-zod-v3-resolver.md) — POS obrazci z v3 resolverjem naj izrecno uvozijo zod/v3, da se izognejo navzkrižju tipov shem.
 - [Starostna opozorila vračil](refund-aging-policy.md) — zvišanje pragov ne umakne že sproženega finančnega opozorila; zapre ga dejanska razrešitev.
+- [Stripe operativna obvestila](stripe-operational-notifications.md) — rezervni kanal ne sme obiti skupnega cooldowna; dostava je namenoma best-effort.

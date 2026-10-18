@@ -95,21 +95,12 @@ app.post(
           "Stripe connection alert state could not be resolved",
         );
       }
-      const recovery = stripeSyncFailureMonitor.recordSuccess();
-      if (recovery) {
-        req.log.info(
-          {
-            reason: "stripe_sync_recovered",
-            failureCount: recovery.failureCount,
-            outageDurationMs: recovery.outageDurationMs,
-          },
-          "Stripe webhook synchronization recovered",
-        );
-      }
+      // Monitoring is isolated from the webhook response, including SMTP timeouts.
+      void stripeSyncFailureMonitor.recordSuccess();
       await processPublicStripeEvent(event, req, res);
     } catch (error) {
       if (isStripeWebhookSyncError(error)) {
-        const operationalAlert = stripeSyncFailureMonitor.recordFailure();
+        void stripeSyncFailureMonitor.recordFailure();
         logPublicStripeWebhookFailure({
           error,
           reason: "stripe_sync_failed",
@@ -117,16 +108,6 @@ app.post(
           requestId: req.id,
           message: "Stripe webhook synchronization failed",
         });
-        if (operationalAlert) {
-          req.log.warn(
-            {
-              reason: "stripe_sync_repeated_failures",
-              failureCount: operationalAlert.failureCount,
-              windowMs: operationalAlert.windowMs,
-            },
-            "Repeated Stripe webhook synchronization failures",
-          );
-        }
         res.status(503).json({
           error: "Stripe sinhronizacija trenutno ni na voljo.",
           code: "stripe_sync_unavailable",
