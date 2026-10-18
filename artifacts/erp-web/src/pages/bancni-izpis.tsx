@@ -321,9 +321,9 @@ interface SavedImportConfig {
   apAccountId: string | null;
 }
 
-async function fetchImportConfig(companyId: string): Promise<SavedImportConfig | null> {
+async function fetchImportConfig(companyId: string, signal?: AbortSignal): Promise<SavedImportConfig | null> {
   try {
-    const resp = await fetch(`/api/companies/${companyId}/import-config`);
+    const resp = await fetch(`/api/companies/${companyId}/import-config`, { signal });
     if (!resp.ok) return null;
     const data = await resp.json() as SavedImportConfig;
     // Return null if all fields are empty so callers treat it as "no config"
@@ -388,8 +388,9 @@ export default function BancniIzpis() {
     setInvalidAccountsCleared(false);
     const companyId = activeCompany.id;
     let cancelled = false;
-    fetchImportConfig(companyId).then(saved => {
-      // Guard: company may have changed while the request was in-flight
+    const controller = new AbortController();
+    fetchImportConfig(companyId, controller.signal).then(saved => {
+      // Keep the cleanup guard even if the transport ignores cancellation.
       if (cancelled || wizardCompanyIdRef.current) return;
       setBankAccountId(saved?.bankAccountId ?? "");
       setArAccountId(saved?.arAccountId ?? "");
@@ -397,7 +398,10 @@ export default function BancniIzpis() {
       setConfigLoaded(!!saved);
       setInvalidAccountsCleared(false);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompany?.id]);
 

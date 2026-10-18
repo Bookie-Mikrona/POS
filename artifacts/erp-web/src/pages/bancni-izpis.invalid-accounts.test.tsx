@@ -45,7 +45,11 @@ const activeAccounts = [
 const warning = /Nekateri shranjeni konti niso več aktivni in so bili počiščeni/;
 const configKeys = ["bankAccountId", "arAccountId", "apAccountId"] as const;
 
-beforeEach(() => { state.accounts = undefined; });
+beforeEach(() => {
+  state.company = { id: "test-company", role: "owner" };
+  state.accounts = undefined;
+  sessionStorage.clear();
+});
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 function start(config: Record<string, string | null>, accountsFirst: boolean, accounts = activeAccounts) {
@@ -106,5 +110,56 @@ describe.each([true, false])("validacija shranjenih kontov; konti prispejo prvi:
     screen.getAllByRole("combobox").slice(1, 4).forEach(control => {
       expect(control.getAttribute("data-value")).toBe("");
     });
+  });
+});
+
+describe.each(["A-B", "B-A"])("menjava podjetja; vrstni red odgovorov: %s", responseOrder => {
+  it.each([false, true])("ohrani konte in opozorilo podjetja B; neveljaven konto B: %s", async invalidB => {
+    const pending = new Map<string, { resolve: (response: Response) => void; signal: AbortSignal }>();
+    // Deliberately ignore abort so the cleanup guard must also reject a
+    // response that was already in flight when the company changed.
+    vi.stubGlobal("fetch", vi.fn((url: string, options?: RequestInit) => {
+      if (url.endsWith("/import-config")) {
+        const companyId = url.split("/")[3]!;
+        return new Promise<Response>(resolve => {
+          pending.set(companyId, { resolve, signal: options!.signal as AbortSignal });
+        });
+      }
+      return Promise.resolve(new Response(JSON.stringify({ statements: [] }), { status: 200 }));
+    }));
+    state.company = { id: "company-a", role: "owner" };
+    state.accounts = { accounts: activeAccounts };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const page = () => <QueryClientProvider client={client}><BancniIzpis /></QueryClientProvider>;
+    const view = render(page());
+    state.company = { id: "company-b", role: "owner" };
+    view.rerender(page());
+    expect(pending.get("company-a")!.signal.aborted).toBe(true);
+    expect(pending.get("company-b")!.signal.aborted).toBe(false);
+
+    const configB = { bankAccountId: "bank", arAccountId: invalidB ? "inactive-b" : "ar", apAccountId: "ap" };
+    // Opposite validity catches both a stale warning being introduced and an
+    // existing warning being removed by A's late response.
+    const configA = {
+      bankAccountId: invalidB ? "bank" : "inactive-a",
+      arAccountId: "ar",
+      apAccountId: "ap",
+    };
+    function expectFields(values: string[], hasWarning: boolean) {
+      expect(screen.getAllByRole("combobox").slice(1, 4).map(control => control.getAttribute("data-value"))).toEqual(values);
+      expect(!!screen.queryByText(warning)).toBe(hasWarning);
+      expect(!!screen.queryByText("Predizpolnjeno iz prejšnjega uvoza.")).toBe(values.some(Boolean) && !hasWarning);
+    }
+    const expectedB = ["bank", invalidB ? "" : "ar", "ap"];
+    expectFields(["", "", ""], false);
+    for (const company of responseOrder.split("-")) {
+      await act(async () => {
+        pending.get(company === "A" ? "company-a" : "company-b")!.resolve(
+          new Response(JSON.stringify(company === "A" ? configA : configB), { status: 200 }),
+        );
+      });
+      const bResolved = company === "B" || responseOrder === "B-A";
+      expectFields(bResolved ? expectedB : ["", "", ""], bResolved && invalidB);
+    }
   });
 });
