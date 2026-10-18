@@ -16217,6 +16217,7 @@ components:
       properties:
         mode: { type: string, enum: [three_course, four_course] }
         selectedDishes: { type: object, additionalProperties: { type: integer } }
+        modifiers: { type: object, additionalProperties: { type: array, items: { type: integer } } }
     DailyLunchQuoteResponse:
       type: object
       required: [offerId, businessDate, mode, selectedDishes, total]
@@ -16228,6 +16229,7 @@ components:
         mainLivePrice: { type: string }
         baseFlatAmount: { type: string }
         starterFlatAmount: { type: string }
+        modifiersTotal: { type: string }
         total: { type: string }
     DailyLunchAddInput:
       type: object
@@ -16236,6 +16238,7 @@ components:
         offerId: { type: integer }
         mode: { type: string, enum: [three_course, four_course] }
         selectedDishes: { type: object, additionalProperties: { type: integer } }
+        modifiers: { type: object, additionalProperties: { type: array, items: { type: integer } } }
         idempotencyKey: { type: string, minLength: 1 }
     DailyLunchAddResponse:
       type: object

@@ -2,10 +2,13 @@ import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import {
-  artikliTable, dailyLunchOfferChoicesTable, dailyLunchOffersTable, dailyLunchSaleSnapshotsTable,
-  db, narocilaTable, postavkeTable,
+  artModSkupineTable, artikliTable, dailyLunchOfferChoicesTable, dailyLunchOffersTable, dailyLunchSaleSnapshotsTable,
+  db, modSkupineTable, modifikatorjiTable, narocilaTable, postavkeTable,
 } from "@workspace/db";
-import { assertPreparedFoodAvailability, currentBusinessDate, lockPreparedFoodAvailability } from "../../lib/prepared-food-availability";
+import {
+  assertPreparedFoodAvailability, buildModifierAvailabilityRequests, currentBusinessDate,
+  loadModifierAvailabilitySnapshots, lockPreparedFoodAvailability,
+} from "../../lib/prepared-food-availability";
 import { assertOpenOrderCanChange } from "../../lib/rezervacijeMiz";
 import { assertKdsOrderNotDispatched, lockKdsOrder } from "../../lib/kds-dispatch";
 import { materializirajKdsNaloge } from "./kds";
@@ -52,6 +55,49 @@ async function choicesBelongToUnit(enotaId: number, choices: Array<{ role: Role;
     return !!article && article.aktiven && article.prodajniArtikel && !article.nabavniArtikel &&
       article.taxCategory === "food";
   });
+}
+
+type LunchModifier = { id: number; ime: string; cenaDodatek: number };
+
+/** Validates the chosen modifiers of every course against the dish's own modifier groups. */
+async function resolveLunchModifiers(
+  exec: typeof db, enotaId: number, selected: Partial<Record<Role, number>>,
+  required: readonly Role[], raw: unknown,
+): Promise<Map<Role, LunchModifier[]>> {
+  const body = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const result = new Map<Role, LunchModifier[]>();
+  for (const role of required) {
+    const ids = body[role];
+    if (ids !== undefined && (!Array.isArray(ids) || !ids.every((id) => Number.isInteger(id)))) {
+      throw new Error("Neveljaven seznam izbranih modifikatorjev.");
+    }
+    const chosenIds = [...new Set((ids as number[] | undefined) ?? [])];
+    const groups = await exec.select({
+      skupinaId: artModSkupineTable.skupinaId, obvezna: modSkupineTable.obvezna,
+      minIzbir: modSkupineTable.minIzbir, maxIzbir: modSkupineTable.maxIzbir,
+    }).from(artModSkupineTable)
+      .innerJoin(modSkupineTable, eq(artModSkupineTable.skupinaId, modSkupineTable.id))
+      .where(and(eq(artModSkupineTable.artikelId, selected[role]!), eq(modSkupineTable.enotaId, enotaId)));
+    const mods = groups.length
+      ? await exec.select().from(modifikatorjiTable).where(and(
+        inArray(modifikatorjiTable.skupinaId, groups.map((group) => group.skupinaId)),
+        eq(modifikatorjiTable.aktiven, true)))
+      : [];
+    const byId = new Map(mods.map((mod) => [mod.id, mod]));
+    const chosen = chosenIds.map((id) => {
+      const mod = byId.get(id);
+      if (!mod) throw new Error(`Modifikator ${id} ni veljaven za izbrano jed.`);
+      return mod;
+    });
+    for (const group of groups) {
+      const count = chosen.filter((mod) => mod.skupinaId === group.skupinaId).length;
+      const min = group.obvezna ? Math.max(1, group.minIzbir) : group.minIzbir;
+      if (count < min) throw new Error("Izberite vse obvezne modifikatorje (npr. meso, prilogo, solato) za vsako jed.");
+      if (group.maxIzbir > 0 && count > group.maxIzbir) throw new Error("Izbrali ste preveč modifikatorjev v skupini.");
+    }
+    result.set(role, chosen.map((mod) => ({ id: mod.id, ime: mod.ime, cenaDodatek: Number(mod.cenaDodatek) })));
+  }
+  return result;
 }
 
 router.get("/daily-lunch-offers", async (req, res): Promise<void> => {
@@ -156,10 +202,15 @@ router.post("/daily-lunch-offers/:offerId/quote", async (req, res): Promise<void
   const rows = await db.select().from(artikliTable).where(inArray(artikliTable.id, required.map((role) => selected[role]!)));
   const main = rows.find((row) => row.id === selected.main);
   if (!main) { res.status(409).json({ error: "Glavna jed ni več na voljo." }); return; }
-  const total = resolveDailyLunchTotal(mode, Number(main.cena), Number(offer.baseFlatAmount), Number(offer.starterFlatAmount));
+  let modifiers: Map<Role, LunchModifier[]>;
+  try { modifiers = await resolveLunchModifiers(db, unit(req), selected, required, req.body?.modifiers); }
+  catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Neveljavni modifikatorji." }); return; }
+  const modifiersTotal = [...modifiers.values()].flat().reduce((sum, mod) => sum + mod.cenaDodatek, 0);
+  const total = resolveDailyLunchTotal(mode, Number(main.cena), Number(offer.baseFlatAmount), Number(offer.starterFlatAmount)) + modifiersTotal;
   res.json({ offerId: offer.id, businessDate: offer.businessDate, mode, selectedDishes: selected,
     mainLivePrice: main.cena, baseFlatAmount: offer.baseFlatAmount,
-    starterFlatAmount: mode === "four_course" ? offer.starterFlatAmount : "0.00", total: total.toFixed(2) });
+    starterFlatAmount: mode === "four_course" ? offer.starterFlatAmount : "0.00",
+    modifiersTotal: modifiersTotal.toFixed(2), total: total.toFixed(2) });
 });
 
 router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
@@ -208,8 +259,24 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
         !article.aktiven || !article.prodajniArtikel || article.nabavniArtikel || article.taxCategory !== "food")) {
         throw new Error("Izbrana jed ni več prodajna hrana.");
       }
-      await assertPreparedFoodAvailability(tx, enotaId, offer.businessDate,
-        [...new Set(ids)].map((articleId) => ({ articleId, quantity: ids.filter((id) => id === articleId).length })));
+      const lunchModifiers = await resolveLunchModifiers(tx as unknown as typeof db, enotaId, selected, required, req.body?.modifiers);
+      const modifierIds = [...lunchModifiers.values()].flat().map((mod) => mod.id);
+      const modifierSnapshots = modifierIds.length > 0 ? await loadModifierAvailabilitySnapshots(tx, modifierIds) : new Map();
+      await assertPreparedFoodAvailability(tx, enotaId, offer.businessDate, [
+        ...[...new Set(ids)].map((articleId) => ({ articleId, quantity: ids.filter((id) => id === articleId).length })),
+        ...buildModifierAvailabilityRequests(modifierSnapshots, modifierIds, 1),
+      ]);
+      const insertModifiers = async (role: Role, parentId: number, article: typeof artikliTable.$inferSelect) => {
+        for (const mod of lunchModifiers.get(role) ?? []) {
+          const price = mod.cenaDodatek.toFixed(2);
+          await tx.insert(postavkeTable).values({
+            narociloId: orderId, artikelId: null, modifikatorId: mod.id, ime: mod.ime, kolicina: 1,
+            cenaKos: price, cenaKosOriginalna: price, skupaj: price, davek: String(article.davek),
+            jeDelMenija: true, vrstaArtikla: article.vrstaArtikla,
+            availabilityRequirements: modifierSnapshots.get(mod.id) ?? [], parentPostavkaId: parentId,
+          });
+        }
+      };
       const main = byId.get(selected.main!);
       if (!main) throw new Error("Glavna jed ni veljavna.");
       const total = resolveDailyLunchTotal(mode, Number(main.cena), Number(offer.baseFlatAmount), Number(offer.starterFlatAmount));
@@ -223,6 +290,7 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
         courseNumber: mode === "four_course" ? 3 : 2, courseSequence: mode === "four_course" ? 3 : 2,
         courseNameSnapshot: "main", availabilityRequirements: [{ articleId: main.id, quantity: 1, mealType: main.mealType }],
       }).returning({ id: postavkeTable.id });
+      await insertModifiers("main", anchor.id, main);
       await tx.insert(dailyLunchSaleSnapshotsTable).values({
         postavkaId: anchor.id, narociloId: orderId, offerId: offer.id, businessDate: offer.businessDate, mode,
         selectedDishes: selected, mainLivePrice: main.cena, baseFlatAmount: offer.baseFlatAmount,
@@ -235,13 +303,14 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
         const article = byId.get(selected[role]!);
         if (!article) throw new Error("Izbrana jed ne obstaja.");
         const courseNumber = role === "starter" ? 1 : role === "soup" ? (mode === "four_course" ? 2 : 1) : (mode === "four_course" ? 4 : 3);
-        await tx.insert(postavkeTable).values({
+        const [courseRow] = await tx.insert(postavkeTable).values({
           narociloId: orderId, artikelId: article.id, ime: article.ime, kolicina: 1,
           cenaKos: "0.00", cenaKosOriginalna: "0.00", skupaj: "0.00", davek: String(article.davek),
           mealType: article.mealType, vrstaArtikla: article.vrstaArtikla, jeDelMenija: true, pairingGroupId,
           courseNumber, courseSequence: courseNumber, courseNameSnapshot: role,
           availabilityRequirements: [{ articleId: article.id, quantity: 1, mealType: article.mealType }],
-        });
+        }).returning({ id: postavkeTable.id });
+        await insertModifiers(role, courseRow.id, article);
       }
       await updateSkupaj(orderId, enotaId, tx);
       await materializirajKdsNaloge(orderId, enotaId, tx);

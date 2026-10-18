@@ -5773,7 +5773,8 @@ export const QuoteDailyLunchParams = zod.object({
 
 export const QuoteDailyLunchBody = zod.object({
   "mode": zod.enum(['three_course', 'four_course']),
-  "selectedDishes": zod.record(zod.string(), zod.number())
+  "selectedDishes": zod.record(zod.string(), zod.number()),
+  "modifiers": zod.record(zod.string(), zod.array(zod.number())).optional()
 })
 
 export const QuoteDailyLunchResponse = zod.object({
@@ -5784,6 +5785,7 @@ export const QuoteDailyLunchResponse = zod.object({
   "mainLivePrice": zod.string().optional(),
   "baseFlatAmount": zod.string().optional(),
   "starterFlatAmount": zod.string().optional(),
+  "modifiersTotal": zod.string().optional(),
   "total": zod.string()
 })
 
@@ -5799,6 +5801,7 @@ export const AddDailyLunchToOrderBody = zod.object({
   "offerId": zod.number(),
   "mode": zod.enum(['three_course', 'four_course']),
   "selectedDishes": zod.record(zod.string(), zod.number()),
+  "modifiers": zod.record(zod.string(), zod.array(zod.number())).optional(),
   "idempotencyKey": zod.string().min(1)
 })
 

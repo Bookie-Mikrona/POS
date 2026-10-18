@@ -4246,9 +4246,12 @@ export const DailyLunchQuoteInputMode = {
 
 export type DailyLunchQuoteInputSelectedDishes = {[key: string]: number};
 
+export type DailyLunchQuoteInputModifiers = {[key: string]: number[]};
+
 export interface DailyLunchQuoteInput {
   mode: DailyLunchQuoteInputMode;
   selectedDishes: DailyLunchQuoteInputSelectedDishes;
+  modifiers?: DailyLunchQuoteInputModifiers;
 }
 
 export type DailyLunchQuoteResponseMode = typeof DailyLunchQuoteResponseMode[keyof typeof DailyLunchQuoteResponseMode];
@@ -4269,6 +4272,7 @@ export interface DailyLunchQuoteResponse {
   mainLivePrice?: string;
   baseFlatAmount?: string;
   starterFlatAmount?: string;
+  modifiersTotal?: string;
   total: string;
 }
 
@@ -4282,10 +4286,13 @@ export const DailyLunchAddInputMode = {
 
 export type DailyLunchAddInputSelectedDishes = {[key: string]: number};
 
+export type DailyLunchAddInputModifiers = {[key: string]: number[]};
+
 export interface DailyLunchAddInput {
   offerId: number;
   mode: DailyLunchAddInputMode;
   selectedDishes: DailyLunchAddInputSelectedDishes;
+  modifiers?: DailyLunchAddInputModifiers;
   /** @minLength 1 */
   idempotencyKey: string;
 }
