@@ -152,9 +152,4 @@
 - [Odzivnost izvozov poročil](report-export-responsiveness.md) — meri tudi prehode stanja in klike; ločena nit ne odpravi blokade zaradi ponovnega izrisa tabele.
 - [Validacija ob vzporednih združitvah](parallel-merge-validation.md) — pred popravljanjem napake v drugem paketu preveri trenutno vsebino in zadnje združitve; napaka je lahko sveže vnesena.
 - [Hrana, recepti, meni in QR](food-menu-recipes-index.md) — kazalo pravil za recepte, alergene, meni, sestavljene jedi, pice, QR goste in povratne informacije.
-- [Kartično plačilo darilnega bona](gift-voucher-card-payment.md) — gift intent preživi reload; provider se preveri pred FURS, attempt pa se lahko porabi le enkrat.
-- [Stripe boni po gostincu](stripe-boni-po-gostincu.md) — spletni bon uporablja neposredno plačilo povezanega računa podjetja; brez povezave ni platformskega nadomestnega plačila.
-- [Stripe operativna e-pošta](stripe-operational-email.md) — SMTP ne sme zadrževati odgovora webhooka; sprejem sporočila še ni dokaz dostave v predal.
-- [POS unovčenje spletnega bona](pos-spletni-bon-unovcenje.md) — bon se rezervira skupaj z računom pred FURS; neznan izid zadrži rezervacijo, kartica in bon pa nista dovoljena skupaj.
-- [Stripe operativna obvestila](stripe-operational-notifications.md) — rezervni kanal ne sme obiti skupnega cooldowna; dostava je namenoma best-effort.
 - [Pregled testov po rebazu](test-file-merge-checks.md) — čist samodejni merge ne zagotavlja, da so testi ostali v pravem obsegu; preveri celoten diff in meje testov.

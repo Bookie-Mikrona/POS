@@ -321,6 +321,131 @@ describe("PDF bruto bilance", () => {
     expect(textPages[1]).toContain("Bilanca uravnotežena");
   });
 
+  it.each([
+    [65, [34, 31]],
+    [70, [34, 36, 0]],
+  ] as const)("keeps cumulative headings, amounts and layout intact without a start date across %i accounts", async (count, rowsPerPage) => {
+    const rows = Array.from({ length: count }, (_, index) => {
+      const source = fixture.rows[index % 3]!;
+      return {
+        ...source,
+        accountId: String(index),
+        accountCode: String(1000000 + index),
+        accountName: `Konto ${index} – zelo dolg naziv s šumniki čšž, ki ne sme prekriti začetnih stolpcev ali naslednje vrstice`,
+        openingBalanceDebit: "0.00",
+        openingBalanceCredit: "0.00",
+        turnoverDebit: source.balanceDebit,
+        turnoverCredit: source.balanceCredit,
+      };
+    });
+    const sum = (field: typeof fields[number]) => {
+      const cents = rows.reduce((total, row) => total + BigInt(row[field].replace(".", "")), 0n);
+      return (Number(cents) / 100).toFixed(2);
+    };
+    const totals = fields.map(sum);
+    const pdf = await generateTrialBalancePdf({
+      companyName: "Kumulativna bilanca d.o.o.", dateFrom: "", dateTo: "2026-12-31", rows,
+      totalOpeningBalanceDebit: totals[0]!, totalOpeningBalanceCredit: totals[1]!,
+      totalTurnoverDebit: totals[2]!, totalTurnoverCredit: totals[3]!,
+      totalBalanceDebit: totals[4]!, totalBalanceCredit: totals[5]!,
+    });
+    const { pages, textPages } = inspectPdf(pdf);
+    expect(pages).toBe(rowsPerPage.length);
+    expect(textPages).toHaveLength(pages);
+    expect(textPages[0]).toContain("Kumulativno od začetka evidence do 2026-12-31");
+    const bbox = spawnSync("pdftotext", ["-bbox", "-", "-"], { input: pdf, encoding: "utf8" });
+    expect(bbox.status, bbox.stderr).toBe(0);
+    const pageXml = [...bbox.stdout.matchAll(/<page width="([\d.]+)" height="([\d.]+)">([\s\S]*?)<\/page>/g)];
+    expect(pageXml).toHaveLength(pages);
+    const rightEdges = [345.89, 421.89, 497.89, 573.89, 649.89, 725.89, 801.89];
+    const seenAccounts: string[] = [];
+    pageXml.forEach((page, pageIndex) => {
+      expect(Number(page[1])).toBeCloseTo(841.89, 1);
+      expect(Number(page[2])).toBeCloseTo(595.28, 1);
+      const text = textPages[pageIndex]!;
+      expect(text).toContain(`Stran ${pageIndex + 1} / ${pages}`);
+      expect(text).not.toContain("Začetni saldo");
+      expect(text).not.toContain("Promet v obdobju");
+      expect(text.match(/Ni začetnega datuma/g)).toHaveLength(pageIndex === 0 ? 2 : 1);
+      const words = [...page[3]!.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)]
+        .map(word => ({ x: Number(word[1]), y: Number(word[2]), right: Number(word[3]), bottom: Number(word[4]), text: word[5]! }));
+      const headerY = pageIndex === 0 ? 90 : 60;
+      // Every heading must fit its own column and tier, including on a
+      // totals-only page. Presence in extracted text alone cannot prove this.
+      const headings = [
+        ["Šifra", 42, 92], ["Naziv konta", 97, 265.89],
+        ["Ni začetnega datuma", 273.89, 421.89], ["Kumulativni promet", 425.89, 573.89],
+        ["Skupaj — breme/dobro", 577.89, 725.89], ["Neto saldo", 729.89, 801.89],
+      ] as const;
+      for (const [label, left, right] of headings) {
+        const heading = words.filter(word => word.y >= headerY && word.bottom <= headerY + 16
+          && word.x >= left - 0.1 && word.right <= right + 0.1);
+        expect(heading.map(word => word.text).join(" ")).toBe(label);
+      }
+      rightEdges.forEach((right, column) => {
+        const subheading = words.filter(word => word.y >= headerY + 16 && word.bottom <= headerY + 28
+          && word.x >= right - 72 - 0.1 && word.right <= right + 0.1);
+        expect(subheading.map(word => word.text).join(" ")).toBe(column === 6 ? "+ / −" : column % 2 === 0 ? "Breme" : "Dobro");
+      });
+      const titleWords = words.filter(word => word.y < headerY);
+      expect(titleWords.length).toBeGreaterThan(0);
+      titleWords.forEach(word => expect(word.bottom).toBeLessThan(headerY));
+
+      function checkAmounts(top: number, height: number, values: string[]) {
+        const amounts = values.map(Number);
+        const net = Math.round((amounts[4]! - amounts[5]!) * 100) / 100;
+        const expected = ["—", "—", ...amounts.slice(2).map(localized),
+          `${net > 0 ? "+" : ""}${localized(net)}`];
+        const cellWords = words.filter(word => word.y >= top && word.y < top + height && word.x >= 273.89);
+        expect(cellWords).toHaveLength(7);
+        expected.forEach((value, column) => {
+          const right = rightEdges[column]!;
+          const cell = cellWords.filter(word => Math.abs(word.right - right) < 0.1);
+          expect(cell, `page ${pageIndex + 1}, y=${top}, column ${column}`).toHaveLength(1);
+          expect(cell[0]!.text).toBe(value);
+          expect(cell[0]!.x).toBeGreaterThanOrEqual(right - 72 - 0.1);
+          expect(cell[0]!.bottom).toBeLessThanOrEqual(top + height);
+          expect(cell[0]!.bottom).toBeLessThan(528.28);
+        });
+      }
+
+      const accounts = words.filter(word => /^1000\d{3}$/.test(word.text)).sort((a, b) => a.y - b.y);
+      expect(accounts).toHaveLength(rowsPerPage[pageIndex]!);
+      accounts.forEach((account, rowIndex) => {
+        seenAccounts.push(account.text);
+        const top = headerY + 28 + rowIndex * 12;
+        expect(account.y).toBeGreaterThanOrEqual(top);
+        expect(account.bottom).toBeLessThanOrEqual(top + 12);
+        const row = rows[Number(account.text) - 1000000]!;
+        checkAmounts(top, 12, fields.map(field => row[field]));
+        const nameWords = words.filter(word => word.y >= top && word.y < top + 12 && word.x >= 97 && word.x < 273.89);
+        expect(nameWords.map(word => word.text).join(" ")).toMatch(/^Konto \d+ –/);
+        for (const word of nameWords) {
+          expect(word.right).toBeLessThan(273.89);
+          expect(word.bottom).toBeLessThanOrEqual(top + 12);
+        }
+      });
+      if (pageIndex === pages - 1) {
+        const top = headerY + 28 + accounts.length * 12;
+        const totalLabel = words.filter(word => word.text === "SKUPAJ");
+        expect(totalLabel).toHaveLength(1);
+        expect(totalLabel[0]!.y).toBeGreaterThanOrEqual(top);
+        expect(totalLabel[0]!.bottom).toBeLessThanOrEqual(top + 18);
+        checkAmounts(top, 18, totals);
+        const control = words.filter(word => word.y >= top + 22 && word.bottom < 528.28);
+        expect(control.map(word => word.text).join(" ")).toBe(
+          totals[2] === totals[3] ? "Bilanca uravnotežena" : "Bilanca ni uravnotežena",
+        );
+      } else {
+        expect(text).not.toContain("SKUPAJ");
+        expect(text).not.toMatch(/Bilanca (ni )?uravnotežena/);
+      }
+      expect(text).toMatch(/1000\d{3}|SKUPAJ/);
+    });
+    expect(seenAccounts).toEqual(rows.map(row => row.accountCode));
+    expect(textPages.join("\n").match(/SKUPAJ/g)).toHaveLength(1);
+  });
+
   it("does not add an empty page for a report without postings", async () => {
     const pdf = await generateTrialBalancePdf({
       companyName: "Mikrona d.o.o.", dateFrom: "2025-01-01", dateTo: "2025-12-31",
