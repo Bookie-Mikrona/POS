@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
   seed: vi.fn(async () => 1),
 }));
 vi.mock("../middlewares/requireAuth", () => ({
-  requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireAuth: (req: any, _res: unknown, next: () => void) => { req.clerkUserId = "test-actor"; next(); },
 }));
 vi.mock("../lib/resolveSifrantAccess", () => ({
   resolveSifrantAccess: async () => ({ role: state.role }),
@@ -23,17 +23,20 @@ vi.mock("../lib/seedDefaultChartOfAccounts", () => ({ seedDefaultChartOfAccounts
 vi.mock("@workspace/db", () => {
   const query = () => {
     const chain: any = {};
-    for (const method of ["from", "where", "limit"]) chain[method] = () => chain;
+    for (const method of ["from", "where", "limit", "for", "orderBy"]) chain[method] = () => chain;
     chain.then = (resolve: (rows: unknown[]) => unknown) => Promise.resolve(state.rows).then(resolve);
     return chain;
   };
-  return {
-    accountsTable: { id: "id", companyId: "companyId", code: "code" },
-    db: {
+  const db = {
       select: query,
       insert: () => ({ values: state.values }),
       update: () => ({ set: state.set }),
-    },
+      transaction: async (run: (tx: any) => unknown) => run(db),
+  };
+  return {
+    accountsTable: { id: "id", companyId: "companyId", code: "code" },
+    accountTypeConfirmationsTable: { id: "id", companyId: "companyId", accountId: "accountId", confirmedAt: "confirmedAt" },
+    db,
   };
 });
 import router from "./accounts";
@@ -47,7 +50,7 @@ beforeEach(() => {
   state.role = "accountant";
   state.rows = [];
   state.values.mockReturnValue({ returning: async () => [{ id: "new", ...input }] });
-  state.set.mockReturnValue({ where: () => ({ returning: async () => [{ id: "existing" }] }) });
+  state.set.mockReturnValue({ where: () => ({ returning: async () => [{ id: "existing", ...input }] }) });
 });
 
 describe("SRS account exception acknowledgement", () => {

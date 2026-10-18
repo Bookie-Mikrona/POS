@@ -7023,6 +7023,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/accounts/{id}/type-confirmations:
+    get:
+      operationId: listAccountTypeConfirmations
+      tags:
+        - accounts
+      summary: Historical explicit account type exception confirmations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Confirmation history, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccountTypeConfirmation"
+        "404":
+          description: Account not found in this company
   /companies/{companyId}/accounts/{id}:
     patch:
       operationId: updateAccount
@@ -22213,6 +22243,32 @@ components:
             - "null"
         isActive:
           type: boolean
+    AccountTypeConfirmation:
+      type: object
+      required: [id, companyId, accountId, actorId, confirmedAt, code, selectedType, expectedType, source]
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        accountId:
+          type: string
+        actorId:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+        code:
+          type: string
+        selectedType:
+          type: string
+          enum: [asset, liability, equity, revenue, expense]
+        expectedType:
+          type: string
+          enum: [asset, liability, equity, revenue, expense]
+        source:
+          type: string
+          enum: [create, update, import]
     AccountRecord:
       type: object
       properties:

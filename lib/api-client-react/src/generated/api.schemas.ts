@@ -9676,6 +9676,49 @@ export interface UpdateDimensionBody {
   isActive?: boolean;
 }
 
+export type AccountTypeConfirmationSelectedType = typeof AccountTypeConfirmationSelectedType[keyof typeof AccountTypeConfirmationSelectedType];
+
+
+export const AccountTypeConfirmationSelectedType = {
+  asset: 'asset',
+  liability: 'liability',
+  equity: 'equity',
+  revenue: 'revenue',
+  expense: 'expense',
+} as const;
+
+export type AccountTypeConfirmationExpectedType = typeof AccountTypeConfirmationExpectedType[keyof typeof AccountTypeConfirmationExpectedType];
+
+
+export const AccountTypeConfirmationExpectedType = {
+  asset: 'asset',
+  liability: 'liability',
+  equity: 'equity',
+  revenue: 'revenue',
+  expense: 'expense',
+} as const;
+
+export type AccountTypeConfirmationSource = typeof AccountTypeConfirmationSource[keyof typeof AccountTypeConfirmationSource];
+
+
+export const AccountTypeConfirmationSource = {
+  create: 'create',
+  update: 'update',
+  import: 'import',
+} as const;
+
+export interface AccountTypeConfirmation {
+  id: string;
+  companyId: string;
+  accountId: string;
+  actorId: string;
+  confirmedAt: string;
+  code: string;
+  selectedType: AccountTypeConfirmationSelectedType;
+  expectedType: AccountTypeConfirmationExpectedType;
+  source: AccountTypeConfirmationSource;
+}
+
 export type AccountRecordType = typeof AccountRecordType[keyof typeof AccountRecordType];
 
 

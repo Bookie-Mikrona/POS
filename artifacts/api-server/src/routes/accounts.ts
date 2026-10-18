@@ -1,10 +1,11 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 import {
   db,
   accountsTable,
+  accountTypeConfirmationsTable,
 } from "@workspace/db";
-import { CreateAccountBody, UpdateAccountBody, SeedAccountsBody } from "@workspace/api-zod";
+import { CreateAccountBody, UpdateAccountBody, SeedAccountsBody, ListAccountTypeConfirmationsResponse } from "@workspace/api-zod";
 import { accountTypeWarning } from "../lib/accountTypeWarning";
 import { COMPANY_CHART_OF_ACCOUNTS } from "../lib/companyChartOfAccounts";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
@@ -161,15 +162,25 @@ router.post(
     const policy = parsed.data.costCenterPolicy
       ?? defaultCostCenterPolicy(parsed.data.code, parsed.data.requiresCostCenter ?? false);
     const { confirmTypeException: _confirmation, ...accountData } = parsed.data;
-    const [account] = await db
-      .insert(accountsTable)
-      .values({
-        ...accountData,
-        costCenterPolicy: policy,
-        requiresCostCenter: requiresCostCenterForPolicy(policy),
-        companyId,
-      })
-      .returning();
+    const account = await db.transaction(async tx => {
+      const [account] = await tx
+        .insert(accountsTable)
+        .values({
+          ...accountData,
+          costCenterPolicy: policy,
+          requiresCostCenter: requiresCostCenterForPolicy(policy),
+          companyId,
+        })
+        .returning();
+      if (warning) {
+        await tx.insert(accountTypeConfirmationsTable).values({
+          companyId, accountId: account.id, actorId: authReq.clerkUserId,
+          code: account.code, selectedType: account.type, expectedType: warning.expectedType,
+          source: "create",
+        });
+      }
+      return account;
+    });
 
     res.status(201).json(account);
   },
@@ -217,7 +228,22 @@ router.post(
       res.status(422).json({ error: "Pred uvozom potrdite izjeme tipov kontov.", warnings });
       return;
     }
-    const count = await seedDefaultChartOfAccounts(companyId);
+    const count = await db.transaction(async tx => {
+      const count = await seedDefaultChartOfAccounts(companyId, tx);
+      if (warnings.length) {
+        const imported = await tx.select().from(accountsTable).where(eq(accountsTable.companyId, companyId));
+        const confirmations = imported.flatMap(account => {
+          const warning = accountTypeWarning(account);
+          return warning ? [{
+            companyId, accountId: account.id, actorId: authReq.clerkUserId,
+            code: account.code, selectedType: account.type, expectedType: warning.expectedType,
+            source: "import" as const,
+          }] : [];
+        });
+        if (confirmations.length) await tx.insert(accountTypeConfirmationsTable).values(confirmations);
+      }
+      return count;
+    });
     res.status(201).json({ count });
   },
 );
@@ -244,28 +270,27 @@ router.patch(
       return;
     }
 
-    const [existing] = await db
+    const result = await db.transaction(async tx => {
+    const [existing] = await tx
       .select()
       .from(accountsTable)
       .where(and(eq(accountsTable.id, id), eq(accountsTable.companyId, companyId)))
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existing) {
-      res.status(404).json({ error: "Konto ni najden" });
-      return;
+      return { status: 404, body: { error: "Konto ni najden" } };
     }
 
     const warning = accountTypeWarning({ ...existing, type: parsed.data.type ?? existing.type });
     if (warning && !parsed.data.confirmTypeException) {
-      res.status(422).json({ error: "Potrdite izjemo tipa konta.", warnings: [warning] });
-      return;
+      return { status: 422, body: { error: "Potrdite izjemo tipa konta.", warnings: [warning] } };
     }
 
     if (parsed.data.parentId !== null && parsed.data.parentId !== undefined) {
       const parentError = await validateAccountParent(companyId, parsed.data.parentId, id);
       if (parentError) {
-        res.status(400).json({ error: parentError });
-        return;
+        return { status: 400, body: { error: parentError } };
       }
     }
 
@@ -307,23 +332,43 @@ router.patch(
     if (parsed.data.isCash !== undefined) updateData.isCash = parsed.data.isCash;
     if (parsed.data.isOpenItem !== undefined) updateData.isOpenItem = parsed.data.isOpenItem;
 
-    if (Object.keys(updateData).length === 0) {
-      const [current] = await db
-        .select()
-        .from(accountsTable)
-        .where(and(eq(accountsTable.id, id), eq(accountsTable.companyId, companyId)))
-        .limit(1);
-      res.json(current);
-      return;
-    }
-
-    const [updated] = await db
+    const [updated] = Object.keys(updateData).length === 0 ? [existing] : await tx
       .update(accountsTable)
       .set(updateData)
       .where(and(eq(accountsTable.id, id), eq(accountsTable.companyId, companyId)))
       .returning();
 
-    res.json(updated);
+    if (warning) {
+      await tx.insert(accountTypeConfirmationsTable).values({
+        companyId, accountId: updated.id, actorId: authReq.clerkUserId,
+        code: updated.code, selectedType: updated.type, expectedType: warning.expectedType,
+        source: "update",
+      });
+    }
+    return { status: 200, body: updated };
+    });
+    res.status(result.status).json(result.body);
+  },
+);
+
+router.get(
+  "/companies/:companyId/accounts/:id/type-confirmations",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const companyId = extractParam(req.params.companyId);
+    const id = extractParam(req.params.id);
+    const access = await resolveSifrantAccess((req as AuthenticatedRequest).clerkUserId, companyId, "stm_or_kontni", res);
+    if (!access) return;
+    const [account] = await db.select({ id: accountsTable.id }).from(accountsTable)
+      .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.id, id))).limit(1);
+    if (!account) {
+      res.status(404).json({ error: "Konto ni najden" });
+      return;
+    }
+    const history = await db.select().from(accountTypeConfirmationsTable)
+      .where(and(eq(accountTypeConfirmationsTable.companyId, companyId), eq(accountTypeConfirmationsTable.accountId, id)))
+      .orderBy(desc(accountTypeConfirmationsTable.confirmedAt), desc(accountTypeConfirmationsTable.id));
+    res.json(ListAccountTypeConfirmationsResponse.parse(history));
   },
 );
 

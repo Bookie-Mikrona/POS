@@ -12783,6 +12783,28 @@ export const SeedAccountsResponse = zod.object({
 
 
 /**
+ * @summary Historical explicit account type exception confirmations
+ */
+export const ListAccountTypeConfirmationsParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const ListAccountTypeConfirmationsResponseItem = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "accountId": zod.string(),
+  "actorId": zod.string(),
+  "confirmedAt": zod.coerce.date(),
+  "code": zod.string(),
+  "selectedType": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "expectedType": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "source": zod.enum(['create', 'update', 'import'])
+})
+export const ListAccountTypeConfirmationsResponse = zod.array(ListAccountTypeConfirmationsResponseItem)
+
+
+/**
  * @summary Update account
  */
 export const UpdateAccountParams = zod.object({

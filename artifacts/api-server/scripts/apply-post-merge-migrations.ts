@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { pool } from "@workspace/db";
 
 const migrations = [
+  "266-account-type-confirmations.sql",
   "116-document-approval-actors.sql",
   "119-kadrovske-ure.sql",
   "121-unit-hospitality-profiles.sql",

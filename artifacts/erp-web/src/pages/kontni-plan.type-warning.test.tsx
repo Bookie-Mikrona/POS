@@ -5,12 +5,16 @@ import KontniPlan from "./kontni-plan";
 
 const state = vi.hoisted(() => ({
   accounts: [] as any[],
+  companyId: "company", role: "accountant",
   create: vi.fn(), update: vi.fn(), seed: vi.fn(), invalidate: vi.fn(),
 }));
 vi.mock("@clerk/react", () => ({ useAuth: () => ({ getToken: vi.fn() }) }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: state.invalidate }) }));
 vi.mock("@/contexts/CompanyContext", () => ({
-  useCompany: () => ({ activeCompany: { id: "company", role: "accountant" } }),
+  useCompany: () => ({ activeCompany: { id: state.companyId, role: state.role } }),
+}));
+vi.mock("@/components/account-type-history", () => ({
+  AccountTypeHistory: ({ companyId, accountId }: any) => <p>Zgodovina {companyId} {accountId}</p>,
 }));
 vi.mock("@workspace/api-client-react", () => ({
   useListAccounts: () => ({ data: { accounts: state.accounts } }),
@@ -37,6 +41,8 @@ const warning = { status: 422, data: { warnings: [{ message: "Konto 400: pričak
 beforeEach(() => {
   vi.clearAllMocks();
   state.accounts = [];
+  state.companyId = "company";
+  state.role = "accountant";
   for (const mutate of [state.create, state.update, state.seed]) {
     mutate.mockImplementation((variables, options) => {
       if (!variables.data.confirmTypeException) options.onError(warning);
@@ -47,6 +53,29 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("chart save/import confirmation flows", () => {
+  it("opens the selected account's history", () => {
+    state.accounts = [{
+      id: "existing", code: "400", name: "Test", type: "asset",
+      parentId: null, isActive: true, allowsPosting: true,
+    }];
+    render(<KontniPlan />);
+    fireEvent.click(screen.getByRole("button", { name: "Zgodovina potrditev konta 400" }));
+    expect(screen.getByText("Zgodovina company existing")).toBeInTheDocument();
+  });
+  it("lets a viewer inspect history and hides it immediately after switching companies", () => {
+    state.role = "viewer";
+    state.accounts = [{
+      id: "existing", code: "400", name: "Test", type: "asset",
+      parentId: null, isActive: true, allowsPosting: true,
+    }];
+    const view = render(<KontniPlan />);
+    expect(screen.queryByRole("button", { name: "Uredi konto 400" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Zgodovina potrditev konta 400" }));
+    expect(screen.getByText("Zgodovina company existing")).toBeInTheDocument();
+    state.companyId = "other";
+    view.rerender(<KontniPlan />);
+    expect(screen.queryByText("Zgodovina company existing")).not.toBeInTheDocument();
+  });
   it("retries a manual create only after confirming the warning", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<KontniPlan />);

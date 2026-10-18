@@ -21,6 +21,7 @@ import type {
 
 import type {
   AccountRecord,
+  AccountTypeConfirmation,
   AccountTypeWarningResponse,
   AddMalicaToOrderBody,
   AddMalicaToOrderResponse,
@@ -24795,6 +24796,88 @@ export const useSeedAccounts = <TError = ErrorType<ErrorResponse | AccountTypeWa
       > => {
       return useMutation(getSeedAccountsMutationOptions(options));
     }
+
+export const getListAccountTypeConfirmationsUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/accounts/${id}/type-confirmations`
+}
+
+/**
+ * @summary Historical explicit account type exception confirmations
+ */
+export const listAccountTypeConfirmations = async (companyId: string,
+    id: string, options?: RequestInit): Promise<AccountTypeConfirmation[]> => {
+
+  return customFetch<AccountTypeConfirmation[]>(getListAccountTypeConfirmationsUrl(companyId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAccountTypeConfirmationsQueryKey = (companyId: string,
+    id: string,) => {
+    return [
+    `/api/companies/${companyId}/accounts/${id}/type-confirmations`
+    ] as const;
+    }
+
+
+export const getListAccountTypeConfirmationsQueryOptions = <TData = Awaited<ReturnType<typeof listAccountTypeConfirmations>>, TError = ErrorType<void>>(companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAccountTypeConfirmations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAccountTypeConfirmationsQueryKey(companyId,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccountTypeConfirmations>>> = ({ signal }) => listAccountTypeConfirmations(companyId,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAccountTypeConfirmations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAccountTypeConfirmationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAccountTypeConfirmations>>>
+export type ListAccountTypeConfirmationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Historical explicit account type exception confirmations
+ */
+
+export function useListAccountTypeConfirmations<TData = Awaited<ReturnType<typeof listAccountTypeConfirmations>>, TError = ErrorType<void>>(
+ companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAccountTypeConfirmations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAccountTypeConfirmationsQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUpdateAccountUrl = (companyId: string,
     id: string,) => {

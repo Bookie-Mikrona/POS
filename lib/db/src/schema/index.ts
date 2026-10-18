@@ -1,3 +1,4 @@
+export * from "./account-type-confirmations";
 export * from "./erp-smtp-settings";
 // ── ERP: Dvostavno knjigovodstvo ─────────────────────────────────────────────
 export * from "./company-modules";

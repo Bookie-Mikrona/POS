@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useAuth } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, Download, AlertCircle, Edit2, Play, Square, Loader2 } from "lucide-react";
+import { Search, Plus, Download, AlertCircle, Edit2, Play, Square, Loader2, History } from "lucide-react";
 
 import { useCompany } from "@/contexts/CompanyContext";
 import {
@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmAccountTypeException } from "@/lib/account-type-confirmation";
+import { AccountTypeHistory } from "@/components/account-type-history";
 
 // Helpers
 function buildTree(accounts: AccountRecord[]): (AccountRecord & { _depth: number })[] {
@@ -77,6 +78,7 @@ export default function KontniPlan() {
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountRecord | null>(null);
+  const [historyAccount, setHistoryAccount] = useState<{ companyId: string; id: string; code: string } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -435,6 +437,11 @@ export default function KontniPlan() {
                           {!acc.isActive && <Badge variant="outline" className="text-muted-foreground">Neaktivno</Badge>}
                         </TableCell>
                         <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" className="h-8 w-8"
+                            title="Zgodovina potrditev izjem" aria-label={`Zgodovina potrditev konta ${acc.code}`}
+                            onClick={() => setHistoryAccount({ companyId: activeCompany!.id, id: acc.id, code: acc.code })}>
+                            <History className="h-4 w-4" />
+                          </Button>
                           {canEdit && (
                             <div className="flex justify-end gap-2">
                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Uredi konto" aria-label={`Uredi konto ${acc.code}`} onClick={() => handleOpenDialog(acc)}>
@@ -468,6 +475,17 @@ export default function KontniPlan() {
         </>
       )}
 
+      <Dialog open={!!historyAccount && historyAccount.companyId === activeCompany?.id} onOpenChange={open => { if (!open) setHistoryAccount(null); }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Potrditve izjem tipa konta {historyAccount?.code}</DialogTitle>
+            <DialogDescription>Zgodovinska sled izrecnih potrditev v tem podjetju.</DialogDescription>
+          </DialogHeader>
+          {historyAccount && historyAccount.companyId === activeCompany?.id && (
+            <AccountTypeHistory key={`${historyAccount.companyId}:${historyAccount.id}`} companyId={historyAccount.companyId} accountId={historyAccount.id} />
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>

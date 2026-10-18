@@ -243,6 +243,7 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
   },
   { file: "170-pos-course-name-snapshot.sql", classification: "schema" },
   { file: "171-pos-actor-audit-clerk-identity.sql", classification: "audit" },
+  { file: "266-account-type-confirmations.sql", classification: "audit" },
   { file: "172-qr-order-device-retention-index.sql", classification: "privacy" },
   { file: "173-viva-refund-actor-status-audit.sql", classification: "audit" },
   {
