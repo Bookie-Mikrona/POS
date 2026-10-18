@@ -1,3 +1,4 @@
+/generated-artifacts/
 # Generated documents and verification renders; public manual remains included
 /generated-artifacts/
 # The format of this file is identical to `.dockerignore`.

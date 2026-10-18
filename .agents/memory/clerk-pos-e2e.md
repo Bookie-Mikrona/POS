@@ -20,3 +20,28 @@ Pri večsejnem dokazu sprememb pravic meri promet vsakega brskalniškega konteks
 **Why:** Pri živem preizkusu so zbirne strežniške napake vsebovale tudi zahteve SuperAdmin zaslona in nepopolne testne priprave. Same niso dokazovale napake oddajanja med podjetji; začetno vzpostavljanje povezave je prav tako lahko videti kot dodatna osvežitev pravic.
 
 **How to apply:** Pred spremembo preveri veljavno izbrano enoto in sprejet tok za vsako sejo. Šele nato meri dodatne zahtevke za pravice, dokumentne navigacije in ponovne povezave. Kontrolno podjetje mora imeti lastne števce, ne sklepa iz skupnega strežniškega dnevnika.
+
+Stabilnost pred naslednjo spremembo pravic pomeni tudi zaključene spremljajoče
+API-poizvedbe in njihove retryje, ne zgolj nespremenjenega števca `auth/me`.
+
+**Why:** Osveževanje avtorizacije lahko po vrnjenem `auth/me` še čaka na
+invalidacije aktivnih poizvedb. Naslednji dogodek se v tem času lahko združi s še
+tekočim osveževanjem. V večsejnem preizkusu je auth-only stabilizacija zato
+spregledala dejansko nedokončano osvežitev.
+
+**How to apply:** Pri preizkusu zaporednih stabilnih sprememb počakaj na prazno
+množico končnih API-zahtevkov in tiho obdobje, daljše od retry presledkov; odprtega
+SSE toka ne štej med končne zahtevke. Hitre prekrivajoče spremembe preizkušaj kot
+ločen scenarij, ne podaljšuj zgolj čakanja na naslednji `auth/me`.
+
+Za ponovljive platformne teste naj začasni SuperAdmin velja samo v namenskem
+API-procesu, ne v nastavitvah skupnega razvojnega strežnika.
+
+**Why:** Prepis skupnega allowlista in restart med več vzporednimi razvojnimi
+sejami spremeni pravice tudi drugim uporabnikom in lahko prekine njihove tokove.
+Procesna kopija ohrani obstoječe identitete ter razliko med prazno in manjkajočo
+nastavitvijo brez posega v skupno okolje.
+
+**How to apply:** Uporabi pravo aplikacijo in preverjanje Clerk v ločenem
+razvojnem procesu brez poslovnih schedulerjev; po preizkusu ga vedno ustavi.
+Ne dodajaj testnega obvoda avtorizacije.

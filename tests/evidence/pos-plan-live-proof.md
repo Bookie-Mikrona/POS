@@ -1,5 +1,12 @@
 # Live POS company-plan transition proof
 
+> This historical one-run proof now has a repeatable automated counterpart:
+> `artifacts/api-server/tests/browser/pos-plan-live.spec.mjs`.
+> Run instructions and cleanup guarantees:
+> `artifacts/api-server/tests/browser/README.md`.
+> The automated test also captures both PUT responses before either UI change,
+> closing the response-listener gap noted at the end of this historical report.
+
 **Verdict: PASS for the targeted Extended → Lite → Extended flow.** The first attempt in this same test effort did not change a plan and used an events-only unit; the SSE guard in artifacts/api-server/src/routes/pos/index.ts explicitly requires checkout. The targeted continuation recreated isolated fixtures with both checkout and events, then completed the requested UI change, measurement, UI restoration, and cleanup. No application code or production configuration was changed.
 
 ## Test run and fixture setup

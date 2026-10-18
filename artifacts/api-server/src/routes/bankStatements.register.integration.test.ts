@@ -23,7 +23,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import {
   db, pool, companiesTable, accountingRolesTable, accountsTable,
-  bankStatementsTable, bankStatementLinesTable,
+  bankStatementsTable, bankStatementLinesTable, paymentsTable, journalEntriesTable,
 } from "@workspace/db";
 import bankRouter from "./bankStatements";
 
@@ -66,6 +66,13 @@ describe("bank statement registration with real persistence", () => {
         expect(response.body.lineIds).toEqual({
           "transaction-a": expect.any(String), "transaction-b": expect.any(String),
         });
+        expect(Object.keys(response.body).sort()).toEqual(["lineIds", "statementId"]);
+        // Registering source evidence must not enter the payment-reconciliation
+        // path, create payments, or post anything to the general ledger.
+        expect(await db.select({ id: paymentsTable.id }).from(paymentsTable)
+          .where(eq(paymentsTable.companyId, companyId))).toEqual([]);
+        expect(await db.select({ id: journalEntriesTable.id }).from(journalEntriesTable)
+          .where(eq(journalEntriesTable.companyId, companyId))).toEqual([]);
         const [statement] = await db.select().from(bankStatementsTable)
           .where(eq(bankStatementsTable.id, response.body.statementId));
         expect(statement).toMatchObject({

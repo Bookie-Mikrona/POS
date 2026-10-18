@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:pos-plan:live": "node --import tsx ./node_modules/@playwright/test/cli.js test --config playwright.pos-plan.config.mjs",
     "test:release": "pnpm run test:release:api && pnpm run test:release:webhook && pnpm run test:release:offline-native && pnpm run test:release:offline-cloud",
     "test:release:api": "node ../../scripts/validate-pos-events-release.mjs api",
     "test:release:webhook": "node ../../scripts/validate-pos-events-release.mjs public-stripe-webhook",
@@ -66,6 +67,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/bcryptjs": "^3.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
