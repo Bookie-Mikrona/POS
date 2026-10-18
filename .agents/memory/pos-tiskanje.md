@@ -53,3 +53,11 @@ Pri dokazovanju popolnosti zelo dolge tiskane celice primerjaj geometrijske bese
 **Why:** Chromium in Firefox lahko prelomita dobaviteljevo šifro med strani, Firefoxov PDF pa lahko vsebuje ligaturne znake namesto zaporedja črk. Preprosto iskanje podniza zato lažno označi vidno besedilo kot manjkajoče.
 
 **How to apply:** Za večstranske celice sestavi besede iz posamezne stolpčne geometrije v vrstnem redu strani in posebej preveri, da se noben besedni okvir ne prekriva z drugim.
+
+## Primerjava slikovnih pik v PDF ovojih
+
+Za natančno primerjavo izvirne slike s PDF izrisom uporabi rasterizator, ki pri 72 DPI ohrani preslikavo ena PDF točka na eno slikovno piko; v tem okolju to omogoča `pdftocairo`.
+
+**Why:** `pdftoppm` je pri isti nominalni ločljivosti na kontrastnih robovih ustvaril velike razlike zaradi drugačnega vzorčenja, čeprav sta bila slika in PDF geometrijsko nespremenjena. Napaka primerjave zato ne dokazuje izgube vsebine.
+
+**How to apply:** Za PNG zahtevaj enakost vseh slikovnih pik; JPEG primerjaj z dekodiranim izvirnim JPEG in majhno toleranco za razlike dekoderjev, ne z izrisom pred JPEG kodiranjem.
