@@ -53,7 +53,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from "@/components/ui/checkbox";
 import { PaymentBatchesPanel } from "@/components/payment-batches-panel";
 import { BankAccountMetadataDialog } from "@/components/bank-account-metadata-dialog";
-import { PaymentStatus, PaymentReversalLink } from "@/components/payment-status";
+import { PaymentStatus, PaymentReversalLink, PaymentVoidDetails } from "@/components/payment-status";
 import {
   allocationIdentity,
   buildPaymentAllocationPayload,
@@ -1135,6 +1135,7 @@ function DetailPaymentSheet({ open, onOpenChange, payment: initialPayment, onVoi
               </div>
             )}
             <PaymentReversalLink payment={payment} />
+            {fullPayment && <PaymentVoidDetails payment={fullPayment} />}
           </div>
 
           <div className="space-y-3">

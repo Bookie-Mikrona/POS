@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { createHash } from "node:crypto";
+import { clerkClient } from "@clerk/express";
 import { eq, and, gte, gt, lte, asc, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   db,
@@ -857,7 +858,38 @@ router.get(
     if (!check) { res.status(404).json({ error: "Plačilo ni najdeno" }); return; }
 
     const result = await fetchPaymentWithAllocations(id);
-    res.json(result);
+    let voidReason: string | null = null;
+    let voidedBy: string | null = null;
+    let voidedByName: string | null = null;
+    if (result?.status === "void") {
+      const [audit] = await db.select({
+        changedBy: auditLogTable.changedBy,
+        payload: auditLogTable.payload,
+      }).from(auditLogTable).where(and(
+        eq(auditLogTable.companyId, companyId),
+        eq(auditLogTable.entityType, "payment"),
+        eq(auditLogTable.entityId, id),
+        eq(auditLogTable.action, "void"),
+      )).orderBy(asc(auditLogTable.changedAt), asc(auditLogTable.id)).limit(1);
+      const reason = (audit?.payload as { reason?: unknown } | null)?.reason;
+      voidReason = typeof reason === "string" && reason.trim() ? reason : null;
+      voidedBy = audit?.changedBy?.trim() || null;
+      if (voidedBy) {
+        try {
+          const { data: users } = await clerkClient.users.getUserList({ userId: [voidedBy], limit: 1 });
+          const user = users.find(user => user.id === voidedBy);
+          if (user) {
+            const name = [user.firstName?.trim(), user.lastName?.trim()].filter(Boolean).join(" ");
+            const email = user.emailAddresses.find(address => address.id === user.primaryEmailAddressId)
+              ?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
+            voidedByName = name || email?.trim() || null;
+          }
+        } catch (error) {
+          req.log.warn({ err: error, paymentId: id }, "Payment void actor name unavailable");
+        }
+      }
+    }
+    res.json(result ? { ...result, voidReason, voidedBy, voidedByName } : null);
   },
 );
 

@@ -23923,6 +23923,15 @@ components:
         reversalEntryId:
           type: [string, "null"]
           description: Same-company journal entry whose reversalOf points to the payment linkedEntryId.
+        voidReason:
+          type: [string, "null"]
+          description: Detail only. Reason from the first same-company payment void audit record; null when missing or not void.
+        voidedBy:
+          type: [string, "null"]
+          description: Detail only. Actor ID from the same void audit record; null when missing or not void.
+        voidedByName:
+          type: [string, "null"]
+          description: Detail only. Resolved actor name (or email); null if the actor is missing or cannot be resolved.
         notes:
           type:
             - string

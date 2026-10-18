@@ -11073,6 +11073,21 @@ export interface PaymentRecord {
      * @nullable
      */
   reversalEntryId?: string | null;
+  /**
+     * Detail only. Reason from the first same-company payment void audit record; null when missing or not void.
+     * @nullable
+     */
+  voidReason?: string | null;
+  /**
+     * Detail only. Actor ID from the same void audit record; null when missing or not void.
+     * @nullable
+     */
+  voidedBy?: string | null;
+  /**
+     * Detail only. Resolved actor name (or email); null if the actor is missing or cannot be resolved.
+     * @nullable
+     */
+  voidedByName?: string | null;
   /** @nullable */
   notes?: string | null;
   /** Sum of all allocations */
@@ -15186,4 +15201,3 @@ export type PreviewPosMonthlyInvoiceParams = {
 month: string;
 counterpartyId: string;
 };
-

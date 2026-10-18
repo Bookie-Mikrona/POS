@@ -43,3 +43,25 @@ export function PaymentReversalLink({ payment }: { payment: Pick<PaymentRecord, 
     </div>
   );
 }
+
+export function PaymentVoidDetails({ payment }: {
+  payment: Pick<PaymentRecord, "status" | "voidReason" | "voidedBy" | "voidedByName">;
+}) {
+  if (payment.status !== "void") return null;
+  return (
+    <>
+      <div className="col-span-2 min-w-0">
+        <div className="text-muted-foreground mb-1">Razlog razveljavitve</div>
+        <div className="font-medium whitespace-pre-wrap break-words">
+          {payment.voidReason?.trim() ? payment.voidReason : "Razlog razveljavitve ni zabeležen"}
+        </div>
+      </div>
+      <div className="col-span-2 min-w-0">
+        <div className="text-muted-foreground mb-1">Razveljavil/-a</div>
+        <div className="font-medium break-words">
+          {payment.voidedByName || (payment.voidedBy ? "Ime izvajalca ni na voljo" : "Izvajalec razveljavitve ni zabeležen")}
+        </div>
+      </div>
+    </>
+  );
+}
