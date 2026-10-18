@@ -2,6 +2,7 @@ export const releaseTestManifest = Object.freeze({
   erp: Object.freeze({
     label: "ERP release testi",
     suites: Object.freeze({
+      "server-pdf-only": "src/lib/server-pdf-only.test.ts",
       "event-transfer-diagnostics-csv": "src/lib/eventTransferDiagnosticsCsv.test.ts",
       "admin-diagnostics-export": "src/pages/admin.diagnostics-export.test.tsx",
       "bank-invalid-accounts": "src/pages/bancni-izpis.invalid-accounts.test.tsx",

@@ -112,6 +112,7 @@ const frontendPackages = Object.freeze({
   "erp-web": {
     manifest: erpManifest,
     requiredSuiteIds: [
+      "server-pdf-only",
       "event-transfer-diagnostics-csv", "admin-diagnostics-export",
       "bank-invalid-accounts", "bank-matching",
     ],
