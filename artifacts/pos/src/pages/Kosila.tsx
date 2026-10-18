@@ -107,7 +107,14 @@ export default function KosilaPage() {
       .map((article) => ({ name: article.ime, price: role === "main" ? Number(article.cena) + baseValue : undefined })),
   })).filter((section) => section.items.length > 0);
   const restaurant = nastavitve?.nazivRestavracije || "Dnevna ponudba";
-  const intro = "3 hodi: juha, glavna jed, sladica · 4 hodi: z predjedjo";
+  const intro = "3 hodi: juha, glavna jed, sladica · 4 hodi: + predjed";
+  const buildLegend = (surcharges: number[]) => {
+    const unique = [...new Set(surcharges.map((v) => formatEur(v)))];
+    return [
+      "Cena ob glavni jedi velja za 3-hodni meni: juha + glavna jed + sladica.",
+      ...(unique.length ? [`4-hodni meni (s predjedjo): cena glavne jedi + doplačilo ${unique.join(" / ")} za predjed.`] : []),
+    ];
+  };
   const previewSections = useMemo(() => buildSections(choices, baseNum, starterNum), [choices, byId, baseNum, starterNum]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const from = rangeFrom || businessDate;
@@ -126,16 +133,18 @@ export default function KosilaPage() {
         for (const choice of row.choices) (selection[choice.role] ??= []).push(choice.artikelId);
         sections = buildSections(selection, Number(row.baseFlatAmount), Number(row.starterFlatAmount));
       }
-      if (sections.length > 0) days.push({ dateLabel: formatLunchDate(date), sections });
+      if (sections.length > 0) days.push({ dateLabel: formatLunchDate(date), sections, starterSurcharge: sections.some((x) => x.title === "Predjedi") ? (date === businessDate ? starterNum : Number(data?.offers?.find((o) => o.businessDate === date)?.starterFlatAmount ?? 0)) : undefined });
     }
     return {
       restaurant, unit: unitName, address: nastavitve?.naslovRestavracije || undefined, intro, days,
+      legend: buildLegend(days.flatMap((d) => (d.starterSurcharge != null ? [d.starterSurcharge] : []))),
       periodLabel: from === to ? formatLunchDate(from) : `${formatLunchDate(from)} – ${formatLunchDate(to)}`,
     };
   };
   const menu = useMemo<LunchMenuData>(() => ({
     restaurant, unit: unitName, intro, periodLabel: formatLunchDate(businessDate),
     days: [{ dateLabel: formatLunchDate(businessDate), sections: previewSections }],
+    legend: buildLegend(previewSections.some((x) => x.title === "Predjedi") ? [starterNum] : []),
   }), [restaurant, unitName, businessDate, previewSections]);
   const weekStart = shiftDate(businessDate, -((new Date(`${businessDate}T00:00:00Z`).getUTCDay() + 6) % 7));
   const setRange = (a: string, b: string) => { setRangeFrom(a); setRangeTo(b); };
@@ -222,6 +231,7 @@ export default function KosilaPage() {
             <ul className="mt-1 space-y-0.5 text-sm">{section.items.map((item) => <li key={item.name} className="flex justify-between gap-3">
               <span>{item.name}</span>{item.price != null && <span className="font-semibold text-orange-700">{formatEur(item.price)}</span>}</li>)}</ul>
           </section>)}
+          {previewSections.length > 0 && <div className="rounded bg-orange-50 p-2 text-xs text-muted-foreground">{menu.legend?.map((line) => <p key={line}>{line}</p>)}</div>}
           <div className="space-y-2 border-t pt-4">
             <p className="text-sm font-medium">Izvoz za obdobje</p>
             <div className="flex items-center gap-2">

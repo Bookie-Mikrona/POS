@@ -1,7 +1,7 @@
 import { formatEur } from "./formatEur";
 
 export type LunchMenuSection = { title: string; note?: string; items: { name: string; price?: number }[] };
-export type LunchDay = { dateLabel: string; sections: LunchMenuSection[] };
+export type LunchDay = { dateLabel: string; sections: LunchMenuSection[]; starterSurcharge?: number };
 export type LunchMenuData = {
   restaurant: string;
   /** Ime poslovne enote (npr. Križišče). */
@@ -10,6 +10,8 @@ export type LunchMenuData = {
   /** Naslov obdobja, npr. »Ponedeljek, 19. oktober 2026« ali »19. 10. – 25. 10. 2026«. */
   periodLabel: string;
   intro: string;
+  /** Pojasnila cen (prikazana pod tabelo). */
+  legend?: string[];
   days: LunchDay[];
 };
 
@@ -39,6 +41,7 @@ export function lunchMenuText(data: LunchMenuData): string {
       lines.push("");
     }
   }
+  if (data.legend?.length) lines.push(...data.legend.map((line) => `* ${line}`));
   return lines.join("\n").trim();
 }
 
@@ -59,7 +62,7 @@ export function renderLunchMenuCanvas(data: LunchMenuData): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
   const dayCount = Math.max(1, data.days.length);
-  const LABEL_W = 170;
+  const LABEL_W = 210;
   const colW = dayCount <= 2 ? 520 : dayCount <= 4 ? 340 : 270;
   const width = PAD * 2 + LABEL_W + colW * dayCount;
   const FS = 22;
@@ -79,13 +82,23 @@ export function renderLunchMenuCanvas(data: LunchMenuData): HTMLCanvasElement {
       return { lines: wrap(ctx, item.name, colW - CELL_PAD * 2 - priceW), price: item.price };
     });
   };
-  const rowHeights = rows.map((title) => Math.max(LH + CELL_PAD * 2, ...data.days.map((day) => {
+  const labelHeight = (title: string) => {
+    const note = noteFor(title);
+    ctx.font = `400 16px ${FONT}`;
+    return CELL_PAD * 2 + 30 + (note ? wrap(ctx, note, LABEL_W - CELL_PAD * 2).length * 20 : 0);
+  };
+  const legendLines = (() => {
+    ctx.font = `400 20px ${FONT}`;
+    return (data.legend ?? []).flatMap((line) => wrap(ctx, line, colW * dayCount + LABEL_W - 24));
+  })();
+  const LEGEND_H = legendLines.length ? legendLines.length * 28 + 32 : 0;
+  const rowHeights = rows.map((title) => Math.max(labelHeight(title), LH + CELL_PAD * 2, ...data.days.map((day) => {
     const items = layout(day, title);
     return items.reduce((sum, item) => sum + item.lines.length * LH + 10, 0) + CELL_PAD * 2 - (items.length ? 10 : 0);
   })));
   const HEADER_H = 150;
   const DAYHEAD_H = 84;
-  const FOOT_H = 70;
+  const FOOT_H = 70 + LEGEND_H;
   const height = HEADER_H + 24 + DAYHEAD_H + rowHeights.reduce((a, b) => a + b, 0) + FOOT_H + 24;
 
   const scale = 2;
@@ -173,6 +186,14 @@ export function renderLunchMenuCanvas(data: LunchMenuData): HTMLCanvasElement {
     y += h;
   });
 
+  if (legendLines.length) {
+    y += 16;
+    ctx.fillStyle = "#fff3e6";
+    ctx.fillRect(x0, y, LABEL_W + colW * dayCount, legendLines.length * 28 + 16);
+    ctx.fillStyle = INK;
+    ctx.font = `400 20px ${FONT}`;
+    legendLines.forEach((line, i) => ctx.fillText(line, x0 + 12, y + 30 + i * 28));
+  }
   ctx.fillStyle = MUTED;
   ctx.font = `400 20px ${FONT}`;
   ctx.textAlign = "center";
