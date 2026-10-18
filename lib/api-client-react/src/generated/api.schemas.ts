@@ -5,6 +5,31 @@
  * ERP — Dvostavno Knjigovodstvo API
  * OpenAPI spec version: 0.1.0
  */
+export type ReportExportCopyParams = {[key: string]: string};
+
+export interface ReportExportCopy {
+  id: string;
+  reportType: string;
+  params: ReportExportCopyParams;
+  filename: string;
+  exportedBy: string;
+  exportedByName: string;
+  exportedAt: string;
+  /** @nullable */
+  emailSentTo: string | null;
+}
+
+export interface ReportExportHistory {
+  /** @minimum 1 */
+  retentionDays: number;
+  /**
+     * Company PDF byte budget; 1 MB is 1000000 bytes. Individually oversized PDFs are rejected before email delivery.
+     * @minimum 1
+     */
+  quotaBytes: number;
+  exports: ReportExportCopy[];
+}
+
 export type OsAmortizacijaArhivGlavaStatus = typeof OsAmortizacijaArhivGlavaStatus[keyof typeof OsAmortizacijaArhivGlavaStatus];
 
 

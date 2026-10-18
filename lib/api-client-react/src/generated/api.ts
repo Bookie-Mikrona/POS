@@ -484,6 +484,7 @@ import type {
   RegistracijaProstoraOdgovor,
   RegistracijaProstoraTelo,
   ReopenPartnerSettlementBody,
+  ReportExportHistory,
   RequestInventoryUploadUrl200,
   RequestInventoryUploadUrlBody,
   ResenStripePregledBona,
@@ -31016,6 +31017,83 @@ export function useGetLedger<TData = Awaited<ReturnType<typeof getLedger>>, TErr
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetLedgerQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetReportExportHistoryUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/reports/export/history`
+}
+
+/**
+ * @summary Temporary PDF copies and the effective company retention policy
+ */
+export const getReportExportHistory = async (companyId: string, options?: RequestInit): Promise<ReportExportHistory> => {
+
+  return customFetch<ReportExportHistory>(getGetReportExportHistoryUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReportExportHistoryQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/reports/export/history`
+    ] as const;
+    }
+
+
+export const getGetReportExportHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getReportExportHistory>>, TError = ErrorType<void>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReportExportHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReportExportHistoryQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReportExportHistory>>> = ({ signal }) => getReportExportHistory(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReportExportHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReportExportHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getReportExportHistory>>>
+export type GetReportExportHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Temporary PDF copies and the effective company retention policy
+ */
+
+export function useGetReportExportHistory<TData = Awaited<ReturnType<typeof getReportExportHistory>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReportExportHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReportExportHistoryQueryOptions(companyId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -1945,6 +1945,7 @@ function ExportHistoryTab() {
 
   const [records, setRecords] = useState<ExportRecord[]>([]);
   const [retentionDays, setRetentionDays] = useState<number | null>(null);
+  const [quotaBytes, setQuotaBytes] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -1953,6 +1954,7 @@ function ExportHistoryTab() {
     if (!activeCompany) return;
     setLoading(true);
     setRetentionDays(null);
+    setQuotaBytes(null);
     setError(null);
     try {
       const token = await getToken();
@@ -1967,6 +1969,7 @@ function ExportHistoryTab() {
       const data = await res.json();
       setRecords(data.exports ?? []);
       setRetentionDays(data.retentionDays);
+      setQuotaBytes(data.quotaBytes ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -2044,8 +2047,16 @@ function ExportHistoryTab() {
           <AlertDescription>
             Starejši izvozi in shranjeni PDF-ji se samodejno trajno izbrišejo.
             Čiščenje poteka ob zagonu strežnika in nato vsako uro.
+            {quotaBytes != null && (
+              <p className="mt-2">
+                Prostorska kvota za to podjetje: {new Intl.NumberFormat("sl-SI").format(quotaBytes / 1000000)} MB.
+                Ob shranjevanju novega izvoza se po potrebi trajno izbrišejo najstarejše kopije,
+                tudi pred iztekom dobe hrambe. Posamezen PDF, večji od kvote, je zavrnjen
+                brez pošiljanja in brez brisanja obstoječih kopij.
+              </p>
+            )}
             Knjižbe in izvorni podatki ostanejo nespremenjeni.
-            Pomembne PDF-je pred iztekom shranite v svoj trajni arhiv.
+            Pomembne PDF-je takoj shranite v svoj trajni arhiv.
           </AlertDescription>
         </Alert>
       )}

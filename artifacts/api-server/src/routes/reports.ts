@@ -24,7 +24,10 @@ import { getSmtpRow } from "../lib/erp-smtp-settings";
 import erpSmtpRouter from "./erp-smtp";
 import { expectedAccountType } from "../lib/accountTypeWarning";
 import { logger } from "../lib/logger";
-import { REPORT_EXPORT_RETENTION_DAYS, reportExportCutoff } from "../lib/reportExportRetention";
+import {
+  REPORT_EXPORT_RETENTION_DAYS, reportExportCutoff, reportExportQuotaBytes,
+  assertReportExportFitsQuota, ReportExportTooLargeError, saveReportExport,
+} from "../lib/reportExportRetention";
 import { resolveReportExporterNames } from "../lib/reportExporterNames";
 import { reportEmailHash, reportEmailRequest, completeReportEmail, type EmailRequestState } from "../lib/reportEmailRequest";
 
@@ -1240,6 +1243,15 @@ router.post(
       return;
     }
 
+    // Reject an individually oversized copy before any external email side effect.
+    try {
+      assertReportExportFitsQuota(companyId, pdfBuffer.length);
+    } catch (err) {
+      if (!(err instanceof ReportExportTooLargeError)) throw err;
+      res.status(413).json({ error: err.message });
+      return;
+    }
+
     // Neuspelega pošiljanja ne beleži kot uspešno poslan izvoz.
     if (email) {
       try {
@@ -1268,7 +1280,7 @@ router.post(
     }
 
     try {
-      await db.insert(reportExportsTable).values({
+      await saveReportExport({
         companyId,
         reportType,
         params: exportParams,
@@ -1340,6 +1352,7 @@ router.get(
     }
     res.json({
       retentionDays: REPORT_EXPORT_RETENTION_DAYS,
+      quotaBytes: reportExportQuotaBytes(companyId),
       exports: rows.map((row) => ({
         ...row,
         exportedByName: row.exportedByName?.trim() || displayNames.get(row.exportedBy) || "Neznan uporabnik",

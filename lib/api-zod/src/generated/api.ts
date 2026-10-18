@@ -16330,6 +16330,33 @@ export const GetLedgerResponse = zod.object({
 
 
 /**
+ * @summary Temporary PDF copies and the effective company retention policy
+ */
+export const GetReportExportHistoryParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+
+
+
+
+export const GetReportExportHistoryResponse = zod.object({
+  "retentionDays": zod.number().min(1),
+  "quotaBytes": zod.number().min(1).describe('Company PDF byte budget; 1 MB is 1000000 bytes. Individually oversized PDFs are rejected before email delivery.'),
+  "exports": zod.array(zod.object({
+  "id": zod.string(),
+  "reportType": zod.string(),
+  "params": zod.record(zod.string(), zod.string()),
+  "filename": zod.string(),
+  "exportedBy": zod.string(),
+  "exportedByName": zod.string(),
+  "exportedAt": zod.coerce.date(),
+  "emailSentTo": zod.string().nullable()
+}))
+})
+
+
+/**
  * @summary Balance sheet (bilanca stanja) grouped by SRS account class
  */
 export const GetBalanceSheetParams = zod.object({

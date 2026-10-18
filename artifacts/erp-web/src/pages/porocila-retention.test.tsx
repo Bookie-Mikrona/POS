@@ -24,7 +24,7 @@ describe("Vidnost politike hrambe izvozov", () => {
   it("prikaže dejansko nastavitev strežnika tudi ob prazni zgodovini", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ exports: [], retentionDays: 30 }),
+      json: async () => ({ exports: [], retentionDays: 30, quotaBytes: 250000000 }),
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<Porocila />);
@@ -33,6 +33,9 @@ describe("Vidnost politike hrambe izvozov", () => {
     fireEvent.click(tab);
     expect(await screen.findByText("Doba hrambe izvozov: 30 dni")).toBeInTheDocument();
     expect(screen.getByText(/Starejši izvozi in shranjeni PDF-ji se samodejno trajno izbrišejo/)).toBeInTheDocument();
+    expect(screen.getByText(/Prostorska kvota za to podjetje: 250 MB/)).toBeInTheDocument();
+    expect(screen.getByText(/tudi pred iztekom dobe hrambe/)).toBeInTheDocument();
+    expect(screen.getByText(/brez pošiljanja in brez brisanja obstoječih kopij/)).toBeInTheDocument();
     expect(screen.getByText("Ni še nobenih izvozov za to podjetje.")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/companies/company-retention/reports/export/history"),

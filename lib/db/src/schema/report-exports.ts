@@ -13,6 +13,10 @@ const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
  * in shranjenim PDF-om, ki ga je mogoče znova prenesti brez ponovnega generiranja.
  * Začasna zgodovina, ne trajni arhiv: urni API scheduler briše zapise in PDF-e
  * po REPORT_EXPORT_RETENTION_DAYS (privzeto 365 dni). Izvorne knjižbe ostanejo.
+ * Shranjevanje serializira preverjanje kvote po podjetju in atomsko odstrani
+ * najstarejše kopije tudi pred iztekom hrambe. REPORT_EXPORT_QUOTA_MB (500 MB)
+ * in REPORT_EXPORT_QUOTA_MB_BY_COMPANY določata omejitev dejanskih PDF bajtov.
+ * Posamezen PDF nad kvoto je zavrnjen, ne da bi odstranil obstoječe kopije.
  */
 export const reportExportsTable = pgTable("report_exports", {
   id: uuid("id").primaryKey().defaultRandom(),

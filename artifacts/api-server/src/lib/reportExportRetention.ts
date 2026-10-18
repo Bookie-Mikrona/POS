@@ -1,4 +1,5 @@
-import { pool, type PoolClient } from "@workspace/db";
+import { db, pool, reportExportsTable, type PoolClient } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 
 export const REPORT_EXPORT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -20,6 +21,75 @@ export function parseReportExportRetentionDays(raw: string | undefined): number 
 export const REPORT_EXPORT_RETENTION_DAYS = parseReportExportRetentionDays(
   process.env.REPORT_EXPORT_RETENTION_DAYS,
 );
+
+// Decimal MB, independently budgeted for each company, not for the whole server.
+export function parseReportExportQuotaMb(raw: string | undefined): number {
+  if (raw === undefined) return 500;
+  const mb = Number(raw);
+  if (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(mb) || mb > 1000000) {
+    throw new Error("REPORT_EXPORT_QUOTA_MB must be an integer between 1 and 1000000");
+  }
+  return mb;
+}
+
+export function parseReportExportCompanyQuotas(raw: string | undefined): Map<string, number> {
+  if (raw === undefined) return new Map();
+  const entries: unknown = JSON.parse(raw);
+  if (!entries || typeof entries !== "object" || Array.isArray(entries)) {
+    throw new Error("REPORT_EXPORT_QUOTA_MB_BY_COMPANY must be a JSON object of company UUIDs to MB");
+  }
+  return new Map(Object.entries(entries).map(([id, mb]) => {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+      || typeof mb !== "number") {
+      throw new Error("REPORT_EXPORT_QUOTA_MB_BY_COMPANY must contain company UUIDs and integer MB values");
+    }
+    return [id.toLowerCase(), parseReportExportQuotaMb(String(mb)) * 1000000];
+  }));
+}
+
+const defaultQuotaBytes = parseReportExportQuotaMb(process.env.REPORT_EXPORT_QUOTA_MB) * 1000000;
+const companyQuotas = parseReportExportCompanyQuotas(process.env.REPORT_EXPORT_QUOTA_MB_BY_COMPANY);
+
+export function reportExportQuotaBytes(companyId: string): number {
+  return companyQuotas.get(companyId.toLowerCase()) ?? defaultQuotaBytes;
+}
+
+export class ReportExportTooLargeError extends Error {
+  constructor(quotaBytes: number) {
+    super(`PDF presega kvoto zgodovine izvozov (${quotaBytes / 1000000} MB). Izvoz ni bil shranjen ali poslan. Obstoječe kopije ostanejo nespremenjene.`);
+  }
+}
+
+export function assertReportExportFitsQuota(companyId: string, bytes: number): void {
+  const quota = reportExportQuotaBytes(companyId);
+  if (bytes > quota) throw new ReportExportTooLargeError(quota);
+}
+
+/**
+ * One transaction/connection: the tenant lock serializes replicas before measuring
+ * bytes, pruning the oldest prefix and inserting. Failed inserts roll pruning back.
+ * Use actual bytea lengths, including legacy copies; no byte-size backfill needed.
+ */
+export async function saveReportExport(values: typeof reportExportsTable.$inferInsert): Promise<void> {
+  assertReportExportFitsQuota(values.companyId, values.pdfData.length);
+  const availableBytes = reportExportQuotaBytes(values.companyId) - values.pdfData.length;
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(724112, hashtext(${values.companyId.toLowerCase()}))`);
+    await tx.execute(sql`DELETE FROM report_exports
+      WHERE company_id = ${values.companyId} AND exported_at < ${reportExportCutoff()}`);
+    // Newest-first running total: remove an oldest prefix, including the first
+    // whole PDF that crosses the budget. Stable ID ordering breaks timestamp ties.
+    await tx.execute(sql`WITH ranked AS (
+      SELECT id, SUM(octet_length(pdf_data)) OVER (
+        ORDER BY exported_at DESC, id DESC ROWS UNBOUNDED PRECEDING
+      ) AS retained_bytes
+      FROM report_exports WHERE company_id = ${values.companyId}
+    )
+    DELETE FROM report_exports WHERE company_id = ${values.companyId}
+      AND id IN (SELECT id FROM ranked WHERE retained_bytes > ${availableBytes})`);
+    await tx.insert(reportExportsTable).values(values);
+  });
+}
 
 export function reportExportCutoff(now = new Date()): Date {
   return new Date(now.getTime() - REPORT_EXPORT_RETENTION_DAYS * DAY_MS);

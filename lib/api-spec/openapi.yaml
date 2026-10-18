@@ -10341,6 +10341,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/reports/export/history:
+    get:
+      operationId: getReportExportHistory
+      tags:
+        - reports
+      summary: Temporary PDF copies and the effective company retention policy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Latest 200 unexpired copies; quota can evict oldest copies before expiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportExportHistory"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Company access denied
+        "502":
+          description: Exporter directory unavailable
   /companies/{companyId}/reports/balance-sheet:
     get:
       operationId: getBalanceSheet
@@ -12333,6 +12360,44 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    ReportExportHistory:
+      type: object
+      required: [retentionDays, quotaBytes, exports]
+      properties:
+        retentionDays:
+          type: integer
+          minimum: 1
+        quotaBytes:
+          type: integer
+          minimum: 1
+          description: Company PDF byte budget; 1 MB is 1000000 bytes. Individually oversized PDFs are rejected before email delivery.
+        exports:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportExportCopy"
+    ReportExportCopy:
+      type: object
+      required: [id, reportType, params, filename, exportedBy, exportedByName, exportedAt, emailSentTo]
+      properties:
+        id:
+          type: string
+        reportType:
+          type: string
+        params:
+          type: object
+          additionalProperties:
+            type: string
+        filename:
+          type: string
+        exportedBy:
+          type: string
+        exportedByName:
+          type: string
+        exportedAt:
+          type: string
+          format: date-time
+        emailSentTo:
+          type: [string, "null"]
     OsAmortizacijaArhivGlava:
       type: object
       required: [id, leto, doMeseca, skupajAmortizacija, status, updatedAt]

@@ -18,7 +18,11 @@ vi.mock("@clerk/express", () => ({
 }));
 vi.mock("@workspace/db", async (importOriginal) => {
   const original = await importOriginal<typeof import("@workspace/db")>();
-  return { ...original, db: { select: mocks.select, insert: mocks.insert } };
+  return { ...original, db: {
+    select: mocks.select, insert: mocks.insert,
+    transaction: async (work: (tx: unknown) => unknown) =>
+      work({ execute: vi.fn(), insert: mocks.insert }),
+  } };
 });
 vi.mock("../lib/report-pdf", () => ({
   generateBalanceSheetPdf: mocks.balancePdf,
@@ -33,7 +37,7 @@ vi.mock("../middlewares/requireAuth", () => ({
 }));
 
 import router from "./reports";
-import { REPORT_EXPORT_RETENTION_DAYS } from "../lib/reportExportRetention";
+import { REPORT_EXPORT_RETENTION_DAYS, reportExportQuotaBytes } from "../lib/reportExportRetention";
 
 const app = express().use(express.json()).use(router);
 const path = "/companies/00000000-0000-4000-8000-000000000001/reports/export/history";
@@ -68,7 +72,10 @@ describe("report export retention API", () => {
     const history = queueQuery([]);
     const res = await request(app).get(path);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ exports: [], retentionDays: REPORT_EXPORT_RETENTION_DAYS });
+    expect(res.body).toEqual({
+      exports: [], retentionDays: REPORT_EXPORT_RETENTION_DAYS,
+      quotaBytes: reportExportQuotaBytes("00000000-0000-4000-8000-000000000001"),
+    });
     const query = dialect.sqlToQuery(history.where.mock.calls[0][0]);
     expect(query.sql).toContain('"report_exports"."company_id" =');
     expect(query.sql).toContain('"report_exports"."exported_at" >=');

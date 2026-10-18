@@ -17,7 +17,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@clerk/express", () => ({ clerkClient: { users: { getUser: mocks.getUser } } }));
 
 vi.mock("@workspace/db", () => ({
-  db: { select: mocks.select, insert: mocks.insert },
+  db: {
+    select: mocks.select, insert: mocks.insert,
+    transaction: async (work: (tx: unknown) => unknown) =>
+      work({ execute: vi.fn(), insert: mocks.insert }),
+  },
   journalEntriesTable: {},
   journalEntryLinesTable: {},
   accountsTable: {},
@@ -121,6 +125,20 @@ describe("report email export audit trail", () => {
     })]);
     expect(mocks.send).toHaveBeenCalledOnce();
   });
+
+  it.each([undefined, "recipient@example.com"])(
+    "rejects oversized PDFs before sending or evicting copies (%s)", async email => {
+      const { reportExportQuotaBytes } = await import("../lib/reportExportRetention");
+      // Only length is inspected at this boundary; avoid allocating a huge test PDF.
+      mocks.pdf.mockResolvedValue({ length: reportExportQuotaBytes("company-a") + 1 });
+      const res = await exportReport(email);
+      expect(res.status).toBe(413);
+      expect(await res.json()).toEqual({ error: expect.stringContaining("presega kvoto") });
+      expect(mocks.send).not.toHaveBeenCalled();
+      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(saved).toHaveLength(0);
+    },
+  );
 
   it.each(["balance-sheet", "income-statement", "trial-balance"])(
     "records %s email exports only after successful sending",

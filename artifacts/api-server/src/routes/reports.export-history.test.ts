@@ -1,7 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { REPORT_EXPORT_RETENTION_DAYS } from "../lib/reportExportRetention";
+import { REPORT_EXPORT_RETENTION_DAYS, reportExportQuotaBytes } from "../lib/reportExportRetention";
 
 const state = vi.hoisted(() => ({
   getUserList: vi.fn(),
@@ -101,7 +101,10 @@ describe("report export history identities", () => {
 
   it("does not query Clerk for an empty history", async () => {
     expect((await request(app).get(path).set("x-test-user", "viewer")).body)
-      .toEqual({ exports: [], retentionDays: REPORT_EXPORT_RETENTION_DAYS });
+      .toEqual({
+        exports: [], retentionDays: REPORT_EXPORT_RETENTION_DAYS,
+        quotaBytes: reportExportQuotaBytes("company-a"),
+      });
     expect(state.getUserList).not.toHaveBeenCalled();
   });
 
