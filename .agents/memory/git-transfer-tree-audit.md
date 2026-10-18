@@ -39,6 +39,12 @@ Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti ali tes
 
 **How to apply:** Ob lokalnem popravku jasno razloči obravnavalnike in preveri vsako prizadeto pot po uskladitvi; ne prepisuj drugih veljavnih sprememb cele datoteke.
 
+Če poimenovanje callbackov ne prepreči ponovne zamenjave telesa pri uskladitvi, loči poslovno operacijo v samostojen modul in v poti pusti kratek klic.
+
+**Why:** Tudi že poimenovan in preverjen bančni obravnavalnik je ob poznejši uskladitvi znova dobil telo sosednje transakcije. Različna imena sama niso zadostovala.
+
+**How to apply:** Ohrani avtorizacijo na poti, poslovni zapis pa izloči brez spremembe pogodbe; na dejanski bazi preveri uspešen dovoljen zapis in zavrnjen nedovoljen zapis, ne samo zavrnitve.
+
 Generirane API sheme po združitvi regeneriraj iz trenutne specifikacije, namesto da ročno združuješ posamezne deklaracije.
 
 **Why:** Ročno združene deklaracije lahko ostanejo nepopolne ali napačno razvrščene; uspešen typecheck ne zagotavlja pravilnega vrstnega reda inicializacije ob uvozu.
