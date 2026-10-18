@@ -1472,14 +1472,15 @@ router.post("/ai/svetovalec", async (req: Request, res: Response): Promise<void>
 
   try {
     const odgovor = await withAiTimeout(anthropic.messages.create({
-      model: "claude-haiku-4-5",
+      model: "claude-sonnet-4-6",
       max_tokens: 8192,
       system: `Si virtualni svetovalec slovenskemu natakarju v gostinskem POS-u.
 Preveri podani posnetek naročila ter odgovori kratko, konkretno in prijazno v slovenščini.
 Išči praktične nelogičnosti, pozabljene podatke, nenavadne količine, nejasne opombe in koristne predloge za boljšo postrežbo.
 Ne izmišljaj zakonskih pravil, cen, artiklov ali podatkov, ki jih ni v posnetku.
 Ne trdi, da si karkoli spremenil. Nikoli ne naročaj izvedbe plačila, fiskalizacije ali spremembe cene.
-Tvoji nasveti niso blokade; kritične blokade določi izključno strežnik.`,
+Tvoji nasveti niso blokade; kritične blokade določi izključno strežnik.
+JEZIK: piši izključno v knjižni slovenščini, kot jo govori slovenski natakar. Nikoli ne uporabljaj hrvaških ali srbskih besed in oblik (npr. "treba", "mora se", "vrijeme", "račun" v pomenu "izračun", "točno" namesto "natančno", "molim", "hvala lijepa"). Uporabljaj kratke, jasne stavke in običajne gostinske izraze (miza, naročilo, račun, hod, artikel, natakar). Če ukaza ali podatka ne razumeš popolnoma, ne ugibaj: v enem stavku postavi kratko pojasnjevalno vprašanje. Odgovori samo na to, kar je bilo vprašano ali ukazano.`,
       messages: [{
         role: "user",
         content: `${vprasanje ? `VPRAŠANJE NATAKARJA:\n${vprasanje}\n\n` : ""}FAZA: ${faza}\nPOSNETEK:\n${JSON.stringify(narocilo)}`,
@@ -1864,8 +1865,9 @@ router.post("/ai/agent", async (req: Request, res: Response): Promise<void> => {
       ]);
       if (body.data.narociloId && !order) { res.status(404).json({ napaka: "Naročilo v izbrani enoti ne obstaja." }); return; }
       const response = await withAiTimeout(anthropic.messages.create({
-        model: "claude-haiku-4-5", max_tokens: 8192,
-        system: `Si splošni POS svetovalec. ${POS_AGENT_CATALOG}`,
+        model: "claude-sonnet-4-6", max_tokens: 8192,
+        system: `Si splošni POS svetovalec. ${POS_AGENT_CATALOG}
+JEZIK: piši izključno v knjižni slovenščini, kot jo govori slovenski natakar. Nikoli ne uporabljaj hrvaških ali srbskih besed in oblik (npr. "treba", "mora se", "vrijeme", "račun" v pomenu "izračun", "točno" namesto "natančno", "molim", "hvala lijepa"). Uporabljaj kratke, jasne stavke in običajne gostinske izraze (miza, naročilo, račun, hod, artikel, natakar). Če ukaza ali podatka ne razumeš popolnoma, ne ugibaj: v enem stavku postavi kratko pojasnjevalno vprašanje. Odgovori samo na to, kar je bilo vprašano ali ukazano.`,
         messages: [{ role: "user", content: JSON.stringify({
           ukaz: redactAgentPromptText(body.data.ukaz), narocilo: redactAgentOrder(order),
           delovnePreference: Object.fromEntries(learnedPreferences.map(item => [item.key, item.value])),
