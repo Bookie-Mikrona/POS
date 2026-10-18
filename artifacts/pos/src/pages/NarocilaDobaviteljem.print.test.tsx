@@ -7,6 +7,8 @@ import NarocilaDobaviteljem from "./NarocilaDobaviteljem";
 const mocks = vi.hoisted(() => ({
   markSent: vi.fn(),
   mutation: vi.fn(),
+  createOrder: vi.fn(),
+  updateOrder: vi.fn(),
   navigate: vi.fn(),
   aroundNavigation: null as any,
   supplierOrderSummaries: null as any[] | null,
@@ -244,8 +246,8 @@ vi.mock("@workspace/api-client-react", async () => {
       };
     },
     useSaveSupplierReorderSettings: mutation,
-    useCreateSupplierOrder: mutation,
-    useUpdateSupplierOrder: mutation,
+    useCreateSupplierOrder: () => ({ mutateAsync: mocks.createOrder, isPending: false }),
+    useUpdateSupplierOrder: () => ({ mutateAsync: mocks.updateOrder, isPending: false }),
     useMarkSupplierOrderSent: () => ({ mutateAsync: mocks.markSent, isPending: false }),
     useCloseSupplierOrder: mutation,
     useCancelSupplierOrder: mutation,
@@ -340,6 +342,10 @@ describe("supplier order print view", () => {
   beforeEach(() => {
     mocks.markSent.mockReset();
     mocks.mutation.mockReset();
+    mocks.createOrder.mockReset();
+    mocks.createOrder.mockImplementation((...args: any[]) => mocks.mutation(...args));
+    mocks.updateOrder.mockReset();
+    mocks.updateOrder.mockImplementation((...args: any[]) => mocks.mutation(...args));
     mocks.navigate.mockReset();
     mocks.aroundNavigation = aroundPosNavigation;
     mocks.supplierOrderSummaries = null;
@@ -2621,6 +2627,33 @@ describe("supplier order print view", () => {
     expect(screen.getByRole("dialog", { name: "Naročilo dobavitelju" })).toBeTruthy();
     expect(supplierNotes.value).toBe("Dostavite pred 12. uro.");
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("updates a saved draft in place when edited instructions are saved", async () => {
+    mocks.mutation.mockResolvedValue(mocks.order);
+    renderSupplierOrderPage();
+    openSavedDraftEditor();
+
+    fireEvent.change(screen.getByLabelText(/Navodilo dobavitelju/), {
+      target: { value: "Dostavite pred 12. uro." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Shrani osnutek" }));
+
+    await waitFor(() => expect(mocks.updateOrder).toHaveBeenCalledWith({
+      id: 704,
+      data: {
+        supplierId: "supplier-704",
+        expectedDeliveryDate: "2026-10-22",
+        internalNotes: "INTERNAL ONLY: preveriti stanje embalaže.",
+        supplierNotes: "Dostavite pred 12. uro.",
+        lines: [{
+          supplierMappingId: 7042,
+          packageQuantity: 2,
+          unitPrice: 18,
+        }],
+      },
+    }));
+    expect(mocks.createOrder).not.toHaveBeenCalled();
   });
 
   it("explicitly discards changed saved-draft instructions and closes the editor without saving", () => {
