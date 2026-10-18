@@ -5,6 +5,7 @@ import PorocilaAnalitika from "./porocila-dimenzije";
 
 const mocks = vi.hoisted(() => ({
   report: vi.fn(),
+  accounts: vi.fn(),
   companyId: "company-1",
   setCompany: vi.fn(),
   access: { company: { id: "company-1", naziv: "Podjetje" } as { id: string; naziv: string } | null, checking: false, failed: false, retry: vi.fn() },
@@ -17,7 +18,7 @@ vi.mock("@/contexts/CompanyContext", () => ({
   useSharedCompanyAccess: () => mocks.access,
 }));
 vi.mock("@workspace/api-client-react", () => ({
-  useListAccounts: () => ({ data: { accounts: [{ id: "acc-1", code: "400", name: "Stroški" }] } }),
+  useListAccounts: mocks.accounts,
   useGetDimensionReport: mocks.report,
 }));
 // Native controls exercise the page's value/change wiring without Radix pointer APIs.
@@ -57,6 +58,8 @@ beforeEach(() => {
   mocks.setCompany.mockReset();
   mocks.access = { company: { id: "company-1", naziv: "Podjetje" }, checking: false, failed: false, retry: vi.fn() };
   mocks.report.mockReset();
+  mocks.accounts.mockReset();
+  mocks.accounts.mockReturnValue({ data: { accounts: [{ id: "acc-1", code: "400", name: "Stroški" }] } });
   mocks.report.mockImplementation((_company, _filters, options) => ({
     data: options.query.enabled ? reportData : undefined,
     isLoading: false,
@@ -135,6 +138,130 @@ describe("untagged journal lines", () => {
 });
 
 describe("dimension report URL filters", () => {
+  const invalidLinks = [
+    ["dateFrom=2025-02-29", "datum »2025-02-29« ne obstaja"],
+    ["dateTo=2025-04-31", "datum »2025-04-31« ne obstaja"],
+    ["dateFrom=2025-13-01", "datum »2025-13-01« ne obstaja"],
+    ["dateFrom=0000-01-01", "datum »0000-01-01« ne obstaja"],
+    ["dateFrom=2025-1-01", "ni v obliki LLLL-MM-DD"],
+    ["dateTo=31.01.2025", "ni v obliki LLLL-MM-DD"],
+    ["dateFrom=2025-01-01T00%3A00%3A00Z", "ni v obliki LLLL-MM-DD"],
+    ["dateFrom=2025-12-31&dateTo=2025-01-01", "je po datumu"],
+    ["dimensionType=unknown", "Neznana vrsta dimenzije"],
+    ["dimensionType=", "Neznana vrsta dimenzije"],
+    ["accountId=deleted-or-foreign", "Konto »deleted-or-foreign« ne obstaja v izbranem podjetju"],
+  ];
+
+  it.each(invalidLinks)("blocks invalid URL filters: %s", (query, message) => {
+    window.history.replaceState(null, "", `${path}?${query}`);
+    // React Query may retain data even while a query is disabled.
+    mocks.report.mockReturnValue({ data: reportData, isLoading: true, error: new Error("cached") });
+    render(<PorocilaAnalitika />);
+    expect(screen.getByRole("alert").textContent).toContain(message);
+    expect(lastRequest()[2].query.enabled).toBe(false);
+    expect(lastRequest()[1]).toEqual({ groupBy: "account" });
+    expect((screen.getByRole("button", { name: "Prikaži poročilo" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Ni knjižb z dimenzijami za izbrane filtre.")).toBeNull();
+    expect(screen.queryByTitle("Izvozi v CSV")).toBeNull();
+    expect(screen.queryByTitle("Izvozi v Excel")).toBeNull();
+    expect(screen.queryByTitle("Natisni")).toBeNull();
+    expect(screen.queryByText("Napaka pri nalaganju poročila.")).toBeNull();
+  });
+
+  it.each([
+    ["", "", undefined, undefined],
+    ["", "2024-02-29", undefined, "2024-02-29"],
+    ["2024-02-29", "", "2024-02-29", undefined],
+    ["2024-02-29", "2024-02-29", "2024-02-29", "2024-02-29"],
+  ])("allows empty boundaries and leap days: %s – %s", (from, to, expectedFrom, expectedTo) => {
+    window.history.replaceState(null, "", `${path}?dateFrom=${from}&dateTo=${to}`);
+    render(<PorocilaAnalitika />);
+    expect(screen.queryByText("Neveljavni filtri poročila")).toBeNull();
+    expect(lastRequest()[2].query.enabled).toBe(true);
+    expect(lastRequest()[1].dateFrom).toBe(expectedFrom);
+    expect(lastRequest()[1].dateTo).toBe(expectedTo);
+  });
+
+  it("keeps an unknown dimension invalid when other filters change, then allows explicit correction", () => {
+    window.history.replaceState(null, "", `${path}?dimensionType=unknown&source=mail`);
+    render(<PorocilaAnalitika />);
+    fireEvent.click(screen.getByRole("button", { name: "Tekoče leto" }));
+    expect(new URLSearchParams(window.location.search).get("dimensionType")).toBe("unknown");
+    expect(lastRequest()[2].query.enabled).toBe(false);
+    fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value: "department" } });
+    expect(lastRequest()[2].query.enabled).toBe(true);
+    expect(lastRequest()[1].dimensionType).toBe("department");
+    expect(new URLSearchParams(window.location.search).get("source")).toBe("mail");
+    expect(screen.queryByText("Neveljavni filtri poročila")).toBeNull();
+  });
+
+  it("waits for the company's accounts and blocks cached results when the account is stale", () => {
+    window.history.replaceState(null, "", `${path}?${firstView}`);
+    mocks.accounts.mockReturnValue({ data: undefined });
+    mocks.report.mockReturnValue({ data: reportData, isLoading: false, error: null });
+    const page = render(<PorocilaAnalitika />);
+    expect(screen.getByRole("alert").textContent).toContain("Preverjanje konta »acc-1« še poteka");
+    expect(lastRequest()[2].query.enabled).toBe(false);
+    expect(screen.queryByTitle("Izvozi v CSV")).toBeNull();
+    mocks.accounts.mockReturnValue({ data: { accounts: [] } });
+    page.rerender(<PorocilaAnalitika />);
+    expect(screen.getByRole("alert").textContent).toContain("Konto »acc-1« ne obstaja");
+    expect(lastRequest()[2].query.enabled).toBe(false);
+    fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "_all" } });
+    expect(lastRequest()[2].query.enabled).toBe(true);
+    expect(lastRequest()[1].accountId).toBeUndefined();
+    expect(screen.queryByText("Neveljavni filtri poročila")).toBeNull();
+  });
+
+  it("does not trust failed or placeholder account lists", () => {
+    window.history.replaceState(null, "", `${path}?${firstView}`);
+    const accounts = { accounts: [{ id: "acc-1", code: "400", name: "Stroški" }] };
+    mocks.accounts.mockReturnValue({ data: accounts, isPlaceholderData: true });
+    const page = render(<PorocilaAnalitika />);
+    expect(lastRequest()[2].query.enabled).toBe(false);
+    mocks.accounts.mockReturnValue({ data: accounts, error: new Error("offline") });
+    page.rerender(<PorocilaAnalitika />);
+    expect(screen.getByRole("alert").textContent).toContain("nalaganje kontov ni uspelo");
+    expect(lastRequest()[2].query.enabled).toBe(false);
+    mocks.accounts.mockReturnValue({ data: accounts });
+    page.rerender(<PorocilaAnalitika />);
+    expect(lastRequest()[2].query.enabled).toBe(true);
+    expect(mocks.accounts.mock.calls.at(-1)![1]).toEqual({ includeInactive: true });
+  });
+
+  it.each([
+    ["dateFrom=2025-02-30&dateTo=2025-12-31", "dateFrom", "2025-02-28"],
+    ["dateFrom=bad&dateTo=", "dateFrom", ""],
+    ["dateFrom=2025-12-31&dateTo=2025-01-01", "dateTo", "2025-12-31"],
+    ["dimensionType=unknown&dateFrom=&dateTo=", "dimensionType", "project"],
+    ["accountId=deleted&dateFrom=&dateTo=", "accountId", "acc-1"],
+  ])("restores invalid and valid views with Back/Forward: %s", async (query, key, value) => {
+    window.history.replaceState(null, "", `${path}?${query}`);
+    render(<PorocilaAnalitika />);
+    if (key === "dimensionType") {
+      fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value } });
+    } else if (key === "accountId") {
+      fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value } });
+    } else {
+      // A native date control sanitizes invalid strings to blank; select a real
+      // date first so clearing it emits an actual change.
+      const input = screen.getByLabelText(key === "dateFrom" ? "Obdobje od" : "Obdobje do");
+      if (!value) fireEvent.change(input, { target: { value: "2025-01-01" } });
+      fireEvent.change(input, { target: { value } });
+    }
+    expect(lastRequest()[2].query.enabled).toBe(true);
+    expect(screen.queryByText("Neveljavni filtri poročila")).toBeNull();
+    await act(async () => { window.history.go(value ? -1 : -2); });
+    await waitFor(() => expect(screen.getByText("Neveljavni filtri poročila")).toBeTruthy());
+    expect(lastRequest()[2].query.enabled).toBe(false);
+    expect(screen.queryByText("Ni knjižb z dimenzijami za izbrane filtre.")).toBeNull();
+    await act(async () => { window.history.go(value ? 1 : 2); });
+    await waitFor(() => expect(lastRequest()[2].query.enabled).toBe(true));
+    expect(screen.queryByText("Neveljavni filtri poročila")).toBeNull();
+    expect(new URLSearchParams(window.location.search).get(key)).toBe(value);
+    expect(screen.getByText("Ni knjižb z dimenzijami za izbrane filtre.")).toBeTruthy();
+  });
+
   it("automatically generates a shared view and restores controls on reload", () => {
     window.history.replaceState(null, "", `${path}?${firstView}`);
     const page = render(<PorocilaAnalitika />);

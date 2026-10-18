@@ -206,7 +206,7 @@ function DimensionReport() {
   const companyId = activeCompany?.id ?? "";
 
   // The URL is the source of truth, including on reload and back/forward navigation.
-  const { filters, queried, updateFilters } = useDimensionReportFilters(companyId);
+  const { filters, queried, updateFilters, errors: filterErrors, isValid: filtersValid, reportParams } = useDimensionReportFilters(companyId);
   const { dimensionType, dateFrom, dateTo, accountId } = filters;
   const applied = { ...filters, queried };
   const [excelExporting, setExcelExporting] = useState(false);
@@ -232,24 +232,33 @@ function DimensionReport() {
   }
 
   // Load accounts for filter dropdown
-  const { data: accountsData } = useListAccounts(
+  const { data: accountsData, error: accountsError, isPlaceholderData: accountsPlaceholder } = useListAccounts(
     companyId,
-    {},
+    { includeInactive: true },
     { query: { enabled: !!companyId } as any },
   );
+  const accountError = !accountId ? undefined
+    : accountsError ? `Konta »${accountId}« ni mogoče preveriti, ker nalaganje kontov ni uspelo. Poskusite znova osvežiti stran ali izberite »Vsi konti«.`
+    : !accountsData || accountsPlaceholder ? `Preverjanje konta »${accountId}« še poteka. Počakajte, da se naloži seznam kontov, ali izberite »Vsi konti«.`
+    : accountsData.accounts.some((account) => account.id === accountId) ? undefined
+    : `Konto »${accountId}« ne obstaja v izbranem podjetju ali je bil izbrisan. Izberite veljaven konto ali »Vsi konti«.`;
+  const errors = { ...filterErrors, accountId: accountError };
+  const isValid = filtersValid && !accountError;
 
   // Fetch report data (always request account breakdown)
-  const { data, isLoading, error } = useGetDimensionReport(
+  const report = useGetDimensionReport(
     companyId,
     {
-      dimensionType: applied.dimensionType,
-      dateFrom: applied.dateFrom || undefined,
-      dateTo: applied.dateTo || undefined,
-      accountId: applied.accountId || undefined,
+      ...(isValid ? reportParams : undefined),
       groupBy: "account",
     },
-    { query: { enabled: !!companyId && applied.queried } as any },
+    { query: { enabled: !!companyId && applied.queried && isValid } as any },
   );
+  // Disabled queries can still expose cached results. Never show or export them
+  // while the URL is invalid, including during history navigation.
+  const data = isValid ? report.data : undefined;
+  const isLoading = isValid && report.isLoading;
+  const error = isValid && report.error;
 
   const expandableRows = (data?.rows ?? []).filter((row) => (row.accounts?.length ?? 0) > 0);
   const allExpanded = expandableRows.length > 0 && expandableRows.every((row) => expandedRows.has(row.id));
@@ -327,17 +336,29 @@ function DimensionReport() {
       )}
 
       {/* Filter bar */}
+      {!isValid && (
+        <Alert variant="destructive" id="dimension-filter-errors">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Neveljavni filtri poročila</AlertTitle>
+          <AlertDescription>
+            <p>Poročilo ni prikazano. Popravite filtre spodaj.</p>
+            <ul className="list-disc pl-5">
+              {Object.entries(errors).map(([key, message]) => message && <li key={key}>{message}</li>)}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="rounded-lg border border-border bg-card p-4 space-y-4 print:hidden">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           {/* Dimension type */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Dimenzija</Label>
+            <Label htmlFor="dimension-type" className="text-xs">Dimenzija</Label>
             <Select
-              value={dimensionType}
+              value={errors.dimensionType ? "" : dimensionType}
               onValueChange={(v) => updateFilters({ dimensionType: v as DimensionType })}
             >
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue />
+              <SelectTrigger id="dimension-type" aria-invalid={!!errors.dimensionType} aria-describedby={errors.dimensionType ? "dimension-filter-errors" : undefined} className="h-9 text-sm">
+                <SelectValue placeholder="Izberite veljavno dimenzijo" />
               </SelectTrigger>
               <SelectContent>
                 {DIM_OPTIONS.map((opt) => (
@@ -351,8 +372,11 @@ function DimensionReport() {
 
           {/* Date from */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Obdobje od</Label>
+            <Label htmlFor="dimension-date-from" className="text-xs">Obdobje od</Label>
             <Input
+              id="dimension-date-from"
+              aria-invalid={!!(errors.dateFrom || errors.period)}
+              aria-describedby={errors.dateFrom || errors.period ? "dimension-filter-errors" : undefined}
               type="date"
               value={dateFrom}
               onChange={(e) => updateFilters({ dateFrom: e.target.value })}
@@ -362,8 +386,11 @@ function DimensionReport() {
 
           {/* Date to */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Obdobje do</Label>
+            <Label htmlFor="dimension-date-to" className="text-xs">Obdobje do</Label>
             <Input
+              id="dimension-date-to"
+              aria-invalid={!!(errors.dateTo || errors.period)}
+              aria-describedby={errors.dateTo || errors.period ? "dimension-filter-errors" : undefined}
               type="date"
               value={dateTo}
               onChange={(e) => updateFilters({ dateTo: e.target.value })}
@@ -375,7 +402,7 @@ function DimensionReport() {
           <div className="flex flex-wrap gap-2 items-end lg:col-span-2">
             <Button
               onClick={handleGenerate}
-              disabled={!companyId}
+              disabled={!companyId || !isValid}
               className="h-9 flex-1"
             >
               Prikaži poročilo
@@ -433,13 +460,13 @@ function DimensionReport() {
         {/* Account filter */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div className="space-y-1.5">
-            <Label className="text-xs">Konto (neobvezno)</Label>
+            <Label htmlFor="dimension-account" className="text-xs">Konto (neobvezno)</Label>
             <Select
-              value={accountId || "_all"}
+              value={accountError ? "" : accountId || "_all"}
               onValueChange={(v) => updateFilters({ accountId: v === "_all" ? "" : v })}
             >
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder="Vsi konti" />
+              <SelectTrigger id="dimension-account" aria-invalid={!!accountError} aria-describedby={accountError ? "dimension-filter-errors" : undefined} className="h-9 text-sm">
+                <SelectValue placeholder={accountError ? "Izberite veljaven konto" : "Vsi konti"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="_all">Vsi konti</SelectItem>
