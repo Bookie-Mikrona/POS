@@ -26,6 +26,7 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
   const [mode, setMode] = useState<DailyLunchMode>("three_course");
   const [selected, setSelected] = useState<Partial<Record<DailyLunchRole, number>>>({});
   const [modifiers, setModifiers] = useState<Partial<Record<DailyLunchRole, number[]>>>({});
+  const [addError, setAddError] = useState<string | null>(null);
   const offer = data?.offers?.find((row) => row.status === "published");
   const roles = requiredDailyLunchRoles(mode);
   const choices = useMemo(() => offer?.choices ?? [], [offer]);
@@ -53,6 +54,7 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
     return { ...current, [role]: [...others, ...next] };
   });
 
+  useEffect(() => { setAddError(null); }, [mode, JSON.stringify(selected), JSON.stringify(modifiers)]);
   useEffect(() => {
     if (!offer || !roles.every((role) => selected[role] != null) || !modifiersComplete) return;
     quote.mutate({ offerId: offer.id, data: { mode, selectedDishes: selected as Record<string, number>, modifiers: modifiers as Record<string, number[]> } }, {
@@ -64,6 +66,7 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
   const complete = roles.every((role) => selected[role] != null) && modifiersComplete;
   const addLunch = async () => {
     if (!offer || !complete || !quote.data) return;
+    setAddError(null);
     try {
       await add.mutateAsync({
         id: narociloId,
@@ -74,6 +77,7 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
     } catch (error) {
       const message = error instanceof ApiError && error.data && typeof error.data === "object" && "error" in error.data
         ? String(error.data.error) : "Kosila ni bilo mogoče dodati.";
+      setAddError(message);
       onQuoted?.({ error: message });
     }
   };
@@ -94,6 +98,9 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
       </div>)}
     </div>)}
     <div className="rounded bg-muted p-3 text-sm">Cena: <strong>{dailyLunchPrice(quote.data?.total)}</strong></div>
+    {(addError || quote.error) && <p role="alert" className="rounded border border-destructive bg-destructive/10 p-2 text-sm text-destructive">
+      {addError ?? (quote.error instanceof ApiError && quote.error.data && typeof quote.error.data === "object" && "error" in quote.error.data ? String(quote.error.data.error) : "Cene kosila ni bilo mogoče izračunati.")}
+    </p>}
     <Button className="w-full" disabled={!complete || !quote.data || quote.isPending || add.isPending} onClick={() => void addLunch()}>
       {add.isPending ? "Dodajanje …" : "Dodaj kosilo"}
     </Button>
