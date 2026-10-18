@@ -343,6 +343,8 @@ router.get(
     const savedVrstice = await db
       .select({
         sredstvoId: osAmortizacijaObracunSredstvoTable.sredstvoId,
+        inventarnaStSnapshot: osAmortizacijaObracunSredstvoTable.inventarnaStSnapshot,
+        nazivSnapshot: osAmortizacijaObracunSredstvoTable.nazivSnapshot,
         obracunano: osAmortizacijaObracunSredstvoTable.obracunano,
         oslabitev: osAmortizacijaObracunSredstvoTable.oslabitev,
         oslabitevMetoda: osAmortizacijaObracunSredstvoTable.oslabitevMetoda,
@@ -352,6 +354,7 @@ router.get(
       .where(eq(osAmortizacijaObracunSredstvoTable.obracunId, savedObracun.id));
 
     const storedMap = new Map(savedVrstice.map((v) => [v.sredstvoId, v.obracunano]));
+    const storedIdentityMap = new Map(savedVrstice.map((v) => [v.sredstvoId, v]));
     const storedOslabitevMap = new Map(savedVrstice.map((v) => [v.sredstvoId, v.oslabitev]));
     const storedMetodaMap = new Map(savedVrstice.map((v) => [v.sredstvoId, v.oslabitevMetoda ?? 1]));
     const storedNovaLetnaAmMap = new Map(savedVrstice.map((v) => [v.sredstvoId, v.oslabitevNovaLetnaAmRac ?? null]));
@@ -381,6 +384,10 @@ router.get(
     // ─── Prepiši skupnaObracunanaRacunovodska s shranjenimi vrednostmi ─────────
     const sredstvaStoreno = result.sredstva.map((s) => ({
       ...s,
+      inventarnaSt: storedIdentityMap.get(s.id)?.inventarnaStSnapshot ?? s.inventarnaSt,
+      naziv: storedIdentityMap.get(s.id)?.nazivSnapshot ?? s.naziv,
+      identitySource: storedIdentityMap.get(s.id)?.inventarnaStSnapshot != null
+        && storedIdentityMap.get(s.id)?.nazivSnapshot != null ? "snapshot" : "current",
       skupnaObracunanaRacunovodska: storedMap.get(s.id) ?? "0.00",
       /**
        * savedOslabitev = oslabitev vnesena na ZAKLJUCEN obracun TEGA leta.
@@ -390,7 +397,7 @@ router.get(
       savedOslabitev: storedOslabitevMap.get(s.id) ?? "0.00",
       savedMetodaOslabitve: storedMetodaMap.get(s.id) ?? 1,
       savedNovaLetnaAmRac: storedNovaLetnaAmMap.get(s.id) ?? null,
-    }));
+    })).sort((a, b) => a.inventarnaSt.localeCompare(b.inventarnaSt, "sl"));
 
     const skupajRacunovodskaStoreno = sredstvaStoreno
       .reduce((sum, s) => sum + parseFloat(s.skupnaObracunanaRacunovodska || "0"), 0)

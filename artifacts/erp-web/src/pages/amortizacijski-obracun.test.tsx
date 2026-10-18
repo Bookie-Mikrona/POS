@@ -42,4 +42,28 @@ describe("archive selection on the calculation page", () => {
     expect(screen.getAllByRole("combobox")[0].textContent).toContain("2005");
     expect(screen.getByRole("button", { name: "Prikaži sredstva za leto 2005" }).getAttribute("aria-pressed")).toBe("true");
   });
+
+  it("shows saved identities and explicitly labels current-register fallback rows", () => {
+    const row = {
+      skupinaKoda: "OP", skupinaNaziv: "Oprema", status: "v_uporabi",
+      doknjizbe: [], brezSkupine: false, polnoOdpisano: false,
+      skupnaOsnova: "1000", skupnaPreostalo: "900", racunovodskaStonja: "10",
+      skupnaObracunanaRacunovodska: "100", skupnaObracunanaDavcna: "100",
+      sedanjaVrednostPoObracunu: "800",
+    };
+    mocks.getAmortizacija.mockReturnValue({ data: {
+      sredstva: [
+        { ...row, id: "saved", inventarnaSt: "0001", naziv: "Izvirno sredstvo", identitySource: "snapshot" },
+        { ...row, id: "legacy", inventarnaSt: "0002", naziv: "Trenutno ime", identitySource: "current" },
+      ],
+      poKontih: [], poStroskovnihMestih: [], predogled: false,
+      skupajRacunovodska: "200", skupajDavcna: "200", steviloSredstev: 2,
+      brezSkupine: 0, polnoOdpisanih: 0, aktivnih: 2,
+    } });
+    const queryClient = new QueryClient();
+    render(<QueryClientProvider client={queryClient}><AmortizacijskiObracun /></QueryClientProvider>);
+    expect(screen.getByText("Izvirno sredstvo").closest("tr")?.textContent).not.toContain("[R]");
+    expect(screen.getByText("Trenutno ime").closest("tr")?.textContent).toContain("[R]");
+    expect(screen.getByRole("note").textContent).toContain("zgodovinski podatek ni potrjen");
+  });
 });

@@ -551,6 +551,7 @@ describe("POST /os/:companyId/amortizacija/obracun", () => {
     }] : []);                            // glaveRows
     if (withAsset) dbState.queues.push([]); // doknjizbeRows
     dbState.queues.push(MOCK_ACC_MAP);    // accountMap (loadValidatedAccountMap)
+    dbState.queues.push([{ naziv: "Testno podjetje", naslov: null, podjetjeDavcna: "12345678" }]);
     dbState.queues.push(glavaResult);     // UPSERT glava returning
   }
 

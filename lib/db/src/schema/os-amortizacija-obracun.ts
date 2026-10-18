@@ -19,6 +19,7 @@ import {
   check,
   unique,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { companiesTable } from "./companies";
@@ -55,6 +56,12 @@ export const osAmortizacijaObracunTable = pgTable(
      * NULL = obračun ustvarjen pred uvedbo tega polja; primerjava hash se preskoči.
      */
     vhodniPodpis: text("vhodni_podpis"),
+    /** NULL means legacy: never backfill from the current company register. */
+    companySnapshot: jsonb("company_snapshot").$type<{
+      naziv: string;
+      naslov: string | null;
+      podjetjeDavcna: string;
+    }>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -82,6 +89,9 @@ export const osAmortizacijaObracunSredstvoTable = pgTable(
     sredstvoId: uuid("sredstvo_id")
       .notNull()
       .references(() => osnovnaSredstvaTable.id, { onDelete: "cascade" }),
+    /** Identity captured together with the calculated amounts; NULL = legacy. */
+    inventarnaStSnapshot: text("inventarna_st_snapshot"),
+    nazivSnapshot: text("naziv_snapshot"),
     /** Amortizacijska osnova = nabavna × (100 − neamortizljivi%) / 100 */
     osnova: numeric("osnova", { precision: 14, scale: 2 }).notNull().default("0"),
     /** Računovodska amortizacijska stopnja % */

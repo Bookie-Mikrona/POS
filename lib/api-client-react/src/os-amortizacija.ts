@@ -35,6 +35,8 @@ export interface SredstvoAmortResult {
   id: string;
   inventarnaSt: string;
   naziv: string;
+  /** Present for saved years; current means the historical identity is incomplete. */
+  identitySource?: "snapshot" | "current";
   skupinaId: string | null;
   skupinaKoda: string | null;
   skupinaNaziv: string | null;

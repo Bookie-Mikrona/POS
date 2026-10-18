@@ -443,6 +443,11 @@ function SredstvoRow({
         <TableCell className="px-2 py-1.5 font-mono">{s.inventarnaSt}</TableCell>
         <TableCell className="px-2 py-1.5 truncate overflow-hidden whitespace-nowrap" title={s.naziv}>
           {s.naziv}
+          {s.identitySource === "current" && (
+            <span className="ml-2 text-amber-700" title="Naziv in/ali inventarna številka iz trenutnega registra; zgodovinski podatek ni potrjen.">
+              [R]
+            </span>
+          )}
         </TableCell>
         <TableCell className="px-2 py-1.5 text-muted-foreground">
           {s.skupinaKoda ? (
@@ -531,6 +536,7 @@ function exportCsv(
       "Obračunana DAV",
       "Sedanja vrednost po obr.",
       "Opomba",
+      "Vir identitete sredstva",
     ],
   ];
   for (const s of sredstva) {
@@ -548,6 +554,9 @@ function exportCsv(
       s.skupnaObracunanaDavcna,
       s.sedanjaVrednostPoObracunu,
       s.brezSkupine ? "brez_skupine" : s.polnoOdpisano ? "polno_odpisano" : "",
+      s.identitySource === "snapshot" ? "Posnetek ob shranitvi obračuna"
+        : s.identitySource === "current" ? "Trenutni register; zgodovinski podatek ni potrjen"
+        : "Trenutni register (predogled)",
     ]);
   }
   const csv =
@@ -1171,6 +1180,11 @@ export default function AmortizacijskiObracun() {
               )}
 
               {/* Tabela */}
+              {sredstvaList.some(s => s.identitySource === "current") && (
+                <p className="text-sm text-amber-700" role="note">
+                  [R] Naziv in/ali inventarna številka iz trenutnega registra; zgodovinski podatek ni potrjen.
+                </p>
+              )}
               <div className="rounded-md border overflow-hidden">
                 <Table className="table-fixed w-full text-xs">
                   <TableHeader>

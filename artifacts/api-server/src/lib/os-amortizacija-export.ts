@@ -5,11 +5,13 @@ import path from "node:path";
 
 export interface SavedAmortizationReport {
   company: { naziv: string; naslov: string | null; podjetjeDavcna: string };
+  companyIdentitySource?: "snapshot" | "current";
   leto: number;
   doMeseca: number;
   status: string;
   printedAt: Date;
-  rows: { inventarnaSt: string; naziv: string; osnova: string; stopnja: string; obracunano: string }[];
+  rows: { inventarnaSt: string; naziv: string; osnova: string; stopnja: string; obracunano: string;
+    identitySource?: "snapshot" | "current" }[];
 }
 
 function metadata(report: SavedAmortizationReport) {
@@ -23,12 +25,21 @@ function metadata(report: SavedAmortizationReport) {
     `Status: ${report.status === "zakljucen" ? "Zaključen" : "Odprt"}`,
     `Datum tiska: ${report.printedAt.toLocaleString("sl-SI", { timeZone: "Europe/Ljubljana" })}`,
     "Vir: shranjeni obračun (brez ponovnega izračuna). Zneski v EUR.",
+    report.companyIdentitySource === "snapshot"
+      ? "Glava podjetja: posnetek ob shranitvi obračuna."
+      : "Glava podjetja: trenutni register; zgodovinski posnetek manjka.",
+    "Identiteta sredstva: posnetek ob shranitvi obračuna.",
+    ...(report.rows.some(row => row.identitySource !== "snapshot")
+      ? ["Izjema [R]: naziv in/ali inventarna št. iz trenutnega registra; zgodovinski podatek ni potrjen."]
+      : []),
   ].filter(Boolean);
 }
 
 const headers = ["Inventarna št.", "Naziv sredstva", "Osnova (EUR)", "Stopnja (%)", "Amortizacija (EUR)"];
 const total = (report: SavedAmortizationReport) =>
   report.rows.reduce((sum, row) => sum.plus(row.obracunano), new Decimal(0)).toFixed(2);
+const assetName = (row: SavedAmortizationReport["rows"][number]) =>
+  row.identitySource === "snapshot" ? row.naziv : `${row.naziv} [R]`;
 
 export async function savedAmortizationExcel(report: SavedAmortizationReport): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
@@ -39,7 +50,7 @@ export async function savedAmortizationExcel(report: SavedAmortizationReport): P
   const header = sheet.addRow(headers);
   header.font = { bold: true };
   for (const row of report.rows) {
-    sheet.addRow([row.inventarnaSt, row.naziv, Number(row.osnova), Number(row.stopnja), Number(row.obracunano)]);
+    sheet.addRow([row.inventarnaSt, assetName(row), Number(row.osnova), Number(row.stopnja), Number(row.obracunano)]);
   }
   sheet.autoFilter = { from: { row: header.number, column: 1 }, to: { row: sheet.rowCount, column: 5 } };
   sheet.views = [{ state: "frozen", ySplit: header.number }];
@@ -111,7 +122,7 @@ export function savedAmortizationPdf(report: SavedAmortizationReport): Promise<B
   });
   drawRow(headers, true);
   for (const row of report.rows) {
-    drawRow([row.inventarnaSt, row.naziv, fmt(row.osnova, 2), fmt(row.stopnja, 3), fmt(row.obracunano, 2)]);
+    drawRow([row.inventarnaSt, assetName(row), fmt(row.osnova, 2), fmt(row.stopnja, 3), fmt(row.obracunano, 2)]);
   }
   drawRow(["SKUPAJ", `${report.rows.length} sredstev`, "", "", fmt(total(report), 2)], true);
   const pages = doc.bufferedPageRange();

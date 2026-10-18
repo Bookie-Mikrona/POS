@@ -241,7 +241,8 @@ function pushBaseQueues(opts: {
   dbState.queues.push(o.glaveRows);
   // accountMap: [7]
   dbState.queues.push(o.accMap);
-  // UPSERT glava: [8]
+  // Company identity snapshot, then UPSERT glava.
+  dbState.queues.push([{ naziv: "Testno podjetje", naslov: null, podjetjeDavcna: "12345678" }]);
   dbState.queues.push(o.glavaResult);
 }
 

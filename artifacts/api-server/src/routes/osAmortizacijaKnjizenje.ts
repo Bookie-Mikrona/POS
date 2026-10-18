@@ -178,6 +178,8 @@ router.get("/os/:companyId/amortizacija/obracun/izvozi", requireAuth, async (req
     const rows = await tx.select({
       inventarnaSt: osnovnaSredstvaTable.inventarnaSt,
       naziv: osnovnaSredstvaTable.naziv,
+      inventarnaStSnapshot: osAmortizacijaObracunSredstvoTable.inventarnaStSnapshot,
+      nazivSnapshot: osAmortizacijaObracunSredstvoTable.nazivSnapshot,
       osnova: osAmortizacijaObracunSredstvoTable.osnova,
       stopnja: osAmortizacijaObracunSredstvoTable.stopnja,
       obracunano: osAmortizacijaObracunSredstvoTable.obracunano,
@@ -186,7 +188,19 @@ router.get("/os/:companyId/amortizacija/obracun/izvozi", requireAuth, async (req
       eq(osnovnaSredstvaTable.companyId, companyId),
     )).where(eq(osAmortizacijaObracunSredstvoTable.obracunId, head.id))
       .orderBy(osnovnaSredstvaTable.inventarnaSt);
-    return { ...head, company, rows, printedAt: new Date() };
+    return {
+      ...head,
+      company: head.companySnapshot ?? company,
+      companyIdentitySource: head.companySnapshot ? "snapshot" as const : "current" as const,
+      rows: rows.map((row) => ({
+        ...row,
+        inventarnaSt: row.inventarnaStSnapshot ?? row.inventarnaSt,
+        naziv: row.nazivSnapshot ?? row.naziv,
+        identitySource: row.inventarnaStSnapshot !== null && row.nazivSnapshot !== null
+          ? "snapshot" as const : "current" as const,
+      })).sort((a, b) => a.inventarnaSt.localeCompare(b.inventarnaSt, "sl")),
+      printedAt: new Date(),
+    };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
   if (!snapshot) {
     res.status(404).json({ error: `Za leto ${leto} ni shranjenega obračuna.` }); return;
@@ -1705,6 +1719,15 @@ router.post(
     // Prazen obračun ne sme blokirati naslednjega leta.
     const novStatus = doMeseca >= 12 || obracunResult.sredstva.length === 0 ? "zakljucen" : "odprt";
 
+    const [companySnapshot] = await db.select({
+      naziv: companiesTable.naziv,
+      naslov: companiesTable.naslov,
+      podjetjeDavcna: companiesTable.podjetjeDavcna,
+    }).from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
+    if (!companySnapshot) {
+      res.status(404).json({ error: "Podjetje ne obstaja." }); return;
+    }
+
     const [glava] = await db
       .insert(osAmortizacijaObracunTable)
       .values({
@@ -1714,6 +1737,7 @@ router.post(
         status: novStatus,
         praviloZacetkaAmortizacije: pravilo,
         vhodniPodpis,
+        companySnapshot,
       })
       .onConflictDoUpdate({
         target: [osAmortizacijaObracunTable.companyId, osAmortizacijaObracunTable.leto],
@@ -1722,6 +1746,7 @@ router.post(
           status: novStatus,
           praviloZacetkaAmortizacije: pravilo,
           vhodniPodpis,
+          companySnapshot,
           updatedAt: new Date(),
         },
       })
@@ -1734,6 +1759,8 @@ router.post(
         .map((s) => ({
           obracunId: glava.id,
           sredstvoId: s.id,
+          inventarnaStSnapshot: s.inventarnaSt,
+          nazivSnapshot: s.naziv,
           osnova: s.skupnaOsnova,
           stopnja: s.racunovodskaStonja ?? "0",
           obracunano: s.skupnaObracunanaRacunovodska,
@@ -1753,6 +1780,8 @@ router.post(
               osnova: sql`excluded.osnova`,
               stopnja: sql`excluded.stopnja`,
               obracunano: sql`excluded.obracunano`,
+              inventarnaStSnapshot: sql`excluded.inventarna_st_snapshot`,
+              nazivSnapshot: sql`excluded.naziv_snapshot`,
               updatedAt: sql`excluded.updated_at`,
             },
           });

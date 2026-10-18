@@ -91,6 +91,7 @@ const migrations = [
   "266-payment-dimensions.sql",
   "267-report-export-retention-index.sql",
   "268-report-export-company-history-index.sql",
+  "269-os-amortizacija-identity-snapshots.sql",
 ] as const;
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptsDir, "../../../lib/db/src/migrations");
