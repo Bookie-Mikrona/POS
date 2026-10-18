@@ -565,6 +565,117 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(await getMappingPrice()).toEqual({ packagePrice: 30, unitPrice: 3.75 });
   });
 
+  it("excludes draft and other-unit receipts from the order's received history", async () => {
+    const [historyArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Receipt history article ${run}`,
+      cena: "5",
+      davek: "22",
+      enotaMere: "KOS",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    articleIds.push(historyArticle.id);
+    await db.insert(zalogeTable).values({ artikelId: historyArticle.id, kolicina: "0" });
+
+    const [historyMapping] = await db.insert(artikelDobaviteljTable).values({
+      enotaId,
+      artikelId: historyArticle.id,
+      dobaviteljId: supplierId,
+      sifraDobavitelja: `HISTORY-${run}`,
+      nazivDobavitelja: `History pack ${run}`,
+      enotVPaketu: "6",
+      nazivPaketa: "zaboj",
+      zadnjaCenaPaket: "18",
+      zadnjaCenaEnota: "3",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(historyMapping.id);
+
+    const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      expectedDeliveryDate: "2026-11-07",
+      lines: [{ supplierMappingId: historyMapping.id, packageQuantity: 1, unitPrice: 18 }],
+    });
+    expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
+    orderIds.push(createdOrder.body.id);
+    const orderLineId = createdOrder.body.lines[0].id as number;
+    const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
+    expect(sentOrder.status, JSON.stringify(sentOrder.body)).toBe(200);
+
+    const [confirmedReceipt] = await db.insert(prejemniceTable).values({
+      enotaId,
+      dobaviteljId: supplierId,
+      stevilka: `CONFIRMED-HISTORY-${run}`,
+      datum: new Date("2026-10-17T10:00:00.000Z"),
+      status: "confirmed",
+    }).returning({ id: prejemniceTable.id });
+    receiptIds.push(confirmedReceipt.id);
+    await db.insert(prejemnicePostavkeTable).values({
+      prejemnicaId: confirmedReceipt.id,
+      supplierOrderLineId: orderLineId,
+      artikelId: historyArticle.id,
+      kolicina: "2",
+    });
+
+    const [otherUnit] = await db.insert(enoteTable).values({
+      companyId,
+      ime: `Other receipt history unit ${run}`,
+    }).returning({ id: enoteTable.id });
+    unitIds.push(otherUnit.id);
+
+    const [draftReceipt] = await db.insert(prejemniceTable).values({
+      enotaId,
+      dobaviteljId: supplierId,
+      stevilka: `DRAFT-HISTORY-${run}`,
+      datum: new Date("2026-10-18T10:00:00.000Z"),
+      status: "draft",
+    }).returning({ id: prejemniceTable.id });
+    receiptIds.push(draftReceipt.id);
+    await db.insert(prejemnicePostavkeTable).values({
+      prejemnicaId: draftReceipt.id,
+      supplierOrderLineId: orderLineId,
+      artikelId: historyArticle.id,
+      kolicina: "3",
+    });
+
+    const [otherUnitReceipt] = await db.insert(prejemniceTable).values({
+      enotaId: otherUnit.id,
+      dobaviteljId: supplierId,
+      stevilka: `OTHER-UNIT-HISTORY-${run}`,
+      datum: new Date("2026-10-18T11:00:00.000Z"),
+      status: "confirmed",
+    }).returning({ id: prejemniceTable.id });
+    receiptIds.push(otherUnitReceipt.id);
+    await db.insert(prejemnicePostavkeTable).values({
+      prejemnicaId: otherUnitReceipt.id,
+      supplierOrderLineId: orderLineId,
+      artikelId: historyArticle.id,
+      kolicina: "4",
+    });
+
+    const orderDetail = await request(app).get(`/narocila-dobaviteljem/${createdOrder.body.id}`);
+    expect(orderDetail.status, JSON.stringify(orderDetail.body)).toBe(200);
+    const line = orderDetail.body.lines.find((entry: any) => entry.id === orderLineId);
+    expect(line).toMatchObject({
+      receivedBaseQuantity: 2,
+      receipts: [{
+        receiptId: confirmedReceipt.id,
+        receivedBaseQuantity: 2,
+      }],
+    });
+    expect(line.receipts).toHaveLength(1);
+    expect(line.receipts.map((receipt: any) => receipt.receiptId))
+      .not.toContain(draftReceipt.id);
+    expect(line.receipts.map((receipt: any) => receipt.receiptId))
+      .not.toContain(otherUnitReceipt.id);
+    expect(line.receipts.reduce(
+      (sum: number, receipt: { receivedBaseQuantity: number }) => sum + receipt.receivedBaseQuantity,
+      0,
+    )).toBe(line.receivedBaseQuantity);
+  });
+
   it("warns only for changed packaging on open lines and prepares no duplicate receipt lines", async () => {
     const fullArticleName = `Fully received ${run}`;
     const openArticleName = `Open receipt ${run}`;
