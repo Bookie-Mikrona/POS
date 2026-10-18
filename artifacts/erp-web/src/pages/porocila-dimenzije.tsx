@@ -744,11 +744,24 @@ function DimensionReport() {
                         >
                           <TableCell className="print:hidden w-8 pl-3 pr-0">
                             {hasAccounts ? (
-                              isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              )
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-expanded={isExpanded}
+                                aria-label={`${isExpanded ? "Strni" : "Razširi"} dimenzijo ${row.code} – ${row.name}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleRow(row.id);
+                                }}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </Button>
                             ) : null}
                           </TableCell>
                           <TableCell className="font-mono text-sm font-medium">

@@ -1,6 +1,7 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import PorocilaAnalitika from "./porocila-dimenzije";
 
 const mocks = vi.hoisted(() => ({
@@ -470,6 +471,54 @@ describe("dimension report expansion", () => {
     expect(screen.getByRole("button", { name: "Razširi vse" })).toBeTruthy();
     fireEvent.click(screen.getByText("Prva dimenzija"));
     expect(screen.getByRole("button", { name: "Strni vse" })).toBeTruthy();
+  });
+
+  it.each([
+    ["Enter", "{Enter}"],
+    ["Space", " "],
+  ])("opens and closes an individual dimension using %s", async (_name, key) => {
+    const user = userEvent.setup();
+    render(<PorocilaAnalitika />);
+    const button = screen.getByRole("button", { name: "Razširi dimenzijo SM1 – Prva dimenzija" });
+    // Reach the control using Tab rather than assigning focus programmatically.
+    for (let step = 0; step < 40 && document.activeElement !== button; step++) {
+      await user.tab();
+    }
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    await user.keyboard(key);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(button.getAttribute("aria-label")).toBe("Strni dimenzijo SM1 – Prva dimenzija");
+    expect(screen.getByText("Prvi konto")).toBeTruthy();
+    expect(screen.queryByText("Tretji konto")).toBeNull();
+    expect(screen.getByRole("button", { name: "Razširi vse" }).getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(button);
+    await user.keyboard(key);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Prvi konto")).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("toggles only once on button clicks and keeps individual controls in sync with the group", async () => {
+    const user = userEvent.setup();
+    render(<PorocilaAnalitika />);
+    const first = screen.getByRole("button", { name: "Razširi dimenzijo SM1 – Prva dimenzija" });
+    const second = screen.getByRole("button", { name: "Razširi dimenzijo SM2 – Druga dimenzija" });
+    expect(screen.queryByRole("button", { name: /dimenzijo SM3/ })).toBeNull();
+    await user.click(first);
+    expect(first.getAttribute("aria-expanded")).toBe("true");
+    await user.click(second);
+    expect(second.getAttribute("aria-expanded")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Strni vse" }));
+    expect(first.getAttribute("aria-expanded")).toBe("false");
+    expect(second.getAttribute("aria-expanded")).toBe("false");
+    await user.click(screen.getByRole("button", { name: "Razširi vse" }));
+    expect(first.getAttribute("aria-expanded")).toBe("true");
+    expect(second.getAttribute("aria-expanded")).toBe("true");
+    await user.click(first);
+    expect(first.getAttribute("aria-expanded")).toBe("false");
+    expect(second.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Razširi vse" })).toBeTruthy();
   });
 
   it("preserves expansion through rerenders and filter changes until the report is generated again", () => {
