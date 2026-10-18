@@ -12,6 +12,11 @@ export interface DimensionReportExcelOptions {
   dateTo: string;
   accountLabel?: string;
   companyName?: string;
+  untagged?: {
+    debit: string;
+    credit: string;
+    balance: string;
+  };
 }
 
 function amount(value: string): number {
@@ -62,6 +67,24 @@ export function buildDimensionReportWorkbook(options: DimensionReportExcelOption
       cell.alignment = { horizontal: "right" };
     }
     sheet.getCell(row, 2).alignment = { wrapText: true, vertical: "top" };
+  }
+  if (options.untagged) {
+    sheet.addRow([]);
+    const warning = sheet.addRow([
+      "OPOZORILO: Knjižbe brez dimenzije niso vključene v poročilo in vsoto SKUPAJ.",
+      "",
+      amount(options.untagged.debit),
+      amount(options.untagged.credit),
+      amount(options.untagged.balance),
+    ]);
+    sheet.mergeCells(warning.number, 1, warning.number, 2);
+    warning.height = 45;
+    warning.eachCell({ includeEmpty: true }, (cell, column) => {
+      cell.font = { bold: true, color: { argb: "FF92400E" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEF3C7" } };
+      cell.alignment = { horizontal: column >= 3 ? "right" : "left", vertical: "middle", wrapText: true };
+      if (column >= 3) cell.numFmt = "#,##0.00";
+    });
   }
   sheet.views = [{ state: "frozen", ySplit: header.number }];
   return workbook;

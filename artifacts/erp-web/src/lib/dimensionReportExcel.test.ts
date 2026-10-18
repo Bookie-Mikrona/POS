@@ -80,6 +80,55 @@ describe("Excel analitičnega poročila", () => {
     expect(sheet.getCell("E8").font.bold).toBe(true);
   });
 
+  it.each([
+    { debit: "25.50", credit: "40.75", balance: "-15.25" },
+    { debit: "0", credit: "40.75", balance: "-40.75" },
+    { debit: "25.50", credit: "0", balance: "25.50" },
+    { debit: "25.50", credit: "25.50", balance: "0" },
+    { debit: "0", credit: "0", balance: "0" },
+  ])("ločeno ohrani opozorilo z zneski %j, ne da bi spremenil glavno tabelo", async (untagged) => {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await buildDimensionReportWorkbook({ ...options, untagged }).xlsx.writeBuffer());
+    const sheet = workbook.worksheets[0];
+    const baseline = buildDimensionReportWorkbook(options).worksheets[0];
+    for (let row = 1; row <= baseline.rowCount; row++) {
+      expect(sheet.getRow(row).values).toEqual(baseline.getRow(row).values);
+    }
+    expect(sheet.rowCount).toBe(12);
+    expect(sheet.getRow(11).hasValues).toBe(false);
+    expect(sheet.getCell("A12").value).toBe(
+      "OPOZORILO: Knjižbe brez dimenzije niso vključene v poročilo in vsoto SKUPAJ.",
+    );
+    expect(sheet.getCell("B12").isMerged).toBe(true);
+    for (const [column, value] of [["C", untagged.debit], ["D", untagged.credit], ["E", untagged.balance]]) {
+      expect(sheet.getCell(`${column}12`).value).toBe(Number(value));
+      expect(sheet.getCell(`${column}12`).type).toBe(ExcelJS.ValueType.Number);
+      expect(sheet.getCell(`${column}12`).numFmt).toBe("#,##0.00");
+    }
+    expect(sheet.getCell("A12").fill).toMatchObject({ fgColor: { argb: "FFFEF3C7" } });
+  });
+
+  it("brez neoznačenih knjižb ne doda opozorilne vrstice", async () => {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await buildDimensionReportWorkbook(options).xlsx.writeBuffer());
+    expect(workbook.worksheets[0].rowCount).toBe(10);
+  });
+
+  it("opozori tudi, če poročilo nima označenih knjižb", async () => {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await buildDimensionReportWorkbook({
+      ...options, rows: [], grandTotalDebit: "0", grandTotalCredit: "0", grandTotalBalance: "0",
+      untagged: { debit: "10", credit: "3", balance: "7" },
+    }).xlsx.writeBuffer());
+    const sheet = workbook.worksheets[0];
+    expect(sheet.getCell("A8").value).toBe("SKUPAJ");
+    expect(sheet.getCell("C8").value).toBe(0);
+    expect(sheet.getCell("D8").value).toBe(0);
+    expect(sheet.getCell("E8").value).toBe(0);
+    expect(sheet.getCell("A10").text).toContain("OPOZORILO");
+    expect(sheet.getCell("E10").value).toBe(7);
+  });
+
   it.each(["", "NaN", "Infinity", "12x"])("ne pretvori neveljavnega zneska %j v zavajajočo ničlo", (value) => {
     expect(() => buildDimensionReportWorkbook({ ...options, grandTotalDebit: value })).toThrow("neveljaven znesek");
   });

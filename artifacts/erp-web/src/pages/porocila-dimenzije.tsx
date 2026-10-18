@@ -277,6 +277,11 @@ function DimensionReport() {
         grandTotalDebit: data.grandTotalDebit,
         grandTotalCredit: data.grandTotalCredit,
         grandTotalBalance: data.grandTotalBalance,
+        untagged: data.untaggedLines.length > 0 ? {
+          debit: data.untaggedDebit,
+          credit: data.untaggedCredit,
+          balance: data.untaggedBalance,
+        } : undefined,
         dimensionLabel: dimOption.label,
         dateFrom: applied.dateFrom,
         dateTo: applied.dateTo,
