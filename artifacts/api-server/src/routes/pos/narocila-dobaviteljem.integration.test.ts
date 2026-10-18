@@ -226,9 +226,9 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const created = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      expectedDeliveryDate: "2026-11-05",
-      notes: "Prvo naročilo",
-      lines: [{ supplierMappingId: mappingId, packageQuantity: 2, unitPrice: 20 }],
+      internalNotes: note,
+      supplierNotes: note,
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     orderIds.push(created.body.id);
@@ -629,10 +629,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       expectedDeliveryDate: "2026-11-07",
-      lines: [
-        { supplierMappingId: fullMapping.id, packageQuantity: 1, unitPrice: 18 },
-        { supplierMappingId: openMapping.id, packageQuantity: 1, unitPrice: 12 },
-      ],
+      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
@@ -1115,50 +1112,45 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      expectedDeliveryDate: "2026-11-09",
-      lines: [
-        { supplierMappingId: firstMapping.id, packageQuantity: 1, unitPrice: 18 },
-        { supplierMappingId: secondMapping.id, packageQuantity: 1, unitPrice: 12 },
-      ],
+      expectedDeliveryDate: "2026-11-07",
+      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
     const firstOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === firstArticle.id);
     const secondOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === secondArticle.id);
-    const sentOrder = await request(app)
-      .post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`)
-      .send({});
+    const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
     expect(sentOrder.status, JSON.stringify(sentOrder.body)).toBe(200);
 
     const receipt = await request(app).post("/prejemnice").send({
       dobaviteljId: supplierId,
-      datum: "2026-10-17",
+      datum: "2026-10-30",
       vrstaCen: "neto",
       vrstaDokumenta: "DOBAVNICA",
-      brutoSkupaj: 30,
+      brutoSkupaj: 20,
       postavke: [
         {
-          artikelId: firstArticle.id,
-          supplierOrderLineId: firstOrderLine.id,
-          kolicina: 6,
-          cenaKos: 3,
-          skupaj: 18,
+          artikelId: articleId,
+          supplierOrderLineId: lowerPriceLineId,
+          kolicina: 2,
+          cenaKos: 2,
+          skupaj: 4,
           enotVPaketu: 1,
-          izvKolicina: 6,
-          izvCena: 3,
+          izvKolicina: 2,
+          izvCena: 2,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
         },
         {
-          artikelId: secondArticle.id,
-          supplierOrderLineId: secondOrderLine.id,
+          artikelId: articleId,
+          supplierOrderLineId: higherPriceLineId,
           kolicina: 4,
-          cenaKos: 3,
-          skupaj: 12,
+          cenaKos: 4,
+          skupaj: 16,
           enotVPaketu: 1,
           izvKolicina: 4,
-          izvCena: 3,
+          izvCena: 4,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
@@ -1250,9 +1242,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, receipt.body.id));
     expect(reviewsAfterConfirmationFailure).toHaveLength(0);
 
-    const confirmed = await request(app)
-      .post(`/prejemnice/${receipt.body.id}/confirm`)
-      .send({ reviewedPackageFactorChanges: staleAcknowledgement.body.packageFactorChanges });
+    const confirmed = await request(app).post(`/prejemnice/${eligibleReceipt.id}/confirm`).send({});
     expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
     expect(confirmed.body).toMatchObject({ id: receipt.body.id, status: "confirmed" });
     const reviewsAfterConfirmation = await db.select()
@@ -1282,7 +1272,8 @@ describe("POS supplier ordering and linked receipt flow", () => {
   it("keeps legacy notes internal and preserves supplier instructions for older clients", async () => {
     const created = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      notes: "Stara opomba, shranjena pred ločitvijo.",
+      internalNotes: note,
+      supplierNotes: note,
       lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
@@ -1481,7 +1472,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const [otherCompany] = await db.insert(companiesTable).values({
       naziv: `Supplier order other company ${run}`,
-      podjetjeDavcna: `SI${run}80`,
+      podjetjeDavcna: `SI${run}79`,
     }).returning({ id: companiesTable.id });
     extraCompanyIds.push(otherCompany.id);
     const [otherCompanyUnit] = await db.insert(enoteTable).values({
@@ -2507,7 +2498,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const [otherUnit] = await db.insert(enoteTable).values({
       companyId,
-      ime: `Supplier order other unit ${run}`,
+      ime: `Manual link different unit ${run}`,
     }).returning({ id: enoteTable.id });
     unitIds.push(otherUnit.id);
     const [otherUnitOrder] = await db.insert(posSupplierOrdersTable).values({
@@ -2715,9 +2706,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(receipt.status, JSON.stringify(receipt.body)).toBe(201);
     receiptIds.push(receipt.body.id);
 
-    const confirmed = await request(app)
-      .post(`/prejemnice/${receipt.body.id}/confirm`)
-      .send({});
+    const confirmed = await request(app).post(`/prejemnice/${eligibleReceipt.id}/confirm`).send({});
     expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
     const receiptDetails = await request(app).get(`/prejemnice/${receipt.body.id}`);
     expect(receiptDetails.status, JSON.stringify(receiptDetails.body)).toBe(200);
@@ -2747,6 +2736,209 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(latestReceipts.get(mappingId)).toMatchObject({
       receiptId: receipt.body.id,
       receiptNumber: receiptDetails.body.stevilka,
+    });
+  });
+
+  it("explicitly links eligible manual receipt lines and includes only confirmed linked receipts in price history", async () => {
+    const [linkedArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Manual link article ${run}`,
+      cena: "4",
+      davek: "22",
+      enotaMere: "KOS",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    articleIds.push(linkedArticle.id);
+    await db.insert(zalogeTable).values({ artikelId: linkedArticle.id, kolicina: "0" });
+
+    const [linkedMapping] = await db.insert(artikelDobaviteljTable).values({
+      enotaId,
+      artikelId: linkedArticle.id,
+      dobaviteljId: supplierId,
+      sifraDobavitelja: `MANUAL-LINK-${run}`,
+      nazivDobavitelja: `Manual link pack ${run}`,
+      enotVPaketu: "1",
+      nazivPaketa: "kos",
+      zadnjaCenaPaket: "10",
+      zadnjaCenaEnota: "10",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(linkedMapping.id);
+
+    const [otherSupplier] = await db.insert(counterpartiesTable).values({
+      companyId,
+      type: "supplier",
+      name: `Manual link other supplier ${run}`,
+    }).returning({ id: counterpartiesTable.id });
+    extraSupplierIds.push(otherSupplier.id);
+    const [otherSupplierMapping] = await db.insert(artikelDobaviteljTable).values({
+      enotaId,
+      artikelId: linkedArticle.id,
+      dobaviteljId: otherSupplier.id,
+      sifraDobavitelja: `OTHER-MANUAL-LINK-${run}`,
+      nazivDobavitelja: `Other supplier pack ${run}`,
+      enotVPaketu: "1",
+      nazivPaketa: "kos",
+      zadnjaCenaPaket: "12",
+      zadnjaCenaEnota: "12",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(otherSupplierMapping.id);
+
+    const [otherArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Manual link different article ${run}`,
+      cena: "4",
+      davek: "22",
+      enotaMere: "KOS",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    articleIds.push(otherArticle.id);
+    await db.insert(zalogeTable).values({ artikelId: otherArticle.id, kolicina: "0" });
+    const [otherArticleMapping] = await db.insert(artikelDobaviteljTable).values({
+      enotaId,
+      artikelId: otherArticle.id,
+      dobaviteljId: supplierId,
+      sifraDobavitelja: `DIFFERENT-ARTICLE-${run}`,
+      nazivDobavitelja: `Different article pack ${run}`,
+      enotVPaketu: "1",
+      nazivPaketa: "kos",
+      zadnjaCenaPaket: "10",
+      zadnjaCenaEnota: "10",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(otherArticleMapping.id);
+
+    const [otherUnit] = await db.insert(enoteTable).values({
+      companyId,
+      ime: `Manual link different unit ${run}`,
+    }).returning({ id: enoteTable.id });
+    unitIds.push(otherUnit.id);
+    const [otherUnitArticle] = await db.insert(artikliTable).values({
+      enotaId: otherUnit.id,
+      ime: `Manual link different unit article ${run}`,
+      cena: "4",
+      davek: "22",
+      enotaMere: "KOS",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    articleIds.push(otherUnitArticle.id);
+    await db.insert(zalogeTable).values({ artikelId: otherUnitArticle.id, kolicina: "0" });
+    const [otherUnitMapping] = await db.insert(artikelDobaviteljTable).values({
+      enotaId: otherUnit.id,
+      artikelId: otherUnitArticle.id,
+      dobaviteljId: supplierId,
+      sifraDobavitelja: `DIFFERENT-UNIT-${run}`,
+      nazivDobavitelja: `Different unit pack ${run}`,
+      enotVPaketu: "1",
+      nazivPaketa: "kos",
+      zadnjaCenaPaket: "10",
+      zadnjaCenaEnota: "10",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(otherUnitMapping.id);
+
+    const createSentOrder = async (unitId: number, orderSupplierId: string, supplierMappingId: number) => {
+      context.enotaId = unitId;
+      const created = await request(app).post("/narocila-dobaviteljem").send({
+        supplierId: orderSupplierId,
+        expectedDeliveryDate: "2026-11-20",
+        lines: [{ supplierMappingId, packageQuantity: 10, unitPrice: 10 }],
+      });
+      expect(created.status, JSON.stringify(created.body)).toBe(201);
+      orderIds.push(created.body.id);
+      const sent = await request(app).post(`/narocila-dobaviteljem/${created.body.id}/send`).send({});
+      expect(sent.status, JSON.stringify(sent.body)).toBe(200);
+      return created.body.lines[0].id as number;
+    };
+    const correctOrderLineId = await createSentOrder(enotaId, supplierId, linkedMapping.id);
+    const otherSupplierOrderLineId = await createSentOrder(enotaId, otherSupplier.id, otherSupplierMapping.id);
+    const otherArticleOrderLineId = await createSentOrder(enotaId, supplierId, otherArticleMapping.id);
+    const otherUnitOrderLineId = await createSentOrder(otherUnit.id, supplierId, otherUnitMapping.id);
+
+    const createManualReceipt = async (quantity: number) => {
+      context.enotaId = enotaId;
+      const response = await request(app).post("/prejemnice").send({
+        dobaviteljId: supplierId,
+        datum: "2026-10-18",
+        vrstaCen: "neto",
+        vrstaDokumenta: "DOBAVNICA",
+        brutoSkupaj: quantity * 4,
+        postavke: [{
+          artikelId: linkedArticle.id,
+          kolicina: quantity,
+          cenaKos: 4,
+          skupaj: quantity * 4,
+          enotVPaketu: 1,
+          izvKolicina: quantity,
+          izvCena: 4,
+          izvEnota: "KOS",
+          izvCenaVrsta: "neto",
+          ddvStopnja: 0,
+        }],
+      });
+      expect(response.status, JSON.stringify(response.body)).toBe(201);
+      receiptIds.push(response.body.id);
+      return {
+        id: response.body.id as number,
+        lineId: response.body.postavke[0].id as number,
+      };
+    };
+    const eligibleReceipt = await createManualReceipt(4);
+    const tooLargeReceipt = await createManualReceipt(11);
+
+    const options = await request(app)
+      .get(`/prejemnice/${eligibleReceipt.id}/postavke/${eligibleReceipt.lineId}/supplier-order-lines`);
+    expect(options.status, JSON.stringify(options.body)).toBe(200);
+    expect(options.body.map((option: any) => option.id)).toEqual([correctOrderLineId]);
+    const tooLargeOptions = await request(app)
+      .get(`/prejemnice/${tooLargeReceipt.id}/postavke/${tooLargeReceipt.lineId}/supplier-order-lines`);
+    expect(tooLargeOptions.status, JSON.stringify(tooLargeOptions.body)).toBe(200);
+    expect(tooLargeOptions.body).toEqual([]);
+
+    const tooLargeLink = await request(app)
+      .post(`/prejemnice/${tooLargeReceipt.id}/postavke/${tooLargeReceipt.lineId}/supplier-order-link`)
+      .send({ supplierOrderLineId: correctOrderLineId });
+    expect(tooLargeLink.status).toBe(409);
+    expect(tooLargeLink.body.error).toContain("neprejeto količino naročila");
+
+    for (const supplierOrderLineId of [
+      otherSupplierOrderLineId,
+      otherArticleOrderLineId,
+      otherUnitOrderLineId,
+    ]) {
+      const invalidLink = await request(app)
+        .post(`/prejemnice/${eligibleReceipt.id}/postavke/${eligibleReceipt.lineId}/supplier-order-link`)
+        .send({ supplierOrderLineId });
+      expect(invalidLink.status, JSON.stringify(invalidLink.body)).toBe(409);
+    }
+
+    const detailsBeforeLink = await request(app).get(`/prejemnice/${eligibleReceipt.id}`);
+    expect(detailsBeforeLink.status).toBe(200);
+    expect(detailsBeforeLink.body.isManualEntry).toBe(true);
+    expect(detailsBeforeLink.body.postavke[0].supplierOrderLineId).toBeNull();
+    expect((await getLatestSupplierPriceReceipts(db, enotaId, [linkedMapping.id])).has(linkedMapping.id)).toBe(false);
+
+    const confirmed = await request(app).post(`/prejemnice/${eligibleReceipt.id}/confirm`).send({});
+    expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
+    expect((await getLatestSupplierPriceReceipts(db, enotaId, [linkedMapping.id])).has(linkedMapping.id)).toBe(false);
+
+    const linked = await request(app)
+      .post(`/prejemnice/${eligibleReceipt.id}/postavke/${eligibleReceipt.lineId}/supplier-order-link`)
+      .send({ supplierOrderLineId: correctOrderLineId });
+    expect(linked.status, JSON.stringify(linked.body)).toBe(200);
+    const detailsAfterLink = await request(app).get(`/prejemnice/${eligibleReceipt.id}`);
+    expect(detailsAfterLink.body.postavke[0].supplierOrderLineId).toBe(correctOrderLineId);
+    const sources = await getLatestSupplierPriceReceipts(db, enotaId, [linkedMapping.id]);
+    expect(sources.get(linkedMapping.id)).toMatchObject({
+      receiptId: eligibleReceipt.id,
+      receiptNumber: detailsAfterLink.body.stevilka,
     });
   });
 });

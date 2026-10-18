@@ -8238,6 +8238,8 @@ export const PrejemnicaPostavkaPogledVrsticaTip = {
 
 export interface PrejemnicaPostavkaPogled {
   id: number;
+  /** @nullable */
+  supplierOrderLineId?: number | null;
   artikelId: number;
   artikelIme: string;
   /** @nullable */
@@ -8368,6 +8370,7 @@ export interface PrejemnicaPackageChangeReview {
 
 export interface PrejemnicaFull {
   id: number;
+  isManualEntry?: boolean;
   /** @nullable */
   stevilka?: string | null;
   datum: string;
@@ -8388,6 +8391,18 @@ export interface PrejemnicaFull {
   packageChangeReviews: PrejemnicaPackageChangeReview[];
 }
 
+export interface AvailableSupplierOrderReceiptLine {
+  id: number;
+  /** @nullable */
+  orderNumber: string | null;
+  orderDate: string;
+  /** @nullable */
+  packageName?: string | null;
+  packageFactor: number;
+  /** @nullable */
+  baseUnit: string | null;
+  remainingBaseQuantity: number;
+}
 export type SupplierOrderStatus = typeof SupplierOrderStatus[keyof typeof SupplierOrderStatus];
 
 
@@ -15390,3 +15405,13 @@ month: string;
 counterpartyId: string;
 };
 
+
+export interface ManualReceiptSupplierOrderLinkInput {
+  /** @minimum 1 */
+  supplierOrderLineId: number;
+}
+
+export interface ManualReceiptSupplierOrderLink {
+  id: number;
+  supplierOrderLineId: number;
+}

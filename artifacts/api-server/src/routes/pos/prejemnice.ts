@@ -36,6 +36,7 @@ import {
   zahtevajPotrjenAlergenskiSnapshot,
 } from "../../lib/prejemnica-alergeni";
 import {
+  getAvailableSupplierOrderLinesForReceiptLine,
   getLinkedSupplierOrderIdsForReceipt,
   requireSupplierOrderPackageFactorReview,
   SupplierOrderBaseUnitMismatch,
@@ -343,6 +344,175 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
       res.status(409).json({ code: "RECEIPT_NOT_READY", error: error.message });
       return;
     }
+    if (error instanceof SupplierOrderReceiptConflict) {
+      res.status(409).json({ code: "SUPPLIER_ORDER_RECEIPT_CONFLICT", error: error.message });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.get("/prejemnice/:id/postavke/:postavkaId/supplier-order-lines", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = (req as any).enotaId as number;
+  const companyId = (req as any).companyId as string;
+  const receiptId = Number(req.params.id);
+  const lineId = Number(req.params.postavkaId);
+  if (!Number.isInteger(receiptId) || receiptId <= 0 || !Number.isInteger(lineId) || lineId <= 0) {
+    res.status(400).json({ error: "Neveljaven ID prejemnice ali postavke." });
+    return;
+  }
+  const [row] = await db.select({
+    receiptStatus: prejemniceTable.status,
+    supplierId: prejemniceTable.dobaviteljId,
+    isManualEntry: isNull(prejemniceTable.uvozSejaId),
+    linkedOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+    articleId: prejemnicePostavkeTable.artikelId,
+    quantity: prejemnicePostavkeTable.kolicina,
+    lineType: prejemnicePostavkeTable.vrsticaTip,
+  }).from(prejemniceTable)
+    .innerJoin(enoteTable, and(
+      eq(enoteTable.id, prejemniceTable.enotaId),
+      eq(enoteTable.companyId, companyId),
+    ))
+    .innerJoin(prejemnicePostavkeTable, and(
+      eq(prejemnicePostavkeTable.prejemnicaId, prejemniceTable.id),
+      eq(prejemnicePostavkeTable.id, lineId),
+    ))
+    .where(and(
+      eq(prejemniceTable.id, receiptId),
+      eq(prejemniceTable.enotaId, enotaId),
+    ))
+    .limit(1);
+  if (!row) {
+    res.status(404).json({ error: "Prejemnica ali postavka ni najdena." });
+    return;
+  }
+  if (!row.isManualEntry || row.linkedOrderLineId != null || !row.supplierId
+    || row.articleId == null || row.lineType !== "zaloga") {
+    res.status(409).json({
+      code: "SUPPLIER_ORDER_LINK_NOT_ELIGIBLE",
+      error: "Povezati je mogoče samo nepovezano zalogovno postavko ročne prejemnice z izbranim dobaviteljem.",
+    });
+    return;
+  }
+  const options = await getAvailableSupplierOrderLinesForReceiptLine(db, {
+    enotaId,
+    dobaviteljId: row.supplierId,
+    artikelId: row.articleId,
+    receiptId,
+    receiptStatus: row.receiptStatus,
+    receiptQuantity: Number(row.quantity),
+  });
+  res.setHeader("Cache-Control", "no-store");
+  res.json(options);
+});
+
+router.post("/prejemnice/:id/postavke/:postavkaId/supplier-order-link", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = (req as any).enotaId as number;
+  const companyId = (req as any).companyId as string;
+  const receiptId = Number(req.params.id);
+  const lineId = Number(req.params.postavkaId);
+  const supplierOrderLineId = req.body?.supplierOrderLineId;
+  if (!Number.isInteger(receiptId) || receiptId <= 0
+    || !Number.isInteger(lineId) || lineId <= 0
+    || !Number.isInteger(supplierOrderLineId) || supplierOrderLineId <= 0) {
+    res.status(400).json({ error: "Neveljaven ID prejemnice, postavke ali naročila." });
+    return;
+  }
+  try {
+    const result = await db.transaction(async tx => {
+      const locked = await tx.execute(sql`
+        SELECT receipt.id
+        FROM prejemnice receipt
+        JOIN enote unit ON unit.id = receipt.enota_id
+          AND unit.company_id = ${companyId}
+        WHERE receipt.id = ${receiptId}
+          AND receipt.enota_id = ${enotaId}
+        FOR UPDATE OF receipt
+      `);
+      if (locked.rows.length === 0) return { kind: "missing" as const };
+      const [receipt] = await tx.select({
+        status: prejemniceTable.status,
+        supplierId: prejemniceTable.dobaviteljId,
+        isManualEntry: isNull(prejemniceTable.uvozSejaId),
+      }).from(prejemniceTable)
+        .where(and(
+          eq(prejemniceTable.id, receiptId),
+          eq(prejemniceTable.enotaId, enotaId),
+        ))
+        .limit(1);
+      const [line] = await tx.select({
+        id: prejemnicePostavkeTable.id,
+        linkedOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+        articleId: prejemnicePostavkeTable.artikelId,
+        quantity: prejemnicePostavkeTable.kolicina,
+        sourceQuantity: prejemnicePostavkeTable.izvKolicina,
+        lineType: prejemnicePostavkeTable.vrsticaTip,
+      }).from(prejemnicePostavkeTable)
+        .where(and(
+          eq(prejemnicePostavkeTable.id, lineId),
+          eq(prejemnicePostavkeTable.prejemnicaId, receiptId),
+        ))
+        .limit(1);
+      if (!receipt || !line) return { kind: "missing" as const };
+      if (!receipt.isManualEntry || line.linkedOrderLineId != null || !receipt.supplierId
+        || line.articleId == null || line.lineType !== "zaloga") {
+        return { kind: "ineligible" as const };
+      }
+      const duplicateInReceipt = await tx.select({ id: prejemnicePostavkeTable.id })
+        .from(prejemnicePostavkeTable)
+        .where(and(
+          eq(prejemnicePostavkeTable.prejemnicaId, receiptId),
+          eq(prejemnicePostavkeTable.supplierOrderLineId, supplierOrderLineId),
+          ne(prejemnicePostavkeTable.id, lineId),
+        ))
+        .limit(1);
+      if (duplicateInReceipt.length > 0) {
+        throw new SupplierOrderReceiptConflict("Ista postavka naročila ne sme biti dvakrat v isti prejemnici.");
+      }
+
+      await validateSupplierOrderReceiptLines(tx, {
+        enotaId,
+        dobaviteljId: receipt.supplierId,
+        receiptId,
+        receiptStatus: receipt.status,
+        forLinking: true,
+        lines: [{
+          artikelId: line.articleId,
+          supplierOrderLineId,
+          kolicina: line.quantity,
+          izvKolicina: line.sourceQuantity,
+        }],
+      });
+      const [linked] = await tx.update(prejemnicePostavkeTable)
+        .set({ supplierOrderLineId })
+        .where(and(
+          eq(prejemnicePostavkeTable.id, lineId),
+          eq(prejemnicePostavkeTable.prejemnicaId, receiptId),
+          isNull(prejemnicePostavkeTable.supplierOrderLineId),
+        ))
+        .returning({
+          id: prejemnicePostavkeTable.id,
+          supplierOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+        });
+      if (!linked) return { kind: "ineligible" as const };
+      await syncSupplierOrdersForReceipt(tx, enotaId, receiptId);
+      return { kind: "linked" as const, linked };
+    });
+    if (result.kind === "missing") {
+      res.status(404).json({ error: "Prejemnica ali postavka ni najdena." });
+      return;
+    }
+    if (result.kind === "ineligible") {
+      res.status(409).json({
+        code: "SUPPLIER_ORDER_LINK_NOT_ELIGIBLE",
+        error: "Prejemnice ali postavke ni več mogoče povezati.",
+      });
+      return;
+    }
+    broadcastToUnit(enotaId, "update", { type: "zaloge" });
+    res.json(result.linked);
+  } catch (error) {
     if (error instanceof SupplierOrderReceiptConflict) {
       res.status(409).json({ code: "SUPPLIER_ORDER_RECEIPT_CONFLICT", error: error.message });
       return;
@@ -1117,6 +1287,7 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       prejemnoPodjetjeNaziv: companiesTable.naziv,
       status: prejemniceTable.status,
       placanoZGotovino: prejemniceTable.placanoZGotovino,
+      uvozSejaId: prejemniceTable.uvozSejaId,
     })
     .from(prejemniceTable)
     .innerJoin(enoteTable, and(
@@ -1165,6 +1336,7 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     prejemnoPodjetjeNaziv: prejemnica.prejemnoPodjetjeNaziv,
      status: prejemnica.status,
      placanoZGotovino: prejemnica.placanoZGotovino,
+    isManualEntry: prejemnica.uvozSejaId == null,
     postavke: postavke.map((p: any) => ({
       ...p,
       artikelIme: p.artikelIme ?? "–",

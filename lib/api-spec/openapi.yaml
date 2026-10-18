@@ -6132,6 +6132,70 @@ paths:
       responses:
         "204":
           description: Deleted
+  /prejemnice/{id}/postavke/{postavkaId}/supplier-order-lines:
+    get:
+      operationId: listAvailableSupplierOrderLinesForReceiptLine
+      tags:
+        - prejemnice
+      summary: Razpoložljive postavke naročil za ročno prejemnico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: postavkaId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Razpoložljive postavke naročil
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableSupplierOrderReceiptLine"
+        "404":
+          description: Prejemnica ali postavka ne obstaja
+        "409":
+          description: Prejemnica ali postavka ni primerna za povezavo
+  /prejemnice/{id}/postavke/{postavkaId}/supplier-order-link:
+    post:
+      operationId: linkManualReceiptLineToSupplierOrder
+      tags:
+        - prejemnice
+      summary: Izrecno poveži ročno prejemnico z naročilom dobavitelju
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: postavkaId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualReceiptSupplierOrderLinkInput"
+      responses:
+        "200":
+          description: Postavka prejemnice je povezana z naročilom
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManualReceiptSupplierOrderLink"
+        "404":
+          description: Prejemnica ali postavka ne obstaja
+        "409":
+          description: Povezava ni več veljavna ali bi presegla naročeno količino
   /prejemnice/{id}/confirm:
     post:
       operationId: confirmPrejemnica
@@ -20079,6 +20143,10 @@ components:
       properties:
         id:
           type: integer
+        supplierOrderLineId:
+          type:
+            - integer
+            - "null"
         artikelId:
           type: integer
         artikelIme:
@@ -20229,6 +20297,8 @@ components:
       properties:
         id:
           type: integer
+        isManualEntry:
+          type: boolean
         stevilka:
           type:
             - string
@@ -20275,6 +20345,34 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PrejemnicaPackageChangeReview"
+    AvailableSupplierOrderReceiptLine:
+      type: object
+      required:
+        - id
+        - orderNumber
+        - orderDate
+        - packageFactor
+        - baseUnit
+        - remainingBaseQuantity
+      properties:
+        id: { type: integer }
+        orderNumber: { type: [string, "null"] }
+        orderDate: { type: string, format: date }
+        packageName: { type: [string, "null"] }
+        packageFactor: { type: number }
+        baseUnit: { type: [string, "null"] }
+        remainingBaseQuantity: { type: number }
+    ManualReceiptSupplierOrderLinkInput:
+      type: object
+      required: [supplierOrderLineId]
+      properties:
+        supplierOrderLineId: { type: integer, minimum: 1 }
+    ManualReceiptSupplierOrderLink:
+      type: object
+      required: [id, supplierOrderLineId]
+      properties:
+        id: { type: integer }
+        supplierOrderLineId: { type: integer }
     PrejemnicaPackageChangeReview:
       type: object
       required:

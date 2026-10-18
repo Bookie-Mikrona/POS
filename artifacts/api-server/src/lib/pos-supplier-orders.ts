@@ -13,6 +13,7 @@ type ReceiptLineLink = {
   supplierOrderLineId?: number | string | null;
   enotVPaketu?: number | string | null;
   izvKolicina?: number | string | null;
+  kolicina?: number | string | null;
 };
 
 export class SupplierOrderReceiptConflict extends Error {
@@ -58,7 +59,9 @@ export async function validateSupplierOrderReceiptLines(
     enotaId: number;
     dobaviteljId: string | null | undefined;
     receiptId?: number;
+    receiptStatus?: "draft" | "confirmed";
     forConfirmation?: boolean;
+    forLinking?: boolean;
     lines: ReceiptLineLink[];
   },
 ): Promise<number[]> {
@@ -152,7 +155,77 @@ export async function validateSupplierOrderReceiptLines(
   }
 
   const ids = linked.map(({ id }) => id);
-  if (input.forConfirmation) {
+  if (input.forLinking) {
+    if (input.receiptId === undefined) {
+      throw new SupplierOrderReceiptConflict("Povezovanje zahteva določeno prejemnico.");
+    }
+    const requested = linked.map(({ id, line }) => {
+      const quantity = Number(line.kolicina);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new SupplierOrderReceiptConflict("Količina prejemnice ni veljavna.");
+      }
+      return { id, quantity };
+    });
+    if (input.receiptStatus === "draft") {
+      const duplicateDrafts = await tx
+        .select({ lineId: prejemnicePostavkeTable.supplierOrderLineId })
+        .from(prejemnicePostavkeTable)
+        .innerJoin(prejemniceTable, eq(prejemniceTable.id, prejemnicePostavkeTable.prejemnicaId))
+        .where(and(
+          inArray(prejemnicePostavkeTable.supplierOrderLineId, ids),
+          eq(prejemniceTable.enotaId, input.enotaId),
+          eq(prejemniceTable.status, "draft"),
+          ne(prejemniceTable.id, input.receiptId),
+        ));
+      if (duplicateDrafts.length > 0) {
+        throw new SupplierOrderReceiptConflict("Za izbrano postavko naročila že obstaja druga odprta prejemnica.");
+      }
+    }
+    const overReceived = await tx.execute(sql`
+      WITH requested(supplier_order_line_id, receipt_quantity) AS (
+        VALUES ${sql.join(requested.map(row => sql`(${row.id}::integer, ${row.quantity}::numeric)`), sql`, `)}
+      ),
+      quantities AS (
+        SELECT
+          order_line.id AS supplier_order_line_id,
+          order_line.kolicina_pakiranj * order_line.faktor_pakiranja AS ordered_quantity,
+          COALESCE(confirmed.received_quantity, 0) AS received_quantity,
+          COALESCE(drafts.reserved_quantity, 0) AS reserved_quantity,
+          requested.receipt_quantity
+        FROM requested
+        JOIN pos_supplier_order_lines order_line
+          ON order_line.id = requested.supplier_order_line_id
+         AND order_line.enota_id = ${input.enotaId}
+        LEFT JOIN LATERAL (
+          SELECT SUM(receipt_line.kolicina) AS received_quantity
+          FROM prejemnice_postavke receipt_line
+          JOIN prejemnice receipt
+            ON receipt.id = receipt_line.prejemnica_id
+           AND receipt.enota_id = ${input.enotaId}
+           AND receipt.status = 'confirmed'
+          WHERE receipt_line.supplier_order_line_id = order_line.id
+        ) confirmed ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT SUM(receipt_line.kolicina) AS reserved_quantity
+          FROM prejemnice_postavke receipt_line
+          JOIN prejemnice receipt
+            ON receipt.id = receipt_line.prejemnica_id
+           AND receipt.enota_id = ${input.enotaId}
+           AND receipt.status = 'draft'
+          WHERE receipt_line.supplier_order_line_id = order_line.id
+            AND receipt.id <> ${input.receiptId}
+        ) drafts ON TRUE
+      )
+      SELECT supplier_order_line_id
+      FROM quantities
+      WHERE received_quantity + reserved_quantity + receipt_quantity > ordered_quantity + 0.000001
+    `);
+    if ((overReceived.rows as Array<{ supplier_order_line_id: number | string }>).length > 0) {
+      throw new SupplierOrderReceiptConflict(
+        "Količina prejemnice presega še neprejeto količino naročila.",
+      );
+    }
+  } else if (input.forConfirmation) {
     if (input.receiptId === undefined) {
       throw new SupplierOrderReceiptConflict("Potrjevanje zahteva določeno prejemnico.");
     }
@@ -210,6 +283,102 @@ export async function validateSupplierOrderReceiptLines(
   return [...new Set<number>(rows.map((row: any) => Number(row.narociloId)))];
 }
 
+export async function getAvailableSupplierOrderLinesForReceiptLine(
+  tx: typeof db | any,
+  input: {
+    enotaId: number;
+    dobaviteljId: string;
+    artikelId: number;
+    receiptId: number;
+    receiptStatus: "draft" | "confirmed";
+    receiptQuantity: number;
+  },
+): Promise<Array<{
+  id: number;
+  orderNumber: string | null;
+  orderDate: string;
+  packageName: string | null;
+  packageFactor: number;
+  baseUnit: string | null;
+  remainingBaseQuantity: number;
+}>> {
+  const result = await tx.execute(sql`
+    SELECT
+      order_line.id AS id,
+      order_header.stevilka AS "orderNumber",
+      TO_CHAR(order_header.ustvarjeno, 'YYYY-MM-DD') AS "orderDate",
+      order_line.naziv_pakiranja AS "packageName",
+      order_line.faktor_pakiranja::float8 AS "packageFactor",
+      order_line.osnovna_enota AS "baseUnit",
+      GREATEST(
+        0,
+        order_line.kolicina_pakiranj * order_line.faktor_pakiranja
+          - COALESCE(confirmed.received_quantity, 0)
+          - COALESCE(drafts.reserved_quantity, 0)
+      )::float8 AS "remainingBaseQuantity"
+    FROM pos_supplier_order_lines order_line
+    JOIN pos_supplier_orders order_header
+      ON order_header.id = order_line.narocilo_id
+     AND order_header.enota_id = ${input.enotaId}
+     AND order_header.dobavitelj_id = ${input.dobaviteljId}
+     AND order_header.status IN ('sent', 'partially_received')
+    LEFT JOIN LATERAL (
+      SELECT SUM(receipt_line.kolicina) AS received_quantity
+      FROM prejemnice_postavke receipt_line
+      JOIN prejemnice receipt
+        ON receipt.id = receipt_line.prejemnica_id
+       AND receipt.enota_id = ${input.enotaId}
+       AND receipt.status = 'confirmed'
+      WHERE receipt_line.supplier_order_line_id = order_line.id
+    ) confirmed ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT SUM(receipt_line.kolicina) AS reserved_quantity
+      FROM prejemnice_postavke receipt_line
+      JOIN prejemnice receipt
+        ON receipt.id = receipt_line.prejemnica_id
+       AND receipt.enota_id = ${input.enotaId}
+       AND receipt.status = 'draft'
+      WHERE receipt_line.supplier_order_line_id = order_line.id
+        AND receipt.id <> ${input.receiptId}
+    ) drafts ON TRUE
+    WHERE order_line.enota_id = ${input.enotaId}
+      AND order_line.artikel_id = ${input.artikelId}
+      AND order_line.kolicina_pakiranj * order_line.faktor_pakiranja
+        - COALESCE(confirmed.received_quantity, 0)
+        - COALESCE(drafts.reserved_quantity, 0) + 0.000001 >= ${input.receiptQuantity}
+      AND (
+        ${input.receiptStatus !== "draft"}
+        OR NOT EXISTS (
+          SELECT 1
+          FROM prejemnice_postavke draft_line
+          JOIN prejemnice draft_receipt
+            ON draft_receipt.id = draft_line.prejemnica_id
+           AND draft_receipt.enota_id = ${input.enotaId}
+           AND draft_receipt.status = 'draft'
+          WHERE draft_line.supplier_order_line_id = order_line.id
+            AND draft_receipt.id <> ${input.receiptId}
+        )
+      )
+    ORDER BY order_header.ustvarjeno DESC, order_header.id DESC, order_line.id
+  `);
+  return (result.rows as Array<{
+    id: number | string;
+    orderNumber: string | null;
+    orderDate: string;
+    packageName: string | null;
+    packageFactor: number | string;
+    baseUnit: string | null;
+    remainingBaseQuantity: number | string;
+  }>).map(row => ({
+    id: Number(row.id),
+    orderNumber: row.orderNumber,
+    orderDate: row.orderDate,
+    packageName: row.packageName,
+    packageFactor: Number(row.packageFactor),
+    baseUnit: row.baseUnit,
+    remainingBaseQuantity: Number(row.remainingBaseQuantity),
+  }));
+}
 export async function requireSupplierOrderPackageFactorReview(
   tx: typeof db | any,
   input: {

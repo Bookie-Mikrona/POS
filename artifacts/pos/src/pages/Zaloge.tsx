@@ -2059,10 +2059,95 @@ export function ReceiptPrintDocument({
 function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void }) {
   const { data, isLoading, isError } = useGetPrejemnica(id);
   const receipt = data as any;
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const postavke = Array.isArray(receipt?.postavke) ? receipt.postavke : [];
   const odvisniStroski = Array.isArray(receipt?.odvisniStroski) ? receipt.odvisniStroski : [];
   const packageChangeReviews = Array.isArray(receipt?.packageChangeReviews) ? receipt.packageChangeReviews : [];
   const currency = receipt?.valuta || "EUR";
+  type AvailableOrderLine = {
+    id: number;
+    orderNumber: string | null;
+    orderDate: string;
+    packageName: string | null;
+    packageFactor: number;
+    baseUnit: string | null;
+    remainingBaseQuantity: number;
+  };
+  const [linkLineId, setLinkLineId] = useState<number | null>(null);
+  const [linkOptions, setLinkOptions] = useState<AvailableOrderLine[]>([]);
+  const [selectedOrderLineId, setSelectedOrderLineId] = useState("");
+  const [loadingLinkOptions, setLoadingLinkOptions] = useState(false);
+  const [savingOrderLink, setSavingOrderLink] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const loadOrderLinkOptions = async (lineId: number) => {
+    setLinkLineId(lineId);
+    setLinkOptions([]);
+    setSelectedOrderLineId("");
+    setLinkError(null);
+    setLoadingLinkOptions(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const enotaId = localStorage.getItem("pos_enota_id") || localStorage.getItem("enotaId");
+      const response = await fetch(
+        `${base}/api/prejemnice/${id}/postavke/${lineId}/supplier-order-lines`,
+        {
+          credentials: "include",
+          headers: { ...(enotaId ? { "X-Enota-Id": enotaId } : {}) },
+        },
+      );
+      const responseBody = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(responseBody?.error || "Seznama naročil ni mogoče naložiti.");
+      }
+      setLinkOptions(Array.isArray(responseBody) ? responseBody : []);
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : "Seznama naročil ni mogoče naložiti.");
+    } finally {
+      setLoadingLinkOptions(false);
+    }
+  };
+  const saveOrderLink = async () => {
+    if (linkLineId === null || !selectedOrderLineId) return;
+    setSavingOrderLink(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const enotaId = localStorage.getItem("pos_enota_id") || localStorage.getItem("enotaId");
+      const response = await fetch(
+        `${base}/api/prejemnice/${id}/postavke/${linkLineId}/supplier-order-link`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            ...(enotaId ? { "X-Enota-Id": enotaId } : {}),
+          },
+          body: JSON.stringify({ supplierOrderLineId: Number(selectedOrderLineId) }),
+        },
+      );
+      const responseBody = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(responseBody?.error || "Povezave z naročilom ni mogoče shraniti.");
+      }
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: getGetPrejemnicaQueryKey(id) }),
+        queryClient.refetchQueries({ queryKey: getListPrejemniceQueryKey() }),
+        queryClient.invalidateQueries({
+          predicate: query => query.queryKey.some(key => /supplier|narocil|zalog/i.test(String(key))),
+        }),
+      ]);
+      toast({ title: "Postavka povezana z naročilom" });
+      setLinkLineId(null);
+    } catch (error) {
+      toast({
+        title: "Povezava ni uspela",
+        description: error instanceof Error ? error.message : "Povezave z naročilom ni mogoče shraniti.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingOrderLink(false);
+    }
+  };
   const formatReviewedAt = (value: unknown) => {
     if (typeof value !== "string") return "–";
     const date = new Date(value);
@@ -2140,12 +2225,13 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
                       <TableHead className="text-right">DDV %</TableHead>
                       <TableHead className="text-right">DDV</TableHead>
                       <TableHead className="text-right">Znesek</TableHead>
+                      <TableHead>Naročilo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {postavke.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
                           Prejemnica nima postavk.
                         </TableCell>
                       </TableRow>
@@ -2173,6 +2259,23 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
                         </TableCell>
                         <TableCell className="text-right tabular-nums font-medium">
                           {fmt(Number(line.skupaj ?? 0))} {currency}
+                        </TableCell>
+                        <TableCell className="min-w-[12rem]">
+                          {line.supplierOrderLineId != null ? (
+                            <span className="text-xs text-muted-foreground" data-testid={`text-receipt-order-link-${line.id}`}>
+                              Povezano z naročilom
+                            </span>
+                          ) : receipt?.isManualEntry === true && receipt?.dobaviteljId && line.artikelId ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              data-testid={`button-link-receipt-line-${line.id}`}
+                              onClick={() => void loadOrderLinkOptions(Number(line.id))}
+                            >
+                              Poveži z naročilom
+                            </Button>
+                          ) : <span className="text-xs text-muted-foreground">–</span>}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -2275,6 +2378,73 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
             Zapri
           </Button>
         </DialogFooter>
+
+        <Dialog open={linkLineId !== null} onOpenChange={open => !open && !savingOrderLink && setLinkLineId(null)}>
+          <DialogContent className="max-w-lg" data-testid="dialog-link-manual-receipt-line">
+            <DialogHeader>
+              <DialogTitle>Poveži postavko z naročilom</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Izberite poslano naročilo istega dobavitelja in artikla. Povezava se shrani šele po potrditvi spodaj.
+              </p>
+              {loadingLinkOptions ? (
+                <p className="py-2 text-sm text-muted-foreground" role="status">Nalaganje razpoložljivih naročil…</p>
+              ) : linkError ? (
+                <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm" role="alert">{linkError}</p>
+              ) : linkOptions.length === 0 ? (
+                <p className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground" data-testid="text-no-eligible-supplier-orders">
+                  Ni odprtega naročila z dovolj neprejete količine za to postavko.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="select-manual-receipt-order-line">Naročilo dobavitelju</Label>
+                  <select
+                    id="select-manual-receipt-order-line"
+                    data-testid="select-manual-receipt-order-line"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={selectedOrderLineId}
+                    onChange={event => setSelectedOrderLineId(event.target.value)}
+                    disabled={savingOrderLink}
+                  >
+                    <option value="">Izberite naročilo</option>
+                    {linkOptions.map(option => (
+                      <option key={option.id} value={option.id}>
+                        {option.orderNumber || `Naročilo ${option.id}`} · {fmtDatumDoc(option.orderDate)}
+                        {" · na voljo "}
+                        {Number(option.remainingBaseQuantity).toLocaleString("sl-SI", { maximumFractionDigits: 4 })}
+                        {option.baseUnit ? ` ${option.baseUnit}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedOrderLineId && (() => {
+                    const selected = linkOptions.find(option => option.id === Number(selectedOrderLineId));
+                    if (!selected) return null;
+                    return (
+                      <p className="text-xs text-muted-foreground" data-testid="text-selected-order-line-package">
+                        Pakiranje v naročilu: {formatPackageFactor(selected.packageFactor)}{" "}
+                        {selected.baseUnit?.trim() || "enot"} / {formatPackageName(selected.packageName)}
+                      </p>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setLinkLineId(null)} disabled={savingOrderLink}>
+                Prekliči
+              </Button>
+              <Button
+                type="button"
+                data-testid="button-confirm-manual-receipt-order-link"
+                onClick={() => void saveOrderLink()}
+                disabled={savingOrderLink || loadingLinkOptions || !selectedOrderLineId}
+              >
+                {savingOrderLink ? "Shranjujem…" : "Shrani povezavo"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {canPrint && createPortal(
           <ReceiptPrintDocument

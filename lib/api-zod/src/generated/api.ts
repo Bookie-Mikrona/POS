@@ -55,7 +55,6 @@ export const GetOsAmortizacijaArhivParams = zod.object({
 export const getOsAmortizacijaArhivResponseDoMesecaMax = 12;
 
 
-
 export const GetOsAmortizacijaArhivResponseItem = zod.object({
   "id": zod.string(),
   "leto": zod.number(),
@@ -77,7 +76,6 @@ export const ListSavedAmortizationYearsParams = zod.object({
 export const listSavedAmortizationYearsResponseDoMesecaMax = 12;
 
 
-
 export const ListSavedAmortizationYearsResponseItem = zod.object({
   "leto": zod.number(),
   "doMeseca": zod.number().min(1).max(listSavedAmortizationYearsResponseDoMesecaMax),
@@ -95,7 +93,6 @@ export const ExportSavedAmortizationParams = zod.object({
 
 export const exportSavedAmortizationQueryLetoMin = 1990;
 export const exportSavedAmortizationQueryLetoMax = 2100;
-
 
 
 export const ExportSavedAmortizationQueryParams = zod.object({
@@ -152,7 +149,6 @@ export const saveErpSmtpSettingsBodyFromMax = 320;
 
 export const saveErpSmtpSettingsBodyFromRegExp = new RegExp('^[A-Za-z0-9.!#$%&\'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$');
 export const saveErpSmtpSettingsBodyPasswordMax = 1024;
-
 
 
 export const SaveErpSmtpSettingsBody = zod.object({
@@ -273,7 +269,6 @@ export const exportVatFormBodyCorrectionsItemMonthMax = 12;
 export const exportVatFormBodyCorrectionsMax = 200;
 
 
-
 export const ExportVatFormBody = zod.object({
   "form": zod.enum(['DDV-O', 'RP-O', 'PD-O']),
   "year": zod.number().min(exportVatFormBodyYearMin).max(exportVatFormBodyYearMax),
@@ -328,7 +323,6 @@ export const TransferPosBookingDraftsHeader = zod.object({
 export const transferPosBookingDraftsBodyIdsMax = 100;
 
 
-
 export const TransferPosBookingDraftsBody = zod.object({
   "ids": zod.array(zod.string()).min(1).max(transferPosBookingDraftsBodyIdsMax),
   "confirmed": zod.boolean()
@@ -342,7 +336,6 @@ export const TransferPosBookingDraftsResponse = zod.object({
 
 export const getAjpesAnnualReportPathYearMin = 2000;
 export const getAjpesAnnualReportPathYearMax = 2100;
-
 
 
 export const GetAjpesAnnualReportParams = zod.object({
@@ -399,7 +392,6 @@ export const getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementTex
 export const getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementSignatoryMax = 250;
 
 export const getAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementDateMax = 10;
-
 
 
 export const GetAjpesAnnualReportResponse = zod.object({
@@ -585,7 +577,6 @@ export const saveAjpesAnnualReportPathYearMin = 2000;
 export const saveAjpesAnnualReportPathYearMax = 2100;
 
 
-
 export const SaveAjpesAnnualReportParams = zod.object({
   "companyId": zod.coerce.string(),
   "year": zod.coerce.number().min(saveAjpesAnnualReportPathYearMin).max(saveAjpesAnnualReportPathYearMax)
@@ -642,7 +633,6 @@ export const saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementTextMa
 export const saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementSignatoryMax = 250;
 
 export const saveAjpesAnnualReportBodySettingsNarrativeSimplifiedStatementDateMax = 10;
-
 
 
 export const SaveAjpesAnnualReportBody = zod.object({
@@ -771,7 +761,6 @@ export const saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementTe
 export const saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementSignatoryMax = 250;
 
 export const saveAjpesAnnualReportResponseSettingsNarrativeSimplifiedStatementDateMax = 10;
-
 
 
 export const SaveAjpesAnnualReportResponse = zod.object({
@@ -963,7 +952,6 @@ export const getAjpesAnnualHistoryQueryOffsetMin = 0;
 export const getAjpesAnnualHistoryQueryOffsetMax = 100000;
 
 
-
 export const GetAjpesAnnualHistoryQueryParams = zod.object({
   "offset": zod.coerce.number().min(getAjpesAnnualHistoryQueryOffsetMin).max(getAjpesAnnualHistoryQueryOffsetMax).default(getAjpesAnnualHistoryQueryOffsetDefault)
 })
@@ -1023,7 +1011,6 @@ export const requestAjpesEvidenceUploadBodyFilenameMax = 180;
 export const requestAjpesEvidenceUploadBodyByteSizeMax = 10485760;
 
 
-
 export const RequestAjpesEvidenceUploadBody = zod.object({
   "exportId": zod.string(),
   "filename": zod.string().min(1).max(requestAjpesEvidenceUploadBodyFilenameMax),
@@ -1046,7 +1033,6 @@ export const recordAjpesSubmissionBodySubmittedOnRegExp = new RegExp('^\\d{4}-\\
 export const recordAjpesSubmissionBodyReferenceMax = 250;
 
 export const recordAjpesSubmissionBodyNoteMax = 4000;
-
 
 
 export const RecordAjpesSubmissionBody = zod.object({
@@ -1087,7 +1073,6 @@ export const DownloadAjpesSubmissionEvidenceResponse = zod.unknown()
 
 export const exportAjpesAnnualReportPathYearMin = 2000;
 export const exportAjpesAnnualReportPathYearMax = 2100;
-
 
 
 export const ExportAjpesAnnualReportParams = zod.object({
@@ -1186,7 +1171,6 @@ export const ConfirmCreditNotePackagingParams = zod.object({
 export const confirmCreditNotePackagingBodyQuantityExclusiveMin = 0;
 
 
-
 export const ConfirmCreditNotePackagingBody = zod.object({
   "operationKey": zod.string(),
   "prejemnicaPostavkaId": zod.number(),
@@ -1278,9 +1262,6 @@ export const ListKdsPostajeResponseItem = zod.object({
 export const ListKdsPostajeResponse = zod.array(ListKdsPostajeResponseItem)
 
 
-
-
-
 export const CreateKdsPostajaBody = zod.object({
   "ime": zod.string().min(1),
   "tip": zod.enum(['bar', 'kitchen', 'pizza', 'dispatch', 'custom']).optional(),
@@ -1298,14 +1279,9 @@ export const CreateKdsPostajaResponse = zod.object({
 })
 
 
-
-
-
 export const UpdateKdsPostajaParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
-
-
 
 
 export const UpdateKdsPostajaBody = zod.object({
@@ -1326,17 +1302,11 @@ export const UpdateKdsPostajaResponse = zod.object({
 })
 
 
-
-
-
 export const DeleteKdsPostajaParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
 
 export const DeleteKdsPostajaResponse = zod.void()
-
-
-
 
 
 export const ListKdsMapiranjaParams = zod.object({
@@ -1353,15 +1323,9 @@ export const ListKdsMapiranjaResponseItem = zod.object({
 export const ListKdsMapiranjaResponse = zod.array(ListKdsMapiranjaResponseItem)
 
 
-
-
-
 export const CreateKdsMapiranjeParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
-
-
-
 
 
 export const CreateKdsMapiranjeBody = zod.union([zod.unknown(),zod.unknown()]).and(zod.object({
@@ -1376,10 +1340,6 @@ export const CreateKdsMapiranjeResponse = zod.object({
   "artikelId": zod.number().nullable(),
   "ustvarjeno": zod.coerce.date()
 })
-
-
-
-
 
 
 export const DeleteKdsMapiranjeParams = zod.object({
@@ -1402,9 +1362,6 @@ export const ListKdsPrikazovalnikiResponseItem = zod.object({
 export const ListKdsPrikazovalnikiResponse = zod.array(ListKdsPrikazovalnikiResponseItem)
 
 
-
-
-
 export const CreateKdsPrikazovalnikBody = zod.object({
   "ime": zod.string().min(1),
   "vrstniRed": zod.number().optional()
@@ -1421,14 +1378,9 @@ export const CreateKdsPrikazovalnikResponse = zod.object({
 })
 
 
-
-
-
 export const UpdateKdsPrikazovalnikParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
-
-
 
 
 export const UpdateKdsPrikazovalnikBody = zod.object({
@@ -1448,9 +1400,6 @@ export const UpdateKdsPrikazovalnikResponse = zod.object({
 })
 
 
-
-
-
 export const DeleteKdsPrikazovalnikParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
@@ -1458,14 +1407,9 @@ export const DeleteKdsPrikazovalnikParams = zod.object({
 export const DeleteKdsPrikazovalnikResponse = zod.void()
 
 
-
-
-
 export const SetKdsPrikazovalnikNarocnineParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
-
-
 
 
 export const SetKdsPrikazovalnikNarocnineBody = zod.object({
@@ -1521,15 +1465,11 @@ export const ListKdsIzdajaResponseItem = zod.object({
 export const ListKdsIzdajaResponse = zod.array(ListKdsIzdajaResponseItem)
 
 
-
-
-
 export const IssueKdsNarociloParams = zod.object({
   "narociloId": zod.coerce.number().min(1)
 })
 
 export const issueKdsNarociloBodyIdempotencyKeyMax = 200;
-
 
 
 export const IssueKdsNarociloBody = zod.object({
@@ -1603,8 +1543,6 @@ export const GetAdminEventTransferDiagnosticsParams = zod.object({
 })
 
 
-
-
 export const GetAdminEventTransferDiagnosticsQueryParams = zod.object({
   "unitId": zod.coerce.number().min(1).optional()
 })
@@ -1663,7 +1601,6 @@ export const GetAdminEventTransferDiagnosticsResponse = zod.object({
 /**
  * @summary Read-only podrobnosti dogodka in njegovih prenosov zaloge
  */
-
 
 
 export const GetAdminEventTransferDetailParams = zod.object({
@@ -1751,7 +1688,6 @@ export const GetAdminEventTransferDetailResponse = zod.object({
  */
 
 
-
 export const GetAdminEventTransferMovementDetailParams = zod.object({
   "id": zod.coerce.string(),
   "movementId": zod.coerce.number().min(1)
@@ -1798,7 +1734,6 @@ export const listKategorijeResponsePovratnaEmbalazaDefault = false;
 export const listKategorijeResponseDepozitnaVrednostMin = 0;
 
 
-
 export const ListKategorijeResponseItem = zod.object({
   "id": zod.number(),
   "povratnaEmbalaza": zod.boolean().default(listKategorijeResponsePovratnaEmbalazaDefault),
@@ -1818,7 +1753,6 @@ export const ListKategorijeResponse = zod.array(ListKategorijeResponseItem)
  */
 
 
-
 export const CreateKategorijaBody = zod.object({
   "ime": zod.string().min(1),
   "barva": zod.string(),
@@ -1829,7 +1763,6 @@ export const CreateKategorijaBody = zod.object({
 
 export const createKategorijaResponsePovratnaEmbalazaDefault = false;
 export const createKategorijaResponseDepozitnaVrednostMin = 0;
-
 
 
 export const CreateKategorijaResponse = zod.object({
@@ -1853,7 +1786,6 @@ export const getKategorijaResponsePovratnaEmbalazaDefault = false;
 export const getKategorijaResponseDepozitnaVrednostMin = 0;
 
 
-
 export const GetKategorijaResponse = zod.object({
   "id": zod.number(),
   "povratnaEmbalaza": zod.boolean().default(getKategorijaResponsePovratnaEmbalazaDefault),
@@ -1872,8 +1804,6 @@ export const UpdateKategorijaParams = zod.object({
 })
 
 
-
-
 export const UpdateKategorijaBody = zod.object({
   "ime": zod.string().min(1),
   "barva": zod.string(),
@@ -1884,7 +1814,6 @@ export const UpdateKategorijaBody = zod.object({
 
 export const updateKategorijaResponsePovratnaEmbalazaDefault = false;
 export const updateKategorijaResponseDepozitnaVrednostMin = 0;
-
 
 
 export const UpdateKategorijaResponse = zod.object({
@@ -1932,7 +1861,6 @@ export const listArtikliResponseHappyHourCenaMalaMin = 0;
 export const listArtikliResponseHappyHourCenaDruzinskaMin = 0;
 
 export const listArtikliResponseDepozitnaVrednostMin = 0;
-
 
 
 export const ListArtikliResponseItem = zod.object({
@@ -2054,7 +1982,6 @@ export const createArtikelBodyOneNetoDelezOdstMin = 0;
 export const createArtikelBodyOneNetoDelezOdstMax = 100;
 
 
-
 export const CreateArtikelBody = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(createArtikelBodyOneRecipeBatchPiecesMax).nullish(),
   "preparedNormPortionQuantity": zod.number().min(createArtikelBodyOnePreparedNormPortionQuantityMin).max(createArtikelBodyOnePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; null ohrani vnos na 1 osnovno enoto.'),
@@ -2133,7 +2060,6 @@ export const createArtikelResponseHappyHourCenaMalaMin = 0;
 export const createArtikelResponseHappyHourCenaDruzinskaMin = 0;
 
 export const createArtikelResponseDepozitnaVrednostMin = 0;
-
 
 
 export const CreateArtikelResponse = zod.object({
@@ -2243,7 +2169,6 @@ export const GetDrobniInventarPredlogeResponse = zod.object({
  */
 
 
-
 export const ImportDrobniInventarPredlogeBody = zod.object({
   "kljuci": zod.array(zod.string()).min(1)
 })
@@ -2251,7 +2176,6 @@ export const ImportDrobniInventarPredlogeBody = zod.object({
 export const importDrobniInventarPredlogeResponseInsertedCountMin = 0;
 
 export const importDrobniInventarPredlogeResponseSkippedCountMin = 0;
-
 
 
 export const ImportDrobniInventarPredlogeResponse = zod.object({
@@ -2327,7 +2251,6 @@ export const GenerateArtikelImageParams = zod.object({
 export const generateArtikelImageBodyOpisSlikeMax = 500;
 
 
-
 export const GenerateArtikelImageBody = zod.object({
   "opisSlike": zod.string().min(1).max(generateArtikelImageBodyOpisSlikeMax)
 })
@@ -2350,7 +2273,6 @@ export const generateArtikelImageResponseHappyHourCenaMalaMin = 0;
 export const generateArtikelImageResponseHappyHourCenaDruzinskaMin = 0;
 
 export const generateArtikelImageResponseDepozitnaVrednostMin = 0;
-
 
 
 export const GenerateArtikelImageResponse = zod.object({
@@ -2465,7 +2387,6 @@ export const uploadArtikelImageResponseHappyHourCenaDruzinskaMin = 0;
 export const uploadArtikelImageResponseDepozitnaVrednostMin = 0;
 
 
-
 export const UploadArtikelImageResponse = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(uploadArtikelImageResponseRecipeBatchPiecesMax).nullish(),
   "preparedNormPortionQuantity": zod.number().min(uploadArtikelImageResponsePreparedNormPortionQuantityMin).max(uploadArtikelImageResponsePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; normativi so shranjeni na 1 osnovno enoto.'),
@@ -2569,7 +2490,6 @@ export const getArtikelResponseHappyHourCenaMalaMin = 0;
 export const getArtikelResponseHappyHourCenaDruzinskaMin = 0;
 
 export const getArtikelResponseDepozitnaVrednostMin = 0;
-
 
 
 export const GetArtikelResponse = zod.object({
@@ -2691,8 +2611,6 @@ export const updateArtikelBodyOneNetoDelezOdstMin = 0;
 export const updateArtikelBodyOneNetoDelezOdstMax = 100;
 
 
-
-
 export const UpdateArtikelBody = zod.object({
   "recipeBatchPieces": zod.number().min(1).max(updateArtikelBodyOneRecipeBatchPiecesMax).nullish(),
   "preparedNormPortionQuantity": zod.number().min(updateArtikelBodyOnePreparedNormPortionQuantityMin).max(updateArtikelBodyOnePreparedNormPortionQuantityMax).nullish().describe('Količina normalne porcije v osnovni enoti kg\/l; null ohrani vnos na 1 osnovno enoto.'),
@@ -2774,7 +2692,6 @@ export const updateArtikelResponseHappyHourCenaMalaMin = 0;
 export const updateArtikelResponseHappyHourCenaDruzinskaMin = 0;
 
 export const updateArtikelResponseDepozitnaVrednostMin = 0;
-
 
 
 export const UpdateArtikelResponse = zod.object({
@@ -2865,9 +2782,6 @@ export const DeleteArtikelParams = zod.object({
 export const DeleteArtikelResponse = zod.void()
 
 
-
-
-
 export const GetPizzaDoughNormsParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
@@ -2883,19 +2797,9 @@ export const GetPizzaDoughNormsResponseItem = zod.object({
 export const GetPizzaDoughNormsResponse = zod.array(GetPizzaDoughNormsResponseItem)
 
 
-
-
-
 export const UpdatePizzaDoughNormsParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
-
-
-
-
-
-
-
 
 
 export const UpdatePizzaDoughNormsBody = zod.object({
@@ -2937,8 +2841,6 @@ export const GetArtikelNormativiParams = zod.object({
 })
 
 
-
-
 export const GetArtikelNormativiResponse = zod.object({
   "normativRevision": zod.number().min(1),
   "normativi": zod.array(zod.object({
@@ -2959,8 +2861,6 @@ export const GetArtikelNormativiResponse = zod.object({
 export const UpdateArtikelNormativiParams = zod.object({
   "id": zod.coerce.number()
 })
-
-
 
 
 export const UpdateArtikelNormativiBody = zod.object({
@@ -3033,7 +2933,6 @@ export const GetArtikelNormativeChangeHistoryResponse = zod.array(GetArtikelNorm
 export const previewArtikelAlergeniNormativBodyVhodniArtikelIdsMax = 200;
 
 
-
 export const PreviewArtikelAlergeniNormativBody = zod.object({
   "vhodniArtikelIds": zod.array(zod.number().min(1)).max(previewArtikelAlergeniNormativBodyVhodniArtikelIdsMax)
 })
@@ -3099,7 +2998,6 @@ export const ListModSkupineResponse = zod.array(ListModSkupineResponseItem)
  */
 
 
-
 export const CreateModSkupinaBody = zod.object({
   "ime": zod.string().min(1),
   "obvezna": zod.boolean().optional(),
@@ -3152,8 +3050,6 @@ export const UpdateModSkupinaParams = zod.object({
 })
 
 
-
-
 export const UpdateModSkupinaBody = zod.object({
   "ime": zod.string().min(1),
   "obvezna": zod.boolean().optional(),
@@ -3190,8 +3086,6 @@ export const AddModifikatorParams = zod.object({
 })
 
 
-
-
 export const AddModifikatorBody = zod.object({
   "ime": zod.string().min(1),
   "cenaDodatek": zod.number().optional(),
@@ -3217,8 +3111,6 @@ export const AddModifikatorResponse = zod.object({
 export const UpdateModifikatorParams = zod.object({
   "id": zod.coerce.number()
 })
-
-
 
 
 export const UpdateModifikatorBody = zod.object({
@@ -3327,7 +3219,6 @@ export const SetArtikelModSkupineResponse = zod.void()
 /**
  * @summary Koledarski seznam rezervacij za dovoljene enote
  */
-
 
 
 export const ListRezervacijeQueryParams = zod.object({
@@ -3483,8 +3374,6 @@ export const CreateMizaResponse = zod.object({
 /**
  * @summary Seznam miz, razpoložljivih za izbrani termin in število oseb
  */
-
-
 
 
 export const ListRazpolozljiveMizeQueryParams = zod.object({
@@ -3724,7 +3613,6 @@ export const shraniRezervacijoMizeBodyStrankaOpombeMax = 2000;
 export const shraniRezervacijoMizeBodyOpombaMax = 2000;
 
 
-
 export const ShraniRezervacijoMizeBody = zod.object({
   "strankaIme": zod.string().min(1).max(shraniRezervacijoMizeBodyStrankaImeMax),
   "telefon": zod.string().min(1).max(shraniRezervacijoMizeBodyTelefonMax),
@@ -3839,7 +3727,6 @@ export const createRezervacijaMizeBodyStrankaOpombeMax = 2000;
 export const createRezervacijaMizeBodyOpombaMax = 2000;
 
 
-
 export const CreateRezervacijaMizeBody = zod.object({
   "strankaIme": zod.string().min(1).max(createRezervacijaMizeBodyStrankaImeMax),
   "telefon": zod.string().min(1).max(createRezervacijaMizeBodyTelefonMax),
@@ -3885,7 +3772,6 @@ export const updateRezervacijaMizeBodyStrankaOpombeMax = 2000;
 export const updateRezervacijaMizeBodyOpombaMax = 2000;
 
 
-
 export const UpdateRezervacijaMizeBody = zod.object({
   "strankaIme": zod.string().min(1).max(updateRezervacijaMizeBodyStrankaImeMax),
   "telefon": zod.string().min(1).max(updateRezervacijaMizeBodyTelefonMax),
@@ -3923,10 +3809,6 @@ export const ReleaseRezervacijaMizeParams = zod.object({
 export const ReleaseRezervacijaMizeResponse = zod.void()
 
 
-
-
-
-
 export const ListRezervacijaMizeZgodovinaParams = zod.object({
   "id": zod.coerce.number().min(1),
   "rezervacijaId": zod.coerce.number().min(1)
@@ -3948,8 +3830,6 @@ export const ListRezervacijaMizeZgodovinaResponse = zod.array(ListRezervacijaMiz
 /**
  * @summary Množično shrani pozicije miz na tlorisu
  */
-
-
 
 
 export const BulkPozicijaMizeBody = zod.union([zod.object({
@@ -4019,9 +3899,6 @@ export const DeleteProstorParams = zod.object({
 export const DeleteProstorResponse = zod.void()
 
 
-
-
-
 export const GetProstorTlorisParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
@@ -4036,7 +3913,6 @@ export const getProstorTlorisResponseItemsItemIdRegExp = new RegExp('^[A-Za-z0-9
 export const getProstorTlorisResponseItemsItemWidthExclusiveMin = 0;
 
 export const getProstorTlorisResponseItemsItemHeightExclusiveMin = 0;
-
 
 
 export const GetProstorTlorisResponse = zod.object({
@@ -4062,9 +3938,6 @@ export const GetProstorTlorisResponse = zod.object({
 })
 
 
-
-
-
 export const UpdateProstorTlorisParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
@@ -4079,7 +3952,6 @@ export const updateProstorTlorisBodyOneItemsItemIdRegExp = new RegExp('^[A-Za-z0
 export const updateProstorTlorisBodyOneItemsItemWidthExclusiveMin = 0;
 
 export const updateProstorTlorisBodyOneItemsItemHeightExclusiveMin = 0;
-
 
 
 export const UpdateProstorTlorisBody = zod.object({
@@ -4116,7 +3988,6 @@ export const updateProstorTlorisResponseItemsItemWidthExclusiveMin = 0;
 export const updateProstorTlorisResponseItemsItemHeightExclusiveMin = 0;
 
 
-
 export const UpdateProstorTlorisResponse = zod.object({
   "version": zod.number().min(updateProstorTlorisResponseVersionMin),
   "width": zod.number(),
@@ -4140,15 +4011,11 @@ export const UpdateProstorTlorisResponse = zod.object({
 })
 
 
-
-
-
 export const ResetProstorTlorisParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
 
 export const resetProstorTlorisBodyVersionMin = 0;
-
 
 
 export const ResetProstorTlorisBody = zod.object({
@@ -4165,7 +4032,6 @@ export const resetProstorTlorisResponseItemsItemIdRegExp = new RegExp('^[A-Za-z0
 export const resetProstorTlorisResponseItemsItemWidthExclusiveMin = 0;
 
 export const resetProstorTlorisResponseItemsItemHeightExclusiveMin = 0;
-
 
 
 export const ResetProstorTlorisResponse = zod.object({
@@ -4228,9 +4094,7 @@ export const getPublicMenuResponseMulticourseMenusItemSelectionCountMax = 20;
 export const getPublicMenuResponseMulticourseMenusItemCoursesItemCourseNumberMax = 20;
 
 
-
 export const getPublicMenuResponseObstojeceNarociloZnesekNapitninaMin = 0;
-
 
 
 export const GetPublicMenuResponse = zod.object({
@@ -4500,9 +4364,7 @@ export const createQrGostNarociloBodyZnesekNapitninaMultipleOf = 0.01;
 export const createQrGostNarociloBodyMulticourseSelectionsItemCoursesItemCourseNumberMax = 20;
 
 
-
 export const createQrGostNarociloBodyMulticourseSelectionsMax = 10;
-
 
 
 export const CreateQrGostNarociloBody = zod.object({
@@ -4552,7 +4414,6 @@ export const updatePublicOrderTipBodyZnesekNapitninaMax = 99999999.99;
 export const updatePublicOrderTipBodyZnesekNapitninaMultipleOf = 0.01;
 
 
-
 export const UpdatePublicOrderTipBody = zod.object({
   "qrNapravaId": zod.string().min(updatePublicOrderTipBodyQrNapravaIdMin).max(updatePublicOrderTipBodyQrNapravaIdMax).regex(updatePublicOrderTipBodyQrNapravaIdRegExp),
   "znesekNapitnina": zod.number().min(updatePublicOrderTipBodyZnesekNapitninaMin).max(updatePublicOrderTipBodyZnesekNapitninaMax).multipleOf(updatePublicOrderTipBodyZnesekNapitninaMultipleOf)
@@ -4576,7 +4437,6 @@ export const askPublicMenuAiBodyQrNapravaIdMin = 36;
 export const askPublicMenuAiBodyQrNapravaIdMax = 36;
 
 
-
 export const AskPublicMenuAiBody = zod.object({
   "question": zod.string().min(1).max(askPublicMenuAiBodyQuestionMax),
   "qrNapravaId": zod.string().min(askPublicMenuAiBodyQrNapravaIdMin).max(askPublicMenuAiBodyQrNapravaIdMax),
@@ -4586,7 +4446,6 @@ export const AskPublicMenuAiBody = zod.object({
 export const askPublicMenuAiResponseAnswerMax = 2000;
 
 export const askPublicMenuAiResponseSourcesMax = 20;
-
 
 
 export const AskPublicMenuAiResponse = zod.object({
@@ -4607,14 +4466,12 @@ export const getPublicMenuDeviceHistoryQueryQrNapravaIdMin = 36;
 export const getPublicMenuDeviceHistoryQueryQrNapravaIdMax = 36;
 
 
-
 export const GetPublicMenuDeviceHistoryQueryParams = zod.object({
   "qrNapravaId": zod.coerce.string().min(getPublicMenuDeviceHistoryQueryQrNapravaIdMin).max(getPublicMenuDeviceHistoryQueryQrNapravaIdMax),
   "historyOptIn": zod.coerce.boolean()
 })
 
 export const getPublicMenuDeviceHistoryResponseOrdersMax = 20;
-
 
 
 export const GetPublicMenuDeviceHistoryResponse = zod.object({
@@ -4641,7 +4498,6 @@ export const GetQrOrderCompletionParams = zod.object({
 
 export const getQrOrderCompletionQueryQrNapravaIdMin = 36;
 export const getQrOrderCompletionQueryQrNapravaIdMax = 36;
-
 
 
 export const GetQrOrderCompletionQueryParams = zod.object({
@@ -4678,7 +4534,6 @@ export const createQrOrderFeedbackBodyCommentMax = 2000;
 export const createQrOrderFeedbackBodyConsentVersionMax = 100;
 
 
-
 export const CreateQrOrderFeedbackBody = zod.object({
   "qrNapravaId": zod.string().min(createQrOrderFeedbackBodyQrNapravaIdMin).max(createQrOrderFeedbackBodyQrNapravaIdMax),
   "foodScore": zod.number().min(1).max(createQrOrderFeedbackBodyFoodScoreMax),
@@ -4703,7 +4558,6 @@ export const ListNarocilaQueryParams = zod.object({
 })
 
 export const listNarocilaResponsePostavkeItemCasPripraveMinMin = 0;
-
 
 
 export const ListNarocilaResponseItem = zod.object({
@@ -4828,7 +4682,6 @@ export const CreateNarociloBody = zod.object({
 export const createNarociloResponsePostavkeItemCasPripraveMinMin = 0;
 
 
-
 export const CreateNarociloResponse = zod.object({
   "id": zod.number(),
   "mizaId": zod.number().nullish(),
@@ -4924,7 +4777,6 @@ export const CreateNarociloResponse = zod.object({
  * @summary Aktivna odprta narocila po mizah
  */
 export const listAktivnaNarocilaResponsePostavkeItemCasPripraveMinMin = 0;
-
 
 
 export const ListAktivnaNarocilaResponseItem = zod.object({
@@ -5039,7 +4891,6 @@ export const createDostavniKurirBodyImeMax = 120;
 export const createDostavniKurirBodyTelefonMax = 50;
 
 
-
 export const CreateDostavniKurirBody = zod.object({
   "ime": zod.string().min(1).max(createDostavniKurirBodyImeMax),
   "telefon": zod.string().max(createDostavniKurirBodyTelefonMax).nullish()
@@ -5121,7 +4972,6 @@ export const updateDostavaStatusBodyIdempotencyKeyMin = 8;
 export const updateDostavaStatusBodyIdempotencyKeyMax = 200;
 
 
-
 export const UpdateDostavaStatusBody = zod.object({
   "status": zod.enum(['prejeto', 'potrjeno', 'v_pripravi', 'pripravljeno', 'prevzel_kurir', 'dostavljeno', 'preklicano']),
   "kurirId": zod.number().nullish(),
@@ -5140,7 +4990,6 @@ export const GetNarociloParams = zod.object({
 })
 
 export const getNarociloResponsePostavkeItemCasPripraveMinMin = 0;
-
 
 
 export const GetNarociloResponse = zod.object({
@@ -5265,7 +5114,6 @@ export const UpdateNarociloBody = zod.object({
 export const updateNarociloResponsePostavkeItemCasPripraveMinMin = 0;
 
 
-
 export const UpdateNarociloResponse = zod.object({
   "id": zod.number(),
   "mizaId": zod.number().nullish(),
@@ -5378,7 +5226,6 @@ export const SpojiNarociliBody = zod.object({
 export const spojiNarociliResponsePostavkeItemCasPripraveMinMin = 0;
 
 
-
 export const SpojiNarociliResponse = zod.object({
   "id": zod.number(),
   "mizaId": zod.number().nullish(),
@@ -5470,9 +5317,6 @@ export const SpojiNarociliResponse = zod.object({
 })
 
 
-
-
-
 export const AddMalicaToOrderParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
@@ -5505,7 +5349,6 @@ export const AddMalicaToOrderBody = zod.object({
 })
 
 export const addMalicaToOrderResponseOnePostavkeItemCasPripraveMinMin = 0;
-
 
 
 export const AddMalicaToOrderResponse = zod.object({
@@ -5601,9 +5444,6 @@ export const AddMalicaToOrderResponse = zod.object({
   "omittedCourseIds": zod.array(zod.number()).optional()
 }).nullish()
 }))
-
-
-
 
 
 export const QuoteMalicaOrderParams = zod.object({
@@ -5793,8 +5633,6 @@ export const AddDailyLunchToOrderParams = zod.object({
 })
 
 
-
-
 export const AddDailyLunchToOrderBody = zod.object({
   "offerId": zod.number(),
   "mode": zod.enum(['three_course', 'four_course']),
@@ -5812,7 +5650,6 @@ export const AddDailyLunchToOrderResponse = zod.object({
 export const getMalicaBootstrapResponseGroupsItemSortOrderMax = 4;
 
 export const getMalicaBootstrapResponsePricesItemPriceCentsMin = 0;
-
 
 
 export const GetMalicaBootstrapResponse = zod.object({
@@ -5854,7 +5691,6 @@ export const ScheduleMalicaGroupPriceParams = zod.object({
 export const scheduleMalicaGroupPriceBodyPriceCentsMin = 0;
 
 
-
 export const ScheduleMalicaGroupPriceBody = zod.object({
   "priceCents": zod.number().min(scheduleMalicaGroupPriceBodyPriceCentsMin),
   "validFrom": zod.coerce.date(),
@@ -5862,7 +5698,6 @@ export const ScheduleMalicaGroupPriceBody = zod.object({
 })
 
 export const scheduleMalicaGroupPriceResponsePriceCentsMin = 0;
-
 
 
 export const ScheduleMalicaGroupPriceResponse = zod.object({
@@ -5882,7 +5717,6 @@ export const AssignMalicaArticleParams = zod.object({
 
 export const assignMalicaArticleBodyAutoSyncPriceDefault = true;
 export const assignMalicaArticleBodyMalicaPriceCentsMin = 0;
-
 
 
 export const AssignMalicaArticleBody = zod.object({
@@ -6221,7 +6055,6 @@ export const ListMalicaPartnerGroupPricesParams = zod.object({
 export const listMalicaPartnerGroupPricesResponseOnePriceCentsMin = 0;
 
 
-
 export const ListMalicaPartnerGroupPricesResponseItem = zod.object({
   "groupId": zod.number(),
   "priceCents": zod.number().min(listMalicaPartnerGroupPricesResponseOnePriceCentsMin),
@@ -6244,7 +6077,6 @@ export const SetMalicaPartnerGroupPriceParams = zod.object({
 export const setMalicaPartnerGroupPriceBodyPriceCentsMin = 0;
 
 
-
 export const SetMalicaPartnerGroupPriceBody = zod.object({
   "groupId": zod.number(),
   "priceCents": zod.number().min(setMalicaPartnerGroupPriceBodyPriceCentsMin),
@@ -6253,7 +6085,6 @@ export const SetMalicaPartnerGroupPriceBody = zod.object({
 })
 
 export const setMalicaPartnerGroupPriceResponseOnePriceCentsMin = 0;
-
 
 
 export const SetMalicaPartnerGroupPriceResponse = zod.object({
@@ -6279,7 +6110,6 @@ export const listMalicaContractsResponseOneSplitValueMin = 0;
 export const listMalicaContractsResponseOneHigherGroupSurchargeCentsMin = 0;
 
 export const listMalicaContractsResponseOneMonthlyCoverageLimitCentsMin = 0;
-
 
 
 export const ListMalicaContractsResponseItem = zod.object({
@@ -6312,7 +6142,6 @@ export const createMalicaContractBodyHigherGroupSurchargeCentsMin = 0;
 export const createMalicaContractBodyMonthlyCoverageLimitCentsMin = 0;
 
 
-
 export const CreateMalicaContractBody = zod.object({
   "mode": zod.enum(['partner_all', 'guest_reduced_price', 'partner_fixed_guest_remainder', 'split']),
   "splitKind": zod.union([zod.literal('fixed'),zod.literal('percent'),zod.literal(null)]).nullish(),
@@ -6329,7 +6158,6 @@ export const createMalicaContractResponseOneSplitValueMin = 0;
 export const createMalicaContractResponseOneHigherGroupSurchargeCentsMin = 0;
 
 export const createMalicaContractResponseOneMonthlyCoverageLimitCentsMin = 0;
-
 
 
 export const CreateMalicaContractResponse = zod.object({
@@ -6362,11 +6190,9 @@ export const ListMalicaBeneficiariesResponseItem = zod.object({
 export const ListMalicaBeneficiariesResponse = zod.array(ListMalicaBeneficiariesResponseItem)
 
 
-
 export const createMalicaBeneficiaryBodyDailyLimitMin = 0;
 
 export const createMalicaBeneficiaryBodyMonthlyCoverageOverrideCentsMin = 0;
-
 
 
 export const CreateMalicaBeneficiaryBody = zod.object({
@@ -6386,9 +6212,6 @@ export const CreateMalicaBeneficiaryResponse = zod.object({
   "monthlyCoverageOverrideCents": zod.number().nullish(),
   "active": zod.boolean().optional()
 })
-
-
-
 
 
 export const ResolveMalicaBeneficiaryBody = zod.object({
@@ -6434,8 +6257,6 @@ export const UpdateMalicaBeneficiaryResponse = zod.object({
 export const ReplaceMalicaBeneficiaryIdentifierParams = zod.object({
   "beneficiaryId": zod.coerce.number()
 })
-
-
 
 
 export const ReplaceMalicaBeneficiaryIdentifierBody = zod.object({
@@ -6486,7 +6307,6 @@ export const closeMalicaContractResponseOneHigherGroupSurchargeCentsMin = 0;
 export const closeMalicaContractResponseOneMonthlyCoverageLimitCentsMin = 0;
 
 
-
 export const CloseMalicaContractResponse = zod.object({
   "mode": zod.enum(['partner_all', 'guest_reduced_price', 'partner_fixed_guest_remainder', 'split']),
   "splitKind": zod.union([zod.literal('fixed'),zod.literal('percent'),zod.literal(null)]).nullish(),
@@ -6513,9 +6333,6 @@ export const AddPostavkaParams = zod.object({
 })
 
 
-
-
-
 export const AddPostavkaBody = zod.object({
   "artikelId": zod.number(),
   "kolicina": zod.number(),
@@ -6537,7 +6354,6 @@ export const AddPostavkaBody = zod.object({
 })
 
 export const addPostavkaResponsePostavkeItemCasPripraveMinMin = 0;
-
 
 
 export const AddPostavkaResponse = zod.object({
@@ -6636,7 +6452,6 @@ export const AddPostavkaResponse = zod.object({
  */
 
 
-
 export const AddMulticourseMenuParams = zod.object({
   "id": zod.coerce.number().min(1)
 })
@@ -6649,9 +6464,7 @@ export const addMulticourseMenuBodyOpombaMax = 1000;
 export const addMulticourseMenuBodySelectionsItemCourseNumberMax = 20;
 
 
-
 export const addMulticourseMenuBodySelectionsMax = 20;
-
 
 
 export const AddMulticourseMenuBody = zod.object({
@@ -6667,7 +6480,6 @@ export const AddMulticourseMenuBody = zod.object({
 })
 
 export const addMulticourseMenuResponsePostavkeItemCasPripraveMinMin = 0;
-
 
 
 export const AddMulticourseMenuResponse = zod.object({
@@ -6780,7 +6592,6 @@ export const UpdatePostavkaKolicinaBody = zod.object({
 export const updatePostavkaKolicinaResponsePostavkeItemCasPripraveMinMin = 0;
 
 
-
 export const UpdatePostavkaKolicinaResponse = zod.object({
   "id": zod.number(),
   "mizaId": zod.number().nullish(),
@@ -6881,7 +6692,6 @@ export const RemovePostavkaParams = zod.object({
 })
 
 export const removePostavkaResponsePostavkeItemCasPripraveMinMin = 0;
-
 
 
 export const RemovePostavkaResponse = zod.object({
@@ -7002,9 +6812,6 @@ export const AddPostavkaModifikatorjiParams = zod.object({
 })
 
 
-
-
-
 export const AddPostavkaModifikatorjiBody = zod.object({
   "modifikatorji": zod.array(zod.object({
   "modifikatorId": zod.number(),
@@ -7017,7 +6824,6 @@ export const AddPostavkaModifikatorjiBody = zod.object({
 })
 
 export const addPostavkaModifikatorjiResponsePostavkeItemCasPripraveMinMin = 0;
-
 
 
 export const AddPostavkaModifikatorjiResponse = zod.object({
@@ -7719,7 +7525,6 @@ export const ListRacuniQueryParams = zod.object({
 export const listRacuniResponseSspReferencaMax = 128;
 
 
-
 export const ListRacuniResponseItem = zod.object({
   "id": zod.number(),
   "narociloId": zod.number(),
@@ -7831,7 +7636,6 @@ export const CreateRacunBody = zod.object({
 export const createRacunResponseSspReferencaMax = 128;
 
 
-
 export const CreateRacunResponse = zod.object({
   "id": zod.number(),
   "narociloId": zod.number(),
@@ -7883,7 +7687,6 @@ export const GetRacunParams = zod.object({
 })
 
 export const getRacunResponseSspReferencaMax = 128;
-
 
 
 export const GetRacunResponse = zod.object({
@@ -7953,7 +7756,6 @@ export const UpdateRacunPlacilnaNacinBody = zod.object({
 })
 
 export const updateRacunPlacilnaNacinResponseSspReferencaMax = 128;
-
 
 
 export const UpdateRacunPlacilnaNacinResponse = zod.object({
@@ -8026,7 +7828,6 @@ export const StornirajRacunParams = zod.object({
 })
 
 export const stornirajRacunResponseSspReferencaMax = 128;
-
 
 
 export const StornirajRacunResponse = zod.object({
@@ -8102,7 +7903,6 @@ export const listCardPaymentAttemptsQueryPageSizeDefault = 50;
 export const listCardPaymentAttemptsQueryPageSizeMax = 100;
 
 
-
 export const ListCardPaymentAttemptsQueryParams = zod.object({
   "provider": zod.enum(['payten', 'sumup', 'viva_smart', 'viva_terminal']).optional(),
   "status": zod.enum(['reserved', 'pending', 'completed', 'failed', 'unknown']).optional(),
@@ -8142,7 +7942,6 @@ export const listFursAttemptsQueryPageDefault = 1;
 
 export const listFursAttemptsQueryPageSizeDefault = 50;
 export const listFursAttemptsQueryPageSizeMax = 100;
-
 
 
 export const ListFursAttemptsQueryParams = zod.object({
@@ -8192,7 +7991,6 @@ export const PonoviPosiljanjeRacunaBody = zod.object({
 })
 
 export const ponoviPosiljanjeRacunaResponseSspReferencaMax = 128;
-
 
 
 export const PonoviPosiljanjeRacunaResponse = zod.object({
@@ -8866,7 +8664,6 @@ export const getOperativnaPorocilaQrFeedbackResponseArticlesItemPreviousCountMin
 export const getOperativnaPorocilaQrFeedbackResponseCommentsCountMin = 0;
 
 
-
 export const GetOperativnaPorocilaQrFeedbackResponse = zod.object({
   "scope": zod.object({
   "od": zod.coerce.date(),
@@ -8986,7 +8783,6 @@ export const getOperativnaPorocilaQrFeedbackCommentsQueryPageSizeDefault = 20;
 export const getOperativnaPorocilaQrFeedbackCommentsQueryPageSizeMax = 50;
 
 
-
 export const GetOperativnaPorocilaQrFeedbackCommentsQueryParams = zod.object({
   "od": zod.date(),
   "do": zod.date(),
@@ -9002,7 +8798,6 @@ export const getOperativnaPorocilaQrFeedbackCommentsResponsePageSizeMax = 50;
 export const getOperativnaPorocilaQrFeedbackCommentsResponseTotalMin = 0;
 
 export const getOperativnaPorocilaQrFeedbackCommentsResponseTotalPagesMin = 0;
-
 
 
 export const GetOperativnaPorocilaQrFeedbackCommentsResponse = zod.object({
@@ -9329,7 +9124,6 @@ export const PopraviIzmenoParams = zod.object({
 export const popraviIzmenoBodyRazlogMin = 3;
 
 
-
 export const PopraviIzmenoBody = zod.object({
   "zacetek": zod.coerce.date(),
   "konec": zod.coerce.date(),
@@ -9517,7 +9311,6 @@ export const listNapraveResponseGlasovniPragZaupanjaMin = 0;
 export const listNapraveResponseGlasovniPragZaupanjaMax = 1;
 
 
-
 export const ListNapraveResponseItem = zod.object({
   "id": zod.number(),
   "podjetjeDavcna": zod.string(),
@@ -9570,7 +9363,6 @@ export const UpsertNapravaBody = zod.object({
 
 export const upsertNapravaResponseGlasovniPragZaupanjaMin = 0;
 export const upsertNapravaResponseGlasovniPragZaupanjaMax = 1;
-
 
 
 export const UpsertNapravaResponse = zod.object({
@@ -9648,7 +9440,6 @@ export const updateNapraveTerminaliResponseGlasovniPragZaupanjaMin = 0;
 export const updateNapraveTerminaliResponseGlasovniPragZaupanjaMax = 1;
 
 
-
 export const UpdateNapraveTerminaliResponse = zod.object({
   "id": zod.number(),
   "podjetjeDavcna": zod.string(),
@@ -9701,7 +9492,6 @@ export const updateNapravaBodyGlasovniPragZaupanjaMin = 0;
 export const updateNapravaBodyGlasovniPragZaupanjaMax = 1;
 
 
-
 export const UpdateNapravaBody = zod.object({
   "ime": zod.string().optional(),
   "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
@@ -9714,7 +9504,6 @@ export const UpdateNapravaBody = zod.object({
 
 export const updateNapravaResponseGlasovniPragZaupanjaMin = 0;
 export const updateNapravaResponseGlasovniPragZaupanjaMax = 1;
-
 
 
 export const UpdateNapravaResponse = zod.object({
@@ -9852,7 +9641,6 @@ export const listEnoteResponseQrWifiSsidMax = 64;
 export const listEnoteResponseQrWifiPasswordMax = 128;
 
 
-
 export const ListEnoteResponseItem = zod.object({
   "posPaket": zod.enum(['lite', 'standard', 'extended']).describe('POS paket podjetja; brez zapisa velja Lite.'),
   "blockedByPlan": zod.array(zod.string()).describe('Vklopljene zmožnosti enote, ki jih POS paket podjetja ne vključuje. Informativno; shranjene zmožnosti ostanejo nespremenjene.'),
@@ -9929,7 +9717,6 @@ export const createEnotaResponseQrWifiSsidMax = 64;
 export const createEnotaResponseQrWifiPasswordMax = 128;
 
 
-
 export const CreateEnotaResponse = zod.object({
   "posPaket": zod.enum(['lite', 'standard', 'extended']).describe('POS paket podjetja; brez zapisa velja Lite.'),
   "blockedByPlan": zod.array(zod.string()).describe('Vklopljene zmožnosti enote, ki jih POS paket podjetja ne vključuje. Informativno; shranjene zmožnosti ostanejo nespremenjene.'),
@@ -9986,7 +9773,6 @@ export const updateEnotaBodyQrWifiSsidMax = 64;
 export const updateEnotaBodyQrWifiPasswordMax = 128;
 
 
-
 export const UpdateEnotaBody = zod.object({
   "ime": zod.string(),
   "opis": zod.string().nullish(),
@@ -10014,7 +9800,6 @@ export const updateEnotaResponseQrWifiNetworksMax = 20;
 export const updateEnotaResponseQrWifiSsidMax = 64;
 
 export const updateEnotaResponseQrWifiPasswordMax = 128;
-
 
 
 export const UpdateEnotaResponse = zod.object({
@@ -10186,7 +9971,6 @@ export const getNastavitveResponseTelefonNarocilaPijacaZaokrozevanjeMinMin = 0;
 export const getNastavitveResponseTelefonNarocilaPijacaZaokrozevanjeMinMax = 60;
 
 
-
 export const GetNastavitveResponse = zod.object({
   "qrAiAsistentAktiven": zod.boolean().optional().describe('Omogoči AI asistenta v javnem QR meniju trenutne enote.'),
   "toastTocilnicaAktiven": zod.boolean().optional().describe('Omogoči prikaz toast obvestil za pripravljene postavke iz točilnice.'),
@@ -10280,7 +10064,6 @@ export const updateNastavitveBodyOneTelefonNarocilaPijacaZaokrozevanjeMinMin = 0
 export const updateNastavitveBodyOneTelefonNarocilaPijacaZaokrozevanjeMinMax = 60;
 
 
-
 export const UpdateNastavitveBody = zod.object({
   "qrAiAsistentAktiven": zod.boolean().optional().describe('Omogoči AI asistenta v javnem QR meniju trenutne enote.'),
   "toastTocilnicaAktiven": zod.boolean().optional().describe('Omogoči prikaz toast obvestil za pripravljene postavke iz točilnice.'),
@@ -10371,7 +10154,6 @@ export const updateNastavitveResponseTelefonNarocilaPijacaNajvecCasMinMax = 240;
 
 export const updateNastavitveResponseTelefonNarocilaPijacaZaokrozevanjeMinMin = 0;
 export const updateNastavitveResponseTelefonNarocilaPijacaZaokrozevanjeMinMax = 60;
-
 
 
 export const UpdateNastavitveResponse = zod.object({
@@ -10470,7 +10252,6 @@ export const startPaytenAndroidPaymentBodyPaymentAttemptIdMin = 16;
 export const startPaytenAndroidPaymentBodyPaymentAttemptIdMax = 128;
 
 
-
 export const StartPaytenAndroidPaymentBody = zod.object({
   "znesek": zod.number().gt(startPaytenAndroidPaymentBodyZnesekExclusiveMin),
   "znesekNapitninaKartica": zod.number().min(startPaytenAndroidPaymentBodyZnesekNapitninaKarticaMin).optional().describe('Ločeni kartični del QR napitnine v evrih.'),
@@ -10498,7 +10279,6 @@ export const enrollPaytenAndroidBridgeBodyKeyIdMax = 128;
 export const enrollPaytenAndroidBridgeBodyPublicKeyBase64UrlMax = 1400;
 
 
-
 export const EnrollPaytenAndroidBridgeBody = zod.object({
   "keyId": zod.string().min(1).max(enrollPaytenAndroidBridgeBodyKeyIdMax),
   "publicKeyBase64Url": zod.string().min(1).max(enrollPaytenAndroidBridgeBodyPublicKeyBase64UrlMax)
@@ -10519,7 +10299,6 @@ export const confirmPaytenAndroidPaymentBodyEnvelopePayloadBase64UrlMax = 22000;
 export const confirmPaytenAndroidPaymentBodyEnvelopeSignatureBase64UrlMax = 700;
 
 export const confirmPaytenAndroidPaymentBodyEnvelopeKeyIdMax = 128;
-
 
 
 export const ConfirmPaytenAndroidPaymentBody = zod.object({
@@ -10545,7 +10324,6 @@ export const timeoutPaytenAndroidPaymentBodyPaymentAttemptIdMin = 16;
 export const timeoutPaytenAndroidPaymentBodyPaymentAttemptIdMax = 128;
 
 
-
 export const TimeoutPaytenAndroidPaymentBody = zod.object({
   "paymentAttemptId": zod.string().min(timeoutPaytenAndroidPaymentBodyPaymentAttemptIdMin).max(timeoutPaytenAndroidPaymentBodyPaymentAttemptIdMax)
 })
@@ -10569,7 +10347,6 @@ export const sumupPayBodyPurposeDefault = `receipt`;
 export const sumupPayBodyZnesekNapitninaKarticaMin = 0;
 
 export const sumupPayBodyPaymentAttemptIdMax = 200;
-
 
 
 export const SumupPayBody = zod.object({
@@ -10607,7 +10384,6 @@ export const SumupStatusResponse = zod.object({
 export const vivaPayBodyPaymentAttemptIdMax = 200;
 
 
-
 export const VivaPayBody = zod.object({
   "narociloId": zod.number(),
   "znesek": zod.number().describe('Znesek v evrih (npr. 12.50)'),
@@ -10639,7 +10415,6 @@ export const VivaStatusResponse = zod.object({
  * @summary Sproži plačilo prek fizičnega Viva.com POS terminala
  */
 export const vivaTerminalPayBodyPaymentAttemptIdMax = 200;
-
 
 
 export const VivaTerminalPayBody = zod.object({
@@ -10705,7 +10480,6 @@ export const getVivaRefundAlertOverviewResponseSettingsCriticalHoursMin = 2;
 export const getVivaRefundAlertOverviewResponseSettingsCriticalHoursMax = 8760;
 
 
-
 export const GetVivaRefundAlertOverviewResponse = zod.object({
   "settings": zod.object({
   "overdueHours": zod.number().min(1).max(getVivaRefundAlertOverviewResponseSettingsOverdueHoursMax),
@@ -10731,7 +10505,6 @@ export const updateVivaRefundAlertSettingsBodyCriticalHoursMin = 2;
 export const updateVivaRefundAlertSettingsBodyCriticalHoursMax = 8760;
 
 
-
 export const UpdateVivaRefundAlertSettingsBody = zod.object({
   "overdueHours": zod.number().min(1).max(updateVivaRefundAlertSettingsBodyOverdueHoursMax),
   "criticalHours": zod.number().min(updateVivaRefundAlertSettingsBodyCriticalHoursMin).max(updateVivaRefundAlertSettingsBodyCriticalHoursMax)
@@ -10741,7 +10514,6 @@ export const updateVivaRefundAlertSettingsResponseOverdueHoursMax = 8759;
 
 export const updateVivaRefundAlertSettingsResponseCriticalHoursMin = 2;
 export const updateVivaRefundAlertSettingsResponseCriticalHoursMax = 8760;
-
 
 
 export const UpdateVivaRefundAlertSettingsResponse = zod.object({
@@ -10784,7 +10556,6 @@ export const updateVivaRefundApprovalPolicyBodyApprovalThresholdMax = 99999999.9
 export const updateVivaRefundApprovalPolicyBodyApprovalThresholdMultipleOf = 0.01;
 
 
-
 export const UpdateVivaRefundApprovalPolicyBody = zod.object({
   "approvalThreshold": zod.number().min(updateVivaRefundApprovalPolicyBodyApprovalThresholdMin).max(updateVivaRefundApprovalPolicyBodyApprovalThresholdMax).multipleOf(updateVivaRefundApprovalPolicyBodyApprovalThresholdMultipleOf)
 })
@@ -10792,7 +10563,6 @@ export const UpdateVivaRefundApprovalPolicyBody = zod.object({
 export const updateVivaRefundApprovalPolicyResponseApprovalThresholdMin = 0;
 export const updateVivaRefundApprovalPolicyResponseApprovalThresholdMax = 99999999.99;
 export const updateVivaRefundApprovalPolicyResponseApprovalThresholdMultipleOf = 0.01;
-
 
 
 export const UpdateVivaRefundApprovalPolicyResponse = zod.object({
@@ -10834,7 +10604,6 @@ export const resolveUnknownVivaRefundBodyRazlogMax = 1000;
 
 export const resolveUnknownVivaRefundBodyDokazReferencaMin = 3;
 export const resolveUnknownVivaRefundBodyDokazReferencaMax = 500;
-
 
 
 export const ResolveUnknownVivaRefundBody = zod.object({
@@ -10888,7 +10657,6 @@ export const ExportZalogePdfResponse = zod.unknown()
 export const listEmbalazaBilanceResponseDepozitnaVrednostMin = 0;
 
 
-
 export const ListEmbalazaBilanceResponseItem = zod.object({
   "artikelId": zod.number(),
   "artikelIme": zod.string(),
@@ -10909,7 +10677,6 @@ export const ListEmbalazaBilanceResponse = zod.array(ListEmbalazaBilanceResponse
  */
 
 export const returnEmbalazaBodyKolicinaExclusiveMin = 0;
-
 
 
 export const ReturnEmbalazaBody = zod.object({
@@ -10936,7 +10703,6 @@ export const writeoffEmbalazaBodyKolicinaExclusiveMin = 0;
 export const writeoffEmbalazaBodyKolicinaMax = 1000000;
 
 export const writeoffEmbalazaBodyOpombaMax = 2000;
-
 
 
 export const WriteoffEmbalazaBody = zod.object({
@@ -11045,7 +10811,6 @@ export const ListZalogaGibiResponse = zod.array(ListZalogaGibiResponseItem)
  */
 
 
-
 export const ExportSupplierPriceHistoryParams = zod.object({
   "mappingId": zod.coerce.number().min(1)
 })
@@ -11122,7 +10887,6 @@ export const saveSupplierReorderSettingsBodyReorderPointMin = 0;
 export const saveSupplierReorderSettingsBodyTargetStockExclusiveMin = 0;
 
 
-
 export const SaveSupplierReorderSettingsBody = zod.object({
   "reorderPoint": zod.number().min(saveSupplierReorderSettingsBodyReorderPointMin),
   "targetStock": zod.number().gt(saveSupplierReorderSettingsBodyTargetStockExclusiveMin),
@@ -11149,7 +10913,6 @@ export const listSupplierOrdersMissingInstructionsQueryPageSizeMax = 100;
 export const listSupplierOrdersMissingInstructionsQuerySearchMax = 200;
 
 
-
 export const ListSupplierOrdersMissingInstructionsQueryParams = zod.object({
   "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']).optional(),
   "page": zod.coerce.number().min(1).max(listSupplierOrdersMissingInstructionsQueryPageMax).default(listSupplierOrdersMissingInstructionsQueryPageDefault),
@@ -11161,7 +10924,6 @@ export const listSupplierOrdersMissingInstructionsResponseTotalMin = 0;
 
 
 export const listSupplierOrdersMissingInstructionsResponsePageSizeMax = 100;
-
 
 
 export const ListSupplierOrdersMissingInstructionsResponse = zod.object({
@@ -11222,8 +10984,6 @@ export const createSupplierOrderBodyNotesMax = 2000;
 export const createSupplierOrderBodyLinesItemPackageQuantityExclusiveMin = 0;
 
 export const createSupplierOrderBodyLinesItemUnitPriceMin = 0;
-
-
 
 
 export const CreateSupplierOrderBody = zod.object({
@@ -11346,8 +11106,6 @@ export const updateSupplierOrderBodyLinesItemPackageQuantityExclusiveMin = 0;
 export const updateSupplierOrderBodyLinesItemUnitPriceMin = 0;
 
 
-
-
 export const UpdateSupplierOrderBody = zod.object({
   "supplierId": zod.string(),
   "expectedDeliveryDate": zod.coerce.date().nullish(),
@@ -11459,7 +11217,6 @@ export const CloseSupplierOrderParams = zod.object({
 
 export const closeSupplierOrderBodyReasonMin = 3;
 export const closeSupplierOrderBodyReasonMax = 500;
-
 
 
 export const CloseSupplierOrderBody = zod.object({
@@ -11592,7 +11349,6 @@ export const createPrejemnicaBodyPostavkeItemNetoDelezOdstMin = 0;
 export const createPrejemnicaBodyPostavkeItemNetoDelezOdstMax = 100;
 
 
-
 export const CreatePrejemnicaBody = zod.object({
   "datum": zod.string().optional(),
   "opomba": zod.string().optional(),
@@ -11642,6 +11398,7 @@ export const CreatePrejemnicaBody = zod.object({
 
 export const CreatePrejemnicaResponse = zod.object({
   "id": zod.number(),
+  "isManualEntry": zod.boolean().optional(),
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
@@ -11654,6 +11411,7 @@ export const CreatePrejemnicaResponse = zod.object({
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
   "id": zod.number(),
+  "supplierOrderLineId": zod.number().nullish(),
   "artikelId": zod.number(),
   "artikelIme": zod.string(),
   "imeZaNabavo": zod.string().nullish(),
@@ -11737,7 +11495,6 @@ export const matchImportedReceiptLineBodyNetoDelezOdstMinTwo = 0;
 export const matchImportedReceiptLineBodyNetoDelezOdstMaxTwo = 100;
 
 
-
 export const MatchImportedReceiptLineBody = zod.object({
   "artikelId": zod.number().nullish(),
   "enotVPaketu": zod.union([zod.string(),zod.number()]).default(matchImportedReceiptLineBodyEnotVPaketuDefault),
@@ -11763,6 +11520,7 @@ export const GetPrejemnicaParams = zod.object({
 
 export const GetPrejemnicaResponse = zod.object({
   "id": zod.number(),
+  "isManualEntry": zod.boolean().optional(),
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
@@ -11775,6 +11533,7 @@ export const GetPrejemnicaResponse = zod.object({
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
   "id": zod.number(),
+  "supplierOrderLineId": zod.number().nullish(),
   "artikelId": zod.number(),
   "artikelIme": zod.string(),
   "imeZaNabavo": zod.string().nullish(),
@@ -11852,7 +11611,6 @@ export const updatePrejemnicaBodyPostavkeItemNetoDelezOdstMin = 0;
 export const updatePrejemnicaBodyPostavkeItemNetoDelezOdstMax = 100;
 
 
-
 export const UpdatePrejemnicaBody = zod.object({
   "datum": zod.string().optional(),
   "opomba": zod.string().nullish(),
@@ -11902,6 +11660,7 @@ export const UpdatePrejemnicaBody = zod.object({
 
 export const UpdatePrejemnicaResponse = zod.object({
   "id": zod.number(),
+  "isManualEntry": zod.boolean().optional(),
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
@@ -11914,6 +11673,7 @@ export const UpdatePrejemnicaResponse = zod.object({
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
   "id": zod.number(),
+  "supplierOrderLineId": zod.number().nullish(),
   "artikelId": zod.number(),
   "artikelIme": zod.string(),
   "imeZaNabavo": zod.string().nullish(),
@@ -11981,7 +11741,13 @@ export const DeletePrejemnicaParams = zod.object({
 
 export const DeletePrejemnicaResponse = zod.void()
 
-
+/**
+ * @summary Razpoložljive postavke naročil za ročno prejemnico
+ */
+export const ListAvailableSupplierOrderLinesForReceiptLineParams = zod.object({
+  "id": zod.coerce.number(),
+  "postavkaId": zod.coerce.number()
+})
 /**
  * @summary Potrdi prejemnico
  */
@@ -12624,7 +12390,6 @@ export const createCompanyBodyPostnaStevikaMax = 10;
 export const createCompanyBodyKrajMax = 100;
 
 
-
 export const CreateCompanyBody = zod.object({
   "podjetjeDavcna": zod.string().min(createCompanyBodyPodjetjeDavcnaMin).max(createCompanyBodyPodjetjeDavcnaMax),
   "naziv": zod.string().min(1).max(createCompanyBodyNazivMax),
@@ -12749,7 +12514,6 @@ export const createAccountBodyCodeMax = 20;
 export const createAccountBodyNameMax = 200;
 
 
-
 export const CreateAccountBody = zod.object({
   "confirmTypeException": zod.boolean().optional().describe('Explicitly acknowledge the code\/type warning for this save.'),
   "code": zod.string().min(1).max(createAccountBodyCodeMax),
@@ -12848,7 +12612,6 @@ export const UpdateAccountParams = zod.object({
 export const updateAccountBodyNameMax = 200;
 
 
-
 export const UpdateAccountBody = zod.object({
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']).optional(),
   "confirmTypeException": zod.boolean().optional().describe('Explicitly acknowledge the code\/type warning for this save.'),
@@ -12919,7 +12682,6 @@ export const CreatePeriodParams = zod.object({
 export const createPeriodBodyNameMax = 100;
 
 
-
 export const CreatePeriodBody = zod.object({
   "name": zod.string().min(1).max(createPeriodBodyNameMax),
   "startDate": zod.coerce.date(),
@@ -12947,7 +12709,6 @@ export const UpdatePeriodParams = zod.object({
 })
 
 export const updatePeriodBodyNameMax = 100;
-
 
 
 export const UpdatePeriodBody = zod.object({
@@ -13103,7 +12864,6 @@ export const createJournalEntryBodyLinesItemVatDeductionPercentMin = 0;
 export const createJournalEntryBodyLinesItemVatDeductionPercentMax = 100;
 
 export const createJournalEntryBodyLinesMin = 2;
-
 
 
 export const CreateJournalEntryBody = zod.object({
@@ -13437,7 +13197,6 @@ export const createCounterpartyBodyPaymentTermsDaysMin = 0;
 export const createCounterpartyBodyPaymentTermsDaysMax = 365;
 
 
-
 export const CreateCounterpartyBody = zod.object({
   "type": zod.enum(['customer', 'supplier', 'both']),
   "name": zod.string().min(1).max(createCounterpartyBodyNameMax),
@@ -13549,7 +13308,6 @@ export const updateCounterpartyBodyNameMax = 200;
 export const updateCounterpartyBodyRegistrationNumberMax = 20;
 
 
-
 export const UpdateCounterpartyBody = zod.object({
   "type": zod.enum(['customer', 'supplier', 'both']).optional(),
   "name": zod.string().min(1).max(updateCounterpartyBodyNameMax).optional(),
@@ -13641,7 +13399,6 @@ export const listInvoicesResponseInvoicesItemPaymentReferenceMax = 140;
 export const listInvoicesResponseInvoicesItemPaymentPurposeMax = 140;
 
 
-
 export const ListInvoicesResponse = zod.object({
   "invoices": zod.array(zod.object({
   "id": zod.string(),
@@ -13701,8 +13458,6 @@ export const createInvoiceBodyLinesItemQuantityMin = 0.001;
 export const createInvoiceBodyLinesItemUnitPriceMin = 0;
 
 
-
-
 export const CreateInvoiceBody = zod.object({
   "type": zod.enum(['issued', 'received']),
   "counterpartyId": zod.string(),
@@ -13738,7 +13493,6 @@ export const createInvoiceResponseOnePaymentModelMax = 10;
 export const createInvoiceResponseOnePaymentReferenceMax = 140;
 
 export const createInvoiceResponseOnePaymentPurposeMax = 140;
-
 
 
 export const CreateInvoiceResponse = zod.object({
@@ -13839,7 +13593,6 @@ export const CreatePosContractSummaryParams = zod.object({
 export const createPosContractSummaryBodyMonthRegExp = new RegExp('^\\d{4}-\\d{2}$');
 
 
-
 export const CreatePosContractSummaryBody = zod.object({
   "month": zod.string().regex(createPosContractSummaryBodyMonthRegExp),
   "counterpartyId": zod.string(),
@@ -13857,7 +13610,6 @@ export const createPosContractSummaryResponseOnePaymentModelMax = 10;
 export const createPosContractSummaryResponseOnePaymentReferenceMax = 140;
 
 export const createPosContractSummaryResponseOnePaymentPurposeMax = 140;
-
 
 
 export const CreatePosContractSummaryResponse = zod.object({
@@ -13944,7 +13696,6 @@ export const getInvoiceResponseOnePaymentReferenceMax = 140;
 export const getInvoiceResponseOnePaymentPurposeMax = 140;
 
 
-
 export const GetInvoiceResponse = zod.object({
   "id": zod.string(),
   "companyId": zod.string(),
@@ -14019,7 +13770,6 @@ export const updateInvoiceBodyLinesItemQuantityMin = 0.001;
 export const updateInvoiceBodyLinesItemUnitPriceMin = 0;
 
 
-
 export const UpdateInvoiceBody = zod.object({
   "invoiceNumber": zod.string().optional(),
   "invoiceDate": zod.coerce.date().optional(),
@@ -14054,7 +13804,6 @@ export const updateInvoiceResponseOnePaymentModelMax = 10;
 export const updateInvoiceResponseOnePaymentReferenceMax = 140;
 
 export const updateInvoiceResponseOnePaymentPurposeMax = 140;
-
 
 
 export const UpdateInvoiceResponse = zod.object({
@@ -14124,7 +13873,6 @@ export const postInvoiceResponseOnePaymentModelMax = 10;
 export const postInvoiceResponseOnePaymentReferenceMax = 140;
 
 export const postInvoiceResponseOnePaymentPurposeMax = 140;
-
 
 
 export const PostInvoiceResponse = zod.object({
@@ -14400,7 +14148,6 @@ export const voidInvoiceResponseOnePaymentReferenceMax = 140;
 export const voidInvoiceResponseOnePaymentPurposeMax = 140;
 
 
-
 export const VoidInvoiceResponse = zod.object({
   "id": zod.string(),
   "companyId": zod.string(),
@@ -14501,7 +14248,6 @@ export const createVatCodeBodyNameMax = 100;
 
 export const createVatCodeBodyRateMin = 0;
 export const createVatCodeBodyRateMax = 100;
-
 
 
 export const CreateVatCodeBody = zod.object({
@@ -14618,7 +14364,6 @@ export const updateVatCodeBodyNameMax = 100;
 
 export const updateVatCodeBodyRateMin = 0;
 export const updateVatCodeBodyRateMax = 100;
-
 
 
 export const UpdateVatCodeBody = zod.object({
@@ -14811,7 +14556,6 @@ export const createPaymentBodyLedgerAllocationsItemAllocatedAmountExclusiveMin =
 export const createPaymentBodyLedgerAllocationsItemAllocatedAmountMultipleOf = 0.01;
 
 
-
 export const CreatePaymentBody = zod.object({
   "bankCostCenterId": zod.string().regex(createPaymentBodyBankCostCenterIdRegExp).nullish(),
   "bankProjectId": zod.string().regex(createPaymentBodyBankProjectIdRegExp).nullish(),
@@ -14901,7 +14645,6 @@ export const GetPaymentStatusesParams = zod.object({
 
 export const getPaymentStatusesBodyPaymentIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 export const getPaymentStatusesBodyPaymentIdsMax = 500;
-
 
 
 export const GetPaymentStatusesBody = zod.object({
@@ -15237,7 +14980,6 @@ export const createPaymentBatchBodyProposedPaymentsMax = 500;
 export const createPaymentBatchBodyIdempotencyKeyMax = 128;
 
 
-
 export const CreatePaymentBatchBody = zod.object({
   "bankAccountId": zod.string(),
   "periodId": zod.string().optional().describe('Required with proposedPayments'),
@@ -15379,8 +15121,6 @@ export const ResolvePaymentBatchInstructionsParams = zod.object({
 })
 
 export const resolvePaymentBatchInstructionsBodyReasonMax = 1000;
-
-
 
 
 export const ResolvePaymentBatchInstructionsBody = zod.object({
@@ -15605,7 +15345,6 @@ export const matchBankTransactionsBodyTransactionsItemCurrencyDefault = `EUR`;
 export const matchBankTransactionsBodyTransactionsMax = 500;
 
 
-
 export const MatchBankTransactionsBody = zod.object({
   "transactions": zod.array(zod.object({
   "id": zod.string(),
@@ -15622,7 +15361,6 @@ export const MatchBankTransactionsBody = zod.object({
 export const matchBankTransactionsResponseSuggestionsItemTransactionCurrencyDefault = `EUR`;
 export const matchBankTransactionsResponseSuggestionsItemSuggestionsItemConfidenceMin = 0;
 export const matchBankTransactionsResponseSuggestionsItemSuggestionsItemConfidenceMax = 1;
-
 
 
 export const MatchBankTransactionsResponse = zod.object({
@@ -15689,7 +15427,6 @@ export const createCostCenterBodyCodeMax = 20;
 export const createCostCenterBodyNameMax = 200;
 
 
-
 export const CreateCostCenterBody = zod.object({
   "code": zod.string().min(1).max(createCostCenterBodyCodeMax),
   "name": zod.string().min(1).max(createCostCenterBodyNameMax),
@@ -15721,7 +15458,6 @@ export const UpdateCostCenterParams = zod.object({
 })
 
 export const updateCostCenterBodyNameMax = 200;
-
 
 
 export const UpdateCostCenterBody = zod.object({
@@ -15807,7 +15543,6 @@ export const createProjectBodyCodeMax = 20;
 export const createProjectBodyNameMax = 200;
 
 
-
 export const CreateProjectBody = zod.object({
   "code": zod.string().min(1).max(createProjectBodyCodeMax),
   "name": zod.string().min(1).max(createProjectBodyNameMax),
@@ -15839,7 +15574,6 @@ export const UpdateProjectParams = zod.object({
 })
 
 export const updateProjectBodyNameMax = 200;
-
 
 
 export const UpdateProjectBody = zod.object({
@@ -15900,7 +15634,6 @@ export const createDepartmentBodyCodeMax = 20;
 export const createDepartmentBodyNameMax = 200;
 
 
-
 export const CreateDepartmentBody = zod.object({
   "code": zod.string().min(1).max(createDepartmentBodyCodeMax),
   "name": zod.string().min(1).max(createDepartmentBodyNameMax),
@@ -15934,7 +15667,6 @@ export const UpdateDepartmentParams = zod.object({
 export const updateDepartmentBodyNameMax = 200;
 
 
-
 export const UpdateDepartmentBody = zod.object({
   "name": zod.string().min(1).max(updateDepartmentBodyNameMax).optional(),
   "description": zod.string().nullish(),
@@ -15963,8 +15695,6 @@ export const UpdateDepartmentResponse = zod.object({
 export const GetOpenItemsParams = zod.object({
   "companyId": zod.coerce.string()
 })
-
-
 
 
 export const GetOpenItemsQueryParams = zod.object({
@@ -16216,7 +15946,6 @@ export const createPartnerSettlementsBodyAllocationsItemAmountRegExp = new RegEx
 export const createPartnerSettlementsBodyIdempotencyKeyMax = 160;
 
 
-
 export const CreatePartnerSettlementsBody = zod.object({
   "allocations": zod.array(zod.object({
   "sourceLineId": zod.string(),
@@ -16242,8 +15971,6 @@ export const ReopenPartnerSettlementParams = zod.object({
 
 export const reopenPartnerSettlementBodyAmountRegExp = new RegExp('^[0-9]+(\\.[0-9]{1,2})?$');
 export const reopenPartnerSettlementBodyIdempotencyKeyMax = 160;
-
-
 
 
 export const ReopenPartnerSettlementBody = zod.object({
@@ -16314,7 +16041,6 @@ export const GetLedgerParams = zod.object({
 export const getLedgerQueryRecentLimitMax = 100;
 
 
-
 export const GetLedgerQueryParams = zod.object({
   "accountId": zod.coerce.string().optional().describe('Filter by account UUID'),
   "periodId": zod.coerce.string().optional(),
@@ -16351,9 +16077,6 @@ export const GetLedgerResponse = zod.object({
 export const GetReportExportHistoryParams = zod.object({
   "companyId": zod.coerce.string()
 })
-
-
-
 
 
 export const GetReportExportHistoryResponse = zod.object({
@@ -16603,7 +16326,6 @@ export const listDocumentsResponseDocumentsItemConfirmedDataOneExpenseEurRoundin
 export const listDocumentsResponseDocumentsItemConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
 
-
 export const ListDocumentsResponse = zod.object({
   "documents": zod.array(zod.object({
   "bankStatement": zod.object({
@@ -16848,7 +16570,6 @@ export const registerDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmen
 export const registerDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
 
-
 export const RegisterDocumentResponse = zod.object({
   "bankStatement": zod.object({
   "sourceIban": zod.string().optional(),
@@ -17082,7 +16803,6 @@ export const getDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLine
 export const getDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
 
-
 export const GetDocumentResponse = zod.object({
   "bankStatement": zod.object({
   "sourceIban": zod.string().optional(),
@@ -17298,7 +17018,6 @@ export const GetDocumentExchangeRateParams = zod.object({
 export const getDocumentExchangeRateQueryUnitsPerEurExclusiveMin = 0;
 
 
-
 export const GetDocumentExchangeRateQueryParams = zod.object({
   "date": zod.coerce.string().describe('Invoice date in YYYY-MM-DD format'),
   "mode": zod.enum(['ecb', 'manual']).optional(),
@@ -17312,7 +17031,6 @@ export const getDocumentExchangeRateResponseSourceRoundingAdjustmentLineIndexMin
 export const getDocumentExchangeRateResponseExpenseEurRoundingAdjustmentLineIndexMin = 0;
 
 export const getDocumentExchangeRateResponseUnitsPerEurExclusiveMin = 0;
-
 
 
 export const GetDocumentExchangeRateResponse = zod.object({
@@ -17405,7 +17123,6 @@ export const confirmDocumentBodyExchangeRateManualReasonMin = 3;
 export const confirmDocumentBodyExchangeRateManualReasonMax = 500;
 
 
-
 export const ConfirmDocumentBody = zod.object({
   "vatTreatment": zod.enum(['standard', 'gross-expense-no-input-vat']).optional().describe('Explicit accountant-reviewed gross expense treatment; not an exemption from separately assessed reverse-charge obligations.'),
   "vatTreatmentReviewed": zod.boolean().optional().describe('Explicit review of the gross expense treatment and separate consideration of reverse-charge obligations.'),
@@ -17471,7 +17188,6 @@ export const confirmDocumentResponseConfirmedDataOneSourceRoundingAdjustmentLine
 export const confirmDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentLineIndexMin = 0;
 
 export const confirmDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
-
 
 
 export const ConfirmDocumentResponse = zod.object({
@@ -17707,7 +17423,6 @@ export const rejectDocumentResponseConfirmedDataOneExpenseEurRoundingAdjustmentL
 export const rejectDocumentResponseConfirmedDataOneLinesItemSuggestionCountMin = 0;
 
 
-
 export const RejectDocumentResponse = zod.object({
   "bankStatement": zod.object({
   "sourceIban": zod.string().optional(),
@@ -17917,18 +17632,11 @@ export const RejectDocumentResponse = zod.object({
  */
 
 
-
-
-
 export const RequestUploadUrlBody = zod.object({
   "name": zod.string().min(1),
   "size": zod.number().min(1),
   "contentType": zod.string().min(1)
 })
-
-
-
-
 
 
 export const RequestUploadUrlResponse = zod.object({
@@ -18098,7 +17806,6 @@ export const GetPlateWasteOverviewQueryParams = zod.object({
 export const getPlateWasteOverviewResponseEntriesItemQuantityKgMin = 0;
 
 
-
 export const GetPlateWasteOverviewResponse = zod.object({
   "categoryCode": zod.enum(['20 01 08']),
   "wasteType": zod.string(),
@@ -18148,14 +17855,12 @@ export const SavePlateWasteDailyEntryParams = zod.object({
 export const savePlateWasteDailyEntryBodyQuantityKgMin = 0;
 
 
-
 export const SavePlateWasteDailyEntryBody = zod.object({
   "quantityKg": zod.number().min(savePlateWasteDailyEntryBodyQuantityKgMin),
   "note": zod.string().optional()
 })
 
 export const savePlateWasteDailyEntryResponseQuantityKgMin = 0;
-
 
 
 export const SavePlateWasteDailyEntryResponse = zod.object({
@@ -18174,7 +17879,6 @@ export const SavePlateWasteDailyEntryResponse = zod.object({
 /**
  * @summary Zabeleži oddajo ali sledljivi popravek oddaje
  */
-
 
 
 export const CreatePlateWasteHandoverBody = zod.object({
@@ -18230,7 +17934,6 @@ export const listPreparedFoodDailyResponsePreparationBatchesItemBatchCountMax = 
 export const listPreparedFoodDailyResponsePreparationBatchesItemPiecesPerBatchMax = 10000;
 
 
-
 export const ListPreparedFoodDailyResponseItem = zod.object({
   "id": zod.number(),
   "enotaId": zod.number(),
@@ -18262,7 +17965,6 @@ export const listPreparedFoodDailyHistoryPathYearMin = 2000;
 export const listPreparedFoodDailyHistoryPathYearMax = 3000;
 
 
-
 export const ListPreparedFoodDailyHistoryParams = zod.object({
   "year": zod.coerce.number().min(listPreparedFoodDailyHistoryPathYearMin).max(listPreparedFoodDailyHistoryPathYearMax)
 })
@@ -18270,7 +17972,6 @@ export const ListPreparedFoodDailyHistoryParams = zod.object({
 export const listPreparedFoodDailyHistoryResponsePreparationBatchesItemBatchCountMax = 10000;
 
 export const listPreparedFoodDailyHistoryResponsePreparationBatchesItemPiecesPerBatchMax = 10000;
-
 
 
 export const ListPreparedFoodDailyHistoryResponseItem = zod.object({
@@ -18304,14 +18005,12 @@ export const listPreparedFoodWasteRecordsQueryYearMin = 2000;
 export const listPreparedFoodWasteRecordsQueryYearMax = 3000;
 
 
-
 export const ListPreparedFoodWasteRecordsQueryParams = zod.object({
   "year": zod.coerce.number().min(listPreparedFoodWasteRecordsQueryYearMin).max(listPreparedFoodWasteRecordsQueryYearMax)
 })
 
 
 export const listPreparedFoodWasteRecordsResponseTotalQuantityMin = 0;
-
 
 
 export const ListPreparedFoodWasteRecordsResponseItem = zod.object({
@@ -18331,11 +18030,6 @@ export const ListPreparedFoodWasteRecordsResponseItem = zod.object({
 export const ListPreparedFoodWasteRecordsResponse = zod.array(ListPreparedFoodWasteRecordsResponseItem)
 
 
-
-
-
-
-
 export const CreatePreparedFoodWasteRecordBody = zod.object({
   "recordDate": zod.coerce.date(),
   "periodFrom": zod.coerce.date(),
@@ -18352,7 +18046,6 @@ export const createPreparedFoodWasteRecordResponseOneTotalQuantityMin = 0;
 export const createPreparedFoodWasteRecordResponseTwoDailyLinesItemQuantityMin = 0;
 
 export const createPreparedFoodWasteRecordResponseTwoSummaryLinesItemQuantityMin = 0;
-
 
 
 export const CreatePreparedFoodWasteRecordResponse = zod.object({
@@ -18400,7 +18093,6 @@ export const previewPreparedFoodWasteRecordResponseSummaryLinesItemQuantityMin =
 export const previewPreparedFoodWasteRecordResponseTotalQuantityMin = 0;
 
 
-
 export const PreviewPreparedFoodWasteRecordResponse = zod.object({
   "dailyLines": zod.array(zod.object({
   "businessDate": zod.coerce.date(),
@@ -18429,7 +18121,6 @@ export const getPreparedFoodWasteRecordResponseOneTotalQuantityMin = 0;
 export const getPreparedFoodWasteRecordResponseTwoDailyLinesItemQuantityMin = 0;
 
 export const getPreparedFoodWasteRecordResponseTwoSummaryLinesItemQuantityMin = 0;
-
 
 
 export const GetPreparedFoodWasteRecordResponse = zod.object({
@@ -18470,10 +18161,6 @@ export const UpdatePreparedFoodWasteRecordParams = zod.object({
 })
 
 
-
-
-
-
 export const UpdatePreparedFoodWasteRecordBody = zod.object({
   "recordDate": zod.coerce.date(),
   "periodFrom": zod.coerce.date(),
@@ -18490,7 +18177,6 @@ export const updatePreparedFoodWasteRecordResponseOneTotalQuantityMin = 0;
 export const updatePreparedFoodWasteRecordResponseTwoDailyLinesItemQuantityMin = 0;
 
 export const updatePreparedFoodWasteRecordResponseTwoSummaryLinesItemQuantityMin = 0;
-
 
 
 export const UpdatePreparedFoodWasteRecordResponse = zod.object({
@@ -18545,7 +18231,6 @@ export const confirmPreparedFoodWasteRecordResponseTwoDailyLinesItemQuantityMin 
 export const confirmPreparedFoodWasteRecordResponseTwoSummaryLinesItemQuantityMin = 0;
 
 
-
 export const ConfirmPreparedFoodWasteRecordResponse = zod.object({
   "id": zod.number(),
   "recordNumber": zod.number().min(1),
@@ -18597,7 +18282,6 @@ export const getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeDruzinsk
 export const getPreparedFoodAvailabilityResponseModifierItemsItemAvailableQuantityMin = 0;
 
 
-
 export const GetPreparedFoodAvailabilityResponse = zod.object({
   "businessDate": zod.coerce.date(),
   "items": zod.array(zod.object({
@@ -18624,7 +18308,6 @@ export const listPreparedFoodStocksPathYearMin = 2000;
 export const listPreparedFoodStocksPathYearMax = 3000;
 
 
-
 export const ListPreparedFoodStocksParams = zod.object({
   "year": zod.coerce.number().min(listPreparedFoodStocksPathYearMin).max(listPreparedFoodStocksPathYearMax)
 })
@@ -18648,7 +18331,6 @@ export const updatePreparedFoodStocksPathYearMin = 2000;
 export const updatePreparedFoodStocksPathYearMax = 3000;
 
 
-
 export const UpdatePreparedFoodStocksParams = zod.object({
   "year": zod.coerce.number().min(updatePreparedFoodStocksPathYearMin).max(updatePreparedFoodStocksPathYearMax)
 })
@@ -18656,7 +18338,6 @@ export const UpdatePreparedFoodStocksParams = zod.object({
 export const updatePreparedFoodStocksBodyItemsItemOpeningQuantityMin = 0;
 
 export const updatePreparedFoodStocksBodyItemsItemOpeningCostPerPortionMin = 0;
-
 
 
 export const UpdatePreparedFoodStocksBody = zod.object({
@@ -18686,7 +18367,6 @@ export const updatePreparedFoodStockPathYearMin = 2000;
 export const updatePreparedFoodStockPathYearMax = 3000;
 
 
-
 export const UpdatePreparedFoodStockParams = zod.object({
   "year": zod.coerce.number().min(updatePreparedFoodStockPathYearMin).max(updatePreparedFoodStockPathYearMax),
   "articleId": zod.coerce.number()
@@ -18695,7 +18375,6 @@ export const UpdatePreparedFoodStockParams = zod.object({
 export const updatePreparedFoodStockBodyOpeningQuantityMin = 0;
 
 export const updatePreparedFoodStockBodyOpeningCostPerPortionMin = 0;
-
 
 
 export const UpdatePreparedFoodStockBody = zod.object({
@@ -18825,7 +18504,6 @@ export const listTipPoliciesResponseCardFeePercentMax = 100;
 export const listTipPoliciesResponseCardFeeFlatAmountMin = 0;
 
 
-
 export const ListTipPoliciesResponseItem = zod.object({
   "id": zod.string(),
   "companyId": zod.string(),
@@ -18859,7 +18537,6 @@ export const createTipPolicyBodyCardFeePercentMax = 100;
 export const createTipPolicyBodyCardFeeFlatAmountMin = 0;
 
 
-
 export const CreateTipPolicyBody = zod.object({
   "enotaId": zod.number().nullish(),
   "effectiveFrom": zod.string(),
@@ -18878,7 +18555,6 @@ export const createTipPolicyResponseCardFeePercentMin = 0;
 export const createTipPolicyResponseCardFeePercentMax = 100;
 
 export const createTipPolicyResponseCardFeeFlatAmountMin = 0;
-
 
 
 export const CreateTipPolicyResponse = zod.object({
@@ -18937,8 +18613,6 @@ export const listTipDistributionProfilesResponseEntriesItemSharePercentExclusive
 export const listTipDistributionProfilesResponseEntriesItemSharePercentMax = 100;
 
 
-
-
 export const ListTipDistributionProfilesResponseItem = zod.object({
   "id": zod.string(),
   "companyId": zod.string(),
@@ -18965,13 +18639,8 @@ export const CreateTipDistributionProfileParams = zod.object({
 })
 
 
-
-
-
 export const createTipDistributionProfileBodyEntriesItemSharePercentExclusiveMin = 0;
 export const createTipDistributionProfileBodyEntriesItemSharePercentMax = 100;
-
-
 
 
 export const CreateTipDistributionProfileBody = zod.object({
@@ -18989,8 +18658,6 @@ export const CreateTipDistributionProfileBody = zod.object({
 
 export const createTipDistributionProfileResponseEntriesItemSharePercentExclusiveMin = 0;
 export const createTipDistributionProfileResponseEntriesItemSharePercentMax = 100;
-
-
 
 
 export const CreateTipDistributionProfileResponse = zod.object({
@@ -19101,7 +18768,6 @@ export const createTipAllocationBodyFeeAmountMin = 0;
 export const createTipAllocationBodyNetAmountMin = 0;
 
 
-
 export const CreateTipAllocationBody = zod.object({
   "racunId": zod.number(),
   "tipPolicyId": zod.string(),
@@ -19138,10 +18804,6 @@ export const CreateTipAllocationResponse = zod.object({
 export const CreateTipSettlementParams = zod.object({
   "companyId": zod.coerce.string()
 })
-
-
-
-
 
 
 export const CreateTipSettlementBody = zod.object({
@@ -19187,7 +18849,6 @@ export const savePreparedFoodDailyBodyPreparationBatchesMax = 100;
 export const savePreparedFoodDailyBodyFrozenAtEndQuantityMin = 0;
 
 
-
 export const SavePreparedFoodDailyBody = zod.object({
   "thawedQuantity": zod.number().min(savePreparedFoodDailyBodyThawedQuantityMin),
   "preparedQuantity": zod.number().min(savePreparedFoodDailyBodyPreparedQuantityMin),
@@ -19202,7 +18863,6 @@ export const SavePreparedFoodDailyBody = zod.object({
 export const savePreparedFoodDailyResponsePreparationBatchesItemBatchCountMax = 10000;
 
 export const savePreparedFoodDailyResponsePreparationBatchesItemPiecesPerBatchMax = 10000;
-
 
 
 export const SavePreparedFoodDailyResponse = zod.object({
@@ -19241,7 +18901,6 @@ export const closePreparedFoodDailyResponsePreparationBatchesItemBatchCountMax =
 export const closePreparedFoodDailyResponsePreparationBatchesItemPiecesPerBatchMax = 10000;
 
 
-
 export const ClosePreparedFoodDailyResponse = zod.object({
   "id": zod.number(),
   "enotaId": zod.number(),
@@ -19273,7 +18932,6 @@ export const ClosePreparedFoodDailyResponse = zod.object({
  */
 
 
-
 export const GetPreparedFoodConsumptionParams = zod.object({
   "date": zod.date(),
   "articleId": zod.coerce.number().min(1)
@@ -19286,14 +18944,12 @@ export const getPreparedFoodConsumptionQueryBatchCountMin = 0;
 export const getPreparedFoodConsumptionQueryBatchCountMax = 10000;
 
 
-
 export const GetPreparedFoodConsumptionQueryParams = zod.object({
   "quantity": zod.coerce.number().min(getPreparedFoodConsumptionQueryQuantityMin).max(getPreparedFoodConsumptionQueryQuantityMax).optional().describe('Količina priprave za normativni predogled; pri zaključeni evidenci se prezre.'),
   "batchCount": zod.coerce.number().min(getPreparedFoodConsumptionQueryBatchCountMin).max(getPreparedFoodConsumptionQueryBatchCountMax).optional()
 })
 
 export const getPreparedFoodConsumptionResponsePreparedQuantityMin = 0;
-
 
 
 export const GetPreparedFoodConsumptionResponse = zod.object({
@@ -19336,10 +18992,6 @@ export const ListPosEventsResponseItem = zod.object({
 export const ListPosEventsResponse = zod.array(ListPosEventsResponseItem)
 
 
-
-
-
-
 export const CreatePosEventBody = zod.object({
   "name": zod.string().min(1),
   "type": zod.enum(['festival', 'wedding', 'catering', 'celebration', 'other']),
@@ -19378,9 +19030,6 @@ export const CreatePosEventResponse = zod.object({
 export const UpdatePosEventParams = zod.object({
   "id": zod.coerce.number()
 })
-
-
-
 
 
 export const UpdatePosEventBody = zod.object({
@@ -19506,7 +19155,6 @@ export const registerOfflineFiscalDeviceResponseAuthenticationNonceMinBitsMin = 
 export const registerOfflineFiscalDeviceResponseAuthenticationNonceRetentionSecondsMin = 600;
 
 
-
 export const registerOfflineFiscalDeviceResponsePayloadSha256RegExp = new RegExp('^[a-f0-9]{64}$');
 
 
@@ -19588,7 +19236,6 @@ export const refreshOfflineFiscalConfigResponseAuthenticationTimestampToleranceS
 export const refreshOfflineFiscalConfigResponseAuthenticationNonceMinBitsMin = 128;
 
 export const refreshOfflineFiscalConfigResponseAuthenticationNonceRetentionSecondsMin = 600;
-
 
 
 export const refreshOfflineFiscalConfigResponsePayloadSha256RegExp = new RegExp('^[a-f0-9]{64}$');
@@ -19965,8 +19612,6 @@ export const GetJavnaRestavracijaParams = zod.object({
 export const getJavnaRestavracijaResponseOpeningHoursItemDanMax = 7;
 
 
-
-
 export const GetJavnaRestavracijaResponse = zod.object({
   "slug": zod.string(),
   "ime": zod.string(),
@@ -20002,7 +19647,6 @@ export const GetJavnaRazpolozljivostParams = zod.object({
 export const getJavnaRazpolozljivostQuerySteviloOsebMax = 50;
 
 
-
 export const GetJavnaRazpolozljivostQueryParams = zod.object({
   "datum": zod.date(),
   "steviloOseb": zod.coerce.number().min(1).max(getJavnaRazpolozljivostQuerySteviloOsebMax)
@@ -20031,8 +19675,6 @@ export const createJavnaRezervacijaBodyIdempotencyKeyRegExp = new RegExp('^[0-9a
 
 
 export const createJavnaRezervacijaBodyEmailMin = 3;
-
-
 
 
 export const CreateJavnaRezervacijaBody = zod.object({
@@ -20110,8 +19752,6 @@ export const ListJavniBoniParams = zod.object({
 })
 
 
-
-
 export const ListJavniBoniResponse = zod.object({
   "checkoutEnabled": zod.boolean(),
   "products": zod.array(zod.object({
@@ -20139,13 +19779,11 @@ export const preveriJavniBonBodyCodeMin = 8;
 export const preveriJavniBonBodyCodeMax = 128;
 
 
-
 export const PreveriJavniBonBody = zod.object({
   "code": zod.string().min(preveriJavniBonBodyCodeMin).max(preveriJavniBonBodyCodeMax)
 })
 
 export const preveriJavniBonResponseBalanceCentsMin = 0;
-
 
 
 export const PreveriJavniBonResponse = zod.object({
@@ -20168,12 +19806,10 @@ export const createJavniBonCheckoutBodyIdempotencyKeyRegExp = new RegExp('^[0-9a
 export const createJavniBonCheckoutBodyItemsItemQuantityMax = 20;
 
 
-
 export const createJavniBonCheckoutBodyBuyerEmailMin = 3;
 
 
 export const createJavniBonCheckoutBodyRecipientEmailMin = 3;
-
 
 
 export const CreateJavniBonCheckoutBody = zod.object({
@@ -20260,7 +19896,6 @@ export const getJavniProfilNastavitveResponseOneProductsItemImageUrlMax = 2000;
 export const getJavniProfilNastavitveResponseOneProductsItemVariantsItemNazivMax = 120;
 
 export const getJavniProfilNastavitveResponseOneProductsItemVariantsItemAmountCentsMax = 10000000;
-
 
 
 export const GetJavniProfilNastavitveResponse = zod.object({
@@ -20360,7 +19995,6 @@ export const updateJavniProfilNastavitveBodyProductsItemVariantsItemNazivMax = 1
 export const updateJavniProfilNastavitveBodyProductsItemVariantsItemAmountCentsMax = 10000000;
 
 
-
 export const UpdateJavniProfilNastavitveBody = zod.object({
   "slug": zod.string().min(updateJavniProfilNastavitveBodySlugMin).max(updateJavniProfilNastavitveBodySlugMax).regex(updateJavniProfilNastavitveBodySlugRegExp),
   "active": zod.boolean(),
@@ -20451,7 +20085,6 @@ export const updateJavniProfilNastavitveResponseOneProductsItemVariantsItemNaziv
 export const updateJavniProfilNastavitveResponseOneProductsItemVariantsItemAmountCentsMax = 10000000;
 
 
-
 export const UpdateJavniProfilNastavitveResponse = zod.object({
   "slug": zod.string().min(updateJavniProfilNastavitveResponseOneSlugMin).max(updateJavniProfilNastavitveResponseOneSlugMax).regex(updateJavniProfilNastavitveResponseOneSlugRegExp),
   "active": zod.boolean(),
@@ -20522,7 +20155,6 @@ export const CreateJavniProfilStripeConnectOnboardingResponse = zod.object({
 export const requestJavniProfilImageUploadBodyNameMax = 255;
 
 export const requestJavniProfilImageUploadBodySizeMax = 5242880;
-
 
 
 export const RequestJavniProfilImageUploadBody = zod.object({
@@ -20618,7 +20250,6 @@ export const ResiStripePregledBonaParams = zod.object({
 
 export const resiStripePregledBonaBodyNoteMin = 3;
 export const resiStripePregledBonaBodyNoteMax = 1000;
-
 
 
 export const ResiStripePregledBonaBody = zod.object({
@@ -20787,3 +20418,31 @@ export const CheckPosMonthlyInvoiceBizboxResponse = zod.object({
 })
 
 
+export const LinkManualReceiptLineToSupplierOrderResponse = zod.object({
+  "id": zod.number(),
+  "supplierOrderLineId": zod.number()
+})
+
+/**
+ * @summary Izrecno poveži ročno prejemnico z naročilom dobavitelju
+ */
+export const LinkManualReceiptLineToSupplierOrderParams = zod.object({
+  "id": zod.coerce.number(),
+  "postavkaId": zod.coerce.number()
+})
+
+export const ListAvailableSupplierOrderLinesForReceiptLineResponseItem = zod.object({
+  "id": zod.number(),
+  "orderNumber": zod.string().nullable(),
+  "orderDate": zod.coerce.date(),
+  "packageName": zod.string().nullish(),
+  "packageFactor": zod.number(),
+  "baseUnit": zod.string().nullable(),
+  "remainingBaseQuantity": zod.number()
+})
+
+export const LinkManualReceiptLineToSupplierOrderBody = zod.object({
+  "supplierOrderLineId": zod.number().min(1)
+})
+
+export const ListAvailableSupplierOrderLinesForReceiptLineResponse = zod.array(ListAvailableSupplierOrderLinesForReceiptLineResponseItem)
