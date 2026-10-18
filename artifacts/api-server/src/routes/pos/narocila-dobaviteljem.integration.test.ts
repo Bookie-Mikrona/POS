@@ -1054,7 +1054,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     context.role = "admin";
   });
 
-  it("scopes supplier-order price sources by unit, breaks date ties by ID, and ignores manual receipts", async () => {
+  it("scopes supplier-order price sources by company and unit, breaks date ties by ID, and ignores manual receipts", async () => {
     const [articleA] = await db.insert(artikliTable).values({
       enotaId,
       ime: `Unit A source article ${run}`,
@@ -1142,16 +1142,60 @@ describe("POS supplier ordering and linked receipt flow", () => {
     }).returning({ id: artikelDobaviteljTable.id });
     mappingIds.push(mappingB.id);
 
+    const [otherCompany] = await db.insert(companiesTable).values({
+      naziv: `Other price history company ${run}`,
+      podjetjeDavcna: `SI${run}91`,
+    }).returning({ id: companiesTable.id });
+    extraCompanyIds.push(otherCompany.id);
+    const [otherCompanyUnit] = await db.insert(enoteTable).values({
+      companyId: otherCompany.id,
+      ime: `Other price history unit ${run}`,
+    }).returning({ id: enoteTable.id });
+    unitIds.push(otherCompanyUnit.id);
+    const [otherCompanySupplier] = await db.insert(counterpartiesTable).values({
+      companyId: otherCompany.id,
+      type: "supplier",
+      name: `Other price history supplier ${run}`,
+    }).returning({ id: counterpartiesTable.id });
+    extraSupplierIds.push(otherCompanySupplier.id);
+    const [otherCompanyArticle] = await db.insert(artikliTable).values({
+      enotaId: otherCompanyUnit.id,
+      ime: `Other company price article ${run}`,
+      cena: "5",
+      davek: "22",
+      enotaMere: "KOS",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    articleIds.push(otherCompanyArticle.id);
+    await db.insert(zalogeTable).values({ artikelId: otherCompanyArticle.id, kolicina: "0" });
+    const [otherCompanyMapping] = await db.insert(artikelDobaviteljTable).values({
+      enotaId: otherCompanyUnit.id,
+      artikelId: otherCompanyArticle.id,
+      dobaviteljId: otherCompanySupplier.id,
+      sifraDobavitelja: `SUP-OTHER-COMPANY-${run}`,
+      nazivDobavitelja: "Other company pack",
+      enotVPaketu: "6",
+      nazivPaketa: "paket drugega podjetja",
+      zadnjaCenaPaket: "7395.36",
+      zadnjaCenaEnota: "1232.56",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(otherCompanyMapping.id);
+
     const createConfirmedSource = async (input: {
       unitId: number;
       articleId: number;
       supplierMappingId: number;
+      supplierId?: string;
       unitPrice: number;
       date: string;
     }) => {
       context.enotaId = input.unitId;
+      const sourceSupplierId = input.supplierId ?? supplierId;
       const order = await request(app).post("/narocila-dobaviteljem").send({
-        supplierId,
+        supplierId: sourceSupplierId,
         lines: [{
           supplierMappingId: input.supplierMappingId,
           packageQuantity: 1,
@@ -1167,7 +1211,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       const lineId = order.body.lines[0].id as number;
       const lineAmount = input.unitPrice * 6;
       const receipt = await request(app).post("/prejemnice").send({
-        dobaviteljId: supplierId,
+        dobaviteljId: sourceSupplierId,
         datum: input.date,
         vrstaCen: "neto",
         vrstaDokumenta: "DOBAVNICA",
@@ -1254,6 +1298,21 @@ describe("POS supplier ordering and linked receipt flow", () => {
         unitPrice: 7,
         date: "2026-10-20",
       });
+      let otherCompanySource: Awaited<ReturnType<typeof createConfirmedSource>>;
+      context.companyId = otherCompany.id;
+      try {
+        otherCompanySource = await createConfirmedSource({
+          unitId: otherCompanyUnit.id,
+          articleId: otherCompanyArticle.id,
+          supplierMappingId: otherCompanyMapping.id,
+          supplierId: otherCompanySupplier.id,
+          unitPrice: 9876.54,
+          date: "2026-10-21",
+        });
+      } finally {
+        context.companyId = companyId;
+        context.enotaId = enotaId;
+      }
       const sourceAOther = await createConfirmedSource({
         unitId: enotaId,
         articleId: articleAOther.id,
@@ -1395,9 +1454,19 @@ describe("POS supplier ordering and linked receipt flow", () => {
       context.enotaId = enotaId;
       const dashboardA = await request(app).get("/narocila-dobaviteljem/pregled");
       expect(dashboardA.status, JSON.stringify(dashboardA.body)).toBe(200);
+      const dashboardAReceiptIds = dashboardA.body.articles.flatMap((article: any) =>
+        article.mappings.flatMap((mapping: any) => [
+          mapping.lastPriceReceipt?.receiptId,
+          ...mapping.priceHistory.map((entry: any) => entry.receiptId),
+        ]));
+      expect(dashboardAReceiptIds).not.toContain(otherCompanySource.receiptId);
+      expect(JSON.stringify(dashboardA.body)).not.toContain(`Other company price article ${run}`);
+      expect(JSON.stringify(dashboardA.body)).not.toContain(`Other price history supplier ${run}`);
+      expect(JSON.stringify(dashboardA.body)).not.toContain("9876.54");
       expect(dashboardA.body.articles.map((row: any) => row.articleId)).toContain(articleA.id);
       expect(dashboardA.body.articles.map((row: any) => row.articleId)).toContain(articleAOther.id);
       expect(dashboardA.body.articles.map((row: any) => row.articleId)).not.toContain(articleB.id);
+      expect(dashboardA.body.articles.map((row: any) => row.articleId)).not.toContain(otherCompanyArticle.id);
       const mappingInA = dashboardA.body.articles
         .find((row: any) => row.articleId === articleA.id).mappings
         .find((mapping: any) => mapping.id === mappingA.id);

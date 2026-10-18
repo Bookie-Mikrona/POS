@@ -15,6 +15,8 @@ Ob potrditvi povezane prejemnice zakleni naročilo in v isti transakciji primerj
 
 Pri naročilih dobaviteljem cena zadnjega paketa iz potrjenih, povezanih prejemnic temelji na neto ceni na zalogovno enoto, pomnoženi s trenutno velikostjo paketa v preslikavi. Pri ponovnem izračunu upoštevaj najnovejši datum potrjene povezane prejemnice; zgodovinskih cenovnih posnetkov naročila in prejemnice ne spreminjaj. Osnutki ne spreminjajo preslikave.
 
+Številke prejemnic se lahko ponovijo med različnimi podjetji in niso globalni identifikatorji. **Why:** Podjetja lahko uporabljajo ločene sekvence, zato tuja in lokalna prejemnica lahko nosita isto prikazano številko. **How to apply:** Pri preverjanju izolacije med podjetji primerjaj ID-je prejemnic in najemniško omejene zapise, ne pa globalne odsotnosti prikazane številke.
+
 Pred potrditvijo povezane prejemnice primerjaj shranjeni faktor naročilne vrstice s trenutnim faktorjem dobaviteljske povezave. Ob razliki naj bo prvi poskus brez sprememb, uporabnik pa mora potrditi točno pregledani par faktorjev; ob ponovitvi primerjavo ponovno preberi in zakleni, da zastarelo soglasje ne potrdi nove spremembe. Potrditev nikoli ne prepiše posnetkov naročila ali prejemnice.
 
 Naročilo dobavitelju ima ločeno interno opombo in izrecno navodilo dobavitelju. Stara enotna opomba ostane interna in se nikoli samodejno ne natisne; uporabniku mora biti jasno prikazana, za dobavitelja pa jo lahko izrecno prekopira v ločeno polje. Kopija se doda obstoječemu navodilu brez podvajanja in brez spreminjanja izvirnika; če bi presegla omejitev 2.000 znakov, se ne skrajša ali shrani. Navodilo se natisne šele po pregledu in shranjevanju naročila.
