@@ -57,6 +57,7 @@ Thumbs.db
 # Občutljive datoteke — nikoli v git
 .env
 .env.*
+/generated-artifacts/
 *.env
 *.key
 *.pem
