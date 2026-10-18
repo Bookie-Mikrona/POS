@@ -22,3 +22,4 @@ description: Kazalo posebnosti zaganjalnikov, preverjanja, paketov in prikazovan
 - [Časovniki plačilnih testov](payment-test-polling-timers.md) — nepreklicljive mikronaloge lahko podvojijo izdajo le v celotnem testnem teku.
 - [Native ESM API](api-native-esm-loader.md) — zastoj CJS sonde ni dokaz nedelujočega API.
 - [DB runtime scope](database-runtime-read-scope.md) — managed razvojna poizvedba lahko vrne drugačne podatke kot API; pred sklepanjem preveri dejansko povezavo aplikacije.
+- [Orodja testerja](testing-runtime-capabilities.md) — manjkajoč callback v testerju ne pomeni, da ga nima glavni agent.

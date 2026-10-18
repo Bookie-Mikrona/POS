@@ -47,6 +47,7 @@ describe("useRealtimeSync", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -132,6 +133,62 @@ describe("useRealtimeSync", () => {
       data: JSON.stringify({ companyId: "podjetje-a", plan: "standard" }),
     })));
     expect(refreshAuthorization).toHaveBeenCalledOnce();
+  });
+
+  it("po izpadu ponovno prebere pravice šele ob odprtju novega toka, tudi brez dogodka spremembe paketa", () => {
+    vi.useFakeTimers();
+    const refreshAuthorization = vi.fn().mockResolvedValue(undefined);
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 1, enotaId: 1, companyId: "podjetje-a",
+        username: "test", ime: "Test", vloga: "admin",
+        podjetjeDavcna: "12345678", moraZamenjatiGeslo: false,
+      },
+      loading: false, login: vi.fn(), updateUser: vi.fn(),
+      logout: vi.fn(), refreshAuthorization,
+    });
+    const streams: typeof esInstance[] = [];
+    EventSourceSpy.mockImplementation(() => {
+      const stream = { addEventListener: vi.fn(), close: vi.fn() };
+      streams.push(stream);
+      return stream;
+    });
+    const emit = (index: number, type: string) => {
+      const listener = streams[index].addEventListener.mock.calls.find(
+        ([event]) => event === type,
+      )?.[1];
+      expect(listener).toBeTypeOf("function");
+      act(() => listener(new MessageEvent(type)));
+    };
+    const { unmount } = renderHook(() => useRealtimeSync());
+    emit(0, "open");
+    expect(refreshAuthorization).toHaveBeenCalledTimes(1); // Startup is not recovery.
+    refreshAuthorization.mockClear();
+
+    emit(0, "error");
+    expect(streams[0].close).toHaveBeenCalledOnce();
+    act(() => vi.advanceTimersByTime(4999));
+    expect(EventSourceSpy).toHaveBeenCalledTimes(1);
+    expect(refreshAuthorization).not.toHaveBeenCalled();
+    // The server changes the plan during the gap: no plan event is delivered.
+    act(() => vi.advanceTimersByTime(1));
+    expect(EventSourceSpy).toHaveBeenCalledTimes(2);
+    expect(EventSourceSpy.mock.calls[1]).toEqual(EventSourceSpy.mock.calls[0]);
+    expect(refreshAuthorization).not.toHaveBeenCalled();
+    emit(1, "open");
+    expect(refreshAuthorization).toHaveBeenCalledOnce();
+
+    // A failed reconnect must retry again, without treating the retry as open.
+    emit(1, "error");
+    act(() => vi.advanceTimersByTime(5000));
+    expect(EventSourceSpy).toHaveBeenCalledTimes(3);
+    expect(refreshAuthorization).toHaveBeenCalledTimes(1);
+    emit(2, "open");
+    expect(refreshAuthorization).toHaveBeenCalledTimes(2);
+    emit(2, "error");
+    unmount();
+    act(() => vi.advanceTimersByTime(10000));
+    expect(EventSourceSpy).toHaveBeenCalledTimes(3);
   });
 
   it("ob izklopu utiša samo toast iz točilnice", () => {
