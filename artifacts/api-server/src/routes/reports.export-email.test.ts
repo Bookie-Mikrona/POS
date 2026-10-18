@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   send: vi.fn(),
   pdf: vi.fn(),
   aggregates: [] as Record<string, unknown>[],
+  aggregateBatches: [] as Record<string, unknown>[][],
   error: vi.fn(),
 }));
 
@@ -57,6 +58,7 @@ describe("report email export audit trail", () => {
     mocks.getUser.mockResolvedValue({ firstName: " Ana ", lastName: " Novak ", emailAddresses: [] });
     saved.length = 0;
     mocks.aggregates.length = 0;
+    mocks.aggregateBatches.length = 0;
     // Access, company and empty aggregate queries require no real tenant data.
     mocks.select.mockImplementation((fields: Record<string, unknown>) => {
       const query: Record<string, unknown> = {};
@@ -68,7 +70,8 @@ describe("report email export audit trail", () => {
           : "naziv" in fields ? [{ naziv: "Test company", email: "sender@example.com" }]
             : [],
       );
-      query.then = (resolve: (value: unknown[]) => void) => resolve("total" in fields ? mocks.aggregates : []);
+      query.then = (resolve: (value: unknown[]) => void) =>
+        resolve("total" in fields ? mocks.aggregateBatches.shift() ?? mocks.aggregates : []);
       return query;
     });
     mocks.insert.mockReturnValue({ values: mocks.values });
@@ -92,7 +95,7 @@ describe("report email export audit trail", () => {
     });
   });
 
-  function exportReport(email?: string, params: Record<string, string> = {}) {
+  function exportReport(email?: string, params: Record<string, string | undefined> = {}) {
     return fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -178,6 +181,76 @@ describe("report email export audit trail", () => {
     });
     expect(saved[0]?.params).toMatchObject({ accountClass: "4", searchTerm: "elektrika" });
   });
+
+  it.each([
+    {
+      reportType: "balance-sheet",
+      params: { asOf: "2026-12-31", compareAsOf: "2025-12-31" },
+      codes: ["110", "120"],
+      storedType: "expense",
+      effectiveType: "asset",
+      filename: "bilanca-stanja-2026-12-31.pdf",
+    },
+    {
+      reportType: "income-statement",
+      params: { dateFrom: "2026-01-01", dateTo: "2026-12-31", compareDateFrom: "2025-01-01", compareDateTo: "2025-12-31" },
+      codes: ["410", "420"],
+      storedType: "asset",
+      effectiveType: "expense",
+      filename: "izkaz-poslovnega-izida-2026-01-01-2026-12-31.pdf",
+    },
+  ])("preserves both periods' account type warnings in $reportType downloads and email attachments",
+    async ({ reportType, params, codes, storedType, effectiveType, filename }) => {
+      const warnings = codes.map((code, index) => ({
+        accountId: `account-${index}`,
+        code,
+        name: index === 0 ? "Current period account" : "Comparison period account",
+        storedType,
+        effectiveType,
+      }));
+      const aggregates = warnings.map((warning, index) => [{
+        accountId: warning.accountId,
+        accountCode: warning.code,
+        accountName: warning.name,
+        accountType: warning.storedType,
+        side: "debit",
+        total: index === 0 ? "125.00" : "75.00",
+      }]);
+
+      // Exercise the real loaders with distinct accounts in each period, so
+      // losing or reusing either period's diagnostics cannot pass unnoticed.
+      mocks.aggregateBatches.push(...aggregates);
+      const download = await exportReport(undefined, { reportType, ...params });
+      expect(download.status).toBe(200);
+      expect(download.headers.get("content-type")).toContain("application/pdf");
+      expect(download.headers.get("content-disposition")).toBe(`attachment; filename="${filename}"`);
+      expect(Buffer.from(await download.arrayBuffer())).toEqual(pdf);
+      expect(mocks.send).not.toHaveBeenCalled();
+      expect(mocks.pdf).toHaveBeenCalledOnce();
+      const downloadInput = mocks.pdf.mock.calls[0]![0];
+      expect(downloadInput.current.typeWarnings).toEqual([warnings[0]]);
+      expect(downloadInput.compare.typeWarnings).toEqual([warnings[1]]);
+
+      mocks.aggregateBatches.push(...aggregates);
+      const email = await exportReport("recipient@example.test", { reportType, ...params });
+      expect(email.status).toBe(200);
+      expect(await email.json()).toMatchObject({ uspeh: true });
+      expect(mocks.pdf).toHaveBeenCalledTimes(2);
+      const emailInput = mocks.pdf.mock.calls[1]![0];
+      expect(emailInput.current.typeWarnings).toEqual([warnings[0]]);
+      expect(emailInput.compare.typeWarnings).toEqual([warnings[1]]);
+      expect(emailInput).toEqual(downloadInput);
+      expect(mocks.aggregateBatches).toHaveLength(0);
+      expect(mocks.send).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          companyId: "company-a", prejemnik: "recipient@example.test", filename, pdfBuffer: pdf,
+        }),
+        expect.any(Object),
+      );
+      expect(saved).toHaveLength(2);
+      expect(saved.map((record) => record.pdfData)).toEqual([pdf, pdf]);
+    },
+  );
 
   it.each(["balance-sheet", "income-statement", "trial-balance"])(
     "does not record a failed %s email",
