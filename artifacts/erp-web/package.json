@@ -12,7 +12,8 @@
     "typecheck": "pnpm -w run typecheck:libs && tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:dimensions:browser": "playwright test --config playwright.dimensions.config.mjs",
-    "test:dimensions:navigation": "node e2e/dimension-report-navigation.browser.mjs"
+    "test:dimensions:navigation": "node e2e/dimension-report-navigation.browser.mjs",
+    "test:financial-statements:browser": "node e2e/financial-statements-excel.browser.mjs"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

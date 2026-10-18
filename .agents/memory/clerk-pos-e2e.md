@@ -51,3 +51,13 @@ Obnovo ERP pregleda je mogoče preveriti z resničnimi enkratnimi Clerk prijavni
 **Why:** Simulirani `useUser` in lastna testna prijavna meja ne dokazujeta prehoda skozi pravi Clerk in aplikacijsko usmerjanje. Po drugi strani preizkus obnove odjemalca ne potrebuje zapisovanja v poslovne evidence.
 
 **How to apply:** Uporabi začasne razvojne uporabnike in jih odstrani tudi ob neuspehu. Jasno loči dokaz obnove odjemalca od dokaza strežniških pravic, razčlenjevanja datotek in ročnega vnosa gesla; izolirani poslovni odgovori teh drugih stvari ne preverijo.
+
+Pri prijavljenih ERP testih čakaj na končni dovoljeni zaslon, ne zahtevaj,
+da test nujno ujame vmesno izbiro podjetja.
+
+**Why:** V živem brskalniku se lahko pri eni dovoljeni družbi izbira zaključi
+pred registracijo čakanja na vmesni URL. Prijava je uspešna, preizkus pa
+kljub temu čaka do izteka časa. Hitrost preusmeritve ni pogodba funkcionalnosti.
+
+**How to apply:** Dovoli tako samodejno izbiro kot prikaz dejanske izbire,
+nato preveri končni zaslon, aktivno podjetje in ohranitev prave Clerk seje.

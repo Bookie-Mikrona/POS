@@ -1,5 +1,32 @@
 # ERP browser regressions
 
+## Signed-in financial-statement Excel downloads
+
+```sh
+pnpm --filter @workspace/erp-web run test:financial-statements:browser
+```
+
+Requires the running ERP development preview, existing development Clerk secrets
+and Chromium (`CHROMIUM_PATH` overrides `/repl/tools/bin/chromium`). Refuses live
+Clerk keys. Creates one disposable Clerk user, signs in with a real one-use ticket
+in a fresh browser context, and deletes the user in `finally`. No auth bypass,
+mocked identity hooks, saved login state or credentials are added to the app.
+
+The real protected `/porocila` page is checked at 1440px and 390px. For both
+Bilanca stanja and Izkaz poslovnega izida, actual browser downloads are saved and
+reopened with ExcelJS. Checks company, applied dates and comparison dates, account
+text/codes, numeric totals and formats after all draft dates and the comparison
+checkbox have changed without applying. The export button must fit the viewport,
+accept keyboard activation, recover after an injected Blob URL allocation error
+without a partial download, and successfully download on retry.
+
+Business API responses alone are synthetic and fail-closed; unexpected requests
+and all financial writes fail the test. This verifies live Clerk sign-in and
+frontend request scoping, not backend report calculations or tenant authorization.
+No SDK errors, login tickets, session state or browser traces are recorded.
+XLSX files, synthetic signed-in screenshots and `results.txt` are stored only in
+ignored/non-deployed `generated-artifacts/financial-statements-excel/`.
+
 ## Large dimension-report Excel export
 
 ```sh

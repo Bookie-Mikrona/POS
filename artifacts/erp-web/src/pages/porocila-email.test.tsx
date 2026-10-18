@@ -75,7 +75,11 @@ describe.each(reports)("$reportType – napake pošiljanja poročila", (report) 
       `/api/companies/${state.company.id}/reports/export`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer email-test-token" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer email-test-token",
+          "Idempotency-Key": expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+        },
         body: JSON.stringify({ reportType: report.reportType, email, ...report.params }),
       },
     );
