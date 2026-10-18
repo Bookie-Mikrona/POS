@@ -155,7 +155,7 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
             {mod.ime}{soldOut(mod.id) ? " (razprodano)" : ""}{Number(mod.cenaDodatek) > 0 ? ` +${Number(mod.cenaDodatek).toFixed(2).replace(".", ",")} €` : ""}
           </button>;
         })}</div>
-        {(modifiers[role] ?? []).flatMap((modId) => nestedSources(modId).map((source) => <div key={`${modId}-${source.artikelId}`} className="ml-4 mt-2 border-l-2 border-primary/30 pl-3">
+        {(modifiers[role] ?? []).filter((id) => group.modifikatorji.some((mod) => mod.id === id)).flatMap((modId) => nestedSources(modId).map((source) => <div key={`${modId}-${source.artikelId}`} className="ml-4 mt-2 border-l-2 border-primary/30 pl-3">
           {source.groups.map((group) => <div key={group.id} className="mb-1">
             <div className="mb-1 text-xs font-medium text-muted-foreground">{source.ime} – {group.ime}{minRequired(group) > 0 && <span className="ml-1 text-destructive">(obvezno)</span>}</div>
             <div className="flex flex-wrap gap-2">{group.modifikatorji.map((mod) => {
