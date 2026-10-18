@@ -26,6 +26,7 @@ import { AjpesAnnualReportTab } from "@/components/reports/ajpes-annual-report-t
 import { FinancialStatementXlsxButton } from "@/components/reports/financial-statement-xlsx-button";
 import { trialBalanceNet, formatTrialBalanceNet } from "@/lib/trial-balance-net";
 import { useTrialBalanceFilters } from "@/hooks/useTrialBalanceFilters";
+import { useFinancialStatementFilters } from "@/hooks/useFinancialStatementFilters";
 import { LedgerStatementTable, type LedgerStatementView } from "@/components/reports/ledger-statement-table";
 import {
   useGetBalanceSheet,
@@ -539,11 +540,21 @@ function UnclassifiedSection({ accounts }: { accounts: UnclassifiedAccount[] }) 
 
 function BalanceSheetTab() {
   const { activeCompany } = useCompany();
-  const { getToken } = useAuth();
+  const { userId } = useAuth();
+  return <BalanceSheetContent key={JSON.stringify([userId, activeCompany?.id])} />;
+}
 
-  const [asOf, setAsOf] = useState(todayStr());
-  const [compareAsOf, setCompareAsOf] = useState(prevYearEnd());
-  const [enableCompare, setEnableCompare] = useState(false);
+function BalanceSheetContent() {
+  const { activeCompany } = useCompany();
+  const { getToken, userId } = useAuth();
+
+  const { asOf, compareAsOf, enableCompare, updateFilters } = useFinancialStatementFilters(
+    "balance-sheet", userId, activeCompany?.id,
+    { asOf: todayStr(), compareAsOf: prevYearEnd(), enableCompare: false },
+  );
+  const setAsOf = (asOf: string) => updateFilters({ asOf });
+  const setCompareAsOf = (compareAsOf: string) => updateFilters({ compareAsOf });
+  const setEnableCompare = (enableCompare: boolean) => updateFilters({ enableCompare });
 
   const [appliedAsOf, setAppliedAsOf] = useState(todayStr());
   const [appliedCompareAsOf, setAppliedCompareAsOf] = useState<string | undefined>(undefined);
@@ -912,13 +923,24 @@ function BalanceSheetTab() {
 
 function IncomeStatementTab() {
   const { activeCompany } = useCompany();
-  const { getToken } = useAuth();
+  const { userId } = useAuth();
+  return <IncomeStatementContent key={JSON.stringify([userId, activeCompany?.id])} />;
+}
 
-  const [dateFrom, setDateFrom] = useState(yearStart());
-  const [dateTo, setDateTo] = useState(todayStr());
-  const [compareDateFrom, setCompareDateFrom] = useState(prevYearStart());
-  const [compareDateTo, setCompareDateTo] = useState(prevYearEnd());
-  const [enableCompare, setEnableCompare] = useState(false);
+function IncomeStatementContent() {
+  const { activeCompany } = useCompany();
+  const { getToken, userId } = useAuth();
+
+  const { dateFrom, dateTo, compareDateFrom, compareDateTo, enableCompare, updateFilters } =
+    useFinancialStatementFilters("income-statement", userId, activeCompany?.id, {
+      dateFrom: yearStart(), dateTo: todayStr(),
+      compareDateFrom: prevYearStart(), compareDateTo: prevYearEnd(), enableCompare: false,
+    });
+  const setDateFrom = (dateFrom: string) => updateFilters({ dateFrom });
+  const setDateTo = (dateTo: string) => updateFilters({ dateTo });
+  const setCompareDateFrom = (compareDateFrom: string) => updateFilters({ compareDateFrom });
+  const setCompareDateTo = (compareDateTo: string) => updateFilters({ compareDateTo });
+  const setEnableCompare = (enableCompare: boolean) => updateFilters({ enableCompare });
 
   const [applied, setApplied] = useState<{
     dateFrom?: string;
