@@ -3,7 +3,7 @@ import type { SupplierOrderDetail } from "@workspace/api-client-react";
 import { SupplierOrderPrintView } from "../../src/pages/NarocilaDobaviteljem";
 import "../../src/index.css";
 
-const lineCount = 55;
+const lineCount = 60;
 const longOrderNumber = "N-2026-0948-IZREDNO-DOLGA-ŠTEVILKA-NAROČILA-Z-LOKACIJO-RESTAVRACIJA-TRG-REPUBLIKE-001234567890";
 const longSupplierName = "Preizkusni dobavitelj za gostinske obrate – lokalna in sezonska živila, pijače ter oskrba več poslovnih enot z ločenimi dostavami za osrednjo kuhinjo";
 const tallRowNumber = 44;

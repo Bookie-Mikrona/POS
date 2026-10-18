@@ -12,6 +12,7 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const posRoot = path.resolve(testsDir, "..");
 const longOrderNumber = "N-2026-0948-IZREDNO-DOLGA-ŠTEVILKA-NAROČILA-Z-LOKACIJO-RESTAVRACIJA-TRG-REPUBLIKE-001234567890";
 const longSupplierName = "Preizkusni dobavitelj za gostinske obrate – lokalna in sezonska živila, pijače ter oskrba več poslovnih enot z ločenimi dostavami za osrednjo kuhinjo";
+const lineCount = 60;
 const continuationSupplierName = longSupplierName.length > 42
   ? `${longSupplierName.slice(0, 41).trimEnd()}…`
   : longSupplierName;
@@ -488,7 +489,7 @@ async function main() {
       }
     }
 
-    for (let number = 1; number <= 55; number += 1) {
+    for (let number = 1; number <= lineCount; number += 1) {
       const paddedNumber = String(number).padStart(3, "0");
       const articleName = `POSTAVKA-${paddedNumber}`;
       assert(normalizedPdfText.includes(articleName), `Printed PDF is missing ${articleName}.`);
@@ -851,6 +852,65 @@ async function main() {
     assert(tallRowTopWords.some(word => word.text === decimalToken(tallUnitPrice)), "The tall row is missing its unit price.");
     assert(tallRowTopWords.some(word => word.text === decimalToken(tallAmount)), "The tall row is missing its amount.");
 
+    const finalArticleNumber = String(lineCount).padStart(3, "0");
+    const finalArticleName = `POSTAVKA-${finalArticleNumber}`;
+    const finalArticlePageIndex = pages.findIndex(page => page.includes(finalArticleName));
+    const lastTablePageIndex = pages.reduce(
+      (lastIndex, page, pageIndex) => /POSTAVKA-\d{3}/.test(page) ? pageIndex : lastIndex,
+      -1,
+    );
+    assert.equal(
+      finalArticlePageIndex,
+      lastTablePageIndex,
+      "The final supplier-order item is not on the final table page.",
+    );
+    const finalOrderPage = pages[finalArticlePageIndex];
+    assert(finalOrderPage, "The final supplier-order table page is missing.");
+    const totalLines = finalOrderPage.split("\n").map(normalizeText)
+      .filter(line => line.includes("Skupaj"));
+    assert.equal(totalLines.length, 1, "The multi-page supplier-order total must print exactly once.");
+    const mainOrderTotalCount = (
+      pages.slice(0, lastOrderPageIndex + 1).join("\n").match(/\bSkupaj\b/g) ?? []
+    ).length;
+    assert.equal(mainOrderTotalCount, 1, "The multi-page supplier-order total is duplicated across pages.");
+    const expectedOrderTotal = Array.from({ length: lineCount }, (_, index) => {
+      const number = index + 1;
+      return ((number % 9) + 1.25) * number;
+    }).reduce((sum, amount) => sum + amount, 0);
+    assert(
+      totalLines[0].includes(decimalToken(expectedOrderTotal)),
+      `The multi-page supplier-order total is missing ${decimalToken(expectedOrderTotal)}.`,
+    );
+    const finalOrderPageMarkup = pdfPages[finalArticlePageIndex];
+    assert(finalOrderPageMarkup, "The final supplier-order page has no PDF geometry.");
+    const finalOrderWords = readWords(finalOrderPageMarkup[2]);
+    const finalArticleWord = finalOrderWords.find(word => word.text === finalArticleName);
+    const totalLabelWord = finalOrderWords.find(word => word.text === "Skupaj");
+    const totalAmountWord = finalOrderWords.find(word => word.text === decimalToken(expectedOrderTotal));
+    assert(finalArticleWord, "The final supplier-order item has no PDF geometry.");
+    assert(totalLabelWord, "The multi-page supplier-order total label is missing from PDF geometry.");
+    assert(totalAmountWord, "The multi-page supplier-order total amount is missing from PDF geometry.");
+    assert(
+      Number(totalLabelWord.yMin) >= Number(finalArticleWord.yMin),
+      "The supplier-order total appears before the final item.",
+    );
+    const finalItemWords = finalOrderWords.filter(word =>
+      Number(word.yMin) >= Number(finalArticleWord.yMin) - 0.5
+      && Number(word.yMin) < Number(totalLabelWord.yMin));
+    const finalItemBottom = Math.max(...finalItemWords.map(word => Number(word.yMax)));
+    assert(
+      finalItemBottom <= Number(totalLabelWord.yMin) + 0.5,
+      "The supplier-order total overlaps the final item.",
+    );
+    assert(
+      Math.abs(Number(totalLabelWord.yMin) - Number(totalAmountWord.yMin)) <= 1,
+      "The supplier-order total label and amount are split across lines.",
+    );
+    assert(
+      Number(totalAmountWord.xMin) >= Number(totalLabelWord.xMax) - 0.5,
+      "The supplier-order total amount overlaps its label.",
+    );
+
     for (const [pageIndex, match] of pdfPages.entries()) {
       const pageAttributes = readAttributes(match[1]);
       const width = Number(pageAttributes.width);
@@ -893,7 +953,7 @@ async function main() {
       }
     }
 
-    console.log(`Supplier-order print ${selectedBrowser} regression passed: ${pageCount} PDF pages, ${tablePages.length} table pages, ${notePages.length} note pages, 55 rows, and 100 note paragraphs.`);
+    console.log(`Supplier-order print ${selectedBrowser} regression passed: ${pageCount} PDF pages, ${tablePages.length} table pages, ${notePages.length} note pages, ${lineCount} rows, and 100 note paragraphs.`);
   } finally {
     devTools?.close();
     await stopProcessGroup(browserProcess);

@@ -330,6 +330,14 @@
     break-inside: avoid-page;
     page-break-inside: avoid;
   }
+  .supplier-order-print__table tbody tr:last-child {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+  .supplier-order-print__table tfoot tr {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
   .supplier-order-print__table tbody { line-height: 1.2; }
   .supplier-order-print__table td strong { display: block; }
   .supplier-order-print__table td small {

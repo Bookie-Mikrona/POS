@@ -814,24 +814,7 @@ router.get(
 
     const accountsByDimension = new Map<string, AccountBreakdownRow[]>();
     for (const account of accountMap.values()) {
-    const rows = await db
-      .select({
-        id: reportExportsTable.id,
-        reportType: reportExportsTable.reportType,
-        params: reportExportsTable.params,
-        filename: reportExportsTable.filename,
-        exportedBy: reportExportsTable.exportedBy,
-        exportedByName: reportExportsTable.exportedByName,
-        exportedAt: reportExportsTable.exportedAt,
-        emailSentTo: reportExportsTable.emailSentTo,
-      })
-      .from(reportExportsTable)
-      .where(and(
-        eq(reportExportsTable.companyId, companyId),
-        gte(reportExportsTable.exportedAt, reportExportCutoff()),
-      ))
-      .orderBy(desc(reportExportsTable.exportedAt))
-      .limit(200);
+      const rows = accountsByDimension.get(account.dimId) ?? [];
       rows.push({
         accountId: account.accountId,
         code: account.code,
