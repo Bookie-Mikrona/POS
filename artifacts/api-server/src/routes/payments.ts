@@ -1114,6 +1114,40 @@ router.post(
         throw Object.assign(new Error("Samo osnutke plačil je mogoče knjižiti"), { statusCode: 400 });
       }
 
+      // Validate the actual posting lines, not the payment's partner or its
+      // allocations: the bank line has no partner, cost centre, or project.
+      // Re-read current account rules even for drafts created before a rule changed.
+      const postingAccounts = await tx.select({
+        id: accountsTable.id,
+        code: accountsTable.code,
+        isActive: accountsTable.isActive,
+        allowsPosting: accountsTable.allowsPosting,
+        requiresPartner: accountsTable.requiresPartner,
+        requiresCostCenter: accountsTable.requiresCostCenter,
+        costCenterPolicy: accountsTable.costCenterPolicy,
+        requiresProject: accountsTable.requiresProject,
+      }).from(accountsTable)
+        .where(and(
+          eq(accountsTable.companyId, companyId),
+          inArray(accountsTable.id, [...new Set(journalLines.map(line => line.accountId))]),
+        ))
+        .for("share");
+      const postingAccountMap = new Map(postingAccounts.map(account => [account.id, account]));
+      for (const line of journalLines) {
+        const account = postingAccountMap.get(line.accountId);
+        let error: string | undefined;
+        if (!account) error = "Konto ni najden ali ne pripada temu podjetju.";
+        else if (!account.isActive) error = `Konto ${account.code} ni aktiven.`;
+        else if (!account.allowsPosting) error = `Na konto ${account.code} ni dovoljeno neposredno knjižiti.`;
+        else if (account.requiresPartner && !line.partnerId) error = `Za konto ${account.code} je poslovni partner obvezen.`;
+        // Payment lines do not carry cost centres or projects. Allocations do
+        // not supply those dimensions to the generated journal lines either.
+        else if (account.costCenterPolicy === "required" || account.requiresCostCenter) {
+          error = `Za konto ${account.code} je stroškovno mesto obvezno.`;
+        } else if (account.requiresProject) error = `Za konto ${account.code} je projekt obvezen.`;
+        if (error) throw Object.assign(new Error(error), { statusCode: 400 });
+      }
+
       // Pridobi poravnave tega plačila
       const allocsToPost = await tx
         .select({
