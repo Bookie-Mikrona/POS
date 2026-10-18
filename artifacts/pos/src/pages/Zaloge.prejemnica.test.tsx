@@ -154,6 +154,7 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
       datum: "2026-10-16",
       stDokumenta: "INV-42",
       valuta: "EUR",
+      prejemnoPodjetjeNaziv: "Gostilna Pri Mostu d.o.o.",
       dobaviteljNaziv: "Mlekarna Planika",
       status: "confirmed",
       vrstaCen: "neto",
@@ -270,6 +271,8 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     expect(within(dialog).queryByRole("combobox")).not.toBeInTheDocument();
     const printDocument = screen.getByTestId("receipt-print-document");
     expect(printDocument).toHaveTextContent("Prejemnica št. 26100009");
+    expect(printDocument).toHaveTextContent("Prejemno podjetje");
+    expect(printDocument).toHaveTextContent("Gostilna Pri Mostu d.o.o.");
     expect(printDocument).toHaveTextContent("Mlekarna Planika");
     expect(printDocument).toHaveTextContent(
       within(dialog).getByTestId("text-receipt-view-receipt-date").textContent ?? "",

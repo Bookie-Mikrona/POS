@@ -1951,6 +1951,10 @@ function ReceiptPrintDocument({
       </header>
 
       <dl className="receipt-review-print__meta">
+        <div>
+          <dt>Prejemno podjetje</dt>
+          <dd>{receipt.prejemnoPodjetjeNaziv || "–"}</dd>
+        </div>
         {summaryFields.map(({ id, label, value }) => (
           <div key={id}>
             <dt>{label}</dt>

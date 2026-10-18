@@ -1295,6 +1295,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       expect(manualReceiptDetails.body).toMatchObject({
         id: manualReceipt.body.id,
         dobaviteljId: supplierId,
+        prejemnoPodjetjeNaziv: `Supplier order ${run}`,
         status: "confirmed",
       });
       expect(manualReceiptDetails.body.postavke).toEqual(expect.arrayContaining([

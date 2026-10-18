@@ -1047,6 +1047,7 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       ustvarjeno: prejemniceTable.ustvarjeno,
       dobaviteljId: prejemniceTable.dobaviteljId,
       dobaviteljNaziv: counterpartiesTable.name,
+      prejemnoPodjetjeNaziv: companiesTable.naziv,
       status: prejemniceTable.status,
       placanoZGotovino: prejemniceTable.placanoZGotovino,
     })
@@ -1054,6 +1055,10 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     .innerJoin(enoteTable, and(
       eq(enoteTable.id, prejemniceTable.enotaId),
       eq(enoteTable.companyId, companyId),
+    ))
+    .innerJoin(companiesTable, and(
+      eq(companiesTable.id, enoteTable.companyId),
+      eq(companiesTable.id, companyId),
     ))
     .leftJoin(counterpartiesTable, and(
       eq(counterpartiesTable.id, prejemniceTable.dobaviteljId),
@@ -1145,6 +1150,7 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     ustvarjeno: prejemnica.ustvarjeno,
     dobaviteljId: prejemnica.dobaviteljId ?? null,
     dobaviteljNaziv: prejemnica.dobaviteljNaziv ?? null,
+    prejemnoPodjetjeNaziv: prejemnica.prejemnoPodjetjeNaziv,
      status: prejemnica.status,
      placanoZGotovino: prejemnica.placanoZGotovino,
     postavke: postavke.map((p: any) => ({
