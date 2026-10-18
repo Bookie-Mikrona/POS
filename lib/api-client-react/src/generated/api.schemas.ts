@@ -8364,7 +8364,11 @@ export interface PrejemnicaPackageChangeReview {
   currentBaseUnit: string | null;
   actorClerkUserId: string;
   /** @nullable */
+  actorClerkUserName: string | null;
+  /** @nullable */
   actorNatakarId: number | null;
+  /** @nullable */
+  actorNatakarName: string | null;
   reviewedAt: string;
 }
 
@@ -15448,4 +15452,3 @@ export type PreviewPosMonthlyInvoiceParams = {
 month: string;
 counterpartyId: string;
 };
-

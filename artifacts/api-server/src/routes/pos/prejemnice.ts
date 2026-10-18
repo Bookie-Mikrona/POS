@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
-import { artikliTable, companiesTable, counterpartiesTable, db, embalazniPrometiTable, enoteTable, goodsReceiptsTable, invoicesTable, nastavitveTable, posSupplierPackageChangeReviewsTable, prejemniceOdvisniStroskiTable, prejemnicePostavkeTable, prejemniceTable, purchaseSourceDocumentsTable, uvozSejaTable, vatCodeTable, zalogaGibiTable } from "@workspace/db";
+import { artikliTable, companiesTable, counterpartiesTable, db, embalazniPrometiTable, enoteTable, goodsReceiptsTable, invoicesTable, natakariTable, nastavitveTable, posSupplierPackageChangeReviewsTable, posUporabnikiTable, prejemniceOdvisniStroskiTable, prejemnicePostavkeTable, prejemniceTable, purchaseSourceDocumentsTable, uvozSejaTable, vatCodeTable, zalogaGibiTable } from "@workspace/db";
 import { ConfirmPrejemnicaBody, ConfirmPrejemnicaResponse } from "@workspace/api-zod";
 import { requireEnota, requireIzbranaEnota } from "../../middlewares/pos";
 import { broadcastToUnit } from "../../lib/pos-sse";
@@ -1328,6 +1328,39 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     ))
     .orderBy(desc(posSupplierPackageChangeReviewsTable.reviewedAt), desc(posSupplierPackageChangeReviewsTable.id));
 
+  const clerkUserIds = [...new Set(packageChangeReviews.map((r) => r.actorClerkUserId))];
+  const natakarIds = [...new Set(packageChangeReviews
+    .map((r) => r.actorNatakarId)
+    .filter((n): n is number => n != null))];
+  const fullName = (ime: string | null, priimek: string | null) =>
+    [ime?.trim(), priimek?.trim()].filter(Boolean).join(" ") || null;
+  const clerkUserNames = new Map<string, string>();
+  const natakarNames = new Map<number, string>();
+  if (clerkUserIds.length > 0) {
+    const reviewers = await db
+      .select({ clerkUserId: posUporabnikiTable.clerkUserId, ime: posUporabnikiTable.ime, priimek: posUporabnikiTable.priimek })
+      .from(posUporabnikiTable)
+      .where(and(
+        eq(posUporabnikiTable.companyId, companyId),
+        inArray(posUporabnikiTable.clerkUserId, clerkUserIds),
+        or(isNull(posUporabnikiTable.enotaId), eq(posUporabnikiTable.enotaId, tenotaId)),
+      ));
+    for (const r of reviewers) {
+      const name = fullName(r.ime, r.priimek);
+      if (name && !clerkUserNames.has(r.clerkUserId)) clerkUserNames.set(r.clerkUserId, name);
+    }
+  }
+  if (natakarIds.length > 0) {
+    const natakari = await db
+      .select({ id: natakariTable.id, ime: natakariTable.ime, priimek: natakariTable.priimek })
+      .from(natakariTable)
+      .where(and(eq(natakariTable.companyId, companyId), inArray(natakariTable.id, natakarIds)));
+    for (const n of natakari) {
+      const name = fullName(n.ime, n.priimek);
+      if (name) natakarNames.set(n.id, name);
+    }
+  }
+
   res.json({
     id: prejemnica.id,
     stevilka: prejemnica.stevilka,
@@ -1400,7 +1433,9 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       currentFactor: review.currentFactor != null ? Number(review.currentFactor) : null,
       currentBaseUnit: review.currentBaseUnit,
       actorClerkUserId: review.actorClerkUserId,
+      actorClerkUserName: clerkUserNames.get(review.actorClerkUserId) ?? null,
       actorNatakarId: review.actorNatakarId,
+      actorNatakarName: review.actorNatakarId != null ? natakarNames.get(review.actorNatakarId) ?? null : null,
       reviewedAt: review.reviewedAt.toISOString(),
     })),
   });

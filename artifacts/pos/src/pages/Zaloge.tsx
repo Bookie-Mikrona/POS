@@ -2346,8 +2346,11 @@ function ViewPrejemnicaDialog({ id, onClose }: { id: number; onClose: () => void
                         <div>
                           <dt className="text-xs font-medium text-muted-foreground">Pregledal</dt>
                           <dd className="mt-1 break-words">
-                            {review.actorClerkUserId || "–"}
-                            {review.actorNatakarId != null ? ` · POS natakar ID ${review.actorNatakarId}` : ""}
+                            {review.actorClerkUserName || review.actorClerkUserId || "–"}
+                            {review.actorClerkUserName && review.actorClerkUserId ? ` · Clerk ID ${review.actorClerkUserId}` : ""}
+                            {review.actorNatakarId != null
+                              ? ` · POS natakar ${review.actorNatakarName ? `${review.actorNatakarName} (ID ${review.actorNatakarId})` : `ID ${review.actorNatakarId}`}`
+                              : ""}
                           </dd>
                         </div>
                         <div>

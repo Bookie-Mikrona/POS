@@ -20420,7 +20420,9 @@ components:
         - currentFactor
         - currentBaseUnit
         - actorClerkUserId
+        - actorClerkUserName
         - actorNatakarId
+        - actorNatakarName
         - reviewedAt
       properties:
         id:
@@ -20445,8 +20447,12 @@ components:
           type: [string, "null"]
         actorClerkUserId:
           type: string
+        actorClerkUserName:
+          type: [string, "null"]
         actorNatakarId:
           type: [integer, "null"]
+        actorNatakarName:
+          type: [string, "null"]
         reviewedAt:
           type: string
           format: date-time

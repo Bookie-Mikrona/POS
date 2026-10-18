@@ -13,13 +13,8 @@ vi.mock("@workspace/db", async (importOriginal) => {
     for (const method of ["from", "innerJoin", "leftJoin", "where", "groupBy", "orderBy", "limit"]) {
       chain[method] = () => chain;
     }
-    chain.then = (resolve: (value: unknown[]) => void, reject: (error: unknown) => void) => {
-      try {
-        resolve(state.rows.shift() ?? []);
-      } catch (error) {
-        reject(error);
-      }
-    };
+    chain.then = (resolve: (value: unknown[]) => unknown, reject: (error: unknown) => unknown) =>
+      Promise.resolve(state.rows.shift() ?? []).then(resolve, reject);
     return chain;
   };
   return { ...original, db: { ...original.db, select } };
@@ -27,6 +22,17 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
 vi.mock("../../middlewares/pos", () => ({
   requireEnota(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const companyId = req.header("x-test-company");
+    const enotaId = Number(req.header("x-test-enota"));
+    if (!companyId || !Number.isInteger(enotaId) || enotaId <= 0) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    (req as any).companyId = companyId;
+    (req as any).enotaId = enotaId;
+    next();
+  },
+  requireIzbranaEnota(req: express.Request, res: express.Response, next: express.NextFunction) {
     const companyId = req.header("x-test-company");
     const enotaId = Number(req.header("x-test-enota"));
     if (!companyId || !Number.isInteger(enotaId) || enotaId <= 0) {
@@ -94,7 +100,7 @@ describe("GET /prejemnice/:id authorization scope", () => {
       .get("/prejemnice/42")
       .set("x-test-company", "company-a")
       .set("x-test-enota", "1");
-    expect(response.status).toBe(200);
+    expect(response.status, response.text).toBe(200);
     expect(response.body).toMatchObject({
       id: 42,
       stevilka: "P-42",
@@ -102,6 +108,32 @@ describe("GET /prejemnice/:id authorization scope", () => {
       postavke: [],
       odvisniStroski: [],
     });
+    expect(state.rows).toHaveLength(0);
+  });
+
+  it("pri pregledih paketov vrne imena samo za iskalno rešene osebe in obdrži ID-je", async () => {
+    const review = (id: number, clerk: string, natakar: number | null) => ({
+      id, prejemnicaId: 42, supplierOrderLineId: id, articleName: "Mleko",
+      orderPackageName: "zaboj", orderFactor: "6", orderBaseUnit: "L",
+      currentPackageName: "večji zaboj", currentFactor: "12", currentBaseUnit: "L",
+      actorClerkUserId: clerk, actorNatakarId: natakar, reviewedAt: new Date("2026-03-01T10:00:00Z"),
+    });
+    state.rows = [[{
+      id: 42, stevilka: "P-42", datum: new Date("2026-03-01T10:00:00Z"), valuta: "EUR",
+      vrstaCen: "neto", skupajVrednost: "10.00", ustvarjeno: new Date("2026-03-01T10:00:00Z"),
+    }], [], [],
+    [review(1, "user_known", 7), review(2, "user_other_unit", 8)],
+    [{ clerkUserId: "user_known", ime: "Ana", priimek: "Novak" }],
+    [{ id: 7, ime: "Jure", priimek: "Kovač" }]];
+    const response = await supertest(app)
+      .get("/prejemnice/42")
+      .set("x-test-company", "company-a")
+      .set("x-test-enota", "1");
+    expect(response.status, response.text).toBe(200);
+    expect(response.body.packageChangeReviews).toMatchObject([
+      { actorClerkUserId: "user_known", actorClerkUserName: "Ana Novak", actorNatakarId: 7, actorNatakarName: "Jure Kovač" },
+      { actorClerkUserId: "user_other_unit", actorClerkUserName: null, actorNatakarId: 8, actorNatakarName: null },
+    ]);
     expect(state.rows).toHaveLength(0);
   });
 });

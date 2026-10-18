@@ -230,8 +230,26 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
         currentFactor: 12,
         currentBaseUnit: "L",
         actorClerkUserId: "user_reviewed_19",
+        actorClerkUserName: "Ana Novak",
         actorNatakarId: 731,
+        actorNatakarName: "Jure Kovač",
         reviewedAt: "2026-10-17T11:25:00.000Z",
+      }, {
+        id: 20,
+        receiptId: 4209,
+        supplierOrderLineId: 622,
+        articleName: "Smetana",
+        orderPackageName: "zaboj",
+        orderFactor: 6,
+        orderBaseUnit: "L",
+        currentPackageName: "večji zaboj",
+        currentFactor: 12,
+        currentBaseUnit: "L",
+        actorClerkUserId: "user_without_name",
+        actorClerkUserName: null,
+        actorNatakarId: 732,
+        actorNatakarName: null,
+        reviewedAt: "2026-10-17T11:26:00.000Z",
       }],
     };
     const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
@@ -251,8 +269,11 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     expect(packageReview).toHaveTextContent("6 L / zaboj");
     expect(packageReview).toHaveTextContent("Veljalo ob potrditvi");
     expect(packageReview).toHaveTextContent("12 L / večji zaboj");
-    expect(packageReview).toHaveTextContent("user_reviewed_19");
-    expect(packageReview).toHaveTextContent("POS natakar ID 731");
+    expect(packageReview).toHaveTextContent("Ana Novak · Clerk ID user_reviewed_19");
+    expect(packageReview).toHaveTextContent("POS natakar Jure Kovač (ID 731)");
+    const packageReviewWithoutNames = within(dialog).getByTestId("receipt-package-change-review-20");
+    expect(packageReviewWithoutNames).toHaveTextContent("user_without_name");
+    expect(packageReviewWithoutNames).toHaveTextContent("POS natakar ID 732");
     expect(packageReview).toHaveTextContent("Čas pregleda");
     const milkAllergens = within(dialog).getByTestId("receipt-view-allergens-1");
     expect(milkAllergens).toHaveTextContent("Potrjeno in preverjeno");
