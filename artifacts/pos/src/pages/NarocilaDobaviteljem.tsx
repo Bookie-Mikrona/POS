@@ -158,6 +158,39 @@ const comparePriceHistoryEntries = (
     className: isRise ? "text-rose-700" : "text-emerald-700",
   };
 };
+type SupplierPriceHistoryEntry = SupplierReorderArticle["mappings"][number]["priceHistory"][number];
+
+const summarizePriceHistory = (
+  entries: SupplierPriceHistoryEntry[],
+): { label: string; className: string } | null => {
+  const validEntries = entries.filter(entry =>
+    Number.isFinite(entry.unitPrice) && entry.unitPrice >= 0,
+  );
+  if (validEntries.length < 2) return null;
+
+  const newestPrice = validEntries[0].unitPrice;
+  const oldestPrice = validEntries[validEntries.length - 1].unitPrice;
+  const difference = newestPrice - oldestPrice;
+  const absoluteChange = formatUnitMoney(Math.abs(difference));
+  if (difference === 0) {
+    return {
+      label: `Brez spremembe: ${absoluteChange}${oldestPrice > 0
+        ? " (0 %)"
+        : ` (odstotek ni izračunljiv pri najstarejši ceni ${formatUnitMoney(oldestPrice)})`}`,
+      className: "text-[#68756e]",
+    };
+  }
+
+  const isRise = difference > 0;
+  const sign = isRise ? "+" : "−";
+  const percentage = oldestPrice > 0
+    ? ` (${sign}${formatQty(Math.abs(difference) / oldestPrice * 100, 1)} %)`
+    : ` (odstotek ni izračunljiv pri najstarejši ceni ${formatUnitMoney(oldestPrice)})`;
+  return {
+    label: `${isRise ? "Podražitev" : "Pocenitev"}: ${sign}${absoluteChange}${percentage}`,
+    className: isRise ? "text-rose-700" : "text-emerald-700",
+  };
+};
 const supplierOfferName = (mapping: {
   supplierName: string;
   supplierItemName?: string | null;
@@ -1166,6 +1199,25 @@ export default function NarocilaDobaviteljem() {
                               <summary className="cursor-pointer select-none font-medium text-[#40574f] hover:text-[#285d50]">
                                 Zgodovina potrjenih cen ({supplierMapping.priceHistory.length})
                               </summary>
+                              {(() => {
+                                const overallPriceChange = summarizePriceHistory(supplierMapping.priceHistory);
+                                return overallPriceChange && (
+                                  <div
+                                    className="mb-2 mt-2 rounded-md border border-[#d8dfd4] bg-[#f4f6f0] px-2.5 py-2"
+                                    data-testid={`price-history-overall-change-${supplierMapping.id}`}
+                                  >
+                                    <div className="font-semibold text-[#40574f]">
+                                      Skupna sprememba od najstarejše do najnovejše prikazane cene:
+                                    </div>
+                                    <div className={`mt-0.5 font-semibold ${overallPriceChange.className}`}>
+                                      {overallPriceChange.label} / {article.baseUnit?.trim() || "enoto (ni določena)"}
+                                    </div>
+                                    <div className="mt-0.5 text-[11px] text-[#758078]">
+                                      Povzetek zajema samo prikazane prejemnice, ne celotne zgodovine dobavitelja.
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                               <ol className="mt-1 space-y-1 border-l border-[#dce4dd] pl-2">
                                 {supplierMapping.priceHistory.map((entry, historyIndex) => {
                                   const previousEntry = supplierMapping.priceHistory[historyIndex + 1];

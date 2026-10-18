@@ -1111,6 +1111,76 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("summarizes the net movement across the displayed saved base-unit prices", () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalPriceHistory = mapping.priceHistory;
+    mapping.priceHistory = [
+      { receiptId: 7111, date: "2026-10-17", receiptNumber: "R-7111", unitPrice: 5.5 },
+      { receiptId: 7112, date: "2026-10-16", receiptNumber: "R-7112", unitPrice: 5 },
+      { receiptId: 7113, date: "2026-10-15", receiptNumber: "R-7113", unitPrice: 4 },
+      { receiptId: 7114, date: "2026-10-14", receiptNumber: "R-7114", unitPrice: 3 },
+      { receiptId: 7115, date: "2026-10-13", receiptNumber: "R-7115", unitPrice: 2 },
+    ];
+
+    try {
+      renderSupplierOrderPage();
+      const history = screen.getByTestId("price-history-7042");
+      fireEvent.click(within(history).getByText(/Zgodovina potrjenih cen/));
+      const overallChange = within(history).getByTestId("price-history-overall-change-7042");
+
+      expect(overallChange.textContent).toContain("Skupna sprememba od najstarejše do najnovejše prikazane cene");
+      expect(overallChange.textContent).toMatch(/\+3,50\s?€/);
+      expect(overallChange.textContent).toMatch(/\+175\s?%/);
+      expect(overallChange.textContent).toContain("samo prikazane prejemnice");
+      expect(screen.getByTestId("price-history-change-7042-7111").textContent)
+        .toContain("Glede na prejšnjo potrjeno ceno");
+    } finally {
+      mapping.priceHistory = originalPriceHistory;
+    }
+  });
+
+  it("explains that the overall percentage is unavailable when the oldest visible price is zero", () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalPriceHistory = mapping.priceHistory;
+    mapping.priceHistory = [
+      { receiptId: 7121, date: "2026-10-17", receiptNumber: "R-7121", unitPrice: 4 },
+      { receiptId: 7122, date: "2026-10-16", receiptNumber: "R-7122", unitPrice: 0 },
+    ];
+
+    try {
+      renderSupplierOrderPage();
+      const history = screen.getByTestId("price-history-7042");
+      fireEvent.click(within(history).getByText(/Zgodovina potrjenih cen/));
+      const overallChange = within(history).getByTestId("price-history-overall-change-7042");
+
+      expect(overallChange.textContent).toMatch(/\+4,00\s?€/);
+      expect(overallChange.textContent).toContain("odstotek ni izračunljiv pri najstarejši ceni 0,00");
+      expect(overallChange.textContent).not.toMatch(/0\s?%/);
+    } finally {
+      mapping.priceHistory = originalPriceHistory;
+    }
+  });
+
+  it("hides the overall movement until at least two valid visible prices are available", () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalPriceHistory = mapping.priceHistory;
+    mapping.priceHistory = [
+      { receiptId: 7131, date: "2026-10-17", receiptNumber: "R-7131", unitPrice: Number.NaN },
+      { receiptId: 7132, date: "2026-10-16", receiptNumber: "R-7132", unitPrice: 3.5 },
+      { receiptId: 7133, date: "2026-10-15", receiptNumber: "R-7133", unitPrice: -1 },
+    ];
+
+    try {
+      renderSupplierOrderPage();
+      const history = screen.getByTestId("price-history-7042");
+      fireEvent.click(within(history).getByText(/Zgodovina potrjenih cen/));
+
+      expect(within(history).queryByTestId("price-history-overall-change-7042")).toBeNull();
+    } finally {
+      mapping.priceHistory = originalPriceHistory;
+    }
+  });
+
   it("shows savings against the preferred supplier only for valid comparable prices", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;
