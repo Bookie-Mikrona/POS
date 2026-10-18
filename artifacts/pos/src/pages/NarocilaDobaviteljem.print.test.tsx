@@ -348,6 +348,30 @@ describe("supplier order print view", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
+  it("prints the package snapshot saved on the order after the supplier mapping changes", () => {
+    const line = mocks.order.lines[0];
+    const originalLine = { ...line };
+    Object.assign(line, {
+      packageName: "zaboj 6",
+      packageFactor: 6,
+      currentPackageFactor: 8,
+      baseUnit: "L",
+    });
+
+    try {
+      renderSupplierOrderPage();
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+
+      const printedLine = screen.getByTestId("row-supplier-order-print-7041");
+      expect(printedLine.textContent).toContain("zaboj 6");
+      expect(printedLine.textContent).toContain("1 pak. = 6 L");
+      expect(printedLine.textContent).not.toContain("1 pak. = 8 L");
+    } finally {
+      Object.assign(line, originalLine);
+    }
+  });
+
   it("shows confirmed receipts for an order line and opens the selected receipt read-only", () => {
     const originalOrder = {
       status: mocks.order.status,
