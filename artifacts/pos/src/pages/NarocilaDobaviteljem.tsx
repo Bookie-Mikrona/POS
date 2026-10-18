@@ -259,6 +259,40 @@ function supplierTotalSavings(
   return Number.isFinite(total) && total > 0 ? total : null;
 }
 
+function supplierDraftLinePriceImpact(
+  mapping: SupplierReorderArticle["mappings"][number] | undefined,
+  article: SupplierReorderArticle | undefined,
+  packageQuantity: number,
+  enteredPackagePrice: number | null | undefined,
+): { baseQuantity: number; difference: number } | null {
+  if (!mapping
+    || !article
+    || !Number.isFinite(packageQuantity)
+    || packageQuantity <= 0
+    || !Number.isFinite(mapping.packageFactor)
+    || mapping.packageFactor <= 0
+    || enteredPackagePrice == null
+    || !Number.isFinite(enteredPackagePrice)
+    || enteredPackagePrice < 0
+    || !article.baseUnit?.trim()
+    || article.preferredMappingId == null) {
+    return null;
+  }
+  const preferredMapping = article.mappings.find(item =>
+    item.id === article.preferredMappingId && item.active,
+  );
+  const candidateUnitPrice = enteredPackagePrice / mapping.packageFactor;
+  const preferredUnitPrice = preferredMapping
+    ? comparableUnitPrice(preferredMapping, article.baseUnit)
+    : null;
+  if (!Number.isFinite(candidateUnitPrice) || preferredUnitPrice == null) return null;
+
+  const baseQuantity = mapping.packageFactor * packageQuantity;
+  const difference = (preferredUnitPrice - candidateUnitPrice) * baseQuantity;
+  return Number.isFinite(baseQuantity) && baseQuantity > 0 && Number.isFinite(difference)
+    ? { baseQuantity, difference }
+    : null;
+}
 function comparableUnitPrice(
   mapping: {
     packageFactor: number;
@@ -1245,6 +1279,25 @@ export default function NarocilaDobaviteljem() {
     prepareSuggestedOrder(supplierId, trigger);
   };
 
+  const draftSavingsLines = orderEditor?.rows.map(row => {
+    const mapping = articles.flatMap(article => article.mappings)
+      .find(item => item.id === row.supplierMappingId);
+    const article = articles.find(item =>
+      item.mappings.some(mappingItem => mappingItem.id === row.supplierMappingId),
+    );
+    return {
+      row,
+      mapping,
+      article,
+      estimate: supplierDraftLinePriceImpact(mapping, article, row.packageQuantity, row.unitPrice),
+    };
+  }) ?? [];
+  const draftSavingsComplete = draftSavingsLines.length > 0
+    && draftSavingsLines.every(line => line.estimate != null);
+  const draftSavingsTotal = draftSavingsComplete
+    ? draftSavingsLines.reduce((total, line) => total + (line.estimate?.difference ?? 0), 0)
+    : null;
+
   const busy = saveSettings.isPending || createOrder.isPending || updateOrder.isPending ||
     markSent.isPending || closeOrder.isPending || cancelOrder.isPending || createReceipt.isPending;
 
@@ -1776,10 +1829,23 @@ export default function NarocilaDobaviteljem() {
                 const priceFreshness = mapping
                   ? supplierPriceFreshness(mapping.lastPriceReceipt?.date)
                   : null;
+                const savingsLine = draftSavingsLines[index]?.estimate;
                 return <tr key={`${row.supplierMappingId}-${index}`}>
                   <td className="px-3 py-3">
                     <div className="font-semibold text-[#344d45]">{article?.articleName ?? "Artikel"}</div>
                     <div className="text-xs text-[#7b867f]">{mapping?.supplierItemName ?? article?.purchaseName ?? mapping?.packageName ?? "Dobaviteljska postavka"} · faktor {formatQty(mapping?.packageFactor)}</div>
+                    {savingsLine && article?.baseUnit?.trim() && (
+                      <div
+                        data-testid={`supplier-draft-savings-${row.supplierMappingId}`}
+                        className="mt-1 text-xs font-semibold text-emerald-800"
+                      >
+                        {savingsLine.difference > 1e-9
+                          ? `Ocenjen prihranek za ${formatQty(savingsLine.baseQuantity)} ${article.baseUnit}: ${formatUnitMoney(savingsLine.difference)}`
+                          : savingsLine.difference < -1e-9
+                            ? `Ocenjeni dodatni strošek za ${formatQty(savingsLine.baseQuantity)} ${article.baseUnit}: ${formatUnitMoney(Math.abs(savingsLine.difference))}`
+                            : `Za ${formatQty(savingsLine.baseQuantity)} ${article.baseUnit} ni ocenjene razlike.`}
+                      </div>
+                    )}
                     {mapping && <div className="mt-1 space-y-1 text-xs" data-testid={`supplier-order-price-source-${mapping.id}-${index}`}>
                       {mapping.lastPriceReceipt
                         ? <button
@@ -1818,6 +1884,32 @@ export default function NarocilaDobaviteljem() {
             </table>
             {orderEditor.rows.length === 0 && <p className="px-4 py-5 text-center text-sm text-[#7b867f]">Za izbranega dobavitelja še ni postavk.</p>}
           </div>
+          {orderEditor.rows.length > 0 && (
+            draftSavingsTotal != null
+              ? <p
+                data-testid="supplier-draft-total-savings"
+                className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  draftSavingsTotal > 1e-9
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                    : draftSavingsTotal < -1e-9
+                      ? "border-amber-200 bg-amber-50 text-amber-900"
+                      : "border-[#e6dfd2] bg-[#fbfaf6] text-[#66746b]"
+                }`}
+              >
+                {draftSavingsTotal > 1e-9
+                  ? `Ocenjen skupni prihranek glede na prednostne ponudbe: ${formatUnitMoney(draftSavingsTotal)}.`
+                  : draftSavingsTotal < -1e-9
+                    ? `Ocenjeni skupni dodatni strošek glede na prednostne ponudbe: ${formatUnitMoney(Math.abs(draftSavingsTotal))}.`
+                    : "Ocenjena skupna razlika glede na prednostne ponudbe: 0,00 €."}
+              </p>
+              : <p
+                data-testid="supplier-draft-savings-unavailable"
+                role="note"
+                className="rounded-lg border border-[#e6dfd2] bg-[#fbfaf6] px-3 py-2 text-xs leading-relaxed text-[#66746b]"
+              >
+                Skupnega prihranka ni mogoče oceniti: za vse postavke morajo biti znane primerljive cene, osnovna enota, velikost pakiranja in veljavna količina.
+              </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
             <label className="text-xs font-semibold text-[#5f7068]">Dodaj postavko
               <select value="" onChange={event => {

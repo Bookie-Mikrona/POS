@@ -328,6 +328,17 @@ function openNewOrderEditor() {
   return screen.getByRole("dialog", { name: "Naročilo dobavitelju" });
 }
 
+function openDraftWithSupplierMappings(supplierId: string, mappingIds: number[]) {
+  openNewOrderEditor();
+  fireEvent.change(screen.getByLabelText("Dobavitelj"), {
+    target: { value: supplierId },
+  });
+  const addItemSelect = screen.getByLabelText("Dodaj postavko");
+  for (const mappingId of mappingIds) {
+    fireEvent.change(addItemSelect, { target: { value: String(mappingId) } });
+  }
+}
+
 function openSavedDraftEditor() {
   fireEvent.click(screen.getByTestId("tab-supplier-orders"));
   fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
@@ -1804,6 +1815,174 @@ describe("supplier order print view", () => {
       Object.assign(article, { mappings: originalMappings });
     }
   });
+
+
+  it("updates draft line and total price impact from the entered package quantities", () => {
+    const originalArticles = mocks.dashboard.articles;
+    const originalArticle = originalArticles[0];
+    const [preferred] = originalArticle.mappings;
+    const preferredOffer = {
+      ...preferred,
+      supplierId: "supplier-preferred",
+      supplierName: "Prednostna mlekarna",
+    };
+    const cheaperOffer = {
+      ...preferred,
+      id: 7047,
+      supplierId: "supplier-discount",
+      supplierName: "Cenejša mlekarna",
+      packageName: "karton",
+      packageFactor: 8,
+      lastPackagePrice: 20,
+      lastUnitPrice: 2.5,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    const milkArticle = {
+      ...originalArticle,
+      mappings: [preferredOffer, cheaperOffer],
+    };
+    const butterPreferredOffer = {
+      ...preferredOffer,
+      id: 7053,
+      packageName: "zaboj",
+      packageFactor: 5,
+      lastPackagePrice: 15,
+      lastUnitPrice: 3,
+    };
+    const butterCheaperOffer = {
+      ...cheaperOffer,
+      id: 7054,
+      packageName: "paket",
+      packageFactor: 5,
+      lastPackagePrice: 8.75,
+      lastUnitPrice: 1.75,
+    };
+    const butterArticle = {
+      ...originalArticle,
+      articleId: 7045,
+      articleName: "Maslo",
+      purchaseName: "Maslo",
+      baseUnit: "kg",
+      suggestedBaseQuantity: 10,
+      suggestedPackageQuantity: 2,
+      preferredMappingId: butterPreferredOffer.id,
+      mappings: [butterPreferredOffer, butterCheaperOffer],
+    };
+    mocks.dashboard.articles = [milkArticle, butterArticle] as unknown as typeof originalArticles;
+
+    try {
+      renderSupplierOrderPage();
+      openDraftWithSupplierMappings("supplier-discount", [cheaperOffer.id, butterCheaperOffer.id]);
+
+      const milkQuantity = screen.getByLabelText("Količina pakiranj Mleko 3,5 %") as HTMLInputElement;
+      const butterQuantity = screen.getByLabelText("Količina pakiranj Maslo") as HTMLInputElement;
+      fireEvent.change(milkQuantity, { target: { value: "3" } });
+      fireEvent.change(butterQuantity, { target: { value: "2" } });
+
+      expect(screen.getByTestId("supplier-draft-savings-7047").textContent)
+        .toContain("24 L: 30,00");
+      expect(screen.getByTestId("supplier-draft-savings-7054").textContent)
+        .toContain("10 kg: 12,50");
+      expect(screen.getByTestId("supplier-draft-total-savings").textContent)
+        .toContain("42,50");
+      expect(milkArticle.preferredMappingId).toBe(preferred.id);
+      expect(butterArticle.preferredMappingId).toBe(butterPreferredOffer.id);
+
+      fireEvent.change(milkQuantity, { target: { value: "4" } });
+
+      expect(screen.getByTestId("supplier-draft-savings-7047").textContent)
+        .toContain("32 L: 40,00");
+      expect(screen.getByTestId("supplier-draft-total-savings").textContent)
+        .toContain("52,50");
+    } finally {
+      mocks.dashboard.articles = originalArticles;
+    }
+  });
+
+  it("uses the entered package price for draft savings and switches to extra cost", () => {
+    const originalArticles = mocks.dashboard.articles;
+    const originalArticle = originalArticles[0];
+    const [preferred] = originalArticle.mappings;
+    const cheaperOffer = {
+      ...preferred,
+      id: 7047,
+      supplierId: "supplier-discount",
+      supplierName: "Cenejša mlekarna",
+      packageFactor: 8,
+      lastPackagePrice: 20,
+      lastUnitPrice: 2.5,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    mocks.dashboard.articles = [{
+      ...originalArticle,
+      mappings: [preferred, cheaperOffer],
+    }] as unknown as typeof originalArticles;
+
+    try {
+      renderSupplierOrderPage();
+      openDraftWithSupplierMappings("supplier-discount", [cheaperOffer.id]);
+      fireEvent.change(screen.getByLabelText("Količina pakiranj Mleko 3,5 %"), { target: { value: "3" } });
+
+      expect(screen.getByTestId("supplier-draft-savings-7047").textContent).toContain("prihranek");
+      expect(screen.getByTestId("supplier-draft-total-savings").textContent).toContain("30,00");
+
+      fireEvent.change(screen.getByLabelText("Cena pakiranja Mleko 3,5 %"), { target: { value: "40" } });
+
+      expect(screen.getByTestId("supplier-draft-savings-7047").textContent).toContain("dodatni strošek");
+      expect(screen.getByTestId("supplier-draft-total-savings").textContent).toContain("dodatni strošek");
+      expect(screen.getByTestId("supplier-draft-total-savings").textContent).toContain("30,00");
+
+      fireEvent.change(screen.getByLabelText("Cena pakiranja Mleko 3,5 %"), { target: { value: "" } });
+
+      expect(screen.queryByTestId("supplier-draft-total-savings")).toBeNull();
+      expect(screen.getByTestId("supplier-draft-savings-unavailable")).toBeTruthy();
+    } finally {
+      mocks.dashboard.articles = originalArticles;
+    }
+  });
+
+  it.each(["price", "unit"] as const)(
+    "does not show a draft savings total when a comparable %s is missing",
+    missingComparable => {
+      const originalArticles = mocks.dashboard.articles;
+      const originalArticle = originalArticles[0];
+      const [preferred] = originalArticle.mappings;
+      const cheaperOffer = {
+        ...preferred,
+        id: 7047,
+        supplierId: "supplier-discount",
+        supplierName: "Cenejša mlekarna",
+        packageFactor: 8,
+        lastPackagePrice: 20 as number | null,
+        lastUnitPrice: 2.5 as number | null,
+        lastPriceReceipt: null,
+        priceHistory: [],
+      };
+      const article = {
+        ...originalArticle,
+        baseUnit: missingComparable === "unit" ? null : originalArticle.baseUnit,
+        mappings: [preferred, cheaperOffer],
+      };
+      if (missingComparable === "price") {
+        Object.assign(cheaperOffer, { lastPackagePrice: null, lastUnitPrice: null });
+      }
+      mocks.dashboard.articles = [article] as unknown as typeof originalArticles;
+
+      try {
+        renderSupplierOrderPage();
+        openDraftWithSupplierMappings("supplier-discount", [cheaperOffer.id]);
+
+        expect(screen.queryByTestId("supplier-draft-savings-7047")).toBeNull();
+        expect(screen.queryByTestId("supplier-draft-total-savings")).toBeNull();
+        expect(screen.getByTestId("supplier-draft-savings-unavailable").textContent)
+          .toContain("Skupnega prihranka ni mogoče oceniti");
+      } finally {
+        mocks.dashboard.articles = originalArticles;
+      }
+    },
+  );
 
   it("keeps a valid offer ranked lowest when stored prices are non-finite", () => {
     const article = mocks.dashboard.articles[0];
