@@ -536,6 +536,18 @@ describe("supplier order print view", () => {
     });
     expect(screen.getByText("Ni zadetkov za iskanje")).toBeTruthy();
     expect(screen.queryByTestId("row-supplier-order-712")).toBeNull();
+
+    const resetButton = screen.getByRole("button", { name: "Ponastavi iskanje in filtre" });
+    fireEvent.click(resetButton);
+
+    expect((screen.getByTestId("input-search-supplier-orders") as HTMLInputElement).value).toBe("");
+    for (const statusSelect of screen.getAllByRole("combobox", { name: "Filtriraj naročila po statusu" })) {
+      expect(statusSelect).toHaveProperty("value", "all");
+    }
+    expect(screen.getByTestId("filter-orders-missing-supplier-instructions").getAttribute("aria-pressed")).toBe("false");
+    for (const orderId of [710, 711, 712, 713]) {
+      expect(screen.getByTestId(`row-supplier-order-${orderId}`)).toBeTruthy();
+    }
   });
 
   it("warns before printing when internal notes exist without supplier instructions, then allows printing without exposing them", () => {

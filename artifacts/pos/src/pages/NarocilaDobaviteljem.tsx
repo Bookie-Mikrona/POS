@@ -69,12 +69,6 @@ function focusIfAvailable(target: HTMLElement | null, fallback: HTMLElement | nu
   }
   if (fallback?.isConnected) fallback.focus();
 }
-function normalizeSupplierOrderSearch(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLocaleLowerCase("sl");
-}
 const formatQty = (value: number | null | undefined, digits = 2) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { maximumFractionDigits: digits }).format(value);
 const formatDate = (value?: string | null) =>
@@ -610,10 +604,13 @@ export default function NarocilaDobaviteljem() {
     ? ordersMissingSupplierInstructions
     : orderList ?? [];
   const activeOrderSearch = orderSearch.trim();
-  const normalizedOrderSearch = normalizeSupplierOrderSearch(activeOrderSearch);
+  const normalizedOrderSearch = activeOrderSearch.toLocaleLowerCase("sl");
+  const hasActiveOrderFilters = Boolean(activeOrderSearch)
+    || statusFilter !== "all"
+    || missingSupplierInstructionsOnly;
   const filteredOrders = ordersWithInstructionFilter.filter(order =>
     !normalizedOrderSearch
-    || normalizeSupplierOrderSearch(`${order.number} ${order.supplierName}`).includes(normalizedOrderSearch),
+    || `${order.number} ${order.supplierName}`.toLocaleLowerCase("sl").includes(normalizedOrderSearch),
   );
   const supplierNotesAfterCopy = orderEditor
     ? appendInternalNoteToSupplierNotes(orderEditor.internalNotes, orderEditor.supplierNotes)
@@ -1201,7 +1198,20 @@ export default function NarocilaDobaviteljem() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf3ed] text-[#416c5e]"><FileText className="h-6 w-6" /></div>
           <h3 className="mt-3 font-bold text-[#28453f]">{activeOrderSearch ? "Ni zadetkov za iskanje" : missingSupplierInstructionsOnly ? "Ni naročil z interno opombo brez navodila" : "Za ta filter ni naročil"}</h3>
           <p className="mt-1 text-sm text-[#748079]">{activeOrderSearch ? "Preverite številko naročila ali naziv dobavitelja oziroma spremenite izbrane filtre." : missingSupplierInstructionsOnly ? "Za izbrani status ni naročil z interno opombo in praznim navodilom za dobavitelja." : "Ustvarite osnutek iz predlogov ali dodajte naročilo ročno."}</p>
-          {!missingSupplierInstructionsOnly && <Button className="mt-4 bg-[#285d50] text-white hover:bg-[#204b41]" onClick={event => startNewOrder(undefined, event.currentTarget)}><Plus className="mr-2 h-4 w-4" /> Novo naročilo</Button>}
+          {hasActiveOrderFilters
+            ? <Button
+              type="button"
+              className="mt-4 bg-[#285d50] text-white hover:bg-[#204b41]"
+              data-testid="button-reset-supplier-order-filters"
+              onClick={() => {
+                setOrderSearch("");
+                setStatusFilter("all");
+                setMissingSupplierInstructionsOnly(false);
+              }}
+            >
+              Ponastavi iskanje in filtre
+            </Button>
+            : <Button className="mt-4 bg-[#285d50] text-white hover:bg-[#204b41]" onClick={event => startNewOrder(undefined, event.currentTarget)}><Plus className="mr-2 h-4 w-4" /> Novo naročilo</Button>}
         </div> : <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-sm">
             <thead className="bg-[#f7f4ec] text-[10px] font-bold uppercase tracking-[.13em] text-[#76817a]"><tr><th className="px-5 py-3">Številka</th><th className="px-3 py-3">Dobavitelj</th><th className="px-3 py-3">Ustvarjeno</th><th className="px-3 py-3">Predvidena dostava</th><th className="px-3 py-3 text-center">Postavke</th><th className="px-3 py-3">Status</th><th className="px-5 py-3 text-right">Odpri</th></tr></thead>
