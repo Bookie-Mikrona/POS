@@ -14,3 +14,9 @@ Pri absolutnih nogah `lineBreak: false` ne zadostuje, če hkrati podaš `width`:
 **Why:** Dejanski PDF je kljub izključenemu prelomu dobil dodatno stran samo s številko strani; odstranitev širine pri nogi je preprečila samodejno paginacijo.
 
 **How to apply:** V absolutnih nogah ne podajaj `width`; desno poravnavo izračunaj z `widthOfString` in eksplicitnim x, ker sama možnost `align: "right"` brez širine ne poravna besedila. Pri dinamičnih dodatkih noge izriši šele po sestavi vseh strani.
+
+Vrstni red besed v `pdftotext -bbox` ni nujno vizualni vrstni red vrstic, posebej ob različnih velikostih pisave v isti tabeli.
+
+**Why:** Prilagojene velikosti dolgih številskih izpisov lahko spremenijo bralni vrstni red ekstraktorja, čeprav PDF geometrija ostane pravilna.
+
+**How to apply:** Za geometrijske preizkuse razvrsti sidra vrstic po koordinati y in številke preverjaj v celotnem pravokotniku vrstice, ne po enakosti njihove zgornje koordinate z nazivom.

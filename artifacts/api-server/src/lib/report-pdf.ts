@@ -915,6 +915,16 @@ export async function generateTrialBalancePdf(opts: {
     drawTableHeader();
   }
 
+  // Fit the full localized amount in its cell using the active font (including
+  // bold totals). Explicit positioning without a text width prevents PDFKit
+  // from wrapping long numbers or adding pages near the bottom of the table.
+  function drawAmount(text: string, x: number, top: number, fontSize = 7) {
+    doc.fontSize(fontSize);
+    const width = doc.widthOfString(text);
+    if (width > NUM_W_L) doc.fontSize(fontSize * (NUM_W_L - 0.01) / width);
+    doc.text(text, x + NUM_W_L - doc.widthOfString(text), top, { lineBreak: false });
+  }
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
 
@@ -939,20 +949,20 @@ export async function generateTrialBalancePdf(opts: {
 
     // Začetni saldo (siva)
     doc.font("DejaVuSans").fontSize(7).fillColor(COLOR_MUTED);
-    if (!hasOpeningDate || od !== 0) doc.text(hasOpeningDate ? fmtNum(od) : "—", COL_OB_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
-    if (!hasOpeningDate || oc !== 0) doc.text(hasOpeningDate ? fmtNum(oc) : "—", COL_OB_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    if (!hasOpeningDate || od !== 0) drawAmount(hasOpeningDate ? fmtNum(od) : "—", COL_OB_D, y + 2);
+    if (!hasOpeningDate || oc !== 0) drawAmount(hasOpeningDate ? fmtNum(oc) : "—", COL_OB_C, y + 2);
 
     // Promet (modra)
     doc.fillColor("#1d4ed8");
-    if (td !== 0) doc.text(fmtNum(td), COL_PROM_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
-    if (tc !== 0) doc.text(fmtNum(tc), COL_PROM_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    if (td !== 0) drawAmount(fmtNum(td), COL_PROM_D, y + 2);
+    if (tc !== 0) drawAmount(fmtNum(tc), COL_PROM_C, y + 2);
 
     // Zaključni saldo (krepko, primarna barva)
     doc.fillColor(COLOR_PRIMARY);
-    if (bd !== 0) doc.font("DejaVuSans-Bold").fontSize(7).text(fmtNum(bd), COL_SAL_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
-    if (bc !== 0) doc.font("DejaVuSans-Bold").fontSize(7).text(fmtNum(bc), COL_SAL_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
-    doc.font("DejaVuSans-Bold").fontSize(7).fillColor(COLOR_PRIMARY)
-      .text(formatSignedCents(netCents), COL_NET, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    doc.font("DejaVuSans-Bold");
+    if (bd !== 0) drawAmount(fmtNum(bd), COL_SAL_D, y + 2);
+    if (bc !== 0) drawAmount(fmtNum(bc), COL_SAL_C, y + 2);
+    drawAmount(formatSignedCents(netCents), COL_NET, y + 2);
 
     y += ROW_HEIGHT;
   }
@@ -963,19 +973,18 @@ export async function generateTrialBalancePdf(opts: {
   doc.font("DejaVuSans-Bold").fontSize(8).fillColor(COLOR_PRIMARY)
     .text("SKUPAJ", COL_CODE + 2, y + 4, { width: 200, lineBreak: false });
   doc.fillColor(COLOR_MUTED);
-  doc.text(hasOpeningDate ? fmtNum(opts.totalOpeningBalanceDebit) : "—", COL_OB_D, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
-  doc.text(hasOpeningDate ? fmtNum(opts.totalOpeningBalanceCredit) : "—", COL_OB_C, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  drawAmount(hasOpeningDate ? fmtNum(opts.totalOpeningBalanceDebit) : "—", COL_OB_D, y + 4, 8);
+  drawAmount(hasOpeningDate ? fmtNum(opts.totalOpeningBalanceCredit) : "—", COL_OB_C, y + 4, 8);
   doc.fillColor("#1d4ed8");
-  doc.text(fmtNum(opts.totalTurnoverDebit),        COL_PROM_D, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
-  doc.text(fmtNum(opts.totalTurnoverCredit),       COL_PROM_C, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  drawAmount(fmtNum(opts.totalTurnoverDebit), COL_PROM_D, y + 4, 8);
+  drawAmount(fmtNum(opts.totalTurnoverCredit), COL_PROM_C, y + 4, 8);
   doc.fillColor(COLOR_PRIMARY);
-  doc.text(fmtNum(opts.totalBalanceDebit),         COL_SAL_D,  y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
-  doc.text(fmtNum(opts.totalBalanceCredit),        COL_SAL_C,  y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  drawAmount(fmtNum(opts.totalBalanceDebit), COL_SAL_D, y + 4, 8);
+  drawAmount(fmtNum(opts.totalBalanceCredit), COL_SAL_C, y + 4, 8);
   const totalNetCents = Math.round(
     (parseFloat(opts.totalBalanceDebit) - parseFloat(opts.totalBalanceCredit)) * 100,
   );
-  doc.font("DejaVuSans-Bold").fillColor(COLOR_PRIMARY)
-    .text(formatSignedCents(totalNetCents), COL_NET, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  drawAmount(formatSignedCents(totalNetCents), COL_NET, y + 4, 8);
   y += 22;
 
   // Kontrola bilance

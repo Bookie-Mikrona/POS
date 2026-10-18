@@ -25,6 +25,110 @@ function inspectPdf(buffer: Buffer) {
 }
 
 describe("PDF bruto bilance", () => {
+  it.each([1, -1])("keeps complete multi-billion amounts, corrections and trillion totals inside every cell (sign %i)", async (sign) => {
+    const patterns = [
+      ["98765432109.87", "12345678901.23", "87654321098.76", "23456789012.34", "97530864219.75", "8641975320.86"],
+      ["-87654321098.76", "-23456789012.34", "-76543210987.65", "-34567890123.45", "-97530864219.75", "8641975320.86"],
+      ["12345678901.23", "98765432109.87", "23456789012.34", "87654321098.76", "8641975320.86", "97530864219.75"],
+    ];
+    const rows = Array.from({ length: 150 }, (_, index) => ({
+      ...fixture.rows[index % 3]!,
+      accountId: String(index),
+      accountCode: String(1000000 + index),
+      ...Object.fromEntries(fields.map((field, column) => {
+        const value = patterns[index % 3]![column]!;
+        return [field, sign === 1 ? value : value.startsWith("-") ? value.slice(1) : `-${value}`];
+      })),
+    }));
+    // Sum decimal cents exactly so the expected totals do not depend on
+    // accumulating floating-point rounding errors.
+    const totals = fields.map(field => {
+      const cents = rows.reduce((sum, row) => sum + BigInt(row[field].replace(".", "")), 0n);
+      return (Number(cents) / 100).toFixed(2);
+    });
+    const pdf = await generateTrialBalancePdf({
+      companyName: "Veliki zneski d.o.o.", dateFrom: "2026-01-01", dateTo: "2026-12-31", rows,
+      totalOpeningBalanceDebit: totals[0]!, totalOpeningBalanceCredit: totals[1]!,
+      totalTurnoverDebit: totals[2]!, totalTurnoverCredit: totals[3]!,
+      totalBalanceDebit: totals[4]!, totalBalanceCredit: totals[5]!,
+    });
+    const { pages, textPages } = inspectPdf(pdf);
+    expect(pages).toBe(5);
+    expect(textPages).toHaveLength(pages);
+    const bbox = spawnSync("pdftotext", ["-bbox", "-", "-"], { input: pdf, encoding: "utf8" });
+    expect(bbox.status, bbox.stderr).toBe(0);
+    const pageXml = [...bbox.stdout.matchAll(/<page width="([\d.]+)" height="([\d.]+)">([\s\S]*?)<\/page>/g)];
+    expect(pageXml).toHaveLength(pages);
+    const rightEdges = [345.89, 421.89, 497.89, 573.89, 649.89, 725.89, 801.89];
+    const seenAccounts: string[] = [];
+    let totalRows = 0;
+    pageXml.forEach((page, pageIndex) => {
+      expect(Number(page[1])).toBeCloseTo(841.89, 1);
+      expect(Number(page[2])).toBeCloseTo(595.28, 1);
+      expect(textPages[pageIndex]).toContain(`Stran ${pageIndex + 1} / ${pages}`);
+      const words = [...page[3]!.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)]
+        .map(word => ({ x: Number(word[1]), y: Number(word[2]), right: Number(word[3]), bottom: Number(word[4]), text: word[5]! }));
+      const headerY = pageIndex === 0 ? 90 : 60;
+      // Check both header tiers geometrically, not just their presence in
+      // extracted text: group headings and debit/credit labels must repeat.
+      const headings = [
+        ["Šifra", 42, 92], ["Naziv konta", 97, 265.89],
+        ["Začetni saldo", 273.89, 421.89], ["Promet v obdobju", 425.89, 573.89],
+        ["Skupaj — breme/dobro", 577.89, 725.89], ["Neto saldo", 729.89, 801.89],
+      ] as const;
+      for (const [label, left, right] of headings) {
+        const headingWords = words.filter(word => word.y >= headerY && word.bottom <= headerY + 16
+          && word.x >= left - 0.1 && word.right <= right + 0.1);
+        expect(headingWords.map(word => word.text).join(" ")).toBe(label);
+      }
+      rightEdges.forEach((right, column) => {
+        const subheading = words.filter(word => word.y >= headerY + 16 && word.bottom <= headerY + 28
+          && word.x >= right - 72 - 0.1 && word.right <= right + 0.1);
+        expect(subheading.map(word => word.text).join(" ")).toBe(column === 6 ? "+ / −" : column % 2 === 0 ? "Breme" : "Dobro");
+      });
+
+      function checkAmounts(top: number, height: number, values: string[]) {
+        const cellWords = words.filter(word => word.y >= top && word.y < top + height && word.x >= 273.89);
+        expect(cellWords).toHaveLength(7);
+        const amounts = values.map(Number);
+        amounts.push(Math.round((amounts[4]! - amounts[5]!) * 100) / 100);
+        amounts.forEach((amount, column) => {
+          const right = rightEdges[column]!;
+          const cell = cellWords.filter(word => Math.abs(word.right - right) < 0.1);
+          expect(cell, `page ${pageIndex + 1}, y=${top}, column ${column}`).toHaveLength(1);
+          expect(cell[0]!.text).toBe(`${column === 6 && amount > 0 ? "+" : ""}${localized(amount)}`);
+          expect(cell[0]!.x).toBeGreaterThanOrEqual(right - 72 - 0.1);
+          expect(cell[0]!.bottom).toBeLessThanOrEqual(top + height);
+          expect(cell[0]!.bottom).toBeLessThan(528.28);
+        });
+      }
+
+      const accounts = words.filter(word => /^1000\d{3}$/.test(word.text)).sort((a, b) => a.y - b.y);
+      expect(accounts.length).toBeGreaterThan(0);
+      accounts.forEach((account, rowIndex) => {
+        seenAccounts.push(account.text);
+        const top = headerY + 28 + rowIndex * 12;
+        expect(account.y).toBeGreaterThanOrEqual(top);
+        expect(account.bottom).toBeLessThanOrEqual(top + 12);
+        const row = rows[Number(account.text) - 1000000]!;
+        checkAmounts(top, 12, fields.map(field => row[field]));
+        const nameWords = words.filter(word => word.y >= top && word.y < top + 12 && word.x >= 97 && word.x < 273.89);
+        expect(nameWords.length).toBeGreaterThan(0);
+        for (const word of nameWords) {
+          expect(word.right).toBeLessThan(273.89);
+          expect(word.bottom).toBeLessThanOrEqual(top + 12);
+        }
+      });
+      if (words.some(word => word.text === "SKUPAJ")) {
+        expect(pageIndex).toBe(pages - 1);
+        totalRows++;
+        checkAmounts(headerY + 28 + accounts.length * 12, 18, totals);
+      }
+    });
+    expect(seenAccounts).toEqual(rows.map(row => row.accountCode));
+    expect(totalRows).toBe(1);
+  });
+
   it("keeps opening balances, all numeric columns and repeated headers aligned across 150 accounts", async () => {
     const rows = Array.from({ length: 150 }, (_, index) => ({
       ...fixture.rows[index % 3]!,
