@@ -133,6 +133,13 @@ const formatUnitMoney = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
   }).format(value);
+
+const formatNonZeroPercentage = (value: number): string | null => {
+  for (let digits = 1; digits <= 6; digits += 1) {
+    if (Number(value.toFixed(digits)) > 0) return formatQty(value, digits);
+  }
+  return null;
+};
 const comparePriceHistoryEntries = (
   unitPrice: number,
   previousUnitPrice: number,
@@ -150,9 +157,18 @@ const comparePriceHistoryEntries = (
 
   const isRise = difference > 0;
   const sign = isRise ? "+" : "−";
-  const percentage = previousUnitPrice > 0
-    ? ` (${sign}${formatQty(Math.abs(difference) / previousUnitPrice * 100, 1)} %)`
-    : ` (odstotek ni izračunljiv pri prejšnji ceni ${formatUnitMoney(previousUnitPrice)})`;
+  const percentageValue = Math.abs(difference) / previousUnitPrice * 100;
+  let percentage: string;
+  if (previousUnitPrice <= 0) {
+    percentage = ` (odstotek ni izračunljiv pri prejšnji ceni ${formatUnitMoney(previousUnitPrice)})`;
+  } else if (!Number.isFinite(percentageValue)) {
+    percentage = " (odstotek ni izračunljiv)";
+  } else {
+    const formattedPercentage = formatNonZeroPercentage(percentageValue);
+    percentage = formattedPercentage != null
+      ? ` (${sign}${formattedPercentage} %)`
+      : " (odstotek je manjši od 0,000001 %)";
+  }
   return {
     label: `${isRise ? "Podražitev" : "Pocenitev"}: ${sign}${absoluteChange}${percentage}`,
     className: isRise ? "text-rose-700" : "text-emerald-700",
@@ -1112,6 +1128,18 @@ export default function NarocilaDobaviteljem() {
                         const savings = supplierMapping.id === article.preferredMappingId
                           ? null
                           : supplierUnitSavings(unitPrice, preferredUnitPrice);
+                        const savingsPercentage = savings == null
+                          ? null
+                          : Number.isFinite(savings.percent)
+                            ? formatNonZeroPercentage(savings.percent)
+                            : null;
+                        const savingsPercentageNote = savings == null
+                          ? null
+                          : savingsPercentage != null
+                            ? `${savingsPercentage} %`
+                            : Number.isFinite(savings.percent)
+                              ? "odstotek je manjši od 0,000001 %"
+                              : "odstotek ni izračunljiv";
                         const totalSavings = supplierTotalSavings(
                           savings?.amount ?? null,
                           article.suggestedBaseQuantity,
@@ -1164,7 +1192,7 @@ export default function NarocilaDobaviteljem() {
                                 data-testid={`supplier-savings-${supplierMapping.id}`}
                                 className="font-semibold text-emerald-800"
                               >
-                                Ponudba {supplierOfferName(supplierMapping)} je {formatUnitMoney(savings.amount)} / {article.baseUnit} ({formatQty(savings.percent, 1)} %) cenejša od prednostne ponudbe {supplierOfferName(preferredOffer.mapping)}.
+                                Ponudba {supplierOfferName(supplierMapping)} je {formatUnitMoney(savings.amount)} / {article.baseUnit} ({savingsPercentageNote}) cenejša od prednostne ponudbe {supplierOfferName(preferredOffer.mapping)}.
                               </div>
                             )}
                             {totalSavings != null && preferredOffer && article.baseUnit?.trim() && (

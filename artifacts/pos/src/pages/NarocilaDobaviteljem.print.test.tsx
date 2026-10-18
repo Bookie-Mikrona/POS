@@ -1181,6 +1181,50 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("shows nonzero precision for sub-cent price changes near the percentage rounding threshold", () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalPriceHistory = mapping.priceHistory;
+    mapping.priceHistory = [
+      { receiptId: 7110, date: "2026-10-17", receiptNumber: "R-7110", unitPrice: 1.0004 },
+      { receiptId: 7111, date: "2026-10-16", receiptNumber: "R-7111", unitPrice: 1 },
+      { receiptId: 7112, date: "2026-10-15", receiptNumber: "R-7112", unitPrice: 1.00049 },
+      { receiptId: 7113, date: "2026-10-14", receiptNumber: "R-7113", unitPrice: 1 },
+      { receiptId: 7114, date: "2026-10-13", receiptNumber: "R-7114", unitPrice: 1.0005 },
+      { receiptId: 7115, date: "2026-10-12", receiptNumber: "R-7115", unitPrice: 1 },
+      { receiptId: 7116, date: "2026-10-11", receiptNumber: "R-7116", unitPrice: 1000.000001 },
+      { receiptId: 7117, date: "2026-10-10", receiptNumber: "R-7117", unitPrice: 1000 },
+      { receiptId: 7118, date: "2026-10-09", receiptNumber: "R-7118", unitPrice: 0.9996 },
+      { receiptId: 7119, date: "2026-10-08", receiptNumber: "R-7119", unitPrice: 1 },
+    ];
+
+    try {
+      renderSupplierOrderPage();
+      const history = screen.getByTestId("price-history-7042");
+      fireEvent.click(within(history).getByText(/Zgodovina potrjenih cen/));
+      const changeFor = (receiptId: number) =>
+        screen.getByTestId(`price-history-change-7042-${receiptId}`).textContent ?? "";
+
+      expect(changeFor(7110)).toMatch(/\+0,0004\s?€/);
+      expect(changeFor(7110)).toMatch(/\+0,04\s?%/);
+      expect(changeFor(7110)).not.toMatch(/\+0,0\s?%/);
+
+      expect(changeFor(7112)).toMatch(/\+0,00049\s?€/);
+      expect(changeFor(7112)).toMatch(/\+0,05\s?%/);
+
+      expect(changeFor(7114)).toMatch(/\+0,0005\s?€/);
+      expect(changeFor(7114)).toMatch(/\+0,05\s?%/);
+
+      expect(changeFor(7116)).toMatch(/\+0,000001\s?€/);
+      expect(changeFor(7116)).toContain("odstotek je manjši od 0,000001 %");
+      expect(changeFor(7116)).not.toMatch(/\+?0(?:,0+)?\s?%/);
+
+      expect(changeFor(7118)).toMatch(/−0,0004\s?€/);
+      expect(changeFor(7118)).toMatch(/−0,04\s?%/);
+    } finally {
+      mapping.priceHistory = originalPriceHistory;
+    }
+  });
+
   it("shows savings against the preferred supplier only for valid comparable prices", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;
@@ -1198,6 +1242,18 @@ describe("supplier order print view", () => {
           packageFactor: 8,
           lastPackagePrice: 20,
           lastUnitPrice: 2.5,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
+        {
+          ...existing,
+          id: 7064,
+          supplierId: "supplier-710",
+          supplierName: "Mlekarna Malo cenejša",
+          packageName: "kos",
+          packageFactor: 1,
+          lastPackagePrice: 3.7496,
+          lastUnitPrice: 3.7496,
           lastPriceReceipt: null,
           priceHistory: [],
         },
@@ -1271,6 +1327,10 @@ describe("supplier order print view", () => {
       expect(savings.textContent).toMatch(/1,25\s*€ \/ L/);
       expect(savings.textContent).toContain("33,3 %");
       expect(savings.textContent).toContain("Mlekarna Planika · Mleko polnomastno");
+      const smallSavings = screen.getByTestId("supplier-savings-7064");
+      expect(smallSavings.textContent).toMatch(/0,0004\s?€ \/ L/);
+      expect(smallSavings.textContent).toContain("0,01 %");
+      expect(smallSavings.textContent).not.toContain("0,0 %");
       const totalSavings = screen.getByTestId("supplier-total-savings-7047");
       expect(totalSavings.textContent).toContain("15 L");
       expect(totalSavings.textContent).toMatch(/18,75\s*€/);
