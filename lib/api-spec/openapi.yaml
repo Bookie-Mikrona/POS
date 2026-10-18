@@ -20017,6 +20017,9 @@ components:
         - datum
         - skupajVrednost
         - ustvarjeno
+        - alergeniPostavk
+        - alergeniNepreverjeno
+        - alergeniPotrjeno
       properties:
         id:
           type: integer
@@ -20052,6 +20055,15 @@ components:
           type: string
         steviloPostavk:
           type: integer
+        alergeniPostavk:
+          type: integer
+          description: Število postavk, ki imajo alergenski posnetek; stroški prevoza so izključeni.
+        alergeniNepreverjeno:
+          type: integer
+          description: Število postavk z nepreverjenim alergenskim posnetkom.
+        alergeniPotrjeno:
+          type: integer
+          description: Število postavk s potrjenim alergenskim posnetkom, tudi potrjeno brez alergenov.
     PrejemnicaPostavkaPogled:
       type: object
       required:

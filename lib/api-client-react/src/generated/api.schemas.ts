@@ -8208,6 +8208,12 @@ export interface PrejemnicaGlava {
   ddvZnesek?: number | null;
   ustvarjeno: string;
   steviloPostavk?: number;
+  /** Število postavk, ki imajo alergenski posnetek; stroški prevoza so izključeni. */
+  alergeniPostavk: number;
+  /** Število postavk z nepreverjenim alergenskim posnetkom. */
+  alergeniNepreverjeno: number;
+  /** Število postavk s potrjenim alergenskim posnetkom, tudi potrjeno brez alergenov. */
+  alergeniPotrjeno: number;
 }
 
 /**

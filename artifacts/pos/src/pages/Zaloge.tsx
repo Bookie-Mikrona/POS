@@ -68,7 +68,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
-  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown, ChevronRight,
+  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown, ChevronRight, Eye,
   FileUp, Printer,
   Download,
 } from "lucide-react";
@@ -4879,15 +4879,16 @@ export default function Zaloge() {
                   <TableHead>Opomba</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">Postavke</TableHead>
+                  <TableHead>Alergeni</TableHead>
                   <TableHead className="text-right">Vrednost</TableHead>
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loadingP ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
                 ) : (prejemnice ?? []).length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Ni prejemnic</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Ni prejemnic</TableCell></TableRow>
                 ) : (prejemnice ?? []).slice().sort((a, b) => (b.stevilka ?? "").localeCompare(a.stevilka ?? "", "sl", { numeric: true })).map(p => (
                   <TableRow key={p.id}>
                     <TableCell className="font-mono text-sm font-medium text-primary">{p.stevilka ?? "–"}</TableCell>
@@ -4904,9 +4905,35 @@ export default function Zaloge() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center"><Badge variant="outline">{p.steviloPostavk ?? 0}</Badge></TableCell>
+                    <TableCell>
+                      {typeof p.alergeniPostavk === "number"
+                        && typeof p.alergeniNepreverjeno === "number"
+                        && typeof p.alergeniPotrjeno === "number" ? (
+                        p.alergeniPostavk === 0 ? (
+                          <span className="text-xs text-muted-foreground">Ni alergenskih postavk</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1" aria-label={`Alergeni: ${p.alergeniNepreverjeno} nepreverjenih, ${p.alergeniPotrjeno} potrjenih`}>
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                              Nepreverjeno {p.alergeniNepreverjeno}
+                            </Badge>
+                            <Badge variant="outline" className="border-green-300 bg-green-50 text-green-800">
+                              Potrjeno {p.alergeniPotrjeno}
+                            </Badge>
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Povzetek ni na voljo</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{fmt(Number(p.skupajVrednost))} €</TableCell>
                     <TableCell>
                       <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                          aria-label={`Ogled prejemnice ${p.stevilka ?? p.id}`}
+                          title="Ogled prejemnice"
+                          onClick={() => setViewPrejId(p.id)}>
+                          <Eye className="w-3.5 h-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7"
                           onClick={() => setEditPrejId(p.id)}>
                           <Pencil className="w-3.5 h-3.5" />

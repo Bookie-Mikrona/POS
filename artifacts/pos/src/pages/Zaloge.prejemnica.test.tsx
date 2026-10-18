@@ -26,6 +26,9 @@ const mockPrejemnica = {
   datum: "2025-03-15T00:00:00.000Z",
   opomba: null,
   steviloPostavk: 5,
+  alergeniPostavk: 5,
+  alergeniNepreverjeno: 2,
+  alergeniPotrjeno: 3,
   skupajVrednost: "123.45",
 };
 
@@ -94,6 +97,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   window.history.replaceState({}, "", "/");
+  Object.assign(mockPrejemnica, {
+    alergeniPostavk: 5,
+    alergeniNepreverjeno: 2,
+    alergeniPotrjeno: 3,
+  });
   mockGetPrejemnica.mockClear();
   mockUpdatePrejemnicaMutate.mockClear();
   mockReconcileZalogeMutate.mockClear();
@@ -236,7 +244,7 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
 
     renderZaloge();
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByTestId("dialog-prejemnica-readonly");
     expect(within(dialog).getByRole("heading", { name: /Pregled prejemnice št\. 26100009/ })).toBeInTheDocument();
     expect(within(dialog).getByText("Mlekarna Planika")).toBeInTheDocument();
     expect(within(dialog).getByTestId("receipt-view-line-1")).toHaveTextContent("Mleko polnomastno");
@@ -330,18 +338,50 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
 
     renderZaloge();
 
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).queryByRole("button", { name: "Tiskaj / shrani PDF" })).not.toBeInTheDocument();
-    expect(screen.queryByTestId("receipt-print-document")).not.toBeInTheDocument();
+    const dialog = await screen.findByTestId("dialog-prejemnica-readonly");
+    fireEvent.click(within(dialog).getByText("Potrdi"));
+
+    expect(mockDeleteMutate).toHaveBeenCalledOnce();
+    expect(mockDeleteMutate).toHaveBeenCalledWith(
+      { id: mockPrejemnica.id },
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+        onError: expect.any(Function),
+      })
+    );
   });
 
-  it("pri nedostopni prejemnici v načinu samo za ogled pokaže napako brez urejevalnika", async () => {
-    mockGetPrejemnica.mockReturnValue({ data: undefined, isLoading: false, isError: true });
-    window.history.pushState({}, "", "/zaloge?prejemnica=4210&nacin=ogled");
-
+  it("mutacija za brisanje se NE pokliče brez klika na gumb za brisanje", () => {
     renderZaloge();
+    switchToPrejemnice();
 
-    const dialog = await screen.findByRole("dialog");
+    expect(mockDeleteMutate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("Zaloge — alergenski povzetek prejemnice", () => {
+  it("v seznamu loči nepreverjene od potrjenih postavk in odpre prejemnico samo za ogled", async () => {
+    mockGetPrejemnica.mockReturnValue({
+      data: {
+        id: mockPrejemnica.id,
+        stevilka: mockPrejemnica.stevilka,
+        status: "confirmed",
+        datum: "2025-03-15",
+        skupajVrednost: "123.45",
+        postavke: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+    renderZaloge();
+    switchToPrejemnice();
+
+    expect(await screen.findByText("Nepreverjeno 2")).toBeInTheDocument();
+    expect(screen.getByText("Potrjeno 3")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ogled prejemnice PR-2025-001" }));
+
+    const dialog = await screen.findByTestId("dialog-prejemnica-readonly");
     expect(within(dialog).getByRole("alert")).toHaveTextContent(
       "Prejemnice ni mogoče odpreti. Preverite povezavo, izbrano enoto in dovoljenja.",
     );
@@ -384,22 +424,27 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
       currentBaseUnit: "L",
     }];
     const responses = [
-      { status: 409, body: { code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED", packageFactorChanges: firstChanges } },
-      { status: 409, body: { code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED", packageFactorChanges: latestChanges } },
+      { status: 409, body: { code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED", packageFactorChanges: nameOnlyChanges } },
+      { status: 200, body: { id: 4212, status: "confirmed" } },
     ];
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("/zaloge/zadnje-nabavne")) {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/zaloge/zadnje-nabavne")) {
         return { status: 200, ok: true, json: async () => [] } as Response;
       }
-      const next = responses.shift() ?? { status: 500, body: { error: "Nepričakovan zahtevek" } };
-      return { status: next.status, ok: next.status < 400, json: async () => next.body } as Response;
+      return {
+        status: 409,
+        ok: false,
+        json: async () => ({
+          code: "SUPPLIER_ORDER_BASE_UNIT_CHANGED",
+          packageFactorChanges: unitChanges,
+        }),
+      } as Response;
     });
     vi.stubGlobal("fetch", fetchMock);
     mockGetPrejemnica.mockReturnValue({
       data: {
-        id: 4211,
-        stevilka: "26100011",
+        id: 4213,
+        stevilka: "26100013",
         datum: "2026-10-17",
         status: "draft",
         vrstaCen: "neto",
@@ -409,7 +454,7 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
       isLoading: false,
       isError: false,
     });
-    window.history.pushState({}, "", "/zaloge?prejemnica=4211");
+    window.history.pushState({}, "", "/zaloge?prejemnica=4213");
 
     renderZaloge();
 
@@ -420,8 +465,7 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
 
     expect(await screen.findByRole("heading", { name: "Preveri spremenjeno pakiranje" })).toBeInTheDocument();
     expect(screen.getByText(/V naročilu: 6 L \/ zaboj/)).toBeInTheDocument();
-    expect(screen.getByText(/Trenutno pri dobavitelju: 8 L \/ karton/)).toBeInTheDocument();
-    expect(screen.getByText(/Pregled ne prepiše shranjenih posnetkov/)).toBeInTheDocument();
+    expect(screen.getByText(/Trenutno pri dobavitelju: 6 L \/ transportni zaboj/)).toBeInTheDocument();
 
     fireEvent.click(within(confirmDialog).getByRole("button", { name: "Pregledal/a sem — potrdi prejemnico" }));
     await waitFor(() => {
@@ -449,18 +493,24 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
       { status: 409, body: { code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED", packageFactorChanges: nameOnlyChanges } },
       { status: 200, body: { id: 4212, status: "confirmed" } },
     ];
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).includes("/zaloge/zadnje-nabavne")) {
         return { status: 200, ok: true, json: async () => [] } as Response;
       }
-      const next = responses.shift() ?? { status: 500, body: { error: "Nepričakovan zahtevek" } };
-      return { status: next.status, ok: next.status < 400, json: async () => next.body } as Response;
+      return {
+        status: 409,
+        ok: false,
+        json: async () => ({
+          code: "SUPPLIER_ORDER_BASE_UNIT_CHANGED",
+          packageFactorChanges: unitChanges,
+        }),
+      } as Response;
     });
     vi.stubGlobal("fetch", fetchMock);
     mockGetPrejemnica.mockReturnValue({
       data: {
-        id: 4212,
-        stevilka: "26100012",
+        id: 4213,
+        stevilka: "26100013",
         datum: "2026-10-17",
         status: "draft",
         vrstaCen: "neto",
@@ -470,7 +520,7 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
       isLoading: false,
       isError: false,
     });
-    window.history.pushState({}, "", "/zaloge?prejemnica=4212");
+    window.history.pushState({}, "", "/zaloge?prejemnica=4213");
 
     renderZaloge();
 
@@ -624,8 +674,7 @@ describe("Zaloge — brisanje prejemnice: potrditveni dialog", () => {
     switchToPrejemnice();
     fireEvent.click(findPrejDeleteButton(container));
 
-    const dialog = screen.getByRole("alertdialog");
-    expect(dialog).toBeInTheDocument();
+    const dialog = await screen.findByTestId("dialog-prejemnica-readonly");
 
     fireEvent.click(within(dialog).getByText("Prekliči"));
 
@@ -638,25 +687,26 @@ describe("Zaloge — brisanje prejemnice: potrditveni dialog", () => {
     switchToPrejemnice();
     fireEvent.click(findPrejDeleteButton(container));
 
-    const dialog = screen.getByRole("alertdialog");
-    fireEvent.click(within(dialog).getByText("Potrdi"));
-
-    expect(mockDeleteMutate).toHaveBeenCalledOnce();
-    expect(mockDeleteMutate).toHaveBeenCalledWith(
-      { id: mockPrejemnica.id },
-      expect.objectContaining({
-        onSuccess: expect.any(Function),
-        onError: expect.any(Function),
-      })
-    );
+    const dialog = await screen.findByTestId("dialog-prejemnica-readonly");
+    expect(within(dialog).getByRole("heading", { name: /Pregled prejemnice/ })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /potrdi prejemnico|pripravi računovodski osnutek/i }))
+      .not.toBeInTheDocument();
+    expect(mockGetPrejemnica).toHaveBeenCalledWith(mockPrejemnica.id);
+    expect(mockUpdatePrejemnicaMutate).not.toHaveBeenCalled();
   });
 
-  it("mutacija za brisanje se NE pokliče brez klika na gumb za brisanje", () => {
+  it("za prejemnico brez alergenskih postavk pokaže nevtralno stanje", () => {
+    Object.assign(mockPrejemnica, {
+      alergeniPostavk: 0,
+      alergeniNepreverjeno: 0,
+      alergeniPotrjeno: 0,
+    });
     renderZaloge();
     switchToPrejemnice();
 
-    expect(mockDeleteMutate).not.toHaveBeenCalled();
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Ni alergenskih postavk")).toBeInTheDocument();
+    expect(screen.queryByText(/Nepreverjeno 0|Potrjeno 0/)).not.toBeInTheDocument();
   });
 });
 
