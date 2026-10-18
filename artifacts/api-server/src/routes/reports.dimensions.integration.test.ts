@@ -69,6 +69,88 @@ describe("dimension report line-level attribution", () => {
     ["costCenter", costCentersTable, "costCenterId"],
     ["project", projectsTable, "projectId"],
     ["department", departmentsTable, "departmentId"],
+  ] as const)("denies foreign-company %s reports in both views without leaking data", async (dimensionType, table, fk) => {
+    const rollback = new Error("rollback unauthorized dimension report fixtures");
+    const companyIds: string[] = [];
+    try {
+      await db.transaction(async tx => {
+        isolation.tx = tx;
+        const [ownCompany, foreignCompany] = await db.insert(companiesTable).values([
+          { podjetjeDavcna: `TEST_DIM_ACCESS_OWN_${dimensionType}_${Date.now()}`, naziv: "TEST own report company" },
+          { podjetjeDavcna: `TEST_DIM_ACCESS_FOREIGN_${dimensionType}_${Date.now()}`, naziv: "TEST private report company" },
+        ]).returning();
+        companyIds.push(ownCompany.id, foreignCompany.id);
+        await db.insert(accountingRolesTable).values([
+          { companyId: ownCompany.id, clerkUserId: "TEST-dimension-report", role: "viewer" },
+          { companyId: foreignCompany.id, clerkUserId: "TEST-foreign-dimension-owner", role: "viewer" },
+        ]);
+        const [period] = await db.insert(accountingPeriodsTable).values({
+          companyId: foreignCompany.id, name: "2026",
+          startDate: "2026-01-01", endDate: "2026-12-31", status: "open",
+        }).returning();
+        const [expense, bank] = await db.insert(accountsTable).values([
+          { companyId: foreignCompany.id, code: "4000", name: "TEST private expense", type: "expense" },
+          { companyId: foreignCompany.id, code: "1100", name: "TEST private bank", type: "asset" },
+        ]).returning();
+        const [dimension] = await db.insert(table).values({
+          companyId: foreignCompany.id, code: "PRIVATE", name: "TEST private dimension",
+        }).returning();
+        const [entry] = await db.insert(journalEntriesTable).values({
+          companyId: foreignCompany.id, periodId: period.id, entryDate: "2026-06-15",
+          description: "TEST private dimension journal", createdBy: "TEST-foreign-dimension-owner", status: "posted",
+        }).returning();
+        await db.insert(journalEntryLinesTable).values([
+          { entryId: entry.id, accountId: expense.id, side: "debit", amount: "1234.56", sequence: 0, [fk]: dimension.id },
+          { entryId: entry.id, accountId: bank.id, side: "credit", amount: "1234.56", sequence: 1, [fk]: dimension.id },
+        ]);
+
+        const url = `/companies/${foreignCompany.id}/reports/dimensions`;
+        const queries = [
+          { dimensionType, dateFrom: "2026-06-01", dateTo: "2026-06-30" },
+          { dimensionType, dateFrom: "2026-06-01", dateTo: "2026-06-30", groupBy: "account" },
+        ];
+        for (const query of queries) {
+          const response = await request(app).get(url).query(query).expect(403);
+          // An error-only payload excludes rows, account details and totals.
+          expect(response.body).toEqual({ error: "Dostop do tega podjetja ni dovoljen" });
+          for (const privateValue of [
+            foreignCompany.id, foreignCompany.naziv, dimension.id, dimension.code, dimension.name,
+            expense.id, expense.name, bank.id, bank.name, entry.id, "1234.56",
+          ]) {
+            expect(response.text).not.toContain(privateValue);
+          }
+        }
+
+        // Positive control: these same queries expose real data only after an
+        // explicit role grant to the requesting user at the foreign company.
+        await db.insert(accountingRolesTable).values({
+          companyId: foreignCompany.id, clerkUserId: "TEST-dimension-report", role: "viewer",
+        });
+        for (const query of queries) {
+          const response = await request(app).get(url).query(query).expect(200);
+          expect(response.body.rows).toMatchObject([{ id: dimension.id, totalDebit: "1234.56", totalCredit: "1234.56" }]);
+          if (query.groupBy === "account") {
+            expect(response.body.rows[0].accounts.map((account: { accountId: string }) => account.accountId).sort())
+              .toEqual([expense.id, bank.id].sort());
+          }
+        }
+        throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
+    } finally {
+      isolation.tx = null;
+    }
+    expect(companyIds).toHaveLength(2);
+    for (const companyId of companyIds) {
+      expect(await db.select().from(companiesTable).where(eq(companiesTable.id, companyId))).toHaveLength(0);
+    }
+  });
+
+  it.each([
+    ["costCenter", costCentersTable, "costCenterId"],
+    ["project", projectsTable, "projectId"],
+    ["department", departmentsTable, "departmentId"],
   ] as const)("reconciles %s totals with account subrows for a split journal", async (dimensionType, table, fk) => {
     const rollback = new Error("rollback dimension report fixtures");
     let companyId = "";
