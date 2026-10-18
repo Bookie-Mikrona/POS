@@ -410,18 +410,24 @@ export type SupplierPriceReceiptSource = {
 
 export type SupplierPriceHistoryEntry = SupplierPriceReceiptSource & {
   unitPrice: number;
+  unitPriceDecimal: string;
 };
 
 export async function getSupplierPriceHistory(
   tx: typeof db | any,
   enotaId: number,
   mappingIds: number[],
-  limit = 5,
+  limit: number | null = 5,
 ): Promise<Map<number, SupplierPriceHistoryEntry[]>> {
   const scopedMappingIds = [...new Set(mappingIds)]
     .filter(id => Number.isInteger(id) && id > 0);
   if (scopedMappingIds.length === 0) return new Map();
-  const historyLimit = Math.min(20, Math.max(1, Math.trunc(limit) || 5));
+  const historyLimit = limit === null
+    ? null
+    : Math.min(20, Math.max(1, Math.trunc(limit) || 5));
+  const historyFilter = historyLimit === null
+    ? sql`TRUE`
+    : sql`"historyPosition" <= ${historyLimit}`;
 
   const result = await tx.execute(sql`
     WITH receipt_prices AS (
@@ -433,7 +439,8 @@ export async function getSupplierPriceHistory(
           NULLIF(BTRIM(receipt.stevilka), ''),
           'ID-' || receipt.id::text
         ) AS "receiptNumber",
-        receipt_line.neto_cena::double precision AS "unitPrice"
+        receipt_line.neto_cena::double precision AS "unitPrice",
+        receipt_line.neto_cena::text AS "unitPriceDecimal"
       FROM prejemnice_postavke receipt_line
       JOIN prejemnice receipt
         ON receipt.id = receipt_line.prejemnica_id
@@ -465,9 +472,9 @@ export async function getSupplierPriceHistory(
         ) AS "historyPosition"
       FROM receipt_prices
     )
-    SELECT "mappingId", "receiptId", "date", "receiptNumber", "unitPrice"
+    SELECT "mappingId", "receiptId", "date", "receiptNumber", "unitPrice", "unitPriceDecimal"
     FROM ranked_receipts
-    WHERE "historyPosition" <= ${historyLimit}
+    WHERE ${historyFilter}
     ORDER BY "mappingId", "date" DESC, "receiptId" DESC
   `);
   const history = new Map<number, SupplierPriceHistoryEntry[]>();
@@ -477,6 +484,7 @@ export async function getSupplierPriceHistory(
     date: string;
     receiptNumber: string;
     unitPrice: number | string;
+    unitPriceDecimal: string;
   }>) {
     const mappingId = Number(row.mappingId);
     const entries = history.get(mappingId) ?? [];
@@ -485,6 +493,7 @@ export async function getSupplierPriceHistory(
       date: row.date,
       receiptNumber: row.receiptNumber,
       unitPrice: Number(row.unitPrice),
+      unitPriceDecimal: row.unitPriceDecimal,
     });
     history.set(mappingId, entries);
   }

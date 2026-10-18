@@ -99,6 +99,11 @@ function parseId(raw: string): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+function csvCell(value: string): string {
+  const safeValue = /^[\t\r ]*[=+\-@]/.test(value) ? `'${value}` : value;
+  return `"${safeValue.replaceAll('"', '""')}"`;
+}
+
 function nullableNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
@@ -596,7 +601,7 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
                 receiptNumber: latestPriceReceipt.receiptNumber,
               }
             : null,
-          priceHistory,
+          priceHistory: priceHistory.map(({ unitPriceDecimal: _unitPriceDecimal, ...entry }) => entry),
           active: mapping.active,
         };
       }),
@@ -604,6 +609,59 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
   });
   res.setHeader("Cache-Control", "no-store");
   res.json({ articles, orders: recentOrders });
+});
+
+router.get("/narocila-dobaviteljem/preslikave/:mappingId/zgodovina.csv", async (req, res): Promise<void> => {
+  const { enotaId, companyId } = requestScope(req);
+  const mappingId = parseId(req.params.mappingId);
+  if (!mappingId) {
+    res.status(400).json({ error: "Neveljaven ID dobaviteljske povezave." });
+    return;
+  }
+
+  const [mapping] = await db.select({
+    id: artikelDobaviteljTable.id,
+    baseUnit: artikliTable.enotaMere,
+  })
+    .from(artikelDobaviteljTable)
+    .innerJoin(
+      artikliTable,
+      and(
+        eq(artikliTable.id, artikelDobaviteljTable.artikelId),
+        eq(artikliTable.enotaId, artikelDobaviteljTable.enotaId),
+      ),
+    )
+    .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, artikelDobaviteljTable.dobaviteljId))
+    .where(and(
+      eq(artikelDobaviteljTable.id, mappingId),
+      eq(artikelDobaviteljTable.enotaId, enotaId),
+      eq(counterpartiesTable.companyId, companyId),
+    ))
+    .limit(1);
+  if (!mapping) {
+    res.status(404).json({ error: "Dobaviteljska povezava ni najdena." });
+    return;
+  }
+
+  const history = (await getSupplierPriceHistory(db, enotaId, [mappingId], null))
+    .get(mappingId) ?? [];
+  const unitLabel = mapping.baseUnit?.trim() || "enota";
+  const rows = [
+    ["Številka prejemnice", "Datum", `Cena na osnovno enoto (${unitLabel})`],
+    ...history.map(entry => [
+      entry.receiptNumber,
+      entry.date,
+      entry.unitPriceDecimal.replace(".", ","),
+    ]),
+  ];
+
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="dobaviteljske-cene-${mappingId}.csv"`,
+  );
+  res.send(`\uFEFF${rows.map(row => row.map(csvCell).join(";")).join("\r\n")}\r\n`);
 });
 
 router.put("/narocila-dobaviteljem/artikli/:artikelId/nastavitve", async (req, res): Promise<void> => {

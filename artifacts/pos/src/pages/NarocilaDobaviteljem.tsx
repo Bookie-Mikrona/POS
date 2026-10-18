@@ -33,6 +33,7 @@ import type {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { posFetch } from "@/lib/pos-auth-headers";
 import { registerPosNavigationBlocker } from "@/lib/route-navigation-guard";
 
 type OrderRow = SupplierOrderInput["lines"][number];
@@ -511,6 +512,7 @@ export default function NarocilaDobaviteljem() {
   const [activeView, setActiveView] = useState<"suggestions" | "orders">("suggestions");
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
+  const [exportingMappingId, setExportingMappingId] = useState<number | null>(null);
   const [settingsArticle, setSettingsArticle] = useState<SupplierReorderArticle | null>(null);
   const [settingPoint, setSettingPoint] = useState("");
   const [settingTarget, setSettingTarget] = useState("");
@@ -762,6 +764,44 @@ export default function NarocilaDobaviteljem() {
     text: error instanceof Error ? error.message : fallback,
     error: true,
   });
+
+  const exportSupplierPriceHistory = async (mappingId: number) => {
+    setExportingMappingId(mappingId);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(
+        `${base}/api/narocila-dobaviteljem/preslikave/${mappingId}/zgodovina.csv`,
+      );
+      if (!response.ok) {
+        const responseText = await response.text();
+        let message = responseText || `Strežnik je vrnil napako ${response.status}.`;
+        try {
+          const errorBody = JSON.parse(responseText) as { error?: string };
+          message = errorBody.error ?? message;
+        } catch {
+          // CSV downloads return JSON only when the request fails.
+        }
+        throw new Error(message);
+      }
+
+      const objectUrl = URL.createObjectURL(await response.blob());
+      try {
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = `dobaviteljske-cene-${mappingId}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } finally {
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+      }
+      setNotice({ text: "Celotna potrjena zgodovina cen je prenesena." });
+    } catch (error) {
+      showError(error, "Zgodovine cen ni bilo mogoče prenesti.");
+    } finally {
+      setExportingMappingId(null);
+    }
+  };
   const openSettings = (article: SupplierReorderArticle, trigger?: HTMLElement | null) => {
     const activeElement = document.activeElement;
     settingsTriggerRef.current = trigger
@@ -1232,7 +1272,8 @@ export default function NarocilaDobaviteljem() {
                             {supplierMapping.lastPackagePrice == null ? "Zadnja cena ni zabeležena." : "Zadnja cena ni veljavna."}
                           </div>}
                           {supplierMapping.priceHistory.length > 0
-                            ? <details className="mt-1 text-xs text-[#68756e]" data-testid={`price-history-${supplierMapping.id}`}>
+                            ? <div className="mt-1 flex flex-wrap items-start gap-x-3 gap-y-1 text-xs text-[#68756e]">
+                              <details data-testid={`price-history-${supplierMapping.id}`}>
                               <summary className="cursor-pointer select-none font-medium text-[#40574f] hover:text-[#285d50]">
                                 Zgodovina potrjenih cen ({supplierMapping.priceHistory.length})
                               </summary>
@@ -1290,7 +1331,19 @@ export default function NarocilaDobaviteljem() {
                                   );
                                 })}
                               </ol>
-                            </details>
+                              </details>
+                              <button
+                                type="button"
+                                data-testid={`download-price-history-${supplierMapping.id}`}
+                                aria-label={`Prenesi celotno zgodovino cen za ${supplierMapping.supplierName}`}
+                                disabled={exportingMappingId === supplierMapping.id}
+                                onClick={() => void exportSupplierPriceHistory(supplierMapping.id)}
+                                className="inline-flex items-center gap-1 font-medium text-[#40574f] underline decoration-dotted underline-offset-2 hover:text-[#285d50] disabled:cursor-wait disabled:opacity-60"
+                              >
+                                <ArrowDownToLine className="h-3.5 w-3.5" />
+                                {exportingMappingId === supplierMapping.id ? "Prenašam…" : "Prenesi celotno zgodovino"}
+                              </button>
+                            </div>
                             : <div className="mt-1 text-xs text-[#858d87]" data-testid={`price-history-empty-${supplierMapping.id}`}>
                               Ni potrjenih cen s povezano prejemnico.
                             </div>}

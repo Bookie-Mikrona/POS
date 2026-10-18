@@ -5773,6 +5773,26 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ZalogaGibPogled"
+  /narocila-dobaviteljem/preslikave/{mappingId}/zgodovina.csv:
+    get:
+      operationId: exportSupplierPriceHistory
+      tags: [nabava]
+      summary: Izvoz celotne potrjene zgodovine cen dobaviteljske povezave
+      parameters:
+        - name: mappingId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: CSV izvoz potrjenih cen, vezanih na naročila in aktivno enoto
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "400": { description: Neveljaven ID dobaviteljske povezave }
+        "404": { description: Dobaviteljska povezava ni najdena v aktivnem podjetju in enoti }
   /narocila-dobaviteljem/pregled:
     get:
       operationId: getSupplierOrderDashboard

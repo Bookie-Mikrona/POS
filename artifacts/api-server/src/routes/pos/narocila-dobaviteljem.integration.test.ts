@@ -347,6 +347,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
       lastPackagePrice: 18,
       lastUnitPrice: 3,
     });
+
+    const draftHistoryExport = await request(app)
+      .get(`/narocila-dobaviteljem/preslikave/${mappingId}/zgodovina.csv`);
+    expect(draftHistoryExport.status, JSON.stringify(draftHistoryExport.body)).toBe(200);
+    expect(draftHistoryExport.text.replace(/^\uFEFF/, "").trim().split("\r\n")).toHaveLength(1);
     const firstReceiptDetail = await request(app).get(`/prejemnice/${firstReceiptId}`);
     expect(firstReceiptDetail.status).toBe(200);
     const originalReceiptLine = firstReceiptDetail.body.postavke[0];
@@ -1359,6 +1364,10 @@ describe("POS supplier ordering and linked receipt flow", () => {
     context.role = "uporabnik";
     const denied = await request(app).get("/narocila-dobaviteljem");
     expect(denied.status).toBe(403);
+
+    const deniedPriceHistoryExport = await request(app)
+      .get(`/narocila-dobaviteljem/preslikave/${mappingId}/zgodovina.csv`);
+    expect(deniedPriceHistoryExport.status).toBe(403);
     context.role = "admin";
   });
 
@@ -1779,6 +1788,9 @@ describe("POS supplier ordering and linked receipt flow", () => {
       expect(sourcesForB.has(mappingA.id)).toBe(false);
 
       context.enotaId = unitB.id;
+      const inaccessiblePriceHistoryExport = await request(app)
+        .get(`/narocila-dobaviteljem/preslikave/${mappingA.id}/zgodovina.csv`);
+      expect(inaccessiblePriceHistoryExport.status).toBe(404);
       const dashboardB = await request(app).get("/narocila-dobaviteljem/pregled");
       expect(dashboardB.status, JSON.stringify(dashboardB.body)).toBe(200);
       expect(dashboardB.body.articles.map((row: any) => row.articleId)).toContain(articleB.id);
@@ -1821,6 +1833,34 @@ describe("POS supplier ordering and linked receipt flow", () => {
       const mappingInA = dashboardA.body.articles
         .find((row: any) => row.articleId === articleA.id).mappings
         .find((mapping: any) => mapping.id === mappingA.id);
+
+      const priceHistoryExportA = await request(app)
+        .get(`/narocila-dobaviteljem/preslikave/${mappingA.id}/zgodovina.csv`);
+      expect(priceHistoryExportA.status, JSON.stringify(priceHistoryExportA.body)).toBe(200);
+      expect(priceHistoryExportA.headers["content-type"]).toContain("text/csv");
+      expect(priceHistoryExportA.headers["content-disposition"])
+        .toContain(`dobaviteljske-cene-${mappingA.id}.csv`);
+      const exportedHistory = priceHistoryExportA.text.replace(/^\uFEFF/, "").trim();
+      const exportedRows = exportedHistory.split("\r\n");
+      expect(exportedRows).toHaveLength(7);
+      expect(exportedRows[0]).toBe('"Številka prejemnice";"Datum";"Cena na osnovno enoto (KOS)"');
+      for (const source of [
+        sourceA,
+        sameDateHigherIdSourceA,
+        laterInsertedOlderSourceA,
+        ...olderHistorySourcesA,
+      ]) {
+        const price = source.unitPrice.toFixed(6).replace(".", ",");
+        expect(exportedRows).toContain(
+          `"${source.receiptNumber}";"${source.date}";"${price}"`,
+        );
+      }
+      expect(exportedHistory).not.toContain(manualReceiptDetails.body.stevilka);
+      expect(exportedHistory).not.toContain(sourceB.receiptNumber);
+      expect(exportedHistory).not.toContain(otherCompanySource.receiptNumber);
+      expect(exportedHistory).not.toContain(sourceAOther.receiptNumber);
+      expect(exportedHistory).not.toContain(sourceASecondSupplier.receiptNumber);
+
       expect(mappingInA).toMatchObject({
         lastPackagePrice: sameDateHigherIdSourceA.packagePrice,
         lastPriceReceipt: {

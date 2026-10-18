@@ -11041,6 +11041,19 @@ export const ListZalogaGibiResponse = zod.array(ListZalogaGibiResponseItem)
 
 
 /**
+ * @summary Izvoz celotne potrjene zgodovine cen dobaviteljske povezave
+ */
+
+
+
+export const ExportSupplierPriceHistoryParams = zod.object({
+  "mappingId": zod.coerce.number().min(1)
+})
+
+export const ExportSupplierPriceHistoryResponse = zod.unknown()
+
+
+/**
  * @summary Pregled zalog, dobaviteljskih povezav in predlogov za ponovno naročilo
  */
 export const GetSupplierOrderDashboardResponse = zod.object({

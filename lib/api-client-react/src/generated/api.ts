@@ -21082,6 +21082,83 @@ export function useListZalogaGibi<TData = Awaited<ReturnType<typeof listZalogaGi
 
 
 
+export const getExportSupplierPriceHistoryUrl = (mappingId: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/preslikave/${mappingId}/zgodovina.csv`
+}
+
+/**
+ * @summary Izvoz celotne potrjene zgodovine cen dobaviteljske povezave
+ */
+export const exportSupplierPriceHistory = async (mappingId: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportSupplierPriceHistoryUrl(mappingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSupplierPriceHistoryQueryKey = (mappingId: number,) => {
+    return [
+    `/api/narocila-dobaviteljem/preslikave/${mappingId}/zgodovina.csv`
+    ] as const;
+    }
+
+
+export const getExportSupplierPriceHistoryQueryOptions = <TData = Awaited<ReturnType<typeof exportSupplierPriceHistory>>, TError = ErrorType<void>>(mappingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSupplierPriceHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSupplierPriceHistoryQueryKey(mappingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSupplierPriceHistory>>> = ({ signal }) => exportSupplierPriceHistory(mappingId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: mappingId !== null && mappingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSupplierPriceHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportSupplierPriceHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof exportSupplierPriceHistory>>>
+export type ExportSupplierPriceHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Izvoz celotne potrjene zgodovine cen dobaviteljske povezave
+ */
+
+export function useExportSupplierPriceHistory<TData = Awaited<ReturnType<typeof exportSupplierPriceHistory>>, TError = ErrorType<void>>(
+ mappingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSupplierPriceHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportSupplierPriceHistoryQueryOptions(mappingId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetSupplierOrderDashboardUrl = () => {
 
 
