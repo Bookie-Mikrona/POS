@@ -11,7 +11,7 @@
 - [POS kartične reference](pos-karticne-reference.md) — SumUp/Viva referenco je treba atomsko globalno rezervirati pred FURS klicem v vseh računskih tokovih
 - [Prikaz cene To Go embalaže](pos-embalaza-cenovni-prikaz.md) — cena je le prikazno pri staršu, računovodska/DDV vrstica ostane ločena; drugi dodatki ostanejo plačljivi.
 - [CTI žeton po enoti](cti-zeton-po-enoti.md) — dohodni MacroDroid klic se enolično veže na aktivno enoto prek lastnega žetona, nikoli prek telesa ali skupne skrivnosti
-- [Navigacija po formah](form-navigation.md) — puščice + Enter na vseh vnosnih poljih; navFoo() helper za tabelarne forme
+- [POS interakcije obrazcev in zgodovine](pos-ui-interactions.md) — preveri posebna pravila tipk, dialogov, izbirnikov datotek in Back/Forward.
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
 - [Nabavna vs. prodajna DDV](nabavna-prodajna-ddv.md) — razlika je sistemska in zakonita; nikoli ne primerjaj davek z taxCategory
 - [Samodejni normativi pijač](automatic-drink-normatives.md) — novi samo prodajni alkohol/hladna pijača s prostornino dobi normativ; neznana nabavna prostornina pomeni 1 l.
@@ -24,8 +24,6 @@
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
 - [Vertex AI image/PDF omejitev](vertex-ai-image-pdf.md) — Vertex AI proxy zavrne image/base64 (PNG+JPEG); rešitev: pdfkit PNG→PDF wrapper, pošlji kot application/pdf document
 - [Samodejno iskanje dobavitelja](poisci-dobavitelja.md) — DDG Lite → bizi.si slug → scrape davčne; brez API ključa; vsi 3 MANJKA_DOBAVITELJ bloki pokrite
-- [Escape v dropdownu znotraj dialoga](escape-dropdown-dialog.md) — Radix capture vs. React bubble: onEscapeKeyDown na DialogContent je edino pravo mesto; stopPropagation() ne deluje
-- [Native file picker v dialogu](native-file-picker-dialog.md) — Radix dialog lahko interpretira fokus sistemskega izbirnika datotek kot zapiranje; med izbiro prepreči outside close.
 - [UBL InvoiceLine AllowanceCharge](ubl-linijski-rabat.md) — parser-eslog ni bral InvoiceLine/AllowanceCharge (samo Price/AllowanceCharge); POS007 validacija zdaj primerja min(bruto, neto) razliko
 - [bizBox Faza B](bizbox-faza-b.md) — ročna oddaja e-SLOG prek ZZI; modul bizbox.ts; JSZip STORE; eDDress iz davčne; env poverilnice; UBL≠EDIFACT opozorilo
 - [Amortizacija osnovnih sredstev](os-amortizacija-guides.md) — pravila začetka, odtujitve, negativnih korekcij in oslabitve.
@@ -77,7 +75,6 @@
 - [DDV kategorija Pijača-jed](food-drink-ddv.md) — pripravljena pijača-jed ostane 9,5 %; dodan sladkor se pri shranjevanju vedno normalizira na false.
 - [Identiteta nabavnih listin](purchase-source-identity.md) — vrsta listine je klasifikacija, ne del poslovne identitete; ERP match atomarno lastni GL in KPR knjiženje.
 - [Knjiženje POS nabavnih listin](pos-receipt-booking.md) — 109 je samo denar na poti; dobavnico in dobavnico-fakturo knjiži po različnih tokovih 300/310/400, 160 in 220.
-- [Kartično plačilo darilnega bona](gift-voucher-card-payment.md) — gift intent preživi reload; provider se preveri pred FURS, attempt pa se lahko porabi le enkrat.
 - [PostgreSQL advisory lock in pool](postgres-advisory-lock-pool.md) — sejni lock mora držati isto namensko povezavo od pridobitve do sprostitve.
 - [Drizzle seznami ID-jev](drizzle-array-predicates.md) — JS polje v SQL interpolaciji ni nujno PG array; za zaklepne in druge predikate uporabi inArray.
 - [Android plačila in gradnja](android-payment-guides.md) — native callbacki Viva/Payten, Expo NDK, Android ABI in Metro build.
@@ -106,9 +103,7 @@
 - [Evidenca bančnih izpiskov](bank-statement-evidence.md) — vsak uvoz ima glavo, vrstice in odtis datoteke; plačilo je vezano na eno bančno vrstico.
 - [Pametno OCR uparjanje](ocr-pametno-uparjanje.md) — kanonične mere naj razširijo nabor; AI sme le predlagati dovoljen ID in nikoli sam potrditi.
 - [Povratna embalaža](povratna-embalaza.md) — fizična zaloga ostane skupna, dobaviteljski kavcijski saldo pa je ločen append-only promet s snapshot vrednostjo.
-- [Alergenski posnetek prejemnice](prejemnica-alergeni.md) — običajno urejanje ohrani zgodovinski posnetek; nova potrditev velja za novo vrstico ali zamenjan artikel.
-- [Katalog alergenov kot predlog](allergen-catalog-draft-policy.md) — generični PDF ni deklaracija; izrecna uskladitev vseh surovin vključuje tudi prej potrjene profile.
-- [Spletni alergeni novih surovin](automatic-ingredient-allergens.md) — vsaka nova nabavna surovina dobi samodejno spletno iskanje; rezultat ni potrjena deklaracija.
+- [Alergenska pravila](allergen-guides.md) — loči predloge od deklaracij in ohrani posnetke alergenov pri urejanju prejemnic.
 - [Temeljnice in glavna knjiga](journal-entry-guides.md) — brisanje osnutkov, nastavitve dimenzij med vnosom in obseg računovodskega priročnika.
 - [Celovitost POS priročnika](pos-manual-traceability.md) — izdaja je celovita šele po ločeni potrditvi izvedbe in dokumentacijske pokritosti vseh inventarnih postopkov.
 - [Upodabljanje POS priročnika](pos-manual-pdf-rendering.md) — PDF preštevilči naslove; medvrstični prelomi krepkega tiska v korakih se lahko izpišejo dobesedno.
@@ -120,9 +115,7 @@
 - [Skupinski nabavni artikli](generic-purchase-articles.md) — dobaviteljeva postavka ohrani identiteto; skupna zaloga združuje le postavke z isto kanonično e-SLOG enoto.
 - [Nabavni uporabniški izrazi](nabava-uporabniski-izrazi.md) — ne uporabljaj izraza »uparjanje« v uporabniških besedilih; dokler ni potrjen nadomestek, vprašaj za pravi izraz.
 - [Git prenosi in tihe izgube](git-transfer-tree-audit.md) — po vsakem prenosu primerjaj celotno drevo s stanjem pred prenosom; zgodovina lahko skrije množične izgube.
-- [Stripe boni po gostincu](stripe-boni-po-gostincu.md) — spletni bon uporablja neposredno plačilo povezanega računa podjetja; brez povezave ni platformskega nadomestnega plačila.
-- [Stripe operativna e-pošta](stripe-operational-email.md) — SMTP ne sme zadrževati odgovora webhooka; sprejem sporočila še ni dokaz dostave v predal.
-- [POS unovčenje spletnega bona](pos-spletni-bon-unovcenje.md) — bon se rezervira skupaj z računom pred FURS; neznan izid zadrži rezervacijo, kartica in bon pa nista dovoljena skupaj.
+- [Stripe in darilni boni](stripe-gift-vouchers.md) — neposredno plačilo gostinca, varno unovčenje in zanesljiva operativna obvestila.
 - [Podizbire modifikatorjev](podizbire-modifikatorjev.md) — vsak prodajni artikel v normativu modifikatorja ima svoje enonivojske izbire; ni dodatna prodajna vrstica.
 - [Slovenska abeceda v seznamih](slovenska-abeceda.md) — abecedna imena uporabljajo slovensko primerjavo; ročni vrstni red kategorij ima prednost.
 - [Slovenski finančni formati](slovenian-financial-formatting.md) — Intl/ICU lahko uporabi Unicode minus in ne združi štirimestnih števil; loči vrednost od tipografije.
@@ -153,7 +146,6 @@
 - [Naročila dobaviteljem in prevzemi](supplier-orders-and-receipts.md) — naročilo ne spreminja zaloge; interne opombe so ločene, dolga navodila pa se varno paginirajo.
 - [POS Zod resolver tipi](pos-zod-v3-resolver.md) — POS obrazci z v3 resolverjem naj izrecno uvozijo zod/v3, da se izognejo navzkrižju tipov shem.
 - [Starostna opozorila vračil](refund-aging-policy.md) — zvišanje pragov ne umakne že sproženega finančnega opozorila; zapre ga dejanska razrešitev.
-- [Stripe operativna obvestila](stripe-operational-notifications.md) — rezervni kanal ne sme obiti skupnega cooldowna; dostava je namenoma best-effort.
 - [CSV in preglednice](csv-spreadsheet-safety.md) — varnost prvotnega izvoza ne zagotavlja varnosti po ponovnem shranjevanju v Excelu.
 - [Odzivnost izvozov poročil](report-export-responsiveness.md) — meri tudi prehode stanja in klike; ločena nit ne odpravi blokade zaradi ponovnega izrisa tabele.
 - [Validacija ob vzporednih združitvah](parallel-merge-validation.md) — pred popravljanjem napake v drugem paketu preveri trenutno vsebino in zadnje združitve; napaka je lahko sveže vnesena.

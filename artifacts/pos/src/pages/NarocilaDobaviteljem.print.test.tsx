@@ -222,6 +222,27 @@ function renderSupplierOrderPage() {
   );
 }
 
+async function prepareHistoryAtSupplierOrder() {
+  window.history.replaceState(null, "", "/history-before-supplier-order");
+  window.history.pushState(null, "", "/narocila-dobaviteljem");
+  window.history.pushState(null, "", "/history-after-supplier-order");
+  await act(async () => {
+    window.history.back();
+    await waitFor(() => expect(window.location.pathname).toBe("/narocila-dobaviteljem"));
+  });
+  return window.history.state;
+}
+
+async function traverseHistoryAndWait(
+  direction: "back" | "forward",
+  expectedPath: string,
+) {
+  await act(async () => {
+    window.history[direction]();
+    await waitFor(() => expect(window.location.pathname).toBe(expectedPath));
+  });
+}
+
 function receiptDateDaysAgo(daysAgo: number) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Ljubljana",
@@ -2215,6 +2236,70 @@ describe("supplier order print view", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
     expect(mocks.navigate).toHaveBeenCalledWith("/zaloge");
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("allows browser Back and Forward when the order draft is unchanged", async () => {
+    await prepareHistoryAtSupplierOrder();
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+
+    await traverseHistoryAndWait("back", "/history-before-supplier-order");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    await traverseHistoryAndWait("forward", "/narocila-dobaviteljem");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    await traverseHistoryAndWait("forward", "/history-after-supplier-order");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("restores the page when Back is canceled and reaches that Back destination when the changed draft is discarded", async () => {
+    const supplierEntryState = await prepareHistoryAtSupplierOrder();
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(supplierNotes, { target: { value: "Dostavite pred 12. uro." } });
+
+    await act(async () => {
+      window.history.back();
+      await screen.findByRole("alertdialog");
+      await waitFor(() => expect(window.history.state).toEqual(supplierEntryState));
+    });
+    expect(window.location.pathname).toBe("/narocila-dobaviteljem");
+
+    fireEvent.click(screen.getByTestId("button-continue-supplier-order-editor"));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(supplierNotes.value).toBe("Dostavite pred 12. uro.");
+    expect(window.location.pathname).toBe("/narocila-dobaviteljem");
+
+    await act(async () => {
+      window.history.back();
+      await screen.findByRole("alertdialog");
+      await waitFor(() => expect(window.history.state).toEqual(supplierEntryState));
+    });
+    fireEvent.click(screen.getByTestId("button-discard-supplier-order-editor"));
+    await waitFor(() => expect(window.location.pathname).toBe("/history-before-supplier-order"));
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("restores the page when Forward warns and resumes the intended Forward destination on discard", async () => {
+    const supplierEntryState = await prepareHistoryAtSupplierOrder();
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+    fireEvent.change(screen.getByLabelText(/Navodilo dobavitelju/), {
+      target: { value: "Dostavite pred 12. uro." },
+    });
+
+    await act(async () => {
+      window.history.forward();
+      await screen.findByRole("alertdialog");
+      await waitFor(() => expect(window.history.state).toEqual(supplierEntryState));
+    });
+    expect(window.location.pathname).toBe("/narocila-dobaviteljem");
+
+    fireEvent.click(screen.getByTestId("button-discard-supplier-order-editor"));
+    await waitFor(() => expect(window.location.pathname).toBe("/history-after-supplier-order"));
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 

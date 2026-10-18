@@ -528,6 +528,7 @@ export default function NarocilaDobaviteljem() {
   const orderEditorCancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const orderEditorBaseline = useRef<string | null>(null);
   const pendingInternalNavigationRef = useRef<(() => void) | null>(null);
+  const pendingInternalNavigationCancelRef = useRef<(() => void) | null>(null);
   const [closeReason, setCloseReason] = useState("");
   const [closeDialog, setCloseDialog] = useState(false);
   const closeDialogTriggerRef = useRef<HTMLElement | null>(null);
@@ -645,11 +646,14 @@ export default function NarocilaDobaviteljem() {
   };
   const continueEditingOrder = () => {
     pendingInternalNavigationRef.current = null;
+    pendingInternalNavigationCancelRef.current?.();
+    pendingInternalNavigationCancelRef.current = null;
     setDiscardOrderEditorPromptOpen(false);
   };
   const discardOrderEditorChanges = () => {
     const pendingNavigation = pendingInternalNavigationRef.current;
     pendingInternalNavigationRef.current = null;
+    pendingInternalNavigationCancelRef.current = null;
     closeOrderEditor();
     pendingNavigation?.();
   };
@@ -676,6 +680,11 @@ export default function NarocilaDobaviteljem() {
         else navigateTo(to, options);
       };
       pendingInternalNavigationRef.current = continueNavigation;
+      const cancelNavigation = (options as { cancelPosHistoryTraversal?: unknown } | undefined)
+        ?.cancelPosHistoryTraversal;
+      pendingInternalNavigationCancelRef.current = typeof cancelNavigation === "function"
+        ? cancelNavigation as () => void
+        : null;
       discardOrderEditorPromptTriggerRef.current = orderEditorCancelButtonRef.current
         ?? orderEditorDialogRef.current;
       setDiscardOrderEditorPromptOpen(true);
