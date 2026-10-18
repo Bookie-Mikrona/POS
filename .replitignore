@@ -20,3 +20,4 @@ node_modules
 # Native/mobile build intermediates are not needed by the published services.
 **/.cxx
 **/build
+/generated-artifacts/

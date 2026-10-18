@@ -144,6 +144,7 @@
 - [Receptne pretvorbe žličk](recipe-spoon-gram-conversions.md) — bogat ščepec soli 1 g; ½ žličke pecilnega praška 2,5 g; poravnana žlička cimeta 4 g.
 - [Obseg razvojnega okolja](development-environment-scope.md) — uporabnik dela izključno v dev; neskladje z naslovom na posnetku najprej razjasni, ne diagnosticiraj drugega okolja.
 - [Razvojna orodja in okolje](development-tooling-guides.md) — zaganjalniki, TypeScript, OpenAPI, paketi, razvojni 502, preizkusi in poti prenosov.
+- [Vite browser test mocks](vite-browser-test-mocks.md) — alias resolution and prebundling can bypass bare-import test hooks; isolate mocks from normal authentication.
 - [Shared SMTP identity](shared-smtp-identity.md) — the central Mikrona relay serves multiple companies; recipients must see the document owner's business identity.
 - [Avtomatizacija brez ročnih vnosov](avtomatizacija-brez-rocnih-vnosov.md) — privzeto samodejno, ročni vnos le za popravek; sprašuj le pri nepovratnem ali dvoumnem
 - [Uskladitev POS temeljnic](pos-receipt-booking-reconciliation.md) — plačan B2B ostane posamičen; zbirniki ohranijo izdani DDV in časovno sled storna.
