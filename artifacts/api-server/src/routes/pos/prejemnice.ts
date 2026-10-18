@@ -205,6 +205,7 @@ async function transitionPackagingMovements(
 router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const enotaId = (req as any).enotaId as number;
+  const companyId = (req as any).companyId as string;
   const actor = (req as any).clerkUserId as string | null;
   if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "Neveljaven ID prejemnice" }); return; }
   const parsedBody = ConfirmPrejemnicaBody.safeParse(req.body ?? {});
@@ -220,9 +221,20 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
   }
   try {
     const result = await db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT id FROM prejemnice WHERE id = ${id} AND enota_id = ${enotaId} FOR UPDATE`);
-      const [receipt] = await tx.select().from(prejemniceTable)
+      await tx.execute(sql`
+        SELECT p.id
+        FROM prejemnice p
+        INNER JOIN enote e ON e.id = p.enota_id AND e.company_id = ${companyId}
+        WHERE p.id = ${id} AND p.enota_id = ${enotaId}
+        FOR UPDATE
+      `);
+      const [receiptRow] = await tx.select().from(prejemniceTable)
+        .innerJoin(enoteTable, and(
+          eq(enoteTable.id, prejemniceTable.enotaId),
+          eq(enoteTable.companyId, companyId),
+        ))
         .where(and(eq(prejemniceTable.id, id), eq(prejemniceTable.enotaId, enotaId)));
+      const receipt = receiptRow?.prejemnice;
       if (!receipt) return null;
       if (receipt.status === "confirmed") return receipt;
       const lines = await tx.select({
@@ -294,7 +306,15 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
       await knjizalogaGibiZaUvozPrejemnico(tx as any, id, actor);
       const [confirmed] = await tx.update(prejemniceTable)
         .set({ status: "confirmed" })
-        .where(eq(prejemniceTable.id, id)).returning();
+        .where(and(
+          eq(prejemniceTable.id, id),
+          eq(prejemniceTable.enotaId, enotaId),
+          sql`EXISTS (
+            SELECT 1 FROM enote
+            WHERE enote.id = ${prejemniceTable.enotaId}
+              AND enote.company_id = ${companyId}
+          )`,
+        )).returning();
       await syncSupplierOrdersForReceipt(tx, enotaId, id);
       return confirmed;
     });
@@ -1221,8 +1241,14 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
-  let [existing] = await db.select().from(prejemniceTable)
-    .where(and(eq(prejemniceTable.id, id), sql`true`, eq(prejemniceTable.enotaId, tenotaId)));
+  const [existingRow] = await db.select({ receipt: prejemniceTable })
+    .from(prejemniceTable)
+    .innerJoin(enoteTable, and(
+      eq(enoteTable.id, prejemniceTable.enotaId),
+      eq(enoteTable.companyId, companyId),
+    ))
+    .where(and(eq(prejemniceTable.id, id), eq(prejemniceTable.enotaId, tenotaId)));
+  let existing = existingRow?.receipt;
   if (!existing) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
 
   let artikelMap: Map<number, {

@@ -1634,20 +1634,78 @@ describe("POS supplier ordering and linked receipt flow", () => {
       skupajVrednost: 10,
       postavke: [{ artikelIme: `Order article ${run}`, skupaj: 10 }],
     });
+    const ownBookingPreview = await request(app).get(`/prejemnice/${ownReceipt.body.id}/booking-preview`);
+    expect(ownBookingPreview.status, JSON.stringify(ownBookingPreview.body)).toBe(200);
+    const editedOwnReceipt = await request(app).put(`/prejemnice/${ownReceipt.body.id}`).send({
+      opomba: `OWN-RECEIPT-EDIT-${run}`,
+    });
+    expect(editedOwnReceipt.status, JSON.stringify(editedOwnReceipt.body)).toBe(200);
+    const updatedOwnReceipt = await request(app).get(`/prejemnice/${ownReceipt.body.id}`);
+    expect(updatedOwnReceipt.status).toBe(200);
+    expect(updatedOwnReceipt.body.opomba).toBe(`OWN-RECEIPT-EDIT-${run}`);
+
+    const foreignReceiptBefore = await db.select().from(prejemniceTable)
+      .where(eq(prejemniceTable.id, foreignReceiptId));
+    const foreignLinesBefore = await db.select().from(prejemnicePostavkeTable)
+      .where(eq(prejemnicePostavkeTable.prejemnicaId, foreignReceiptId));
+    const foreignMovementsBefore = await db.select().from(zalogaGibiTable)
+      .where(and(
+        eq(zalogaGibiTable.artikelId, foreignArticle.id),
+        eq(zalogaGibiTable.referencaId, foreignReceiptId),
+      ));
 
     const foreignReceipt = await request(app).get(`/prejemnice/${foreignReceiptId}`);
     expect(foreignReceipt.status).toBe(404);
-    const foreignResponse = JSON.stringify(foreignReceipt.body);
-    for (const secret of [
-      foreignReceiptNumber,
-      `FOREIGN-RECEIPT-SUPPLIER-${run}`,
-      `FOREIGN-RECEIPT-ARTICLE-${run}`,
-      `FOREIGN-RECEIPT-NOTE-${run}`,
-      "9876.54",
-      "3703.68",
-      "1234.56",
-    ]) {
-      expect(foreignResponse).not.toContain(secret);
+    const foreignBookingPreview = await request(app).get(`/prejemnice/${foreignReceiptId}/booking-preview`);
+    expect(foreignBookingPreview.status).toBe(404);
+    const foreignBookingDraft = await request(app)
+      .post(`/prejemnice/${foreignReceiptId}/booking-draft`)
+      .send({ previewHash: "foreign-preview-hash" });
+    expect(foreignBookingDraft.status).toBe(404);
+    const foreignConfirmation = await request(app).post(`/prejemnice/${foreignReceiptId}/confirm`).send({});
+    expect(foreignConfirmation.status).toBe(404);
+    const foreignEdit = await request(app).put(`/prejemnice/${foreignReceiptId}`).send({
+      opomba: `FOREIGN-RECEIPT-EDIT-ATTEMPT-${run}`,
+    });
+    expect(foreignEdit.status).toBe(404);
+    const foreignDelete = await request(app).delete(`/prejemnice/${foreignReceiptId}`);
+    expect(foreignDelete.status).toBe(404);
+
+    const foreignResponses = [
+      foreignReceipt,
+      foreignBookingPreview,
+      foreignBookingDraft,
+      foreignConfirmation,
+      foreignEdit,
+      foreignDelete,
+    ].map(response => JSON.stringify(response.body));
+
+    const foreignReceiptAfter = await db.select().from(prejemniceTable)
+      .where(eq(prejemniceTable.id, foreignReceiptId));
+    const foreignLinesAfter = await db.select().from(prejemnicePostavkeTable)
+      .where(eq(prejemnicePostavkeTable.prejemnicaId, foreignReceiptId));
+    const foreignMovementsAfter = await db.select().from(zalogaGibiTable)
+      .where(and(
+        eq(zalogaGibiTable.artikelId, foreignArticle.id),
+        eq(zalogaGibiTable.referencaId, foreignReceiptId),
+      ));
+    expect(foreignReceiptAfter).toEqual(foreignReceiptBefore);
+    expect(foreignLinesAfter).toEqual(foreignLinesBefore);
+    expect(foreignMovementsAfter).toEqual(foreignMovementsBefore);
+
+    for (const foreignResponse of foreignResponses) {
+      for (const secret of [
+        foreignReceiptNumber,
+        `FOREIGN-RECEIPT-SUPPLIER-${run}`,
+        `FOREIGN-RECEIPT-ARTICLE-${run}`,
+        `FOREIGN-RECEIPT-NOTE-${run}`,
+        `FOREIGN-RECEIPT-EDIT-ATTEMPT-${run}`,
+        "9876.54",
+        "3703.68",
+        "1234.56",
+      ]) {
+        expect(foreignResponse).not.toContain(secret);
+      }
     }
   });
 
