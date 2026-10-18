@@ -73,9 +73,23 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("untagged journal lines", () => {
+  it("refreshes on return from a journal even while the cached report is fresh", () => {
+    window.history.replaceState(null, "", `${path}?${firstView}`);
+    render(<PorocilaAnalitika />);
+    expect(lastRequest()[2].query).toMatchObject({
+      enabled: true,
+      refetchOnMount: "always",
+    });
+  });
+
   function showUntagged(count: number) {
     window.history.replaceState(null, "", `${path}?${firstView}`);
-    mocks.report.mockImplementation((_company, filters) => ({
+    // Match React Query's stable data identity for repeated renders of one
+    // query, including effects which retain the last successful CSV snapshot.
+    const pages = new Map();
+    mocks.report.mockImplementation((_company, filters) => {
+      const key = JSON.stringify(filters);
+      if (!pages.has(key)) pages.set(key, {
       data: {
         ...reportData,
         untaggedCount: count,
@@ -97,7 +111,9 @@ describe("untagged journal lines", () => {
       },
       isLoading: false,
       error: null,
-    }));
+      });
+      return pages.get(key);
+    });
   }
 
   it("requests 20 lines per page and navigates without fetching all lines", () => {
@@ -279,7 +295,7 @@ describe("dimension report URL filters", () => {
     expect(lastRequest()).toEqual([
       "company-1",
       { dimensionType: "project", dateFrom: "2025-01-01", dateTo: "2025-12-31", accountId: "acc-1", groupBy: "account", untaggedPage: 1, untaggedPageSize: 20 },
-      { query: { enabled: true } },
+      { query: { enabled: true, refetchOnMount: "always" } },
     ]);
     expect((screen.getAllByRole("combobox")[0] as HTMLSelectElement).value).toBe("project");
     expect((screen.getAllByRole("combobox")[1] as HTMLSelectElement).value).toBe("acc-1");

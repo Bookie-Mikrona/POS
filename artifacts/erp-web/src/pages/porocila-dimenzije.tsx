@@ -262,7 +262,12 @@ function DimensionReport() {
       untaggedPage,
       untaggedPageSize: 20,
     },
-    { query: { enabled: !!companyId && applied.queried && isValid } as any },
+    { query: {
+      enabled: !!companyId && applied.queried && isValid,
+      // Returning from a linked journal must re-read the report even within
+      // the application's five-minute cache window (another actor may edit it).
+      refetchOnMount: "always",
+    } as any },
   );
   // Disabled queries can still expose cached results. Never show or export them
   // while the URL is invalid, including during history navigation.

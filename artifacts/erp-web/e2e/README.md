@@ -28,7 +28,7 @@ Downloads and screenshots remain in the ignored `generated-artifacts/` directory
 
 ## Bank-import session recovery
 
-## Live-browser regression
+### Live-browser regression
 
 Run against the running ERP development preview from the workspace root:
 
@@ -99,3 +99,50 @@ component session tests simulate the SDK boundary; they additionally check the
 30-minute expiry and React remounts in Strict Mode. The ERP TypeScript check
 also passed. Expiry applies only to an unsubmitted review, never to recorded
 statement registration or acknowledged payments.
+
+# Signed-in ERP browser regressions
+
+
+## Dimension report → journal → browser Back
+
+With the ERP development preview running, from the workspace root:
+
+```sh
+pnpm --filter @workspace/erp-web run test:dimensions:navigation
+```
+
+Uses the installed Playwright dependency and Chromium (`CHROMIUM_PATH` can
+override `/repl/tools/bin/chromium`). This is a live development Clerk test,
+not the isolated table/layout harness in `tests/browser`. It refuses non-test
+Clerk keys, creates one disposable test user and deletes it in `finally`.
+The browser uses a fresh context: existing users' sessions are never reused,
+changed or signed out. No authentication hooks, protected routes, company
+context, router, API hooks or query cache are mocked.
+
+All same-origin business API calls are intercepted with synthetic data;
+unexpected endpoints and non-GET calls are blocked and fail the run. No
+financial data is created or edited. Clerk's own network traffic remains real.
+This checks frontend navigation and request scoping, not backend authorization.
+
+The regression:
+
+- Chooses a company using the real selector and sets the journal list to
+  **2026 / Osnutek** using its controls.
+- Opens Analitika and selects **Projekti**, **01.04.2025–30.09.2025** and a
+  specific account using real controls.
+- Clicks the warning's journal link and verifies the exact ID, reference,
+  period, description and full debit/credit lines for a **2025 / Knjiženo**
+  entry which is absent from the filtered list.
+- Uses actual browser Back (no reload or manual cache reset) and verifies
+  the exact report URL, rendered filters, active company and unchanged
+  Clerk session.
+- Changes the intercepted report response while the journal is open, then
+  requires a new report request and visibly updated rows and totals on return,
+  without waiting for the application's five-minute cache to expire.
+- Seeds a conflicting legacy company selection and verifies report requests
+  explicitly carry the active company's header as well as its URL.
+
+Evidence (`results.txt`, `restored-report.png`, and failure-only diagnostics)
+is written under the ignored, non-deployed
+`generated-artifacts/dimension-report-navigation/`. Auth tokens, session IDs,
+credentials and browser traces are never recorded.
