@@ -153,3 +153,4 @@
 - [POS Zod resolver tipi](pos-zod-v3-resolver.md) — POS obrazci z v3 resolverjem naj izrecno uvozijo zod/v3, da se izognejo navzkrižju tipov shem.
 - [Starostna opozorila vračil](refund-aging-policy.md) — zvišanje pragov ne umakne že sproženega finančnega opozorila; zapre ga dejanska razrešitev.
 - [Stripe operativna obvestila](stripe-operational-notifications.md) — rezervni kanal ne sme obiti skupnega cooldowna; dostava je namenoma best-effort.
+- [CSV in preglednice](csv-spreadsheet-safety.md) — varnost prvotnega izvoza ne zagotavlja varnosti po ponovnem shranjevanju v Excelu.

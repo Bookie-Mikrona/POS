@@ -60,7 +60,13 @@ export function exportCsv(
   dateTo: string,
   accountLabel?: string,
 ) {
-  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const escape = (v: string) => {
+    // CSV quoting alone does not stop Excel/Calc from evaluating formulas.
+    // Prefix text only (also after whitespace/control characters); keep the
+    // numeric path separate so negative balances remain spreadsheet numbers.
+    const safe = /^[\s\u0000-\u001f\u007f]*[=+\-@]/u.test(v) ? `'${v}` : v;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
   const num = (v: string) => v.replace(".", ","); // Slovenian decimal
 
   const lines: string[] = [];
