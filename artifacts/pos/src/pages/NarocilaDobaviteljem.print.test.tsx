@@ -832,7 +832,7 @@ describe("supplier order print view", () => {
     expect(print).not.toHaveBeenCalled();
   });
 
-  it("warns on older non-draft orders too, without offering an unavailable edit action", () => {
+  it("keeps Tab and Shift+Tab within the visible actions for a sent order warning", () => {
     const originalStatus = mocks.order.status;
     mocks.order.status = "sent";
     mocks.order.supplierNotes = "";
@@ -850,9 +850,25 @@ describe("supplier order print view", () => {
       fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
       fireEvent.click(screen.getByTestId("button-print-supplier-order-704"));
 
-      expect(screen.getByRole("alertdialog").textContent).toContain("naročila pa ni več mogoče urejati");
-      expect(screen.queryByTestId("button-edit-supplier-order-from-print-warning")).toBeNull();
+      const warning = screen.getByRole("alertdialog");
+      expect(warning.textContent).toContain("naročila pa ni več mogoče urejati");
       expect(print).not.toHaveBeenCalled();
+
+      const [firstAction, lastAction] = within(warning).getAllByRole("button");
+      expect(firstAction).toBe(screen.getByTestId("button-dismiss-supplier-order-print-warning"));
+      expect(lastAction).toBe(screen.getByTestId("button-continue-supplier-order-print"));
+      expect(document.activeElement).toBe(warning);
+
+      lastAction.focus();
+      fireEvent.keyDown(lastAction, { key: "Tab", code: "Tab" });
+      expect(document.activeElement).toBe(firstAction);
+      expect(warning.contains(document.activeElement)).toBe(true);
+
+      firstAction.focus();
+      fireEvent.keyDown(firstAction, { key: "Tab", code: "Tab", shiftKey: true });
+      expect(document.activeElement).toBe(lastAction);
+      expect(warning.contains(document.activeElement)).toBe(true);
+
       fireEvent.click(screen.getByTestId("button-dismiss-supplier-order-print-warning"));
       expect(screen.queryByRole("alertdialog")).toBeNull();
       expect(print).not.toHaveBeenCalled();
