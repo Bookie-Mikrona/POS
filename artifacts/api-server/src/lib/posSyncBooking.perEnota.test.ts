@@ -53,6 +53,7 @@ let nabavaObracunAccountId = "";
 let supplierAId = "";
 let supplierBId = "";
 let defaultRevenueAccountId = "";
+let defaultVatAccountId = "";
 const openingArtikelIds: number[] = [];
 const openingZalogaIds: number[] = [];
 
@@ -154,6 +155,7 @@ beforeAll(async () => {
   payablesAccountId = createdPayablesAccountId;
   nabavaObracunAccountId = createdNabavaObracunAccountId;
   defaultRevenueAccountId = revenueAccountId;
+  defaultVatAccountId = vatAccountId;
   await db.insert(posBookingSettingsTable).values({
     companyId,
     cashAccountId,
@@ -354,6 +356,27 @@ describe("POS temeljnice po enoti", () => {
     await createSale(enotaIds[0], "TEST-KATEGORIJA", "12.20", kategorijaId);
     await createSale(enotaIds[0], "TEST-KATEGORIJA-MATRIKA", "12.20", kategorijaId + 1);
 
+    // Trije računi po 12,20 € pri 22 %: vsak ima 10,00 € osnove in 2,20 € DDV.
+    // Osnovni račun brez kategorije in nepreslikana kategorija uporabita matriko.
+    const receipts = await db
+      .select({
+        number: racuniTable.stevilkaRacuna,
+        gross: racuniTable.skupaj,
+        net: racuniTable.osnova,
+        vat: racuniTable.ddv,
+      })
+      .from(racuniTable)
+      .where(eq(racuniTable.enotaId, enotaIds[0]));
+    expect(receipts).toHaveLength(3);
+    expect(receipts).toEqual(expect.arrayContaining(
+      ["TEST-KRIZISCE", "TEST-KATEGORIJA", "TEST-KATEGORIJA-MATRIKA"].map(number => ({
+        number,
+        gross: "12.20",
+        net: "10.00",
+        vat: "2.20",
+      })),
+    ));
+
     await syncPosBookingForDay(companyId, DATE);
 
     const [entry] = await db
@@ -386,7 +409,22 @@ describe("POS temeljnice po enoti", () => {
       amount: "20.00",
     }));
     expect(matrixFallbackLine?.description).toContain(`Prihodki kategorije ${kategorijaId + 1}`);
-    expect(lines.filter((line) => line.description?.startsWith("Izhodni DDV"))).toHaveLength(1);
+    // DDV vseh kategorij ostane ena kreditna vrstica na kontu DDV, ne prihodkov.
+    expect(lines.filter((line) => line.description?.startsWith("Izhodni DDV"))).toEqual([
+      expect.objectContaining({
+        accountId: defaultVatAccountId,
+        side: "credit",
+        amount: "6.60",
+      }),
+    ]);
+    expect(lines.filter((line) => line.side === "debit")).toEqual([
+      expect.objectContaining({ amount: "36.60" }),
+    ]);
+    expect(lines).toHaveLength(4);
+    const creditTotal = lines
+      .filter(line => line.side === "credit")
+      .reduce((total, line) => total.plus(line.amount), new Decimal(0));
+    expect(creditTotal.toFixed(2)).toBe("36.60");
   });
 
   it("ustvari ločene prodajne temeljnice tudi brez SM in ohrani SM pri označenih enotah", async () => {
