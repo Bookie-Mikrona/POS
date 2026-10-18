@@ -10,8 +10,21 @@ import {
 import { releaseTestManifest as erpManifest } from "../artifacts/erp-web/release-tests.manifest.mjs";
 import { releaseTestManifest as posManifest } from "../artifacts/pos/release-tests.manifest.mjs";
 import { fileURLToPath } from "node:url";
+import { releaseTestManifest as apiManifest } from "../artifacts/api-server/release-tests.manifest.mjs";
 
 let tempDir;
+
+test("bančna multipart pogodba je obvezen API release sklop", async () => {
+  const suiteId = "bank-statement-parse-contract";
+  const apiDir = path.resolve("artifacts/api-server");
+  assert.equal(apiManifest.api.suites[suiteId], "src/routes/bankStatements.parsing.test.ts");
+  await validateReleaseManifest(apiManifest, [suiteId], apiDir);
+  const { [suiteId]: removed, ...remaining } = apiManifest.api.suites;
+  await assert.rejects(
+    validateReleaseManifest({ ...apiManifest, api: { ...apiManifest.api, suites: remaining } }, [suiteId], apiDir),
+    /manjka obvezni varnostni sklop: bank-statement-parse-contract/,
+  );
+});
 
 before(async () => {
   tempDir = await mkdtemp(path.join(os.tmpdir(), "release-manifest-"));

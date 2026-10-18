@@ -21,6 +21,7 @@ const requiredReleaseSuiteIds = Object.freeze([
   "stripe-sync-failure-monitor",
   "public-profile-image-retention",
   "object-storage-boundaries",
+  "bank-statement-parse-contract",
    "public-visits-integration",
    "malice-rules",
    "malice-order-claims",
