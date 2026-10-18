@@ -8,6 +8,40 @@
 import * as zod from 'zod';
 
 
+export const GetPlatformEmailResponse = zod.object({
+  "configured": zod.boolean(),
+  "present": zod.object({
+  "host": zod.boolean(),
+  "from": zod.boolean(),
+  "user": zod.boolean(),
+  "password": zod.boolean()
+}),
+  "portValid": zod.boolean(),
+  "missing": zod.array(zod.string())
+})
+
+
+export const testPlatformEmailBodyRecipientMax = 254;
+
+
+export const testPlatformEmailBodyRecipientRegExp = new RegExp('^[^\\s@,;<>"\\r\\n]+@[^\\s@,;<>"\\r\\n]+\\.[^\\s@,;<>"\\r\\n]+$');
+export const testPlatformEmailBodyConfirmRecipientMax = 254;
+
+
+export const testPlatformEmailBodyConfirmRecipientRegExp = new RegExp('^[^\\s@,;<>"\\r\\n]+@[^\\s@,;<>"\\r\\n]+\\.[^\\s@,;<>"\\r\\n]+$');
+
+
+export const TestPlatformEmailBody = zod.object({
+  "recipient": zod.string().max(testPlatformEmailBodyRecipientMax).regex(testPlatformEmailBodyRecipientRegExp),
+  "confirmRecipient": zod.string().max(testPlatformEmailBodyConfirmRecipientMax).regex(testPlatformEmailBodyConfirmRecipientRegExp),
+  "confirmed": zod.boolean()
+})
+
+export const TestPlatformEmailResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
 /**
  * @summary Arhiv shranjenih obračunov amortizacije podjetja
  */

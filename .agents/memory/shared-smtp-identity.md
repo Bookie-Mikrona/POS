@@ -24,3 +24,11 @@ ERP SMTP credentials use the existing durable application secret with a separate
 **Why:** SMTP must be configurable from ERP without an additional infrastructure setup step. This makes rotation of the application's secret affect saved SMTP passwords as well.
 
 **How to apply:** Before rotating the application secret, re-encrypt saved ERP SMTP credentials or arrange for owners to re-enter them afterward. Do not silently fall back to the shared environment SMTP credentials when a company's configuration is missing or cannot be decrypted.
+
+## Platform diagnostics scope
+
+Global sending diagnostics must remain separate from company ERP and POS-unit SMTP. Report presence of configuration, not credential values; configuration readiness is not proof of delivery.
+
+**Why:** The requested platform overview must not mislead administrators into editing a tenant's settings to repair global sending or into treating SMTP acceptance as confirmed inbox delivery.
+
+**How to apply:** Use only the global environment transport for platform tests, require an explicitly confirmed recipient, and keep global credential changes in the protected project-secrets flow.

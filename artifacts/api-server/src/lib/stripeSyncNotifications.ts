@@ -1,7 +1,7 @@
-import nodemailer from "nodemailer";
 import { z } from "zod";
 import { logger } from "./logger";
 import type { StripeSyncNotification } from "./stripeSyncFailureMonitor";
+import { createPlatformSmtpTransport, getPlatformSmtpStatus } from "./platform-smtp";
 
 type Channel = (notification: StripeSyncNotification) => Promise<void>;
 
@@ -48,22 +48,13 @@ export async function sendStripeSyncOperationalNotification(
   const to = process.env.STRIPE_SYNC_ALERT_EMAIL?.trim();
   if (!to) return { success: false, code: "recipient_missing" };
   if (!z.string().email().safeParse(to).success) return { success: false, code: "recipient_invalid" };
-  const host = process.env.SMTP_HOST?.trim();
   const from = process.env.SMTP_FROM?.trim();
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASSWORD;
-  const port = Number(process.env.SMTP_PORT || 465);
-  if (!host || !from || (user && !pass) || !Number.isInteger(port) || port < 1 || port > 65535) {
+  if (!getPlatformSmtpStatus().configured) {
     return { success: false, code: "smtp_unconfigured" };
   }
   const test = "type" in notification && notification.type === "test";
   try {
-    const transport = nodemailer.createTransport({
-      host, port, secure: port === 465, requireTLS: true,
-      auth: user ? { user, pass } : undefined,
-      connectionTimeout: 5_000, greetingTimeout: 5_000, socketTimeout: 5_000,
-      tls: { rejectUnauthorized: true },
-    });
+    const transport = createPlatformSmtpTransport();
     try {
       const result = await transport.sendMail({
         from, to,

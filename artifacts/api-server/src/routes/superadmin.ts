@@ -20,8 +20,10 @@ import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
 import { seedDefaultAccountSettings } from "../lib/seedDefaultAccountSettings";
 import { broadcastToCompany } from "../lib/pos-sse";
 import { findCapabilityBlockers, type CapabilityBlocker } from "../lib/unitCapabilityBlockers";
+import superadminEmailRouter from "./superadmin-email";
 
 const router: IRouter = Router();
+router.use("/superadmin/email", superadminEmailRouter);
 
 // ── Skupne pomožne funkcije (enako kot v kupec.ts) ─────────────────────────
 

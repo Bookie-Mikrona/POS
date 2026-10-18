@@ -87,6 +87,88 @@ tags:
   - name: daily-lunch
     description: Unit and business-date scoped daily lunch offers
 paths:
+  /superadmin/email:
+    get:
+      operationId: getPlatformEmail
+      tags: [superadmin]
+      responses:
+        "200":
+          description: Global SMTP presence only; no connection is attempted and no secret values are returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [configured, present, portValid, missing]
+                properties:
+                  configured:
+                    type: boolean
+                  present:
+                    type: object
+                    required: [host, from, user, password]
+                    properties:
+                      host:
+                        type: boolean
+                      from:
+                        type: boolean
+                      user:
+                        type: boolean
+                      password:
+                        type: boolean
+                  portValid:
+                    type: boolean
+                  missing:
+                    type: array
+                    items:
+                      type: string
+        "401":
+          description: Authentication required
+        "403":
+          description: SuperAdmin required
+  /superadmin/email/test:
+    post:
+      operationId: testPlatformEmail
+      tags: [superadmin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipient, confirmRecipient, confirmed]
+              properties:
+                recipient:
+                  type: string
+                  pattern: '^[^\s@,;<>"\r\n]+@[^\s@,;<>"\r\n]+\.[^\s@,;<>"\r\n]+$'
+                  maxLength: 254
+                confirmRecipient:
+                  type: string
+                  pattern: '^[^\s@,;<>"\r\n]+@[^\s@,;<>"\r\n]+\.[^\s@,;<>"\r\n]+$'
+                  maxLength: 254
+                confirmed:
+                  type: boolean
+      responses:
+        "200":
+          description: SMTP accepted the fixed test message, not proof of inbox delivery
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+        "400":
+          description: Recipient must be repeated and sending explicitly confirmed
+        "401":
+          description: Authentication required
+        "403":
+          description: SuperAdmin required
+        "429":
+          description: One test at a time, at most once per minute per server process
+        "502":
+          description: SMTP failed or rejected the recipient
+        "503":
+          description: Global SMTP is not configured
   /os/{companyId}/amortizacija/obracun:
     get:
       operationId: getOsAmortizacijaArhiv

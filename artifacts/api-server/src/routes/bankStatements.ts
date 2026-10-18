@@ -1144,13 +1144,8 @@ router.post(
     }
     try {
       const result = await persistBankStatement({
-        companyId,
-        bankAccountId,
-        metadata,
-        transactions,
-        sourceFilename,
-        sourceSha256,
-        createdBy: authReq.clerkUserId,
+        companyId, bankAccountId, createdBy: authReq.clerkUserId,
+        metadata, sourceFilename, sourceSha256, transactions,
       });
       res.status(201).json(result);
     } catch (error: any) {

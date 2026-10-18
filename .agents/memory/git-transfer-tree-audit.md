@@ -11,7 +11,7 @@ Po vsakem prenosu, združevanju oddaljene zgodovine ali obnovi glavne veje prime
 
 To pravilo velja tudi za samodejno združevanje ob zaključevanju dela: uspešni testi in typecheck pred združitvijo ne preverjajo poznejšega združenega drevesa. Pri več podobnih blokih v isti datoteki uporabi izrazit kontekst posamezne poti.
 
-**Why:** Besedilno uspešna združitev ponavljajočih se blokov ni zagotovilo njihove vsebinske pravilnosti; preverjanje mora zajeti tudi končno združeno drevo. To velja za API handlerje, agregacije, PDF in testne bloke: uspešna združitev lahko premakne vsebino v nepovezan blok ali izgubi nov preizkus. Opažena sta bila tudi zamenjava registracije izpiska z usklajevanjem plačila ter prenos priprave hook testa v test celotnega čarovnika, ponovno po uspešnem lokalnem popravku.
+**Why:** Besedilno uspešna združitev ponavljajočih se blokov ni zagotovilo njihove vsebinske pravilnosti; preverjanje mora zajeti tudi končno združeno drevo. To velja za API handlerje, agregacije, PDF in testne bloke: uspešna združitev lahko premakne vsebino v nepovezan blok ali izgubi nov preizkus.
 
 **How to apply:** Če zaključno preverjanje po sinhronizaciji javi nove napake, primerjaj celoten končni diff z osnovno različico oziroma pravilnim staršem, posebej podobne ponovljene bloke. Obnovi samo nenamerne spremembe in poškodovane bloke ter ponovno preveri končno drevo in sosednje poti.
 
@@ -37,7 +37,7 @@ Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti ali tes
 
 **Why:** Pri usklajevanju podobnih poročil so se deklaracije, telesa poti in ponavljajoči se bloki pomešali tudi brez očitnih konfliktnih oznak. Enako so se pri zaključni sinhronizaciji že uspešno preverjeni testni bloki znova zamenjali z nepovezanim renderjem. Samo popravek sintakse ni zagotovil ohranitve obeh poti.
 
-**How to apply:** Ob lokalnem popravku jasno razloči obravnavalnike in preveri vsako prizadeto pot po uskladitvi; ne prepisuj drugih veljavnih sprememb cele datoteke. Zlasti evidentiranje izpiska in uskladitev plačila morata ostati ločena: ob zaključnem prenosu se je že preverjeno evidentiranje ponovno zamenjalo s telesom uskladitve.
+**How to apply:** Ob lokalnem popravku jasno razloči obravnavalnike in preveri vsako prizadeto pot po uskladitvi; ne prepisuj drugih veljavnih sprememb cele datoteke. Evidentiranje izpiska in uskladitev plačila morata ostati ločeni poslovni operaciji.
 
 Če poimenovanje callbackov ne prepreči ponovne zamenjave telesa pri uskladitvi, loči poslovno operacijo v samostojen modul in v poti pusti kratek klic.
 

@@ -186,6 +186,7 @@ import type {
   GetPartnerTurnoverPdfParams,
   GetPizzaDoughNorms200Item,
   GetPlateWasteOverviewParams,
+  GetPlatformEmail200,
   GetPosContractSummaryPreviewParams,
   GetPreparedFoodConsumptionParams,
   GetPublicMenuDeviceHistoryParams,
@@ -523,6 +524,8 @@ import type {
   TerminalPlaciloOdgovor,
   TerminalPlaciloPovprasevanje,
   TerminalTestOdgovor,
+  TestPlatformEmail200,
+  TestPlatformEmailBody,
   TestniZagonPogled,
   TipAllocation,
   TipAllocationInput,
@@ -620,6 +623,142 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetPlatformEmailUrl = () => {
+
+
+
+
+  return `/api/superadmin/email`
+}
+
+export const getPlatformEmail = async ( options?: RequestInit): Promise<GetPlatformEmail200> => {
+
+  return customFetch<GetPlatformEmail200>(getGetPlatformEmailUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformEmailQueryKey = () => {
+    return [
+    `/api/superadmin/email`
+    ] as const;
+    }
+
+
+export const getGetPlatformEmailQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformEmail>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformEmail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformEmailQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformEmail>>> = ({ signal }) => getPlatformEmail({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformEmail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformEmailQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformEmail>>>
+export type GetPlatformEmailQueryError = ErrorType<void>
+
+
+
+export function useGetPlatformEmail<TData = Awaited<ReturnType<typeof getPlatformEmail>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformEmail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformEmailQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getTestPlatformEmailUrl = () => {
+
+
+
+
+  return `/api/superadmin/email/test`
+}
+
+export const testPlatformEmail = async (testPlatformEmailBody: TestPlatformEmailBody, options?: RequestInit): Promise<TestPlatformEmail200> => {
+
+  return customFetch<TestPlatformEmail200>(getTestPlatformEmailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(testPlatformEmailBody)
+  }
+);}
+
+
+
+
+
+export const getTestPlatformEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testPlatformEmail>>, TError,{data: BodyType<TestPlatformEmailBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testPlatformEmail>>, TError,{data: BodyType<TestPlatformEmailBody>}, TContext> => {
+
+const mutationKey = ['testPlatformEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testPlatformEmail>>, {data: BodyType<TestPlatformEmailBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  testPlatformEmail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestPlatformEmailMutationResult = NonNullable<Awaited<ReturnType<typeof testPlatformEmail>>>
+    export type TestPlatformEmailMutationBody = BodyType<TestPlatformEmailBody>
+    export type TestPlatformEmailMutationError = ErrorType<void>
+
+    export const useTestPlatformEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testPlatformEmail>>, TError,{data: BodyType<TestPlatformEmailBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testPlatformEmail>>,
+        TError,
+        {data: BodyType<TestPlatformEmailBody>},
+        TContext
+      > => {
+      return useMutation(getTestPlatformEmailMutationOptions(options));
+    }
 
 export const getGetOsAmortizacijaArhivUrl = (companyId: string,) => {
 

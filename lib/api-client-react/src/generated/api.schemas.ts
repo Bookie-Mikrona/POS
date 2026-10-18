@@ -13799,6 +13799,38 @@ export type ConflictResponse = ErrorResponse;
  */
 export type NotFoundResponse = ErrorResponse;
 
+export type GetPlatformEmail200Present = {
+  host: boolean;
+  from: boolean;
+  user: boolean;
+  password: boolean;
+};
+
+export type GetPlatformEmail200 = {
+  configured: boolean;
+  present: GetPlatformEmail200Present;
+  portValid: boolean;
+  missing: string[];
+};
+
+export type TestPlatformEmailBody = {
+  /**
+     * @maxLength 254
+     * @pattern ^[^\s@,;<>"\r\n]+@[^\s@,;<>"\r\n]+\.[^\s@,;<>"\r\n]+$
+     */
+  recipient: string;
+  /**
+     * @maxLength 254
+     * @pattern ^[^\s@,;<>"\r\n]+@[^\s@,;<>"\r\n]+\.[^\s@,;<>"\r\n]+$
+     */
+  confirmRecipient: string;
+  confirmed: boolean;
+};
+
+export type TestPlatformEmail200 = {
+  ok: boolean;
+};
+
 export type ExportSavedAmortizationParams = {
 /**
  * @minimum 1990
