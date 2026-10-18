@@ -4248,10 +4248,13 @@ export type DailyLunchQuoteInputSelectedDishes = {[key: string]: number};
 
 export type DailyLunchQuoteInputModifiers = {[key: string]: number[]};
 
+export type DailyLunchQuoteInputPodIzbire = {[key: string]: {[key: string]: ModifikatorPodIzbira[]}};
+
 export interface DailyLunchQuoteInput {
   mode: DailyLunchQuoteInputMode;
   selectedDishes: DailyLunchQuoteInputSelectedDishes;
   modifiers?: DailyLunchQuoteInputModifiers;
+  podIzbire?: DailyLunchQuoteInputPodIzbire;
 }
 
 export type DailyLunchQuoteResponseMode = typeof DailyLunchQuoteResponseMode[keyof typeof DailyLunchQuoteResponseMode];
@@ -4288,11 +4291,14 @@ export type DailyLunchAddInputSelectedDishes = {[key: string]: number};
 
 export type DailyLunchAddInputModifiers = {[key: string]: number[]};
 
+export type DailyLunchAddInputPodIzbire = {[key: string]: {[key: string]: ModifikatorPodIzbira[]}};
+
 export interface DailyLunchAddInput {
   offerId: number;
   mode: DailyLunchAddInputMode;
   selectedDishes: DailyLunchAddInputSelectedDishes;
   modifiers?: DailyLunchAddInputModifiers;
+  podIzbire?: DailyLunchAddInputPodIzbire;
   /**
      * @minimum 1
      * @maximum 20

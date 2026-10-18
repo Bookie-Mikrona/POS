@@ -55,7 +55,7 @@ type ResolvedPodMod = {
   availabilityRequirements: Array<{ articleId: number; quantity: number; mealType: "ala_carte" | "prepared" | "composite" }>;
 };
 
-async function resolveNestedModifierChoices(
+export async function resolveNestedModifierChoices(
   executor: typeof db | DbTransaction,
   enotaId: number,
   parentModifierId: number,

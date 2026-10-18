@@ -5771,10 +5771,18 @@ export const QuoteDailyLunchParams = zod.object({
   "offerId": zod.coerce.number()
 })
 
+
+
+
+
 export const QuoteDailyLunchBody = zod.object({
   "mode": zod.enum(['three_course', 'four_course']),
   "selectedDishes": zod.record(zod.string(), zod.number()),
-  "modifiers": zod.record(zod.string(), zod.array(zod.number())).optional()
+  "modifiers": zod.record(zod.string(), zod.array(zod.number())).optional(),
+  "podIzbire": zod.record(zod.string(), zod.record(zod.string(), zod.array(zod.object({
+  "artikelId": zod.number().min(1),
+  "modifikatorIds": zod.array(zod.number().min(1))
+})))).optional()
 })
 
 export const QuoteDailyLunchResponse = zod.object({
@@ -5794,6 +5802,8 @@ export const AddDailyLunchToOrderParams = zod.object({
   "id": zod.coerce.number()
 })
 
+
+
 export const addDailyLunchToOrderBodyQuantityDefault = 1;
 export const addDailyLunchToOrderBodyQuantityMax = 20;
 
@@ -5805,6 +5815,10 @@ export const AddDailyLunchToOrderBody = zod.object({
   "mode": zod.enum(['three_course', 'four_course']),
   "selectedDishes": zod.record(zod.string(), zod.number()),
   "modifiers": zod.record(zod.string(), zod.array(zod.number())).optional(),
+  "podIzbire": zod.record(zod.string(), zod.record(zod.string(), zod.array(zod.object({
+  "artikelId": zod.number().min(1),
+  "modifikatorIds": zod.array(zod.number().min(1))
+})))).optional(),
   "quantity": zod.number().min(1).max(addDailyLunchToOrderBodyQuantityMax).default(addDailyLunchToOrderBodyQuantityDefault),
   "idempotencyKey": zod.string().min(1)
 })

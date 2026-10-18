@@ -12,7 +12,7 @@ import {
 import { assertOpenOrderCanChange } from "../../lib/rezervacijeMiz";
 import { assertKdsOrderNotDispatched, lockKdsOrder } from "../../lib/kds-dispatch";
 import { materializirajKdsNaloge } from "./kds";
-import { updateSkupaj } from "./narocila";
+import { resolveNestedModifierChoices, updateSkupaj } from "./narocila";
 
 const router: IRouter = Router();
 const roles = ["starter", "soup", "main", "dessert"] as const;
@@ -57,13 +57,15 @@ async function choicesBelongToUnit(enotaId: number, choices: Array<{ role: Role;
   });
 }
 
-type LunchModifier = { id: number; ime: string; cenaDodatek: number };
+type LunchNested = Awaited<ReturnType<typeof resolveNestedModifierChoices>>;
+type LunchModifier = { id: number; ime: string; cenaDodatek: number; nested: LunchNested };
 
 /** Validates the chosen modifiers of every course against the dish's own modifier groups. */
 async function resolveLunchModifiers(
   exec: typeof db, enotaId: number, selected: Partial<Record<Role, number>>,
-  required: readonly Role[], raw: unknown,
+  required: readonly Role[], raw: unknown, rawNested?: unknown,
 ): Promise<Map<Role, LunchModifier[]>> {
+  const nestedBody = rawNested && typeof rawNested === "object" ? rawNested as Record<string, Record<string, unknown>> : {};
   const body = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
   const result = new Map<Role, LunchModifier[]>();
   for (const role of required) {
@@ -95,7 +97,14 @@ async function resolveLunchModifiers(
       if (count < min) throw new Error("Izberite vse obvezne modifikatorje (npr. meso, prilogo, solato) za vsako jed.");
       if (group.maxIzbir > 0 && count > group.maxIzbir) throw new Error("Izbrali ste preveč modifikatorjev v skupini.");
     }
-    result.set(role, chosen.map((mod) => ({ id: mod.id, ime: mod.ime, cenaDodatek: Number(mod.cenaDodatek) })));
+    const withNested: LunchModifier[] = [];
+    for (const mod of chosen) {
+      const raw = nestedBody[role]?.[String(mod.id)];
+      if (raw !== undefined && !Array.isArray(raw)) throw new Error("Neveljavne podizbire modifikatorja.");
+      const nested = await resolveNestedModifierChoices(exec, enotaId, mod.id, raw as never);
+      withNested.push({ id: mod.id, ime: mod.ime, cenaDodatek: Number(mod.cenaDodatek), nested });
+    }
+    result.set(role, withNested);
   }
   return result;
 }
@@ -203,9 +212,9 @@ router.post("/daily-lunch-offers/:offerId/quote", async (req, res): Promise<void
   const main = rows.find((row) => row.id === selected.main);
   if (!main) { res.status(409).json({ error: "Glavna jed ni več na voljo." }); return; }
   let modifiers: Map<Role, LunchModifier[]>;
-  try { modifiers = await resolveLunchModifiers(db, unit(req), selected, required, req.body?.modifiers); }
+  try { modifiers = await resolveLunchModifiers(db, unit(req), selected, required, req.body?.modifiers, req.body?.podIzbire); }
   catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Neveljavni modifikatorji." }); return; }
-  const modifiersTotal = [...modifiers.values()].flat().reduce((sum, mod) => sum + mod.cenaDodatek, 0);
+  const modifiersTotal = [...modifiers.values()].flat().reduce((sum, mod) => sum + mod.cenaDodatek + mod.nested.reduce((n, item) => n + item.cenaDodatek, 0), 0);
   const total = resolveDailyLunchTotal(mode, Number(main.cena), Number(offer.baseFlatAmount), Number(offer.starterFlatAmount)) + modifiersTotal;
   res.json({ offerId: offer.id, businessDate: offer.businessDate, mode, selectedDishes: selected,
     mainLivePrice: main.cena, baseFlatAmount: offer.baseFlatAmount,
@@ -263,7 +272,7 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
         !article.aktiven || !article.prodajniArtikel || article.nabavniArtikel || article.taxCategory !== "food")) {
         throw new Error("Izbrana jed ni več prodajna hrana.");
       }
-      const lunchModifiers = await resolveLunchModifiers(tx as unknown as typeof db, enotaId, selected, required, req.body?.modifiers);
+      const lunchModifiers = await resolveLunchModifiers(tx as unknown as typeof db, enotaId, selected, required, req.body?.modifiers, req.body?.podIzbire);
       const modifierIds = [...lunchModifiers.values()].flat().map((mod) => mod.id);
       const modifierSnapshots = modifierIds.length > 0 ? await loadModifierAvailabilitySnapshots(tx, modifierIds) : new Map();
       await assertPreparedFoodAvailability(tx, enotaId, offer.businessDate, [
@@ -273,12 +282,22 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
       const insertModifiers = async (role: Role, parentId: number, article: typeof artikliTable.$inferSelect) => {
         for (const mod of lunchModifiers.get(role) ?? []) {
           const price = mod.cenaDodatek.toFixed(2);
-          await tx.insert(postavkeTable).values({
+          const [modRow] = await tx.insert(postavkeTable).values({
             narociloId: orderId, artikelId: null, modifikatorId: mod.id, ime: mod.ime, kolicina: 1,
             cenaKos: price, cenaKosOriginalna: price, skupaj: price, davek: String(article.davek),
             jeDelMenija: true, vrstaArtikla: article.vrstaArtikla,
             availabilityRequirements: modifierSnapshots.get(mod.id) ?? [], parentPostavkaId: parentId,
-          });
+          }).returning({ id: postavkeTable.id });
+          for (const nested of mod.nested) {
+            const nestedPrice = nested.cenaDodatek.toFixed(2);
+            await tx.insert(postavkeTable).values({
+              narociloId: orderId, artikelId: null, modifikatorId: nested.id, modifierSourceArticleId: nested.sourceArtikelId,
+              ime: nested.ime, kolicina: 1, cenaKos: nestedPrice, cenaKosOriginalna: nestedPrice, skupaj: nestedPrice,
+              davek: String(article.davek), jeDelMenija: true, vrstaArtikla: article.vrstaArtikla,
+              normativFaktor: String(nested.sourceNormQuantity), availabilityRequirements: nested.availabilityRequirements,
+              parentPostavkaId: modRow.id,
+            });
+          }
         }
       };
       const main = byId.get(selected.main!);

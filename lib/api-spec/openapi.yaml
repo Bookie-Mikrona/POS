@@ -16218,6 +16218,7 @@ components:
         mode: { type: string, enum: [three_course, four_course] }
         selectedDishes: { type: object, additionalProperties: { type: integer } }
         modifiers: { type: object, additionalProperties: { type: array, items: { type: integer } } }
+        podIzbire: { type: object, additionalProperties: { type: object, additionalProperties: { type: array, items: { $ref: "#/components/schemas/ModifikatorPodIzbira" } } } }
     DailyLunchQuoteResponse:
       type: object
       required: [offerId, businessDate, mode, selectedDishes, total]
@@ -16239,6 +16240,7 @@ components:
         mode: { type: string, enum: [three_course, four_course] }
         selectedDishes: { type: object, additionalProperties: { type: integer } }
         modifiers: { type: object, additionalProperties: { type: array, items: { type: integer } } }
+        podIzbire: { type: object, additionalProperties: { type: object, additionalProperties: { type: array, items: { $ref: "#/components/schemas/ModifikatorPodIzbira" } } } }
         quantity: { type: integer, minimum: 1, maximum: 20, default: 1 }
         idempotencyKey: { type: string, minLength: 1 }
     DailyLunchAddResponse:
