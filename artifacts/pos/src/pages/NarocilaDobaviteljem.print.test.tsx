@@ -2283,19 +2283,19 @@ describe("supplier order print view", () => {
     renderSupplierOrderPage();
     fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
 
-    const internalNotes = `🔒\n\n${"i".repeat(1992)}\nend`;
+    const internalNotes = `🔒\n\n${"i".repeat(1990)}\nend`;
     const supplierNotes = `🚚\n\n${"s".repeat(1991)}\nend`;
     const internalField = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
     const supplierField = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
     fireEvent.change(internalField, { target: { value: internalNotes } });
     fireEvent.change(supplierField, { target: { value: supplierNotes } });
 
-    expect(internalNotes.length).toBe(2000);
+    expect(internalNotes.length).toBe(1998);
     expect(supplierNotes.length).toBe(1999);
     expect(internalField.maxLength).toBe(2000);
     expect(supplierField.maxLength).toBe(2000);
     expect(screen.getByTestId("internal-note-character-count").textContent)
-      .toBe("2000 / 2000 znakov · preostalo 0");
+      .toBe("1998 / 2000 znakov · preostalo 2");
     expect(screen.getByTestId("supplier-note-character-count").textContent)
       .toBe("1999 / 2000 znakov · preostalo 1");
 
@@ -2310,6 +2310,27 @@ describe("supplier order print view", () => {
         lines: [{ supplierMappingId: 7042, packageQuantity: 3, unitPrice: 22.5 }],
       },
     }));
+  });
+
+  it("caps internal notes at 2000 characters and keeps the supplier counter independent", () => {
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+
+    const internalField = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
+    const supplierField = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    const internalCounter = screen.getByTestId("internal-note-character-count");
+    const supplierCounter = screen.getByTestId("supplier-note-character-count");
+    const supplierInstructions = "Pokličite pred dostavo.";
+    fireEvent.change(supplierField, { target: { value: supplierInstructions } });
+
+    fireEvent.change(internalField, { target: { value: "i".repeat(2001) } });
+
+    expect(internalField.maxLength).toBe(2000);
+    expect(internalField.value).toHaveLength(2000);
+    expect(internalCounter.textContent).toBe("2000 / 2000 znakov · preostalo 0");
+    expect(supplierField.value).toBe(supplierInstructions);
+    expect(supplierCounter.textContent)
+      .toBe(`${supplierInstructions.length} / 2000 znakov · preostalo ${2000 - supplierInstructions.length}`);
   });
 
   it("does not truncate existing supplier instructions when the copied note would exceed the limit", () => {

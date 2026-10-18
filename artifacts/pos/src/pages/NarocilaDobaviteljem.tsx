@@ -1821,7 +1821,22 @@ export default function NarocilaDobaviteljem() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-[#5f7068]">Interna opomba · samo za zaposlene
-                <textarea value={orderEditor.internalNotes} onChange={event => setOrderEditor({ ...orderEditor, internalNotes: event.target.value })} maxLength={MAX_ORDER_NOTE_LENGTH} rows={3} className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]" placeholder="Besedilo ostane v aplikaciji in se ne natisne." />
+                <textarea
+                  value={orderEditor.internalNotes}
+                  onChange={event => {
+                    const nextValue = event.target.value;
+                    const shouldCap = nextValue.length > MAX_ORDER_NOTE_LENGTH
+                      && orderEditor.internalNotes.length <= MAX_ORDER_NOTE_LENGTH;
+                    setOrderEditor({
+                      ...orderEditor,
+                      internalNotes: shouldCap ? nextValue.slice(0, MAX_ORDER_NOTE_LENGTH) : nextValue,
+                    });
+                  }}
+                  maxLength={MAX_ORDER_NOTE_LENGTH}
+                  rows={3}
+                  className="mt-1.5 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 py-2 text-sm font-normal text-[#344b43] outline-none focus-visible:ring-2 focus-visible:ring-[#285d50]"
+                  placeholder="Besedilo ostane v aplikaciji in se ne natisne."
+                />
               </label>
               <p
                 role="status"
