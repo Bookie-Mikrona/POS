@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, customType } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, customType, index } from "drizzle-orm/pg-core";
 
 // bytea custom type for storing PDF binary data
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -32,6 +32,11 @@ export const reportExportsTable = pgTable("report_exports", {
   emailSentTo: text("email_sent_to"),
   /** Shranjeni PDF za ponovni prenos */
   pdfData: bytea("pdf_data").notNull(),
-});
+}, (table) => [
+  // Global oldest-first retention batches, including the stable ID tie-breaker.
+  index("report_exports_retention_idx").on(table.exportedAt, table.id),
+  // Backward scan serves the company's newest 200 exports without sorting.
+  index("report_exports_company_history_idx").on(table.companyId, table.exportedAt),
+]);
 
 export type ReportExport = typeof reportExportsTable.$inferSelect;

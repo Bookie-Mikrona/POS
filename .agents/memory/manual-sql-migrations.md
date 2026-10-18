@@ -38,3 +38,9 @@ Testni bootstrap ne sme ponovno nastavljati obstoječih poslovnih POS izbir ali 
 **Why:** Uporabnik je izrecno dovolil odpravo migracijske ovire samo brez spreminjanja obstoječih POS nastavitev. Idempotentnost SQL ni dovolj: ponovljivi UPDATE lahko še vedno prepiše poznejšo uporabnikovo odločitev.
 
 **How to apply:** Poslovni backfill izključi iz testnega runnerja z izrecnim razlogom; manjkajoče stolpce zagotovi z ločeno registrirano schema-only migracijo. Ne oslabi validacije migracijskega inventarja.
+
+Migracije z `CREATE INDEX CONCURRENTLY` naj vsebujejo samo en SQL stavek in se izvajajo v autocommit načinu.
+
+**Why:** PostgreSQL več stavkov v enem odjemalčevem klicu obravnava kot implicitno transakcijo, tudi brez izrecnega `BEGIN`; sočasna gradnja indeksa v njej ni dovoljena. Začasne tabele te omejitve ne preverijo, ker se njihovi indeksi ne gradijo sočasno.
+
+**How to apply:** Več sočasnih gradenj razdeli v ločene migracije in preveri izvajanje tudi na običajni razvojni tabeli, ne samo na začasni testni kopiji. Po prekinjeni gradnji preveri veljavnost: `IF NOT EXISTS` ne obnovi neveljavnega indeksa.

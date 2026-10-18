@@ -89,6 +89,8 @@ const migrations = [
   "265-viva-refund-aging-alerts.sql",
   "266-report-export-identity-snapshot.sql",
   "266-payment-dimensions.sql",
+  "267-report-export-retention-index.sql",
+  "268-report-export-company-history-index.sql",
 ] as const;
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptsDir, "../../../lib/db/src/migrations");
