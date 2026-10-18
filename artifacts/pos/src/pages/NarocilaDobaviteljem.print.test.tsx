@@ -918,6 +918,42 @@ describe("supplier order print view", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/zaloge?prejemnica=7044&nacin=ogled");
   });
 
+  it("opens the API-selected source receipt when multiple confirmed receipts share a date", () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalSource = mapping.lastPriceReceipt;
+    const originalHistory = mapping.priceHistory;
+    const receiptDate = "2026-10-17";
+    mapping.lastPriceReceipt = {
+      receiptId: 7184,
+      date: receiptDate,
+      receiptNumber: "WIN-7184",
+    };
+    mapping.priceHistory = [
+      { receiptId: 7184, date: receiptDate, receiptNumber: "WIN-7184", unitPrice: 3.75 },
+      { receiptId: 7012, date: receiptDate, receiptNumber: "LOW-7012", unitPrice: 3.5 },
+    ];
+
+    try {
+      renderSupplierOrderPage();
+
+      const source = screen.getByTestId("last-price-receipt-7042");
+      expect(source.textContent).toContain("WIN-7184");
+      expect(source.textContent).toContain(expectedReceiptDate(receiptDate));
+
+      fireEvent.click(source);
+
+      expect(mocks.navigate).toHaveBeenCalledExactlyOnceWith(
+        "/zaloge?prejemnica=7184&nacin=ogled",
+      );
+      expect(mocks.navigate).not.toHaveBeenCalledWith(
+        "/zaloge?prejemnica=7012&nacin=ogled",
+      );
+    } finally {
+      mapping.lastPriceReceipt = originalSource;
+      mapping.priceHistory = originalHistory;
+    }
+  });
+
   it("marks old prices, preserves their source and date, and treats missing dates as unknown", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;
