@@ -1626,6 +1626,41 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(ownReceipt.status, JSON.stringify(ownReceipt.body)).toBe(201);
     receiptIds.push(ownReceipt.body.id);
 
+    const ownReceiptList = await request(app).get("/prejemnice");
+    expect(ownReceiptList.status, JSON.stringify(ownReceiptList.body)).toBe(200);
+    expect(ownReceiptList.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: ownReceipt.body.id,
+        dobaviteljId: supplierId,
+        dobaviteljNaziv: `Supplier ${run}`,
+        skupajVrednost: 10,
+      }),
+    ]));
+    expect(ownReceiptList.body.map((receipt: any) => receipt.id)).not.toContain(foreignReceiptId);
+    const ownReceiptListJson = JSON.stringify(ownReceiptList.body);
+    for (const foreignValue of [`FOREIGN-RECEIPT-SUPPLIER-${run}`, "3703.68", "9876.54"]) {
+      expect(ownReceiptListJson).not.toContain(foreignValue);
+    }
+
+    context.companyId = foreignCompany.id;
+    context.enotaId = foreignUnit.id;
+    try {
+      const foreignReceiptList = await request(app).get("/prejemnice");
+      expect(foreignReceiptList.status, JSON.stringify(foreignReceiptList.body)).toBe(200);
+      expect(foreignReceiptList.body).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          id: foreignReceiptId,
+          dobaviteljId: foreignSupplier.id,
+          dobaviteljNaziv: `FOREIGN-RECEIPT-SUPPLIER-${run}`,
+          skupajVrednost: 3703.68,
+        }),
+      ]));
+      expect(foreignReceiptList.body.map((receipt: any) => receipt.id)).not.toContain(ownReceipt.body.id);
+    } finally {
+      context.companyId = companyId;
+      context.enotaId = enotaId;
+    }
+
     const accessibleOwnReceipt = await request(app).get(`/prejemnice/${ownReceipt.body.id}`);
     expect(accessibleOwnReceipt.status, JSON.stringify(accessibleOwnReceipt.body)).toBe(200);
     expect(accessibleOwnReceipt.body).toMatchObject({
