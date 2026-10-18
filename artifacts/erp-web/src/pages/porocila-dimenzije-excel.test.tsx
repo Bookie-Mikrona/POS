@@ -85,7 +85,7 @@ describe("Gumb Excel analitičnega poročila", () => {
     render(<PorocilaAnalitika />);
     fireEvent.click(screen.getByRole("button", { name: "Prikaži poročilo" }));
     fireEvent.click(screen.getByRole("button", { name: "Izvozi v Excel" }));
-    expect(await screen.findByText("Izvoz v Excel ni uspel. Poskusite znova.")).toBeInTheDocument();
+    expect(await screen.findByText("Izvoz ni na voljo")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Izvozi v Excel" })).toBeEnabled();
   });
 });

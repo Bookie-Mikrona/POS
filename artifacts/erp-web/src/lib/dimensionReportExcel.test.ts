@@ -1,6 +1,22 @@
 import ExcelJS from "exceljs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildDimensionReportWorkbook, exportDimensionReportExcel, type DimensionReportExcelOptions } from "./dimensionReportExcel";
+import { createDimensionReportExcelBuffer, exportDimensionReportExcel, type DimensionReportExcelOptions } from "./dimensionReportExcel";
+import { buildDimensionReportWorkbook } from "./dimensionReportExcelWorkbook";
+import { MAX_DIMENSION_EXCEL_ROWS, MAX_DIMENSION_EXCEL_TEXT } from "./dimensionReportExcelLimits";
+import { largeDimensionReport } from "../../e2e/dimension-report-fixture";
+
+class TestWorker {
+  static last: TestWorker;
+  onmessage?: (event: { data: unknown }) => void;
+  onerror?: () => void;
+  onmessageerror?: () => void;
+  terminate = vi.fn();
+  postMessage = vi.fn(async (data: DimensionReportExcelOptions) => {
+    const bytes = await buildDimensionReportWorkbook(data).xlsx.writeBuffer();
+    this.onmessage?.({ data: { buffer: new Uint8Array(bytes).slice().buffer } });
+  });
+  constructor() { TestWorker.last = this; }
+}
 
 const options: DimensionReportExcelOptions = {
   companyName: "Podjetje d.o.o.",
@@ -19,14 +35,19 @@ const options: DimensionReportExcelOptions = {
 
 describe("Excel analitičnega poročila", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
   it("prenese datoteko s pravilnim imenom in sprosti začasni URL", async () => {
+    vi.stubGlobal("Worker", TestWorker);
     const createObjectURL = vi.fn((_blob: Blob) => "blob:excel-report");
     const revokeObjectURL = vi.fn();
-    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL = createObjectURL;
+      static revokeObjectURL = revokeObjectURL;
+    });
     let filename = "";
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
       filename = this.download;
@@ -36,7 +57,8 @@ describe("Excel analitičnega poročila", () => {
     expect(filename).toBe("porocilo_dimenzije_Stroškovna_mesta_2026-01-01_2026-01-31.xlsx");
     expect(createObjectURL.mock.calls[0][0]).toBeInstanceOf(Blob);
     expect((createObjectURL.mock.calls[0][0] as Blob).type).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:excel-report");
+    expect(TestWorker.last.terminate).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith("blob:excel-report"), { timeout: 2000 });
   });
 
   it("ohrani metapodatke, številke, besedilne kode in sloge v pravi .xlsx datoteki", async () => {
@@ -132,4 +154,66 @@ describe("Excel analitičnega poročila", () => {
   it.each(["", "NaN", "Infinity", "12x"])("ne pretvori neveljavnega zneska %j v zavajajočo ničlo", (value) => {
     expect(() => buildDimensionReportWorkbook({ ...options, grandTotalDebit: value })).toThrow("neveljaven znesek");
   });
+
+  it("ohrani vse vrstice, dolge šumnike in zadnje vsote pri velikem naboru", async () => {
+    // Stay within the text budget while exercising the row boundary.
+    const large = largeDimensionReport(MAX_DIMENSION_EXCEL_ROWS);
+    large.rows.forEach(row => { row.name = row.name.slice(0, 150); });
+    const buffer = await buildDimensionReportWorkbook(large).xlsx.writeBuffer();
+    const loaded = new ExcelJS.Workbook();
+    await loaded.xlsx.load(buffer);
+    const sheet = loaded.worksheets[0];
+    expect(sheet.rowCount).toBe(MAX_DIMENSION_EXCEL_ROWS + 8);
+    for (let i = 0; i < large.rows.length; i++) {
+      expect(sheet.getCell(i + 8, 1).value).toBe(large.rows[i].code);
+      expect(sheet.getCell(i + 8, 2).value).toBe(large.rows[i].name);
+      expect(sheet.getCell(i + 8, 3).value).toBe(1234.56);
+    }
+    const total = sheet.lastRow!;
+    expect(total.getCell(1).value).toBe("SKUPAJ");
+    expect([3, 4, 5].map(c => total.getCell(c).value)).toEqual([
+      Number(large.grandTotalDebit), Number(large.grandTotalCredit), Number(large.grandTotalBalance),
+    ]);
+  }, 60_000);
+
+  it("pred ustvarjanjem niti zavrne presežek vrstic, besedila in Excelove celice brez delnega prenosa", () => {
+    const worker = vi.fn();
+    const download = vi.fn();
+    vi.stubGlobal("Worker", worker);
+    vi.stubGlobal("URL", class extends URL { static createObjectURL = download; });
+    expect(() => createDimensionReportExcelBuffer(largeDimensionReport(MAX_DIMENSION_EXCEL_ROWS + 1))).toThrow("preveliko");
+    const textHeavy = largeDimensionReport(10_000);
+    expect(textHeavy.rows.reduce((n, r) => n + r.name.length, 0)).toBeGreaterThan(MAX_DIMENSION_EXCEL_TEXT);
+    expect(() => buildDimensionReportWorkbook(textHeavy)).toThrow("preveliko");
+    expect(() => createDimensionReportExcelBuffer(textHeavy)).toThrow("preveliko");
+    expect(() => createDimensionReportExcelBuffer({
+      ...options, rows: [{ ...options.rows[0], name: "ž".repeat(32768) }],
+    })).toThrow("32.767");
+    expect(worker).not.toHaveBeenCalled();
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it.each(["onerror", "onmessageerror", "timeout", "memory", "clone"] as const)(
+    "ob napaki %s ustavi nit in ne ustvari prenosa", async (failure) => {
+      vi.useFakeTimers();
+      vi.stubGlobal("Worker", TestWorker);
+      const download = vi.fn();
+      vi.stubGlobal("URL", class extends URL { static createObjectURL = download; });
+      // Replace postMessage before an export starts, without starting ExcelJS.
+      class FailingWorker extends TestWorker {
+        postMessage = vi.fn(() => {
+          if (failure === "clone") throw new DOMException("Out of memory");
+        });
+      }
+      vi.stubGlobal("Worker", FailingWorker);
+      const result = exportDimensionReportExcel(options);
+      const rejected = expect(result).rejects.toThrow(/Izvoz v Excel|pomnilnik/);
+      if (failure === "timeout") vi.advanceTimersByTime(120_000);
+      else if (failure === "memory") TestWorker.last.onmessage?.({ data: { error: "Izvoz v Excel: premalo pomnilnika" } });
+      else if (failure !== "clone") TestWorker.last[failure]?.();
+      await rejected;
+      expect(TestWorker.last.terminate).toHaveBeenCalled();
+      expect(download).not.toHaveBeenCalled();
+    },
+  );
 });

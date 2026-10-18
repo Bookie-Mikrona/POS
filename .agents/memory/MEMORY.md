@@ -154,3 +154,4 @@
 - [Starostna opozorila vračil](refund-aging-policy.md) — zvišanje pragov ne umakne že sproženega finančnega opozorila; zapre ga dejanska razrešitev.
 - [Stripe operativna obvestila](stripe-operational-notifications.md) — rezervni kanal ne sme obiti skupnega cooldowna; dostava je namenoma best-effort.
 - [CSV in preglednice](csv-spreadsheet-safety.md) — varnost prvotnega izvoza ne zagotavlja varnosti po ponovnem shranjevanju v Excelu.
+- [Odzivnost izvozov poročil](report-export-responsiveness.md) — meri tudi prehode stanja in klike; ločena nit ne odpravi blokade zaradi ponovnega izrisa tabele.

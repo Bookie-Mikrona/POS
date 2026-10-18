@@ -1,4 +1,32 @@
-# Bank-import session recovery
+# ERP browser regressions
+
+## Large dimension-report Excel export
+
+```sh
+node artifacts/erp-web/e2e/dimension-report-excel.browser.mjs
+```
+
+Runs an isolated, disposable Vite test server and Chromium using the real report
+page, styles, module worker and ExcelJS. Only company/report hooks are fixtures;
+the production app's authentication is unchanged. This is not a signed-in or
+backend authorization test. Requires installed development `puppeteer-core` and
+Chromium (`CHROMIUM_PATH` can override its location).
+
+Checks 20,000 dimensions with 150-character Slovenian names, every downloaded
+code/name, the final debit/credit/balance totals and exact worksheet row count.
+During export, a 20ms heartbeat must have no gap above 1 second and the print
+control must respond within 1 second. These are regression ceilings, not a
+guarantee for every device. Records actual timing in
+`generated-artifacts/dimension-report-excel/results.json`.
+
+Oversize row/text fixtures and an injected worker-allocation failure must show
+an error without a partial download. The button is re-enabled and retry after
+failure must complete. Allocation failure is simulated, not a deliberate
+browser-wide out-of-memory crash. The workbook/worker unit tests also cover
+message deserialization failure, cloning failure, timeout, and Excel's cell limit.
+Downloads and screenshots remain in the ignored `generated-artifacts/` directory.
+
+## Bank-import session recovery
 
 ## Live-browser regression
 
