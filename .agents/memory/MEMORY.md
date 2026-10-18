@@ -87,6 +87,7 @@
 - [Profili gostinskih enot](unit-hospitality-profiles.md) — profil je predloga; dejanski meni in dostop določajo ločene zmožnosti aktivne enote.
 - [POS paketi podjetja](pos-company-plans.md) — paket je zgornja meja zmožnosti enot; obstoječi POS tenant dobi Extended, manjkajoč zapis pomeni Lite.
 - [Primerjava dobaviteljskih cen](supplier-unit-price-comparison.md) — zadnja cena na enoto ostane zanesljiva tudi, ko se faktor pakiranja spremeni.
+- [Enkratna cenejša ponudba](cheaper-offer-draft.md) — izbira cenejše ponudbe velja za trenutni osnutek in ne spremeni prednostnega dobavitelja ali prihodnjih predlogov.
 - [Dogodkovni prenosi zaloge](event-stock-transfers.md) — zgodovina mora uskladiti poslano = porabljeno + preostalo + vrnjeno in omejiti preostalo na dogodkovno količino.
 - [Večhodni POS in QR meni](multicourse-qr-menu.md) — menijska cena, vina in KDS hodi imajo ločene vloge; napredovanje sledi pairingGroupId + courseSequence.
 - [Izbor blagajne pri izdaji računa](receipt-register-selection.md) — aktivna blagajna zahteva ekspliciten ID trenutne enote; legacy fallback velja le brez aktivnih blagajn.

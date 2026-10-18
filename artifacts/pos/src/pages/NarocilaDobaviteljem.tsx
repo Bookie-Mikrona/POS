@@ -879,6 +879,41 @@ export default function NarocilaDobaviteljem() {
     openOrderEditor({ supplierId, date: "", internalNotes: "", supplierNotes: "", rows }, trigger);
     setNotice({ text: `Predlog vključuje ${rows.length} artiklov${mapping ? ` za ${mapping.supplierName}` : ""}.` });
   };
+  const prepareSuggestedOffer = (
+    article: SupplierReorderArticle,
+    mapping: SupplierReorderArticle["mappings"][number],
+    trigger?: HTMLElement | null,
+  ) => {
+    const baseQuantity = article.suggestedBaseQuantity;
+    if (!mapping.active
+      || baseQuantity == null
+      || !Number.isFinite(baseQuantity)
+      || baseQuantity <= 0
+      || !Number.isFinite(mapping.packageFactor)
+      || mapping.packageFactor <= 0) {
+      setNotice({ text: "Izbrane ponudbe ni mogoče uporabiti za predlagano količino.", error: true });
+      return;
+    }
+    const packageQuantity = Math.ceil(baseQuantity / mapping.packageFactor);
+    if (!Number.isFinite(packageQuantity) || packageQuantity <= 0) {
+      setNotice({ text: "Količine pakiranj za izbrano ponudbo ni mogoče izračunati.", error: true });
+      return;
+    }
+    openOrderEditor({
+      supplierId: mapping.supplierId,
+      date: "",
+      internalNotes: "",
+      supplierNotes: "",
+      rows: [{
+        supplierMappingId: mapping.id,
+        packageQuantity,
+        unitPrice: mapping.lastPackagePrice ?? undefined,
+      }],
+    }, trigger);
+    setNotice({
+      text: `Osnutek za ${mapping.supplierName} uporablja izbrano cenejšo ponudbo. Prednostni dobavitelj artikla ostaja nespremenjen.`,
+    });
+  };
   const editSelectedOrder = (trigger?: HTMLElement | null) => {
     if (!orderDetail) return;
     openOrderEditor({
@@ -1209,6 +1244,14 @@ export default function NarocilaDobaviteljem() {
                           article.suggestedBaseQuantity,
                           article.baseUnit,
                         );
+                        const canPrepareCheaperOffer = article.hasSuggestion
+                          && article.suggestedBaseQuantity != null
+                          && Number.isFinite(article.suggestedBaseQuantity)
+                          && article.suggestedBaseQuantity > 0
+                          && supplierMapping.active
+                          && supplierMapping.id !== article.preferredMappingId
+                          && packageFactorValid
+                          && savings != null;
                         return <div key={supplierMapping.id} className="rounded-lg border border-[#eee8dc] bg-[#fbfaf6] px-2.5 py-2">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="font-medium text-[#40574f]">{supplierMapping.supplierName}</span>
@@ -1250,6 +1293,20 @@ export default function NarocilaDobaviteljem() {
                               >
                                 Starost primerljive cene ni znana.
                               </div>
+                            )}
+                            {canPrepareCheaperOffer && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                data-testid={`prepare-cheaper-offer-${article.articleId}-${supplierMapping.id}`}
+                                aria-label={`Pripravi osnutek za ${article.articleName} pri ${supplierMapping.supplierName}`}
+                                onClick={event => prepareSuggestedOffer(article, supplierMapping, event.currentTarget)}
+                                className="mt-1 h-8 border-[#cdd9d0] bg-white text-[#285d50]"
+                              >
+                                <Plus className="mr-1 h-3.5 w-3.5" />
+                                Pripravi osnutek pri tem dobavitelju
+                              </Button>
                             )}
                             {savings && preferredOffer && article.baseUnit?.trim() && (
                               <div

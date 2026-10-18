@@ -2589,6 +2589,63 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("prepares and saves a one-time draft from a cheaper offer using that offer's package factor", async () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const preferredMappingId = article.preferredMappingId;
+    const cheaperOffer = {
+      ...originalMappings[0],
+      id: 7059,
+      supplierId: "supplier-717",
+      supplierName: "Mlekarna Stara",
+      supplierItemName: "Mleko v večjem pakiranju",
+      packageName: "zaboj 8",
+      packageFactor: 8,
+      lastPackagePrice: 20,
+      lastUnitPrice: 2.5,
+    };
+    article.mappings = [...originalMappings, cheaperOffer];
+
+    try {
+      renderSupplierOrderPage();
+
+      fireEvent.click(screen.getByTestId("prepare-cheaper-offer-7043-7059"));
+
+      expect((screen.getByLabelText("Dobavitelj") as HTMLSelectElement).value).toBe("supplier-717");
+      expect(screen.getByText(/faktor 8/)).toBeTruthy();
+      expect((screen.getByLabelText("Količina pakiranj Mleko 3,5 %") as HTMLInputElement).value).toBe("2");
+      expect((screen.getByLabelText("Cena pakiranja Mleko 3,5 %") as HTMLInputElement).value).toBe("20");
+      expect(article.preferredMappingId).toBe(preferredMappingId);
+      expect(mocks.mutation).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByTestId("button-cancel-supplier-order-editor"));
+      fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
+
+      expect((screen.getByLabelText("Dobavitelj") as HTMLSelectElement).value).toBe("supplier-704");
+      expect((screen.getByLabelText("Količina pakiranj Mleko 3,5 %") as HTMLInputElement).value).toBe("3");
+      expect(article.preferredMappingId).toBe(preferredMappingId);
+      expect(mocks.mutation).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByTestId("button-cancel-supplier-order-editor"));
+      mocks.mutation.mockResolvedValue(mocks.order);
+      fireEvent.click(screen.getByTestId("prepare-cheaper-offer-7043-7059"));
+      fireEvent.click(screen.getByRole("button", { name: "Shrani osnutek" }));
+
+      await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith({
+        data: {
+          supplierId: "supplier-717",
+          expectedDeliveryDate: null,
+          internalNotes: null,
+          supplierNotes: null,
+          lines: [{ supplierMappingId: 7059, packageQuantity: 2, unitPrice: 20 }],
+        },
+      }));
+      expect(article.preferredMappingId).toBe(preferredMappingId);
+    } finally {
+      article.mappings = originalMappings;
+    }
+  });
+
   it("requires a quantity check before preparing a receipt when the package changed", async () => {
     const originalStatus = mocks.order.status;
     const originalCurrentPackageFactor = mocks.order.lines[0].currentPackageFactor;
