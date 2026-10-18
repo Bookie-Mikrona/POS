@@ -8471,6 +8471,8 @@ export interface SupplierItemMapping {
   lastPackagePrice?: number | null;
   /** @nullable */
   lastUnitPrice: number | null;
+  lastPackagePriceInvalid: boolean;
+  lastUnitPriceInvalid: boolean;
   /** @nullable */
   lastPriceReceipt: SupplierItemMappingLastPriceReceipt;
   /** Do pet najnovejših potrjenih prejemnic, razvrščenih po datumu padajoče. */
@@ -15440,4 +15442,3 @@ export type PreviewPosMonthlyInvoiceParams = {
 month: string;
 counterpartyId: string;
 };
-

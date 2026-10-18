@@ -1432,11 +1432,17 @@ export default function NarocilaDobaviteljem() {
                                 Zadnja cena na osnovno enoto: {formatUnitMoney(unitPrice)} / {article.baseUnit}
                               </div>
                               : <div data-testid={`unavailable-unit-price-${supplierMapping.id}`}>
-                                Cena na osnovno enoto ni prikazana{!packageFactorValid
-                                  ? ": velikost pakiranja ni veljavna."
-                                  : !article.baseUnit?.trim()
-                                    ? ": osnovna enota ni določena."
-                                    : "."}
+                                {supplierMapping.lastUnitPriceInvalid
+                                  ? "Zadnja cena na osnovno enoto je neveljavna; preverite podatke."
+                                  : supplierMapping.lastPackagePriceInvalid
+                                    ? "Primerjava ni mogoča, ker je zadnja cena pakiranja neveljavna."
+                                    : !packageFactorValid
+                                      ? "Cena na osnovno enoto ni prikazana: velikost pakiranja ni veljavna."
+                                      : !article.baseUnit?.trim()
+                                        ? "Cena na osnovno enoto ni prikazana: osnovna enota ni določena."
+                                        : supplierMapping.lastUnitPrice == null
+                                          ? "Zadnja cena na osnovno enoto ni zabeležena."
+                                          : "Cena na osnovno enoto ni prikazana."}
                               </div>}
                             {priceFreshness === "stale" && (
                               <div
@@ -1501,7 +1507,15 @@ export default function NarocilaDobaviteljem() {
                               </div>
                               : <div>Vir prejemnice ni zabeležen.</div>}
                           </div> : <div className="mt-1 text-xs text-[#858d87]">
-                            {supplierMapping.lastPackagePrice == null ? "Zadnja cena ni zabeležena." : "Zadnja cena ni veljavna."}
+                            {supplierMapping.lastPackagePriceInvalid
+                              ? <span data-testid={`invalid-package-price-${supplierMapping.id}`} className="font-medium text-rose-800">
+                                Zadnja cena pakiranja je neveljavna; preverite podatke.
+                              </span>
+                              : supplierMapping.lastPackagePrice == null
+                                ? <span data-testid={`missing-package-price-${supplierMapping.id}`}>
+                                  Zadnja cena pakiranja ni zabeležena.
+                                </span>
+                                : "Zadnja cena pakiranja ni veljavna."}
                           </div>}
                           {supplierMapping.priceHistory.length > 0
                             ? <div className="mt-1 flex flex-wrap items-start gap-x-3 gap-y-1 text-xs text-[#68756e]">

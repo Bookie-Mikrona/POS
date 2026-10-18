@@ -20482,7 +20482,7 @@ components:
             - type: "null"
     SupplierItemMapping:
       type: object
-      required: [id, supplierId, supplierName, packageFactor, lastUnitPrice, lastPriceReceipt, priceHistory, hasOlderPriceHistory, active]
+      required: [id, supplierId, supplierName, packageFactor, lastUnitPrice, lastPackagePriceInvalid, lastUnitPriceInvalid, lastPriceReceipt, priceHistory, hasOlderPriceHistory, active]
       properties:
         id: { type: integer }
         supplierId: { type: string }
@@ -20493,6 +20493,8 @@ components:
         packageFactor: { type: number }
         lastPackagePrice: { type: [number, "null"] }
         lastUnitPrice: { type: [number, "null"] }
+        lastPackagePriceInvalid: { type: boolean }
+        lastUnitPriceInvalid: { type: boolean }
         lastPriceReceipt:
           type: [object, "null"]
           required: [receiptId, date, receiptNumber]

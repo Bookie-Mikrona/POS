@@ -83,6 +83,8 @@ const mocks = vi.hoisted(() => ({
         packageFactor: 6,
         lastPackagePrice: 22.5,
         lastUnitPrice: 3.75,
+        lastPackagePriceInvalid: false,
+        lastUnitPriceInvalid: false,
         lastPriceReceipt: { receiptId: 7044, date: "2026-10-17", receiptNumber: "26100001" },
         priceHistory: [
           { receiptId: 7044, date: "2026-10-17", receiptNumber: "26100001", unitPrice: 3.75 },
@@ -1698,7 +1700,7 @@ describe("supplier order print view", () => {
       }
       expect(screen.getByTestId("unavailable-unit-price-7048").textContent).toContain("velikost pakiranja ni veljavna");
       expect(screen.getByTestId("unavailable-unit-price-7050").textContent).toContain("velikost pakiranja ni veljavna");
-      expect(screen.getByText("Zadnja cena ni zabeležena.")).toBeTruthy();
+      expect(screen.getByText("Zadnja cena pakiranja ni zabeležena.")).toBeTruthy();
       expect(screen.queryByTestId("last-unit-price-7048")).toBeNull();
       expect(screen.queryByTestId("last-unit-price-7049")).toBeNull();
       expect(screen.queryByTestId("last-unit-price-7050")).toBeNull();
@@ -1832,6 +1834,8 @@ describe("supplier order print view", () => {
           packageFactor: 6,
           lastPackagePrice: Number.POSITIVE_INFINITY,
           lastUnitPrice: 1,
+          lastPackagePriceInvalid: true,
+          lastUnitPriceInvalid: false,
           lastPriceReceipt: null,
           priceHistory: [],
         },
@@ -1843,6 +1847,21 @@ describe("supplier order print view", () => {
           packageFactor: 6,
           lastPackagePrice: 24,
           lastUnitPrice: Number.NaN,
+          lastPackagePriceInvalid: false,
+          lastUnitPriceInvalid: true,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
+        {
+          ...preferred,
+          id: 7064,
+          supplierId: "supplier-722",
+          supplierName: "Mlekarna Brez cene",
+          packageFactor: 6,
+          lastPackagePrice: null,
+          lastUnitPrice: null,
+          lastPackagePriceInvalid: false,
+          lastUnitPriceInvalid: false,
           lastPriceReceipt: null,
           priceHistory: [],
         },
@@ -1882,8 +1901,13 @@ describe("supplier order print view", () => {
         expect(screen.queryByTestId(`lowest-unit-price-${mappingId}`)).toBeNull();
         expect(screen.queryByTestId(`supplier-savings-${mappingId}`)).toBeNull();
       }
+      expect(screen.getByTestId("invalid-package-price-7062").textContent)
+        .toContain("Zadnja cena pakiranja je neveljavna");
       expect(screen.getByTestId("unavailable-unit-price-7063").textContent)
-        .toContain("Cena na osnovno enoto ni prikazana");
+        .toContain("Zadnja cena na osnovno enoto je neveljavna");
+      expect(screen.getByTestId("missing-package-price-7064").textContent)
+        .toContain("Zadnja cena pakiranja ni zabeležena");
+      expect(document.body.textContent).not.toMatch(/NaN|Infinity/);
     } finally {
       Object.assign(article, { mappings: originalMappings });
     }
