@@ -150,12 +150,12 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
     if (groupMode === "uredi" && editingGroup) {
       updateSkupina.mutate({ id: editingGroup.id, data }, {
         onSuccess: () => { invalidateSkupine(editingGroup.id); setGroupDialogOpen(false); toast({ title: "Skupina posodobljena" }); },
-        onError: () => toast({ title: "Napaka", variant: "destructive" }),
+        onError: (err) => toast({ title: "Napaka", description: napakaSporocilo(err), variant: "destructive" }),
       });
     } else {
       createSkupina.mutate({ data }, {
         onSuccess: () => { invalidateSkupine(); setGroupDialogOpen(false); toast({ title: "Skupina dodana" }); },
-        onError: () => toast({ title: "Napaka", variant: "destructive" }),
+        onError: (err) => toast({ title: "Napaka", description: napakaSporocilo(err), variant: "destructive" }),
       });
     }
   };
