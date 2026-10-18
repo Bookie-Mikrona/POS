@@ -219,11 +219,15 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
   const offerId = Number(req.body?.offerId);
   const mode = req.body?.mode as Mode;
   const selected = req.body?.selectedDishes as Partial<Record<Role, number>> | undefined;
+  const quantity = req.body?.quantity === undefined ? 1 : Number(req.body.quantity);
   const idempotencyKey = typeof req.body?.idempotencyKey === "string" ? req.body.idempotencyKey : "";
   const required = mode === "four_course" ? roles : mode === "three_course" ? roles.filter((role) => role !== "starter") : [];
   if (!Number.isInteger(orderId) || orderId < 1 || !Number.isInteger(offerId) || offerId < 1 ||
       !required.length || !selected || !idempotencyKey || !required.every((role) => Number.isInteger(selected[role]))) {
     res.status(400).json({ error: "Ponudba, izbrane jedi in ključ ponovljivosti so obvezni." }); return;
+  }
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+    res.status(400).json({ error: "Število kosil mora biti med 1 in 20." }); return;
   }
   let duplicate = false;
   try {
@@ -263,8 +267,8 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
       const modifierIds = [...lunchModifiers.values()].flat().map((mod) => mod.id);
       const modifierSnapshots = modifierIds.length > 0 ? await loadModifierAvailabilitySnapshots(tx, modifierIds) : new Map();
       await assertPreparedFoodAvailability(tx, enotaId, offer.businessDate, [
-        ...[...new Set(ids)].map((articleId) => ({ articleId, quantity: ids.filter((id) => id === articleId).length })),
-        ...buildModifierAvailabilityRequests(modifierSnapshots, modifierIds, 1),
+        ...[...new Set(ids)].map((articleId) => ({ articleId, quantity: ids.filter((id) => id === articleId).length * quantity })),
+        ...buildModifierAvailabilityRequests(modifierSnapshots, modifierIds, quantity),
       ]);
       const insertModifiers = async (role: Role, parentId: number, article: typeof artikliTable.$inferSelect) => {
         for (const mod of lunchModifiers.get(role) ?? []) {
@@ -279,38 +283,40 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
       };
       const main = byId.get(selected.main!);
       if (!main) throw new Error("Glavna jed ni veljavna.");
-      const total = resolveDailyLunchTotal(mode, Number(main.cena), Number(offer.baseFlatAmount), Number(offer.starterFlatAmount));
-      const pairingGroupId = `daily-lunch:${orderId}:${crypto.randomUUID()}`;
-      const orderedRoles: Role[] = mode === "four_course" ? ["starter", "soup", "dessert"] : ["soup", "dessert"];
-      const [anchor] = await tx.insert(postavkeTable).values({
-        narociloId: orderId, artikelId: main.id, ime: main.ime, kolicina: 1,
-        cenaKos: total.toFixed(2), cenaKosOriginalna: total.toFixed(2), skupaj: total.toFixed(2),
-        davek: String(main.davek), mealType: main.mealType, vrstaArtikla: main.vrstaArtikla,
-        jeDelMenija: true, pairingGroupId, idempotencyKey,
-        courseNumber: mode === "four_course" ? 3 : 2, courseSequence: mode === "four_course" ? 3 : 2,
-        courseNameSnapshot: "main", availabilityRequirements: [{ articleId: main.id, quantity: 1, mealType: main.mealType }],
-      }).returning({ id: postavkeTable.id });
-      await insertModifiers("main", anchor.id, main);
-      await tx.insert(dailyLunchSaleSnapshotsTable).values({
-        postavkaId: anchor.id, narociloId: orderId, offerId: offer.id, businessDate: offer.businessDate, mode,
-        selectedDishes: selected, mainLivePrice: main.cena, baseFlatAmount: offer.baseFlatAmount,
-        starterFlatAmount: mode === "four_course" ? offer.starterFlatAmount : "0.00",
-        total: total.toFixed(2), vatRequirements: required.map((role) => ({ role, articleId: selected[role]!, vatRate: byId.get(selected[role]!)!.davek })),
-        availabilityRequirements: required.map((role) => ({ articleId: selected[role]!, quantity: 1, mealType: byId.get(selected[role]!)!.mealType })),
-        pairingGroupId,
-      });
-      for (const role of orderedRoles) {
-        const article = byId.get(selected[role]!);
-        if (!article) throw new Error("Izbrana jed ne obstaja.");
-        const courseNumber = role === "starter" ? 1 : role === "soup" ? (mode === "four_course" ? 2 : 1) : (mode === "four_course" ? 4 : 3);
-        const [courseRow] = await tx.insert(postavkeTable).values({
-          narociloId: orderId, artikelId: article.id, ime: article.ime, kolicina: 1,
-          cenaKos: "0.00", cenaKosOriginalna: "0.00", skupaj: "0.00", davek: String(article.davek),
-          mealType: article.mealType, vrstaArtikla: article.vrstaArtikla, jeDelMenija: true, pairingGroupId,
-          courseNumber, courseSequence: courseNumber, courseNameSnapshot: role,
-          availabilityRequirements: [{ articleId: article.id, quantity: 1, mealType: article.mealType }],
+      for (let copy = 0; copy < quantity; copy += 1) {
+        const total = resolveDailyLunchTotal(mode, Number(main.cena), Number(offer.baseFlatAmount), Number(offer.starterFlatAmount));
+        const pairingGroupId = `daily-lunch:${orderId}:${crypto.randomUUID()}`;
+        const orderedRoles: Role[] = mode === "four_course" ? ["starter", "soup", "dessert"] : ["soup", "dessert"];
+        const [anchor] = await tx.insert(postavkeTable).values({
+          narociloId: orderId, artikelId: main.id, ime: main.ime, kolicina: 1,
+          cenaKos: total.toFixed(2), cenaKosOriginalna: total.toFixed(2), skupaj: total.toFixed(2),
+          davek: String(main.davek), mealType: main.mealType, vrstaArtikla: main.vrstaArtikla,
+          jeDelMenija: true, pairingGroupId, idempotencyKey: copy === 0 ? idempotencyKey : `${idempotencyKey}#${copy}`,
+          courseNumber: mode === "four_course" ? 3 : 2, courseSequence: mode === "four_course" ? 3 : 2,
+          courseNameSnapshot: "main", availabilityRequirements: [{ articleId: main.id, quantity: 1, mealType: main.mealType }],
         }).returning({ id: postavkeTable.id });
-        await insertModifiers(role, courseRow.id, article);
+        await insertModifiers("main", anchor.id, main);
+        await tx.insert(dailyLunchSaleSnapshotsTable).values({
+          postavkaId: anchor.id, narociloId: orderId, offerId: offer.id, businessDate: offer.businessDate, mode,
+          selectedDishes: selected, mainLivePrice: main.cena, baseFlatAmount: offer.baseFlatAmount,
+          starterFlatAmount: mode === "four_course" ? offer.starterFlatAmount : "0.00",
+          total: total.toFixed(2), vatRequirements: required.map((role) => ({ role, articleId: selected[role]!, vatRate: byId.get(selected[role]!)!.davek })),
+          availabilityRequirements: required.map((role) => ({ articleId: selected[role]!, quantity: 1, mealType: byId.get(selected[role]!)!.mealType })),
+          pairingGroupId,
+        });
+        for (const role of orderedRoles) {
+          const article = byId.get(selected[role]!);
+          if (!article) throw new Error("Izbrana jed ne obstaja.");
+          const courseNumber = role === "starter" ? 1 : role === "soup" ? (mode === "four_course" ? 2 : 1) : (mode === "four_course" ? 4 : 3);
+          const [courseRow] = await tx.insert(postavkeTable).values({
+            narociloId: orderId, artikelId: article.id, ime: article.ime, kolicina: 1,
+            cenaKos: "0.00", cenaKosOriginalna: "0.00", skupaj: "0.00", davek: String(article.davek),
+            mealType: article.mealType, vrstaArtikla: article.vrstaArtikla, jeDelMenija: true, pairingGroupId,
+            courseNumber, courseSequence: courseNumber, courseNameSnapshot: role,
+            availabilityRequirements: [{ articleId: article.id, quantity: 1, mealType: article.mealType }],
+          }).returning({ id: postavkeTable.id });
+          await insertModifiers(role, courseRow.id, article);
+        }
       }
       await updateSkupaj(orderId, enotaId, tx);
       await materializirajKdsNaloge(orderId, enotaId, tx);

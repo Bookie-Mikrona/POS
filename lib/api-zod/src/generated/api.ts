@@ -5794,6 +5794,9 @@ export const AddDailyLunchToOrderParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const addDailyLunchToOrderBodyQuantityDefault = 1;
+export const addDailyLunchToOrderBodyQuantityMax = 20;
+
 
 
 
@@ -5802,6 +5805,7 @@ export const AddDailyLunchToOrderBody = zod.object({
   "mode": zod.enum(['three_course', 'four_course']),
   "selectedDishes": zod.record(zod.string(), zod.number()),
   "modifiers": zod.record(zod.string(), zod.array(zod.number())).optional(),
+  "quantity": zod.number().min(1).max(addDailyLunchToOrderBodyQuantityMax).default(addDailyLunchToOrderBodyQuantityDefault),
   "idempotencyKey": zod.string().min(1)
 })
 

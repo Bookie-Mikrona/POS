@@ -34,6 +34,7 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
   const [mode, setMode] = useState<DailyLunchMode>("three_course");
   const [selected, setSelected] = useState<Partial<Record<DailyLunchRole, number>>>({});
   const [modifiers, setModifiers] = useState<Partial<Record<DailyLunchRole, number[]>>>({});
+  const [quantity, setQuantity] = useState(1);
   const [addError, setAddError] = useState<string | null>(null);
   const offer = data?.offers?.find((row) => row.status === "published");
   const roles = requiredDailyLunchRoles(mode);
@@ -79,9 +80,10 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
     try {
       await add.mutateAsync({
         id: narociloId,
-        data: { offerId: offer.id, mode, selectedDishes: selected as Record<string, number>, modifiers: modifiers as Record<string, number[]>, idempotencyKey: idempotencyKey.current },
+        data: { offerId: offer.id, mode, selectedDishes: selected as Record<string, number>, modifiers: modifiers as Record<string, number[]>, quantity, idempotencyKey: idempotencyKey.current },
       });
       idempotencyKey.current = crypto.randomUUID();
+      setQuantity(1);
       onAdded?.();
     } catch (error) {
       const message = error instanceof ApiError && error.data && typeof error.data === "object" && "error" in error.data
@@ -106,12 +108,18 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
         })}</div>
       </div>)}
     </div>)}
-    <div className="rounded bg-muted p-3 text-sm">Cena: <strong>{dailyLunchPrice(quote.data?.total)}</strong></div>
+    <div className="flex items-center gap-3">
+      <span className="text-sm font-medium">Število kosil</span>
+      <Button type="button" variant="outline" size="sm" aria-label="Manj kosil" disabled={quantity <= 1} onClick={() => setQuantity((q) => Math.max(1, q - 1))}>−</Button>
+      <span className="w-8 text-center font-semibold" data-testid="daily-lunch-quantity">{quantity}</span>
+      <Button type="button" variant="outline" size="sm" aria-label="Več kosil" disabled={quantity >= 20} onClick={() => setQuantity((q) => Math.min(20, q + 1))}>+</Button>
+    </div>
+    <div className="rounded bg-muted p-3 text-sm">Cena: <strong>{dailyLunchPrice(quote.data ? Number(quote.data.total) * quantity : null)}</strong>{quantity > 1 && quote.data ? <span className="ml-2 text-muted-foreground">({quantity} × {dailyLunchPrice(quote.data.total)})</span> : null}</div>
     {(addError || quote.error) && <p role="alert" className="rounded border border-destructive bg-destructive/10 p-2 text-sm text-destructive">
       {addError ?? (quote.error instanceof ApiError && quote.error.data && typeof quote.error.data === "object" && "error" in quote.error.data ? String(quote.error.data.error) : "Cene kosila ni bilo mogoče izračunati.")}
     </p>}
     <Button className="w-full" disabled={!complete || !quote.data || quote.isPending || add.isPending} onClick={() => void addLunch()}>
-      {add.isPending ? "Dodajanje …" : "Dodaj kosilo"}
+      {add.isPending ? "Dodajanje …" : quantity > 1 ? `Dodaj ${quantity} kosil` : "Dodaj kosilo"}
     </Button>
   </div>;
 }

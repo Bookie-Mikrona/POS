@@ -4293,6 +4293,11 @@ export interface DailyLunchAddInput {
   mode: DailyLunchAddInputMode;
   selectedDishes: DailyLunchAddInputSelectedDishes;
   modifiers?: DailyLunchAddInputModifiers;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  quantity?: number;
   /** @minLength 1 */
   idempotencyKey: string;
 }
