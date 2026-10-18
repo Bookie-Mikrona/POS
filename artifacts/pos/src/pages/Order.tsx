@@ -2975,6 +2975,9 @@ export default function Order() {
             </div>}
             <TabsList className="h-auto flex-wrap w-full justify-start gap-1 bg-transparent p-0">
               <TabsTrigger value="all" className="rounded-full border text-xs h-7 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary">Vse</TabsTrigger>
+              {narocilo.status === "odprto" && kosilaAktivna && (
+                <TabsTrigger value="kosilo" data-testid="tab-dnevno-kosilo" className="rounded-full border-2 border-amber-500 text-xs h-7 px-3 data-[state=active]:bg-amber-500 data-[state=active]:text-white">Dnevno kosilo</TabsTrigger>
+              )}
               {kategorije?.map(k => (
                 <TabsTrigger key={k.id} value={k.id.toString()} style={{ "--kc": k.barva, borderColor: k.barva } as React.CSSProperties} className="rounded-full border-2 text-xs h-7 px-3 data-[state=active]:bg-[var(--kc)] data-[state=active]:text-white">{k.ime}</TabsTrigger>
               ))}
@@ -2987,6 +2990,16 @@ export default function Order() {
                  {Array.from({ length: 12 }).map((_, index) => (
                    <Skeleton key={index} className="h-24 w-full rounded-lg" />
                  ))}
+               </div>
+             ) : activeKategorija === "kosilo" && kosilaAktivna && narocilo.status === "odprto" ? (
+               <div className="pb-20 md:pb-4 max-w-3xl">
+                 <DailyLunchOrderFlow
+                   narociloId={narocilo.id}
+                   onAdded={() => {
+                     queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(narocilo.id) });
+                     queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+                   }}
+                 />
                </div>
              ) : (() => {
               const gridItems: GridItem[] = (search.trim() || grupiranjeNacin === "izklopljeno")
@@ -3059,20 +3072,6 @@ export default function Order() {
 
       {/* ── Desni del — Račun ────────────────────────────────── */}
       <div className={`w-full md:w-[400px] flex-col md:h-full flex-1 min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
-        {narocilo.status === "odprto" && kosilaAktivna && (
-          <details className="shrink-0 border-b bg-card px-3 py-1.5 md:py-2">
-            <summary className="cursor-pointer text-sm font-semibold">Dodaj dnevno kosilo</summary>
-            <div className="pt-3">
-              <DailyLunchOrderFlow
-                narociloId={narocilo.id}
-                onAdded={() => {
-                  queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(narocilo.id) });
-                  queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
-                }}
-              />
-            </div>
-          </details>
-        )}
         <div className="shrink-0 px-3 py-1.5 md:p-2.5 border-b bg-card space-y-1 md:space-y-0.5">
           <OrderContextLine
             prostorIme={prostorIme}
