@@ -1846,6 +1846,28 @@ describe("supplier order print view", () => {
           lastPriceReceipt: null,
           priceHistory: [],
         },
+        {
+          ...preferred,
+          id: 7064,
+          supplierId: "supplier-722",
+          supplierName: "Mlekarna Negativna cena paketa",
+          packageFactor: 6,
+          lastPackagePrice: -6,
+          lastUnitPrice: 1,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
+        {
+          ...preferred,
+          id: 7065,
+          supplierId: "supplier-723",
+          supplierName: "Mlekarna Negativna cena enote",
+          packageFactor: 6,
+          lastPackagePrice: 24,
+          lastUnitPrice: -0.5,
+          lastPriceReceipt: null,
+          priceHistory: [],
+        },
       ],
     });
 
@@ -1855,7 +1877,7 @@ describe("supplier order print view", () => {
       expect(screen.getByTestId("last-unit-price-7047").textContent).toMatch(/2,50\s*€ \/ L/);
       expect(screen.getByTestId("lowest-unit-price-7047").textContent)
         .toContain("Najnižja cena / enoto");
-      for (const mappingId of [7062, 7063]) {
+      for (const mappingId of [7062, 7063, 7064, 7065]) {
         expect(screen.queryByTestId(`last-unit-price-${mappingId}`)).toBeNull();
         expect(screen.queryByTestId(`lowest-unit-price-${mappingId}`)).toBeNull();
         expect(screen.queryByTestId(`supplier-savings-${mappingId}`)).toBeNull();

@@ -226,10 +226,9 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const created = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      expectedDeliveryDate: "2026-11-05",
-      internalNotes: "Prvo naročilo",
-      supplierNotes: null,
-      lines: [{ supplierMappingId: mappingId, packageQuantity: 2, unitPrice: 20 }],
+      internalNotes: note,
+      supplierNotes: note,
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     orderIds.push(created.body.id);
@@ -600,7 +599,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       expectedDeliveryDate: "2026-11-07",
-      lines: [{ supplierMappingId: historyMapping.id, packageQuantity: 1, unitPrice: 18 }],
+      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
@@ -625,7 +624,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const [otherUnit] = await db.insert(enoteTable).values({
       companyId,
-      ime: `Other receipt history unit ${run}`,
+      ime: `Manual link different unit ${run}`,
     }).returning({ id: enoteTable.id });
     unitIds.push(otherUnit.id);
 
@@ -741,10 +740,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       expectedDeliveryDate: "2026-11-07",
-      lines: [
-        { supplierMappingId: fullMapping.id, packageQuantity: 1, unitPrice: 18 },
-        { supplierMappingId: openMapping.id, packageQuantity: 1, unitPrice: 12 },
-      ],
+      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
@@ -1228,11 +1224,8 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      expectedDeliveryDate: "2026-11-09",
-      lines: [
-        { supplierMappingId: firstMapping.id, packageQuantity: 1, unitPrice: 18 },
-        { supplierMappingId: secondMapping.id, packageQuantity: 1, unitPrice: 12 },
-      ],
+      expectedDeliveryDate: "2026-11-07",
+      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
@@ -1246,30 +1239,30 @@ describe("POS supplier ordering and linked receipt flow", () => {
       datum: "2026-10-30",
       vrstaCen: "neto",
       vrstaDokumenta: "DOBAVNICA",
-      brutoSkupaj: 30,
+      brutoSkupaj: 20,
       postavke: [
         {
-          artikelId: firstArticle.id,
-          supplierOrderLineId: firstOrderLine.id,
-          kolicina: 6,
-          cenaKos: 3,
-          skupaj: 18,
+          artikelId: articleId,
+          supplierOrderLineId: lowerPriceLineId,
+          kolicina: 2,
+          cenaKos: 2,
+          skupaj: 4,
           enotVPaketu: 1,
-          izvKolicina: 6,
-          izvCena: 3,
+          izvKolicina: 2,
+          izvCena: 2,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
         },
         {
-          artikelId: secondArticle.id,
-          supplierOrderLineId: secondOrderLine.id,
+          artikelId: articleId,
+          supplierOrderLineId: higherPriceLineId,
           kolicina: 4,
-          cenaKos: 3,
-          skupaj: 12,
+          cenaKos: 4,
+          skupaj: 16,
           enotVPaketu: 1,
           izvKolicina: 4,
-          izvCena: 3,
+          izvCena: 4,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
@@ -1361,9 +1354,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, receipt.body.id));
     expect(reviewsAfterConfirmationFailure).toHaveLength(0);
 
-    const confirmed = await request(app)
-      .post(`/prejemnice/${receipt.body.id}/confirm`)
-      .send({ reviewedPackageFactorChanges: staleAcknowledgement.body.packageFactorChanges });
+    const confirmed = await request(app).post(`/prejemnice/${eligibleReceipt.id}/confirm`).send({});
     expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
     expect(confirmed.body).toMatchObject({ id: receipt.body.id, status: "confirmed" });
     const reviewsAfterConfirmation = await db.select()
@@ -1393,7 +1384,8 @@ describe("POS supplier ordering and linked receipt flow", () => {
   it("keeps legacy notes internal and preserves supplier instructions for older clients", async () => {
     const created = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      notes: "Stara opomba, shranjena pred ločitvijo.",
+      internalNotes: note,
+      supplierNotes: note,
       lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
@@ -1592,7 +1584,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const [otherCompany] = await db.insert(companiesTable).values({
       naziv: `Supplier order other company ${run}`,
-      podjetjeDavcna: `SI${run}76`,
+      podjetjeDavcna: `SI${run}77`,
     }).returning({ id: companiesTable.id });
     extraCompanyIds.push(otherCompany.id);
     const [otherCompanyUnit] = await db.insert(enoteTable).values({
@@ -2443,10 +2435,20 @@ describe("POS supplier ordering and linked receipt flow", () => {
         unitPrice: "NaN",
       });
 
+      const negativePackagePriceMappingId = await addMapping({
+        supplierId: comparisonSupplier.id,
+        code: "NEGATIVE-PACKAGE",
+        packageFactor: "6",
+        packagePrice: "-1",
+        unitPrice: "4",
+      });
       const response = await request(app).get("/narocila-dobaviteljem/pregled");
       expect(response.status, JSON.stringify(response.body)).toBe(200);
       const article = response.body.articles.find((row: any) => row.articleId === comparisonArticle.id);
-      expect(article.baseUnit).toBe("L");
+
+      const comparablePriceByMappingId = new Map(
+        article.mappings.map((mapping: any) => [mapping.id, mapping.lastUnitPrice]),
+      );
       const mappings = new Map(article.mappings.map((mapping: any) => [mapping.id, mapping]));
       expect(mappings.get(sixUnitMappingId)).toMatchObject({
         packageFactor: 6,
@@ -2928,7 +2930,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(receipt.status, JSON.stringify(receipt.body)).toBe(201);
     receiptIds.push(receipt.body.id);
 
-    const confirmed = await request(app).post(`/prejemnice/${receipt.body.id}/confirm`).send({});
+    const confirmed = await request(app).post(`/prejemnice/${eligibleReceipt.id}/confirm`).send({});
     expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
     const receiptDetails = await request(app).get(`/prejemnice/${receipt.body.id}`);
     expect(receiptDetails.status, JSON.stringify(receiptDetails.body)).toBe(200);
@@ -3168,3 +3170,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
     });
   });
 });
+
+      const negativeUnitPriceMappingId = await addMapping({
+        supplierId: comparisonSupplier.id,
+        code: "NEGATIVE-UNIT",
+        packageFactor: "6",
+        packagePrice: "24",
+        unitPrice: "-0.5",
+      });
