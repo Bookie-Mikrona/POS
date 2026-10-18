@@ -46,13 +46,23 @@ const summary = {
   supplierNotes: order.supplierNotes,
 };
 
-const emptyMutation = () => ({ mutateAsync: async () => ({}), isPending: false });
+const mutationCountKey = "supplier-order-warning-test-mutation-count";
+const emptyMutation = () => ({
+  mutateAsync: async () => {
+    const count = Number(window.sessionStorage.getItem(mutationCountKey) ?? "0");
+    window.sessionStorage.setItem(mutationCountKey, String(count + 1));
+    return {};
+  },
+  isPending: false,
+});
 const emptyQuery = data => ({ data, isLoading: false, isError: false, refetch: async () => ({ data, isError: false }) });
 
 export const getGetSupplierOrderDashboardQueryKey = () => ["supplier-order-dashboard"];
 export const getListSupplierOrdersQueryKey = params => ["supplier-orders", params];
 export const getListSupplierOrdersMissingInstructionsQueryKey = params => ["supplier-orders-missing-instructions", params];
 export const getGetSupplierOrderQueryKey = id => ["supplier-order", id];
+export const getAuthToken = async () => null;
+export const getEnotaId = () => null;
 
 export const useGetSupplierOrderDashboard = () => emptyQuery({ articles: [], orders: [summary] });
 export const useListSupplierOrders = () => emptyQuery([summary]);

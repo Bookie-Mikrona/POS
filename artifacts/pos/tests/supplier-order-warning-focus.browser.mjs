@@ -34,6 +34,19 @@ function delay(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
+function waitForEvent(devTools, eventName, timeoutMilliseconds = 5_000) {
+  let unsubscribe = () => {};
+  let timeout;
+  const eventPromise = new Promise(resolve => {
+    unsubscribe = devTools.onEvent(eventName, params => resolve(params));
+    timeout = setTimeout(() => resolve(null), timeoutMilliseconds);
+  });
+  return eventPromise.finally(() => {
+    clearTimeout(timeout);
+    unsubscribe();
+  });
+}
+
 function connectDevTools(webSocketUrl) {
   const socket = new WebSocket(webSocketUrl);
   const pending = new Map();
@@ -235,6 +248,92 @@ try {
   );
   assert.deepEqual(pageErrors, [], `Browser page errors before interaction: ${pageErrors.join("; ")}`);
 
+  const mutationCountKey = "supplier-order-warning-test-mutation-count";
+  await evaluate(devTools, `window.sessionStorage.setItem(${JSON.stringify(mutationCountKey)}, "0")`);
+  await evaluate(devTools, `Array.from(document.querySelectorAll("button")).find(button => button.textContent.includes("Novo naročilo"))?.click()`);
+  await waitForExpression(
+    devTools,
+    `Boolean(document.querySelector('[data-testid="supplier-order-editor-backdrop"]'))`,
+    "clean supplier-order editor",
+  );
+
+  const cleanReloadLoad = waitForEvent(devTools, "Page.loadEventFired", 15_000);
+  const cleanReloadPrompt = waitForEvent(devTools, "Page.javascriptDialogOpening", 1_500);
+  const cleanReload = devTools.send("Page.reload");
+  const unexpectedCleanPrompt = await cleanReloadPrompt;
+  if (unexpectedCleanPrompt) {
+    await devTools.send("Page.handleJavaScriptDialog", { accept: false });
+  }
+  assert.equal(unexpectedCleanPrompt, null, "A clean supplier-order editor must not trigger a native browser warning.");
+  await Promise.all([cleanReload, cleanReloadLoad]);
+  await waitForExpression(
+    devTools,
+    `Boolean(document.querySelector('[data-testid="tab-supplier-orders"]'))`,
+    "supplier orders tab after a clean reload",
+  );
+
+  await evaluate(devTools, `Array.from(document.querySelectorAll("button")).find(button => button.textContent.includes("Novo naročilo"))?.click()`);
+  await waitForExpression(
+    devTools,
+    `Boolean(document.querySelector('[data-testid="supplier-order-editor-backdrop"]'))`,
+    "supplier-order editor before editing",
+  );
+  const editedInstruction = "Dostavite pred 12. uro.";
+  const instructionFieldExpression = `Array.from(document.querySelectorAll("textarea")).find(field => field.closest("label")?.textContent.includes("Navodilo dobavitelju"))`;
+  await evaluate(devTools, `${instructionFieldExpression}?.focus()`);
+  await devTools.send("Input.insertText", { text: editedInstruction });
+  assert.equal(
+    await evaluate(devTools, `${instructionFieldExpression}?.value ?? null`),
+    editedInstruction,
+    "Typing into the supplier instruction should change the draft.",
+  );
+
+  const cancelReload = devTools.send("Page.reload");
+  const cancelPrompt = await waitForEvent(devTools, "Page.javascriptDialogOpening");
+  assert(cancelPrompt, "Editing a supplier-order field should trigger the native browser warning on reload.");
+  if (cancelPrompt.type !== "beforeunload") {
+    await devTools.send("Page.handleJavaScriptDialog", { accept: false });
+  }
+  assert.equal(cancelPrompt.type, "beforeunload", "The browser should show its native beforeunload prompt.");
+  await devTools.send("Page.handleJavaScriptDialog", { accept: false });
+  await cancelReload;
+  await waitForExpression(
+    devTools,
+    `${instructionFieldExpression}?.value === ${JSON.stringify(editedInstruction)}`,
+    "the edited supplier instruction after canceling the native warning",
+  );
+  assert.equal(
+    await evaluate(devTools, `window.sessionStorage.getItem(${JSON.stringify(mutationCountKey)})`),
+    "0",
+    "Canceling the native warning must not save the changed order.",
+  );
+
+  const acceptedReloadLoad = waitForEvent(devTools, "Page.loadEventFired", 15_000);
+  const acceptedReload = devTools.send("Page.reload");
+  const acceptPrompt = await waitForEvent(devTools, "Page.javascriptDialogOpening");
+  assert(acceptPrompt, "The native browser warning should remain active after canceling a departure.");
+  if (acceptPrompt.type !== "beforeunload") {
+    await devTools.send("Page.handleJavaScriptDialog", { accept: false });
+  }
+  assert.equal(acceptPrompt.type, "beforeunload", "Confirming departure should resolve the native beforeunload prompt.");
+  await devTools.send("Page.handleJavaScriptDialog", { accept: true });
+  await Promise.all([acceptedReload, acceptedReloadLoad]);
+  await waitForExpression(
+    devTools,
+    `Boolean(document.querySelector('[data-testid="tab-supplier-orders"]'))`,
+    "supplier orders page after confirming departure",
+  );
+  assert.equal(
+    await evaluate(devTools, `window.sessionStorage.getItem(${JSON.stringify(mutationCountKey)})`),
+    "0",
+    "Confirming departure must not save the changed order automatically.",
+  );
+  assert.equal(
+    await evaluate(devTools, `Boolean(document.querySelector('[data-testid="supplier-order-editor-backdrop"]'))`),
+    false,
+    "Confirming departure should leave the editor closed after the reload.",
+  );
+
   await evaluate(devTools, `document.querySelector('[data-testid="tab-supplier-orders"]').click()`);
   await waitForExpression(
     devTools,
@@ -309,7 +408,7 @@ try {
     "The warning should close after returning to the order.",
   );
   assert.deepEqual(pageErrors, [], `Browser page errors during interaction: ${pageErrors.join("; ")}`);
-  console.log("Supplier-order warning focus regression passed: real Chromium Tab and Shift+Tab stayed within all warning actions and restored focus on close.");
+  console.log("Supplier-order beforeunload and warning-focus regressions passed in real Chromium: clean drafts reload silently, changed drafts show the native prompt, and cancel/confirm preserve the expected save behavior.");
 } finally {
   devTools?.close();
   await stopProcessGroup(browserProcess);

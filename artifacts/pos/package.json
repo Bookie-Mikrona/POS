@@ -13,7 +13,8 @@
     "test": "vitest run --config vitest.config.ts",
     "test:print-browser": "node tests/supplier-order-print.browser.mjs",
     "test:print-browser:matrix": "node tests/supplier-order-print.browser-matrix.mjs",
-    "test:warning-focus-browser": "node tests/supplier-order-warning-focus.browser.mjs"
+    "test:warning-focus-browser": "node tests/supplier-order-warning-focus.browser.mjs",
+    "test:beforeunload-browser": "node tests/supplier-order-warning-focus.browser.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.12.5",
