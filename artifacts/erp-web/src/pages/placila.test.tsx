@@ -1,28 +1,31 @@
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PaymentBatchConflict } from "@workspace/api-client-react";
 
 const mocks = vi.hoisted(() => ({
-  createPayment: vi.fn(),
-  periods: { periods: [{ id: "period-2026", name: "2026", status: "open", startDate: "2026-01-01", endDate: "2026-12-31" }] },
+  batch: vi.fn(),
+  create: vi.fn(),
+  getPayment: vi.fn(),
+  alert: vi.fn(),
 }));
 
 vi.mock("@clerk/react", () => ({ useAuth: () => ({ getToken: vi.fn() }) }));
 vi.mock("@/contexts/CompanyContext", () => ({
-  useCompany: () => ({ activeCompany: { id: "company-test" } }),
+  useCompany: () => ({ activeCompany: { id: "company", role: "admin" } }),
 }));
-vi.mock("wouter", () => ({
-  useLocation: () => ["/placila", vi.fn()],
-  Link: ({ children, href }: any) => <a href={href}>{children}</a>,
+vi.mock("@/components/payment-batches-panel", () => ({
+  PaymentBatchesPanel: () => <p>Pripravljeni paketi</p>,
 }));
-vi.mock("@/components/payment-batches-panel", () => ({ PaymentBatchesPanel: () => null }));
-vi.mock("@/components/bank-account-metadata-dialog", () => ({ BankAccountMetadataDialog: () => null }));
-// Use native selects for deterministic form input; keep the real sheet, dialog and buttons.
+vi.mock("@/components/bank-account-metadata-dialog", () => ({
+  BankAccountMetadataDialog: () => null,
+}));
+// Native selects keep this test focused on payment handling, not Radix pointer events.
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ value, onValueChange, children, disabled }: any) => (
-    <select value={value} disabled={disabled} onChange={event => onValueChange(event.target.value)}>
+  Select: ({ value, onValueChange, children }: any) => (
+    <select value={value} onChange={event => onValueChange(event.target.value)}>
       <option value="">Izberite</option>{children}
     </select>
   ),
@@ -31,100 +34,173 @@ vi.mock("@/components/ui/select", () => ({
   SelectValue: () => null,
   SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
 }));
-vi.mock("@workspace/api-client-react", async () => {
-  const { useMutation } = await import("@tanstack/react-query");
-  return {
-    useListPayments: () => ({ data: { payments: [] }, isLoading: false }),
-    useListPeriods: () => ({ data: mocks.periods }),
-    useListCounterparties: () => ({ data: { counterparties: [{ id: "customer", name: "Testni kupec" }] } }),
-    useListAccounts: () => ({ data: { accounts: [
-      { id: "bank", code: "1100000", name: "TRR", type: "asset", isActive: true },
-      { id: "receivable", code: "1200000", name: "Terjatve", type: "asset", isActive: true },
-    ] } }),
-    useListInvoices: () => ({ data: { invoices: [] } }),
-    useGetOpenItems: () => ({ data: { items: [] }, isLoading: false }),
-    useGetBankBalance: () => ({ data: { accounts: [] } }),
-    // Real mutation lifecycle so pending, errors and success behave as in the app.
-    useCreatePayment: () => useMutation({ mutationFn: mocks.createPayment }),
-    useCreatePaymentBatch: () => ({ isPending: false }),
-    usePostPayment: () => ({}),
-    useVoidPayment: () => ({}),
-    useGetPayment: () => ({}),
-    getListPaymentsQueryKey: (companyId: string) => ["payments", companyId],
-    getGetPaymentQueryKey: () => ["payment"],
-    getListPaymentBatchesQueryKey: () => ["batches"],
-  };
-});
+vi.mock("@workspace/api-client-react", () => ({
+  useListPayments: () => ({ data: { payments: [] }, isLoading: false }),
+  useListPeriods: () => ({ data: { periods: [{
+    id: "period", name: "2026", status: "open", startDate: "2026-01-01", endDate: "2026-12-31",
+  }] } }),
+  useListCounterparties: () => ({ data: { counterparties: [] } }),
+  useListAccounts: () => ({ data: { accounts: [{
+    id: "bank", code: "1100000", name: "TRR", type: "asset", isActive: true,
+  }] } }),
+  useListInvoices: () => ({ data: { invoices: [] } }),
+  useGetOpenItems: () => ({ data: { items: [
+    { invoiceId: "invoice-a", invoiceType: "received", invoiceNumber: "A-1",
+      counterpartyId: "supplier-a", counterpartyName: "Dobavitelj A", arApAccountId: "payables",
+      invoiceDate: "2020-01-01", dueDate: "2020-01-31", remainingAmount: "100.00" },
+    { invoiceId: "invoice-b", invoiceType: "received", invoiceNumber: "B-2",
+      counterpartyId: "supplier-b", counterpartyName: "Dobavitelj B", arApAccountId: "payables",
+      invoiceDate: "2020-01-02", dueDate: "2020-02-01", remainingAmount: "250.00" },
+  ] }, isLoading: false }),
+  useGetBankBalance: () => ({ data: { accounts: [{
+    accountId: "bank", hasStatementBalance: true, balance: "1000.00",
+  }] } }),
+  useCreatePayment: () => ({ mutate: mocks.create, isPending: false }),
+  useCreatePaymentBatch: () => ({ mutateAsync: mocks.batch, isPending: false }),
+  useGetPayment: (...args: unknown[]) => mocks.getPayment(...args),
+  usePostPayment: () => ({ mutate: vi.fn(), isPending: false }),
+  useVoidPayment: () => ({ mutate: vi.fn(), isPending: false }),
+  getListPaymentsQueryKey: (company: string) => ["payments", company],
+  getListPaymentBatchesQueryKey: (company: string) => ["batches", company],
+  getGetPaymentQueryKey: (company: string, id: string) => ["payment", company, id],
+}));
 
 import Placila from "./placila";
 
+const existingPayment = {
+  id: "existing-payment-for-supplier-b",
+  direction: "outbound", status: "posted", counterpartyId: "supplier-b",
+  counterpartyName: "Obstoječi dobavitelj B", paymentDate: "2026-04-17",
+  amount: "250.00", reference: "SI00 987654", bankAccountCode: "1100000",
+  bankAccountName: "TRR", allocations: [],
+};
+const duplicateError = {
+  status: 409,
+  data: { error: "Izplačilo dobavitelju B že obstaja.", duplicateOf: { paymentId: existingPayment.id } },
+} satisfies { status: number; data: PaymentBatchConflict };
+
+function prepareSupplierBatch() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(["payments", "company"], { payments: [] });
+  client.setQueryData(["batches", "company"], { batches: [] });
+  render(<QueryClientProvider client={client}><Placila /></QueryClientProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Novo plačilo" }));
+  const sheet = screen.getByRole("dialog", { name: "Novo plačilo" });
+  fireEvent.change(within(sheet).getAllByRole("combobox")[0], { target: { value: "outbound" } });
+  // Direction, period and bank account, in the actual new-payment form.
+  const selects = within(sheet).getAllByRole("combobox");
+  fireEvent.change(selects[1], { target: { value: "period" } });
+  fireEvent.change(selects[2], { target: { value: "bank" } });
+  fireEvent.click(within(sheet).getByRole("button", { name: "Izberi vse dovoljene postavke" }));
+  expect(within(sheet).getByRole("spinbutton", { name: "Znesek plačila za račun A-1" })).toHaveValue(100);
+  expect(within(sheet).getByRole("spinbutton", { name: "Znesek plačila za račun B-2" })).toHaveValue(250);
+  const save = within(sheet).getByRole("button", { name: "Shrani plačilo" });
+  expect(save).toBeEnabled();
+  fireEvent.click(save);
+  return client;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.batch.mockReset();
+  mocks.getPayment.mockImplementation((_company, id) => ({
+    data: id === existingPayment.id ? existingPayment : undefined,
+    isLoading: false,
+  }));
+  vi.stubGlobal("alert", mocks.alert);
+});
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
-describe("potrditev podvojenega plačila", () => {
-  it("po 409 pošlje iste podatke s force=true, prepreči ponovni klik in po uspehu zapre oba dialoga ter osveži seznam", async () => {
-    let resolveSave!: (value: unknown) => void;
-    const pendingSave = new Promise(resolve => { resolveSave = resolve; });
-    mocks.createPayment
-      .mockRejectedValueOnce({
-        status: 409,
-        data: { duplicateOf: { paymentId: "existing-payment" }, error: "Plačilo že obstaja." },
-      })
-      .mockReturnValueOnce(pendingSave);
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-    const invalidate = vi.spyOn(client, "invalidateQueries");
-    render(<QueryClientProvider client={client}><Placila /></QueryClientProvider>);
-    fireEvent.click(screen.getByRole("button", { name: /Novo plačilo/ }));
-    const sheet = screen.getByRole("dialog", { name: "Novo plačilo" });
-    const selects = within(sheet).getAllByRole("combobox");
-    fireEvent.change(selects[1], { target: { value: "customer" } });
-    fireEvent.change(selects[2], { target: { value: "period-2026" } });
-    fireEvent.change(selects[3], { target: { value: "bank" } });
-    fireEvent.change(selects[4], { target: { value: "receivable" } });
-    fireEvent.change(sheet.querySelector('input[type="date"]')!, { target: { value: "2026-10-15" } });
-    fireEvent.change(sheet.querySelector('input[type="number"]')!, { target: { value: "123.45" } });
-    fireEvent.change(within(sheet).getByPlaceholderText("Npr. SI00 12345"), { target: { value: "SI00 12345" } });
-    fireEvent.change(within(sheet).getByPlaceholderText("Dodatna pojasnila..."), { target: { value: "Ločeno plačilo" } });
-    fireEvent.click(within(sheet).getByRole("button", { name: "Shrani plačilo" }));
-
+describe("podvojeno plačilo pri paketnem izplačilu dobaviteljem", () => {
+  it("keeps the 409 warning and the correct existing payment through unrelated successful refreshes", async () => {
+    mocks.batch.mockRejectedValueOnce(duplicateError);
+    const client = prepareSupplierBatch();
     const warning = await screen.findByRole("dialog", { name: "Možno podvojeno plačilo" });
-    expect(within(warning).getByText("existing-payment")).toBeVisible();
-    expect(mocks.createPayment).toHaveBeenCalledTimes(1);
-    const originalPayload = mocks.createPayment.mock.calls[0][0];
-    expect(originalPayload).toEqual({
-      companyId: "company-test",
-      data: {
-        direction: "inbound", counterpartyId: "customer", periodId: "period-2026",
-        paymentDate: "2026-10-15", amount: 123.45, reference: "SI00 12345",
-        bankAccountId: "bank", arApAccountId: "receivable", notes: "Ločeno plačilo",
-        allocations: undefined, ledgerAllocations: undefined,
-      },
-    });
-    expect(originalPayload.data).not.toHaveProperty("force");
-    expect(invalidate).not.toHaveBeenCalled();
 
-    const forceButton = within(warning).getByRole("button", { name: "Vseeno shrani" });
-    fireEvent.click(forceButton);
-    await waitFor(() => expect(forceButton).toBeDisabled());
-    expect(forceButton.querySelector(".animate-spin")).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Možno podvojeno plačilo" })).toBeVisible();
-    expect(sheet).toBeInTheDocument();
-    expect(mocks.createPayment).toHaveBeenCalledTimes(2);
-    expect(mocks.createPayment.mock.calls[1][0]).toEqual({
-      ...originalPayload, data: { ...originalPayload.data, force: true },
-    });
-    fireEvent.click(forceButton);
-    expect(mocks.createPayment).toHaveBeenCalledTimes(2);
-    expect(invalidate).not.toHaveBeenCalled();
+    // The obsolete Promise.all flow must not return: suppliers travel in ONE atomic request.
+    expect(mocks.batch).toHaveBeenCalledTimes(1);
+    expect(mocks.batch).toHaveBeenCalledWith(expect.objectContaining({
+      companyId: "company",
+      data: expect.objectContaining({
+        bankAccountId: "bank", periodId: "period",
+        proposedPayments: [
+          { counterpartyId: "supplier-a", arApAccountId: "payables",
+            allocations: [{ invoiceId: "invoice-a", amount: 100 }] },
+          { counterpartyId: "supplier-b", arApAccountId: "payables",
+            allocations: [{ invoiceId: "invoice-b", amount: 250 }] },
+        ],
+      }),
+    }));
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.alert).not.toHaveBeenCalled();
+    expect(within(warning).getByText(duplicateError.data.error)).toBeVisible();
+    expect(within(warning).getByText(existingPayment.id)).toBeVisible();
+    expect(within(warning).getByText(existingPayment.counterpartyName)).toBeVisible();
+    expect(within(warning).getByText("17.04.2026")).toBeVisible();
+    expect(within(warning).getByText("250.00")).toBeVisible();
+    expect(within(warning).getByText(existingPayment.reference)).toBeVisible();
+    expect(within(warning).queryByText("Dobavitelj A")).not.toBeInTheDocument();
+    expect(within(warning).queryByRole("button", { name: "Vseeno shrani" })).not.toBeInTheDocument();
 
-    await act(async () => { resolveSave({ id: "new-payment" }); });
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Možno podvojeno plačilo" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("dialog", { name: "Novo plačilo" })).not.toBeInTheDocument();
+    await act(async () => {
+      client.setQueryData(["payments", "company"], { payments: [{ id: "unrelated-success" }] });
+      await client.invalidateQueries({ queryKey: ["payments", "company"] });
     });
-    expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: ["payments", "company-test"] });
-    client.clear();
+    expect(warning).toBeVisible();
+    expect(within(warning).getByText(existingPayment.reference)).toBeVisible();
+    expect(screen.queryByText("Pripravljeni paketi")).not.toBeInTheDocument();
+  });
+
+  it("opens details using duplicateOf.paymentId, even when the payment is absent from the list", async () => {
+    mocks.batch.mockRejectedValueOnce(duplicateError);
+    prepareSupplierBatch();
+    const warning = await screen.findByRole("dialog", { name: "Možno podvojeno plačilo" });
+    fireEvent.click(within(warning).getByRole("button", { name: "Odpri obstoječe plačilo" }));
+
+    const detail = await screen.findByRole("dialog", { name: "Plačilo" });
+    expect(within(detail).getByText(existingPayment.counterpartyName)).toBeVisible();
+    expect(within(detail).getByText(existingPayment.reference)).toBeVisible();
+    expect(within(detail).getByText("250.00")).toBeVisible();
+    expect(mocks.getPayment).toHaveBeenLastCalledWith("company", existingPayment.id, expect.anything());
+    expect(screen.queryByRole("dialog", { name: "Možno podvojeno plačilo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Novo plačilo" })).not.toBeInTheDocument();
+  });
+
+  it("closes the form and shows batches only after atomic success", async () => {
+    mocks.batch.mockResolvedValueOnce({ id: "new-batch" });
+    const client = prepareSupplierBatch();
+    await screen.findByText("Pripravljeni paketi");
+    expect(screen.queryByRole("dialog", { name: "Novo plačilo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Možno podvojeno plačilo" })).not.toBeInTheDocument();
+    expect(client.getQueryState(["payments", "company"])?.isInvalidated).toBe(true);
+    expect(client.getQueryState(["batches", "company"])?.isInvalidated).toBe(true);
+    expect(mocks.batch).toHaveBeenCalledTimes(1);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("does not mistake another batch conflict for a duplicate payment", async () => {
+    mocks.batch.mockRejectedValueOnce({ status: 409, data: { error: "Postavka je že rezervirana." } });
+    prepareSupplierBatch();
+    await waitFor(() => expect(mocks.alert).toHaveBeenCalledWith(
+      "Paket ni bil ustvarjen, noben osnutek ni shranjen. Postavka je že rezervirana.",
+    ));
+    expect(screen.getByRole("dialog", { name: "Novo plačilo" })).toBeVisible();
+    expect(screen.queryByRole("dialog", { name: "Možno podvojeno plačilo" })).not.toBeInTheDocument();
+  });
+
+  it.each(["failed lookup", "wrong payment"] as const)("retains the conflict without opening unrelated details after a %s", async scenario => {
+    mocks.batch.mockRejectedValueOnce(duplicateError);
+    mocks.getPayment.mockReturnValue(scenario === "failed lookup"
+      ? { error: new Error("Unavailable"), isLoading: false }
+      : { data: { ...existingPayment, id: "wrong-payment", counterpartyName: "Napačni partner" }, isLoading: false });
+    prepareSupplierBatch();
+    const warning = await screen.findByRole("dialog", { name: "Možno podvojeno plačilo" });
+    expect(within(warning).getByText(existingPayment.id)).toBeVisible();
+    expect(within(warning).getByText("Podatkov obstoječega plačila ni bilo mogoče naložiti.")).toBeVisible();
+    expect(within(warning).queryByText("Napačni partner")).not.toBeInTheDocument();
+    expect(within(warning).queryByRole("button", { name: "Odpri obstoječe plačilo" })).not.toBeInTheDocument();
   });
 });

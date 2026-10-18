@@ -8980,7 +8980,7 @@ paths:
           description: Duplicate, conflicting or previously packaged payment
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema: { $ref: "#/components/schemas/PaymentBatchConflict" }
   /companies/{companyId}/payment-batches/{batchId}:
     get:
       operationId: getPaymentBatch
@@ -23992,6 +23992,19 @@ components:
           type: array
           items: { $ref: "#/components/schemas/PaymentBatchRecord" }
       required: [batches]
+    PaymentBatchConflict:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        duplicateOf:
+          type: object
+          description: Existing payment in the same company responsible for the duplicate rejection; absent for other batch conflicts.
+          required: [paymentId]
+          properties:
+            paymentId:
+              type: string
     CreatePaymentBatchBody:
       type: object
       description: Supply either saved paymentIds or periodId, paymentDate and proposedPayments. The server validates these mutually exclusive modes atomically.

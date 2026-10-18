@@ -1730,7 +1730,7 @@ router.post("/companies/:companyId/payment-batches/:batchId/lifecycle", requireA
   }
 });
 
-router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post("/companies/:companyId/payment-batches", requireAuth, async function createSupplierPaymentBatch(req: Request, res: Response): Promise<void> {
   const authReq = req as AuthenticatedRequest;
   const companyId = extractParam(req.params.companyId);
   const access = await resolveAccess(authReq.clerkUserId, companyId, res);
@@ -2044,6 +2044,33 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
           group.amountCents += selection.cents;
           paymentGroups.set(key, group);
         }
+        // Validate every recipient before creating any drafts. The bank-account
+        // row is already locked, serializing competing batch preparations.
+        for (const group of paymentGroups.values()) {
+          const reference = group.instruction.reference || `Plačilo ${group.instruction.creditorName}`;
+          const normalizeReference = (value: string | null) => (value ?? "").replace(/[\s-]/g, "").toUpperCase();
+          const candidates = await tx.select({
+            id: paymentsTable.id, reference: paymentsTable.reference,
+          }).from(paymentsTable).where(and(
+            eq(paymentsTable.companyId, companyId),
+            eq(paymentsTable.counterpartyId, group.proposed.counterpartyId),
+            eq(paymentsTable.bankAccountId, bankAccountId),
+            eq(paymentsTable.direction, "outbound"),
+            eq(paymentsTable.paymentDate, paymentDate!),
+            eq(paymentsTable.amount, (group.amountCents / 100).toFixed(2)),
+            inArray(paymentsTable.status, ["draft", "posted"]),
+          )).orderBy(asc(paymentsTable.id));
+          const incomingReference = normalizeReference(reference);
+          const duplicate = candidates.find(candidate => {
+            const existingReference = normalizeReference(candidate.reference);
+            return !incomingReference || !existingReference || incomingReference === existingReference;
+          });
+          if (duplicate) {
+            throw Object.assign(new Error("Plačilo z istim datumom, zneskom in sklicem za tega prejemnika že obstaja."), {
+              status: 409, duplicateOf: { paymentId: duplicate.id },
+            });
+          }
+        }
         for (const group of paymentGroups.values()) {
           const [payment] = await tx.insert(paymentsTable).values({
             companyId,
@@ -2319,7 +2346,13 @@ router.post("/companies/:companyId/payment-batches", requireAuth, async (req: Re
       ...(result.replayed ? { replayed: true } : {}),
     });
   } catch (error: any) {
-    if (error?.status) { res.status(error.status).json({ error: error.message }); return; }
+    if (error?.status) {
+      res.status(error.status).json({
+        error: error.message,
+        ...(error.status === 409 && error.duplicateOf ? { duplicateOf: error.duplicateOf } : {}),
+      });
+      return;
+    }
     if (error?.code === "23505") {
       const [racedBatch] = await db.select().from(paymentBatchesTable).where(and(
         eq(paymentBatchesTable.companyId, companyId),

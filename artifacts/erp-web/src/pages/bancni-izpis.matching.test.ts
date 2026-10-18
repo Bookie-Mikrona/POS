@@ -153,59 +153,79 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
 
   it("po vsaki uspešni vrstici shrani napredek in po 401 ponovno pošlje le preostalo vrstico", async function resumesOnlyUncreatedPayment() {
     seedDraft();
-    const partialImportCreate = vi.fn((_body: any): Response => Response.json({ id: "payment-2" }))
-      .mockImplementationOnce(() => Response.json({ id: "payment-1" }))
-      .mockImplementationOnce(() => {
-        expect(readDraft().imported["tx-1"]).toEqual({ paymentId: "payment-1", posting: "draft" });
+    let expired = false;
+    const create = vi.fn((body: any) => {
+      if (body.bankStatementLineId === "line-1") return Response.json({ id: "payment-1" });
+      expect(readDraft().imported["tx-1"]).toEqual({ paymentId: "payment-1", posting: "draft" });
+      if (!expired) {
+        expired = true;
         return Response.json({ error: "Prijavite se" }, { status: 401 });
-      });
-    const partialImportFetch = mockImportApi(partialImportCreate);
-    const partialImportWizard = mountWizard();
+      }
+      return Response.json({ id: "payment-2" });
+    });
+    const fetchMock = mockImportApi(create);
+    const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await screen.findByText(/Seja je potekla\. Ponovno/);
-    partialImportWizard.unmount();
+    first.unmount();
     mountWizard();
     await screen.findByText("Že ustvarjeno plačilo");
     confirmImport(1);
     await waitFor(() => expect(readDraft().imported["tx-2"]?.paymentId).toBe("payment-2"));
-    expect(partialImportFetch.mock.calls.filter(([url]) => url.endsWith("/register"))).toHaveLength(1);
-    expect(partialImportCreate.mock.calls.map(([body]) => body.bankStatementLineId)).toEqual(["line-1", "line-2", "line-2"]);
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/register"))).toHaveLength(1);
+    expect(create.mock.calls.map(([body]) => body.bankStatementLineId)).toEqual(["line-1", "line-2", "line-2"]);
   });
 
-  it("po 401 pri prvem plačilu ohrani evidentirani izpisek in nadaljuje brez ponovne registracije", async function resumesRegisteredStatementAfterUnauthorizedCreation() {
+  it("po 401 že pri prvem plačilu ponovno uporabi evidentirani izpisek in njegove vrstice", async function reusesRegisteredStatementAfter401() {
     seedDraft();
-    const unauthorizedCreate = vi.fn((body: any): Response => Response.json({
-      id: body.bankStatementLineId === "line-1" ? "payment-1" : "payment-2",
-    })).mockImplementationOnce(() => Response.json({ error: "Prijavite se" }, { status: 401 }));
-    const unauthorizedFetch = mockImportApi(unauthorizedCreate);
-    const unauthorizedWizard = mountWizard();
+    let expired = false;
+    const create = vi.fn((body: any) => {
+      if (!expired) {
+        expired = true;
+        return Response.json({ error: "Prijavite se" }, { status: 401 });
+      }
+      return Response.json({ id: body.bankStatementLineId === "line-1" ? "payment-1" : "payment-2" });
+    });
+    const fetchMock = mockImportApi(create);
+    const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await screen.findByText(/Seja je potekla\. Ponovno/);
     expect(readDraft().imported).toEqual({});
-    unauthorizedWizard.unmount();
+    first.unmount();
     mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await waitFor(() => expect(readDraft().imported["tx-2"]?.paymentId).toBe("payment-2"));
-    expect(unauthorizedFetch.mock.calls.filter(([url]) => url.endsWith("/register"))).toHaveLength(1);
-    expect(unauthorizedCreate.mock.calls.map(([body]) => body.bankStatementLineId)).toEqual(["line-1", "line-1", "line-2"]);
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/register"))).toHaveLength(1);
+    expect(create.mock.calls.map(([body]) => body.bankStatementLineId)).toEqual(["line-1", "line-1", "line-2"]);
   });
 
-  it("tudi po izgubi odgovora knjiženja obnovi ustvarjeno vrstico kot nepotrjeno", async () => {
-    const draft = seedDraft(true);
-    sessionStorage.setItem(draftKey, JSON.stringify({
-      ...draft, imported: { "tx-1": { paymentId: "payment-1", posting: "pending" } },
-    }));
-    const fetchMock = mockImportApi(() => Response.json({}));
+  it("tudi po izgubi odgovora knjiženja obnovi ustvarjeno vrstico kot nepotrjeno", async function restoresPendingPostingWithoutRetry() {
+    seedDraft(true);
+    let id = 0;
+    const create = vi.fn(() => Response.json({ id: `payment-${++id}` }));
+    const post = vi.fn((url: string) => {
+      const paymentId = url.includes("payment-1") ? "payment-1" : "payment-2";
+      const transactionId = paymentId === "payment-1" ? "tx-1" : "tx-2";
+      expect(readDraft().imported[transactionId]).toEqual({ paymentId, posting: "pending" });
+      throw new Error("Failed to fetch");
+    });
+    const fetchMock = mockImportApi(create, post);
+    const first = mountWizard();
+    await screen.findByText("Osnutek uvoza je obnovljen");
+    confirmImport(2);
+    await waitFor(() => expect(readDraft().imported["tx-2"]?.posting).toBe("failed"));
+    first.unmount();
+    fetchMock.mockClear();
     mountWizard();
-    await screen.findByText("Že ustvarjeno plačilo");
-    expect(screen.getByText(/Knjiženje ni potrjeno/)).toBeTruthy();
+    await screen.findAllByText("Že ustvarjeno plačilo");
+    expect(screen.getAllByText(/Knjiženje ni potrjeno/).length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/payments") || url.endsWith("/post"))).toBe(false);
   });
 
-  it("obnovljena nepotrjena knjiženja preveri z enim paketom in ohrani osnutek", async () => {
+  it("obnovljena nepotrjena knjiženja preveri z enim paketom in ohrani osnutek", async function refreshesRestoredPaymentsInBatch() {
     const draft = seedDraft(true);
     sessionStorage.setItem(draftKey, JSON.stringify({
       ...draft, imported: {
@@ -229,26 +249,26 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     expect(fallback.mock.calls.some(([url]) => url.endsWith("/payments") || url.endsWith("/post"))).toBe(false);
   });
 
-  it("ohrani potrjeno knjiženje in pri popolnem uvozu onemogoči novo potrjevanje", async () => {
+  it("ohrani potrjeno knjiženje in pri popolnem uvozu onemogoči novo potrjevanje", async function restoresCompletedImport() {
     seedDraft(true);
     let id = 0;
-    const completeCreate = vi.fn(() => Response.json({ id: `payment-${++id}` }));
-    mockImportApi(completeCreate);
-    const completeWizard = mountWizard();
+    const create = vi.fn(() => Response.json({ id: `payment-${++id}` }));
+    mockImportApi(create);
+    const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await waitFor(() => expect(readDraft().imported["tx-2"]?.posting).toBe("posted"));
-    completeWizard.unmount();
+    first.unmount();
     mountWizard();
     await screen.findAllByText("Že ustvarjeno plačilo");
     expect(screen.getAllByText("Knjiženje potrjeno.")).toHaveLength(2);
     for (const button of screen.getAllByRole("button", { name: "Potrdi 0 transakcij" })) {
       expect((button as HTMLButtonElement).disabled).toBe(true);
     }
-    expect(completeCreate).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenCalledTimes(2);
   });
 
-  it("shrani tudi uspešno povezavo obstoječega plačila pred samodejnim knjiženjem", async () => {
+  it("shrani tudi uspešno povezavo obstoječega plačila pred samodejnim knjiženjem", async function persistsPostedReconciliation() {
     seedDraft(true, "reconcile");
     recovery.reconcile
       .mockResolvedValueOnce({ paymentId: "existing-tx-1", status: "draft", requiresExplicitPosting: true })
@@ -258,16 +278,16 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
       return Response.json({ error: "Prijavite se" }, { status: 401 });
     });
     mockImportApi(() => Response.json({}), post);
-    const reconciliationWizard = mountWizard();
+    const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await screen.findByText(/Seja je potekla\. Ponovno/);
-    reconciliationWizard.unmount();
+    first.unmount();
     mountWizard();
     await screen.findByText("Že ustvarjeno plačilo");
     expect(readDraft().imported["tx-1"].posting).toBe("failed");
-    expect(post).toHaveBeenCalledOnce();
-    expect(recovery.reconcile).toHaveBeenCalledOnce();
+    expect(recovery.reconcile).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledTimes(1);
   });
 
   it("ne začne potrjevanja, če osnutka ni mogoče zapisati", async () => {
@@ -319,7 +339,7 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
       return Response.json({ error: "Prijavite se" }, { status: 401 });
     });
     mockImportApi(() => Response.json({}), post);
-    const confirmedReconciliationWizard = mountWizard();
+    const first = mountWizard();
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await screen.findByText("Potrebna potrditev ujemanja (2)");
@@ -330,7 +350,7 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     expect(recovery.reconcile).toHaveBeenLastCalledWith("company-1", "line-1", {
       paymentId: "existing-tx-1", confirmDateMismatch: true,
     });
-    confirmedReconciliationWizard.unmount();
+    first.unmount();
     mountWizard();
     await screen.findByText("Že ustvarjeno plačilo");
     expect(screen.getAllByRole("button", { name: "Potrdi 1 transakcij" })).toHaveLength(2);
@@ -364,7 +384,7 @@ describe("obnova napak pri knjiženju", () => {
     };
   }
 
-  it("po zavrnjenem lokalnem zapisu obnovi napake v istem zavihku", () => {
+  it("po zavrnjenem lokalnem zapisu obnovi napake v istem zavihku", function restoresSessionFailure() {
     const local = storage();
     const session = storage();
     local.setItem.mockImplementation(() => { throw new DOMException("Quota", "QuotaExceededError"); });
@@ -381,7 +401,7 @@ describe("obnova napak pri knjiženju", () => {
     expect(restored.result.current.storageMessage).toContain("ne pa v drugem zavihku");
   });
 
-  it("ob odpovedi obeh shramb ohrani napake v pomnilniku in pojasni izgubo ob osvežitvi", () => {
+  it("ob odpovedi obeh shramb ohrani napake v pomnilniku in pojasni izgubo ob osvežitvi", function retainsMemoryFailure() {
     vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new Error("blocked"); });
     vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => { throw new Error("blocked"); });
     const first = renderHook(() => useBankImportResult("user-a", "company-a"));
@@ -393,7 +413,7 @@ describe("obnova napak pri knjiženju", () => {
     expect(renderHook(() => useBankImportResult("user-a", "company-a")).result.current.result).toBeNull();
   });
 
-  it("rezervni zapis loči po uporabniku in podjetju ter ga ne izbriše ob odjavi", () => {
+  it("rezervni zapis loči po uporabniku in podjetju ter ga ne izbriše ob odjavi", function isolatesFailureScope() {
     const local = storage();
     const session = storage();
     local.setItem.mockImplementation(() => { throw new Error("blocked"); });
@@ -416,7 +436,7 @@ describe("obnova napak pri knjiženju", () => {
     expect(result.current.result).toEqual(failed);
   });
 
-  it("uporabi novejšo rezervno kopijo in po razrešitvi ne obnovi stare lokalne napake", () => {
+  it("uporabi novejšo rezervno kopijo in po razrešitvi ne obnovi stare lokalne napake", function prefersSessionFailure() {
     const local = storage();
     const session = storage();
     const key = `bank-import-result:${JSON.stringify(["user-a", "company-a"])}`;
@@ -432,7 +452,7 @@ describe("obnova napak pri knjiženju", () => {
     expect(renderHook(() => useBankImportResult("user-a", "company-a")).result.current.result).toBeNull();
   });
 
-  it("pri delujočem localStorage trajno obnovi napake", () => {
+  it("pri delujočem localStorage trajno obnovi napake", function restoresLocalFailure() {
     vi.stubGlobal("localStorage", storage());
     vi.stubGlobal("sessionStorage", storage());
     const first = renderHook(() => useBankImportResult("user-a", "company-a"));

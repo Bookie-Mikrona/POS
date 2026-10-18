@@ -20,12 +20,13 @@ vi.mock("../middlewares/requireAuth", () => ({
 }));
 import express from "express";
 import request from "supertest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   db, pool, companiesTable, accountingRolesTable, accountingPeriodsTable,
   accountsTable, counterpartiesTable, invoicesTable, invoiceLinesTable,
   journalEntriesTable, journalEntryLinesTable, bankStatementsTable, bankStatementLinesTable,
-  bankAccountMetadataTable, paymentBatchItemsTable, paymentsTable,
+  bankAccountMetadataTable, paymentBatchItemsTable, paymentsTable, paymentBatchesTable,
+  paymentAllocationsTable,
 } from "@workspace/db";
 import router from "./payments";
 import journalsRouter from "./journalEntries";
@@ -222,54 +223,47 @@ describe("bank statement per-transaction accounting", () => {
     expect(after.body.totalRemaining).toBe("0.00");
     expect(after.body.items.filter((item: any) => sources.some(line => line.id === item.journalLineId))).toHaveLength(0);
   });
-  it("registers statement evidence and all lines atomically without creating or changing payments or journals", async () => {
+  it("registers statement evidence and all lines atomically without creating or changing payments or journals", async function registersEvidenceWithoutAccountingWrites() {
     const priorPayments = await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId));
     const priorJournals = await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
-    const registration = {
-      bankAccountId: bankId, sourceFilename: "TEST-register.csv", sourceSha256: "d".repeat(64),
+    const evidenceInput = {
+      bankAccountId: bankId, sourceFilename: "TEST-evidence.csv", sourceSha256: "b".repeat(64),
       metadata: {
-        statementNumber: "TEST-10", statementDate: "2026-10-08",
+        statementNumber: "TEST-10", statementDate: "2026-10-04",
+        periodFrom: "2026-10-03", periodTo: "2026-10-04",
         openingBalance: 0, closingBalance: 80, currency: "EUR",
       },
       transactions: [
-        { id: "income", date: "2026-10-08", amount: 100, currency: "EUR", reference: "TEST-IN", counterpartyName: "TEST sender", counterpartyIban: null, description: "Income" },
-        { id: "expense", date: "2026-10-07", amount: -20, currency: "EUR", reference: null, counterpartyName: "TEST recipient", counterpartyIban: null, description: "Expense" },
+        { id: "income", date: "2026-10-03", amount: 100, currency: "EUR", reference: "IN",
+          counterpartyName: "Test income", counterpartyIban: null, description: "Income evidence" },
+        { id: "expense", date: "2026-10-04", amount: -20, currency: "EUR", reference: "OUT",
+          counterpartyName: "Test expense", counterpartyIban: null, description: "Expense evidence" },
       ],
     };
-    const registered = await request(app).post(`/companies/${companyId}/bank-statements/register`)
-      .send(registration).expect(201);
-    expect(registered.body).toEqual({
+    const evidenceResponse = await request(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send(evidenceInput).expect(201);
+    expect(evidenceResponse.body).toEqual({
       statementId: expect.any(String), lineIds: { income: expect.any(String), expense: expect.any(String) },
     });
-    const [statement] = await db.select().from(bankStatementsTable).where(eq(bankStatementsTable.id, registered.body.statementId));
-    expect(statement).toMatchObject({
-      companyId, bankAccountId: bankId, sourceFilename: registration.sourceFilename,
-      sourceSha256: registration.sourceSha256, statementNumber: "TEST-10",
-      statementDate: "2026-10-08", periodFrom: "2026-10-07", periodTo: "2026-10-08",
+    const [evidenceHeader] = await db.select().from(bankStatementsTable)
+      .where(eq(bankStatementsTable.id, evidenceResponse.body.statementId));
+    expect(evidenceHeader).toMatchObject({
+      companyId, bankAccountId: bankId, sourceFilename: evidenceInput.sourceFilename,
+      sourceSha256: evidenceInput.sourceSha256, statementNumber: "TEST-10",
+      statementDate: "2026-10-04", periodFrom: "2026-10-03", periodTo: "2026-10-04",
       openingBalance: "0.00", closingBalance: "80.00", currency: "EUR", createdBy: USER,
     });
-    const lines = await db.select().from(bankStatementLinesTable)
-      .where(eq(bankStatementLinesTable.statementId, statement.id)).orderBy(bankStatementLinesTable.lineNumber);
-    expect(lines).toEqual(registration.transactions.map((transaction, index) => expect.objectContaining({
-      id: registered.body.lineIds[transaction.id], transactionKey: transaction.id,
-      statementId: statement.id, lineNumber: index + 1, bookingDate: transaction.date,
+    const evidenceLines = await db.select().from(bankStatementLinesTable)
+      .where(eq(bankStatementLinesTable.statementId, evidenceHeader.id)).orderBy(bankStatementLinesTable.lineNumber);
+    expect(evidenceLines).toEqual(evidenceInput.transactions.map((transaction, index) => expect.objectContaining({
+      id: evidenceResponse.body.lineIds[transaction.id], transactionKey: transaction.id,
+      statementId: evidenceHeader.id, lineNumber: index + 1, bookingDate: transaction.date,
       amount: transaction.amount.toFixed(2), currency: transaction.currency,
       reference: transaction.reference, counterpartyName: transaction.counterpartyName,
       counterpartyIban: transaction.counterpartyIban, description: transaction.description,
     })));
     expect(await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId))).toEqual(priorPayments);
     expect(await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId))).toEqual(priorJournals);
-
-    // A rejected line must not leave a header behind and poison retries.
-    const invalid = {
-      ...registration, sourceSha256: "c".repeat(64),
-      transactions: [registration.transactions[0], registration.transactions[0]],
-    };
-    await request(app).post(`/companies/${companyId}/bank-statements/register`).send(invalid).expect(409);
-    expect(await db.select().from(bankStatementsTable)
-      .where(eq(bankStatementsTable.sourceSha256, invalid.sourceSha256))).toEqual([]);
-    await request(app).post(`/companies/${companyId}/bank-statements/register`)
-      .send({ ...invalid, transactions: registration.transactions }).expect(201);
   });
 
   it("resumes a partial import using saved registered line IDs instead of registering the same hash twice", async () => {
@@ -282,12 +276,23 @@ describe("bank statement per-transaction accounting", () => {
       bankAccountId: bankId, sourceFilename: "TEST-resume.csv", sourceSha256: "e".repeat(64),
       metadata: { currency: "EUR" }, transactions,
     };
+    const paymentsBefore = await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId));
     const registered = await request(app).post(`/companies/${companyId}/bank-statements/register`)
       .send(registration).expect(201);
     // This is the recovery data stored by the browser before creating any payments.
     const saved = JSON.parse(JSON.stringify(registered.body)) as {
       statementId: string; lineIds: Record<string, string>;
     };
+    expect(Object.keys(saved.lineIds).sort()).toEqual(["resume-0", "resume-1"]);
+    expect(new Set(Object.values(saved.lineIds)).size).toBe(2);
+    expect(await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId))).toEqual(paymentsBefore);
+    const [storedStatement] = await db.select().from(bankStatementsTable)
+      .where(eq(bankStatementsTable.id, saved.statementId));
+    expect(storedStatement).toMatchObject({
+      companyId, bankAccountId: bankId, sourceSha256: registration.sourceSha256,
+      sourceFilename: "TEST-resume.csv", statementDate: "2026-10-07", createdBy: USER,
+    });
+    await request(app).get(`/companies/${companyId}/bank-statements/detail/${saved.statementId}`).expect(200);
     const create = (index: number) => request(app).post(`/companies/${companyId}/payments`).send({
       direction: "outbound", counterpartyId: partnerId, periodId,
       paymentDate: transactions[index].date, amount: Math.abs(transactions[index].amount),
@@ -311,5 +316,80 @@ describe("bank statement per-transaction accounting", () => {
     const lines = await db.select().from(bankStatementLinesTable)
       .where(eq(bankStatementLinesTable.statementId, saved.statementId));
     expect(lines).toHaveLength(2);
+  });
+
+  it("rolls back the statement header when inserting its lines fails", async () => {
+    const registration = {
+      bankAccountId: bankId, sourceFilename: "TEST-invalid-lines.csv", sourceSha256: "d".repeat(64),
+      metadata: { currency: "EUR" },
+      transactions: [1, 2].map(amount => ({
+        id: "duplicate-key", date: "2026-10-07", amount: -amount, currency: "EUR",
+        reference: null, counterpartyName: null, counterpartyIban: null, description: null,
+      })),
+    };
+    await request(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send(registration).expect(409);
+    expect(await db.select().from(bankStatementsTable)
+      .where(and(eq(bankStatementsTable.companyId, companyId),
+        eq(bankStatementsTable.sourceSha256, registration.sourceSha256)))).toHaveLength(0);
+    // The rolled-back hash can still be registered after correcting the rows.
+    registration.transactions[1].id = "second-key";
+    const retry = await request(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send(registration).expect(201);
+    expect(Object.keys(retry.body.lineIds).sort()).toEqual(["duplicate-key", "second-key"]);
+  });
+
+  it.each(["draft", "posted"] as const)("rejects a real duplicate %s payment atomically and returns the correct supplier's detail ID", async function rejectsDuplicateSupplierBatch(status) {
+    await db.insert(bankAccountMetadataTable).values({
+      companyId, bankAccountId: bankId, iban: "SI56191000000123438", bic: "HDELSI22", updatedBy: USER,
+    }).onConflictDoNothing();
+    const suppliers = await db.insert(counterpartiesTable).values(["A", "B"].map(name => ({
+      companyId, type: "supplier" as const, name: `TEST duplicate ${status} ${name}`, iban: "SI56191000000123438",
+    }))).returning();
+    const invoices = await db.insert(invoicesTable).values(suppliers.map((supplier, index) => ({
+      companyId, periodId, counterpartyId: supplier.id, type: "received" as const,
+      invoiceNumber: `DUP-${status}-${index}`, invoiceDate: "2026-10-01",
+      historicalGross: index === 0 ? "100.00" : "250.00", status: "posted" as const,
+      arApAccountId: supplierId, createdBy: USER,
+    }))).returning();
+    // A different supplier with the same date and amount must never be returned.
+    const [decoy, duplicate] = await db.insert(paymentsTable).values(suppliers.map(supplier => ({
+      companyId, periodId, counterpartyId: supplier.id, bankAccountId: bankId, arApAccountId: supplierId,
+      direction: "outbound" as const, paymentDate: "2026-10-09", amount: "250.00", status,
+      reference: `dup ${status} 1`, createdBy: USER,
+    }))).returning();
+    const requestBody = {
+      bankAccountId: bankId, periodId, paymentDate: "2026-10-09", idempotencyKey: `TEST-duplicate-${status}`,
+      proposedPayments: suppliers.map((supplier, index) => ({
+        counterpartyId: supplier.id, arApAccountId: supplierId,
+        allocations: [{ invoiceId: invoices[index].id, amount: index === 0 ? 100 : 250 }],
+      })),
+    };
+    const beforePayments = await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId));
+    const beforeBatches = await db.select().from(paymentBatchesTable).where(eq(paymentBatchesTable.companyId, companyId));
+    const conflict = await request(app).post(`/companies/${companyId}/payment-batches`).send(requestBody).expect(409);
+    expect(conflict.body).toEqual({
+      error: "Plačilo z istim datumom, zneskom in sklicem za tega prejemnika že obstaja.",
+      duplicateOf: { paymentId: duplicate.id },
+    });
+    expect(conflict.body.duplicateOf.paymentId).not.toBe(decoy.id);
+    expect(await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId))).toEqual(beforePayments);
+    expect(await db.select().from(paymentBatchesTable).where(eq(paymentBatchesTable.companyId, companyId))).toEqual(beforeBatches);
+    for (const invoice of invoices) {
+      expect(await db.select().from(paymentAllocationsTable).where(eq(paymentAllocationsTable.invoiceId, invoice.id))).toHaveLength(0);
+    }
+    const detail = await request(app).get(`/companies/${companyId}/payments/${conflict.body.duplicateOf.paymentId}`).expect(200);
+    expect(detail.body).toMatchObject({
+      id: duplicate.id, counterpartyId: suppliers[1].id, counterpartyName: suppliers[1].name,
+      paymentDate: "2026-10-09", amount: "250.00", reference: `dup ${status} 1`,
+    });
+    // A different execution date is a distinct payment. Replaying that successful
+    // request must return the same batch, not collide with its own newly saved drafts.
+    const nextDay = { ...requestBody, paymentDate: "2026-10-10" };
+    const created = await request(app).post(`/companies/${companyId}/payment-batches`).send(nextDay).expect(201);
+    const replay = await request(app).post(`/companies/${companyId}/payment-batches`).send(nextDay).expect(200);
+    expect(replay.body.batchId).toBe(created.body.batchId);
+    expect(replay.body.replayed).toBe(true);
+    expect(created.body.payments).toHaveLength(2);
   });
 });

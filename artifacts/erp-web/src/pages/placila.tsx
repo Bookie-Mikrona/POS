@@ -333,6 +333,10 @@ export default function Placila() {
             if (!open && sspPrefill) setLocation("/placila");
           }}
           onBatchCreated={() => setActiveTab("batches")}
+          onOpenExisting={payment => {
+            setNewSheetOpen(false);
+            setDetailPayment(payment);
+          }}
           defaultDirection={activeTab === "outbound" ? "outbound" : "inbound"}
           sspPrefill={sspPrefill ?? undefined}
         />
@@ -365,7 +369,7 @@ export default function Placila() {
 // NEW PAYMENT SHEET
 // ---------------------------------------------------------------------------
 
-function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection, sspPrefill }: { open: boolean, onBatchCreated?: () => void, onOpenChange: (open: boolean) => void, defaultDirection: "inbound" | "outbound", sspPrefill?: { invoiceId: string; counterpartyId: string; arApAccountId: string; amount: string } }) {
+function NewPaymentSheet({ open, onOpenChange, onBatchCreated, onOpenExisting, defaultDirection, sspPrefill }: { open: boolean, onBatchCreated?: () => void, onOpenExisting: (payment: PaymentRecord) => void, onOpenChange: (open: boolean) => void, defaultDirection: "inbound" | "outbound", sspPrefill?: { invoiceId: string; counterpartyId: string; arApAccountId: string; amount: string } }) {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
 
@@ -637,6 +641,13 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
       } catch (err: any) {
         // Server rejected the request: nothing was saved. A changed retry needs a new key.
         if (err?.status && err.status < 500) batchKeyRef.current = crypto.randomUUID();
+        if (err?.status === 409 && err?.data?.duplicateOf?.paymentId) {
+          setDuplicateWarning({
+            paymentId: err.data.duplicateOf.paymentId,
+            message: err.data?.error ?? "Plačilo s temi podatki že obstaja v sistemu.",
+          });
+          return;
+        }
         alert(`Paket ni bil ustvarjen, noben osnutek ni shranjen. ${err?.data?.error ?? err?.message ?? ""}`);
       }
       return;
@@ -982,28 +993,34 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
                 </p>
                 {duplicateWarning && (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <p>{duplicateWarning.message}</p>
                     <span className="font-medium">ID obstoječega plačila:</span>{" "}
                     <code className="font-mono text-xs">{duplicateWarning.paymentId}</code>
                   </div>
                 )}
                 <p className="text-sm">
-                  Ali res želite shraniti to plačilo kot novo vnos? Izberite <strong>Vseeno shrani</strong> samo, če ste prepričani, da gre za ločeno plačilo.
+                  {formData.direction === "outbound"
+                    ? "Paket ni bil ustvarjen in noben nov osnutek ni shranjen. Pred ponovno pripravo preverite obstoječe plačilo."
+                    : <>Ali res želite shraniti to plačilo kot novo vnos? Izberite <strong>Vseeno shrani</strong> samo, če ste prepričani, da gre za ločeno plačilo.</>}
                 </p>
               </div>
             </DialogDescription>
           </DialogHeader>
+          {duplicateWarning && (
+            <DuplicatePaymentDetails paymentId={duplicateWarning.paymentId} onOpen={onOpenExisting} />
+          )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDuplicateWarning(null)}>
               Prekliči
             </Button>
-            <Button
+            {formData.direction === "inbound" && <Button
               variant="destructive"
               onClick={() => handleSave(true)}
               disabled={createMut.isPending}
             >
               {createMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Vseeno shrani
-            </Button>
+            </Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1014,6 +1031,30 @@ function NewPaymentSheet({ open, onOpenChange, onBatchCreated, defaultDirection,
 // ---------------------------------------------------------------------------
 // DETAIL PAYMENT SHEET
 // ---------------------------------------------------------------------------
+
+function DuplicatePaymentDetails({ paymentId, onOpen }: { paymentId: string; onOpen: (payment: PaymentRecord) => void }) {
+  const { activeCompany } = useCompany();
+  const { data: payment, isLoading, error } = useGetPayment(
+    activeCompany?.id ?? "",
+    paymentId,
+    { query: { enabled: !!activeCompany?.id } as any },
+  );
+  if (isLoading) return <p role="status">Nalaganje obstoječega plačila…</p>;
+  if (error || !payment || payment.id !== paymentId) {
+    return <Alert variant="destructive"><AlertDescription>Podatkov obstoječega plačila ni bilo mogoče naložiti.</AlertDescription></Alert>;
+  }
+  return (
+    <div className="space-y-3 text-sm">
+      <dl className="grid grid-cols-2 gap-2">
+        <dt>Partner</dt><dd>{payment.counterpartyName}</dd>
+        <dt>Datum plačila</dt><dd>{formatDatum(payment.paymentDate)}</dd>
+        <dt>Znesek</dt><dd>{parseFloat(payment.amount).toFixed(2)}</dd>
+        <dt>Sklic</dt><dd>{payment.reference || "—"}</dd>
+      </dl>
+      <Button variant="outline" onClick={() => onOpen(payment)}>Odpri obstoječe plačilo</Button>
+    </div>
+  );
+}
 
 function DetailPaymentSheet({ open, onOpenChange, payment: initialPayment, onVoid }: { open: boolean, onOpenChange: (open: boolean) => void, payment: PaymentRecord, onVoid: () => void }) {
   const { activeCompany } = useCompany();

@@ -19,6 +19,7 @@ export const releaseTestManifest = Object.freeze({
       "public-profile-image-retention": "src/lib/publicProfileImageRetention.test.ts",
       "object-storage-boundaries": "src/lib/objectStorage.test.ts",
       "bank-statement-parse-contract": "src/routes/bankStatements.parsing.test.ts",
+      "bank-statement-registration-recovery": "src/routes/payments.bank-accounts.integration.test.ts",
        "public-visits-integration": "src/routes/publicVisits.integration.test.ts",
        "malice-rules": "src/lib/malice-rules.test.ts",
        "malice-order-claims": "src/routes/pos/narocila.malica-claims.test.ts",
