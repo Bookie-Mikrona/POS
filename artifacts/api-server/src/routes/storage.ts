@@ -10,6 +10,7 @@ import { requireAuth, type AuthenticatedRequest } from '../middlewares/requireAu
 
 import { ObjectPermission } from '../lib/objectAcl';
 import {
+  InvalidPublicObjectPathError,
   ObjectNotFoundError,
   ObjectStorageService,
 } from '../lib/objectStorage';
@@ -103,6 +104,10 @@ router.get(
         res.end();
       }
     } catch (error) {
+      if (error instanceof InvalidPublicObjectPathError) {
+        res.status(404).json({ error: 'File not found' });
+        return;
+      }
       req.log.error({ err: error }, 'Error serving public object');
       res.status(500).json({ error: 'Failed to serve public object' });
     }

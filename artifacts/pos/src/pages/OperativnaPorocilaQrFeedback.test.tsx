@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockUseFeedback, mockUseComments, mockExportFeedback } from "../__tests__/fixtures/qr-feedback-mocks";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Children, cloneElement, isValidElement, type ComponentProps, type ReactElement } from "react";
 import {
   buildTrendChartData,
   OperativnaPorocilaQrFeedback,
@@ -11,38 +11,6 @@ import {
   SmallSampleDot,
   TrendTooltip,
 } from "./OperativnaPorocilaQrFeedback";
-
-const { mockUseFeedback, mockUseComments, mockExportFeedback } = vi.hoisted(() => ({
-  mockUseFeedback: vi.fn(),
-  mockUseComments: vi.fn(),
-  mockExportFeedback: vi.fn(),
-}));
-vi.mock("@workspace/api-client-react", () => {
-  return {
-    useGetOperativnaPorocilaQrFeedback: mockUseFeedback,
-    useGetOperativnaPorocilaQrFeedbackComments: mockUseComments,
-    getGetOperativnaPorocilaQrFeedbackQueryKey: (params: unknown) => ["qr-feedback", params],
-    getGetOperativnaPorocilaQrFeedbackCommentsQueryKey: (params: unknown) => ["qr-feedback-comments", params],
-    exportOperativnaPorocilaQrFeedback: mockExportFeedback,
-  };
-});
-
-// Keep real Recharts SVG/legend rendering, with fixed layout and no animation:
-// jsdom cannot measure container sizes or SVG path lengths.
-vi.mock("recharts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("recharts")>();
-  // Import once; all chart components below share the same module.
-  return {
-    ...actual,
-    ResponsiveContainer: ({ children }: { children: ReactElement<ComponentProps<typeof actual.LineChart>> }) => (
-      cloneElement(children, { width: 640, height: 300 },
-        Children.map(children.props.children, child =>
-          isValidElement<{ isAnimationActive?: boolean }>(child) && child.type === actual.Line
-            ? cloneElement(child, { isAnimationActive: false })
-            : child))
-    ),
-  };
-});
 
 const feedbackReport = {
   scope: { od: "2026-09-01", do: "2026-09-03", granularity: "day", timeZone: "Europe/Ljubljana", units: [] },
@@ -206,7 +174,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
     expect(screen.getByTestId("trend-sample-legend").textContent).toContain("majhen vzorec, brez povezovalne črte");
   });
 
-  it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", () => {
+  it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", function verifiesIsolatedSmallSampleDot() {
     const chartData = buildTrendChartData(feedbackReport.trends);
     expect(chartData[0]).toMatchObject({
       foodReliable: 4.5,
@@ -221,19 +189,19 @@ describe("OperativnaPorocilaQrFeedback", () => {
       ambienceSmallSample: 4,
     });
 
-    const { rerender } = render(<svg><SmallSampleDot cx={20} cy={30} /></svg>);
+    const dotView = render(<svg><SmallSampleDot cx={20} cy={30} /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("stroke")).toBe("#f59e0b");
-    rerender(<svg><SmallSampleDot cx={20} cy={30} active /></svg>);
+    dotView.rerender(<svg><SmallSampleDot cx={20} cy={30} active /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("r")).toBe("7");
   });
 
-  it("tooltip pokaže odzive in opozori samo pri nezanesljivi točki", () => {
+  it("tooltip pokaže odzive in opozori samo pri nezanesljivi točki", function verifiesIsolatedTrendTooltip() {
     const [reliable, unreliable] = buildTrendChartData(feedbackReport.trends);
-    const { rerender } = render(<TrendTooltip active payload={[{ payload: reliable }]} />);
+
+    const tooltipView = render(<TrendTooltip active payload={[{ payload: reliable }]} />);
     expect(screen.getByTestId("trend-tooltip").textContent).toContain("6 odzivov");
     expect(screen.queryByTestId("trend-tooltip-small-sample")).toBeNull();
-
-    rerender(<TrendTooltip active payload={[{ payload: unreliable }]} />);
+    tooltipView.rerender(<TrendTooltip active payload={[{ payload: unreliable }]} />);
     expect(screen.getByTestId("trend-tooltip").textContent).toContain("2 odzivov");
     expect(screen.getByTestId("trend-tooltip-small-sample").textContent).toContain("manj kot 5 odzivov");
   });

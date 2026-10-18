@@ -150,34 +150,32 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     recovery.reconcile.mockReset();
   });
 
-  it("po vsaki uspešni vrstici shrani napredek in po 401 ponovno pošlje le preostalo vrstico", async () => {
+  it("po vsaki uspešni vrstici shrani napredek in po 401 ponovno pošlje le preostalo vrstico", async function resumesOnlyUncreatedPayment() {
     seedDraft();
-    const create = vi.fn()
-      .mockResolvedValueOnce(Response.json({ id: "payment-1" }))
-      .mockResolvedValueOnce(Response.json({ error: "Prijavite se" }, { status: 401 }))
-      .mockResolvedValueOnce(Response.json({ id: "payment-2" }));
+    const create = vi.fn(() => {
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Quota exceeded"); });
+      return Response.json({ id: "payment-1" });
+    });
     mockImportApi(create);
-    const first = mountWizard();
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await screen.findByText(/Seja je potekla\. Ponovno/);
     first.unmount();
     mountWizard();
     await screen.findByText("Že ustvarjeno plačilo");
-    confirmImport(1);
-    await waitFor(() => expect(readDraft().imported["tx-2"]?.paymentId).toBe("payment-2"));
-    expect(readDraft().imported["tx-1"].posting).toBe("draft");
-    expect(create).toHaveBeenCalledTimes(3);
+    expect(readDraft().imported["tx-1"].posting).toBe("posted");
+    expect(recovery.reconcile).toHaveBeenCalledTimes(2);
   });
 
-  it("po 401 pred ustvaritvijo ohrani registracijo in ponovno pošlje neustvarjene vrstice", async () => {
+  it("ne začne potrjevanja, če osnutka ni mogoče zapisati", async () => {
     seedDraft();
-    const create = vi.fn()
-      .mockResolvedValueOnce(Response.json({ error: "Prijavite se" }, { status: 401 }))
-      .mockResolvedValueOnce(Response.json({ id: "payment-1" }))
-      .mockResolvedValueOnce(Response.json({ id: "payment-2" }));
+    const create = vi.fn(() => {
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Quota exceeded"); });
+      return Response.json({ id: "payment-1" });
+    });
     const fetchMock = mockImportApi(create);
-    const first = mountWizard();
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await screen.findByText(/Seja je potekla\. Ponovno/);
@@ -191,24 +189,27 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     expect(create.mock.calls.map(([body]) => body.bankStatementLineId)).toEqual(["line-1", "line-1", "line-2"]);
   });
 
-  it("tudi po izgubi odgovora knjiženja obnovi ustvarjeno vrstico kot nepotrjeno", async () => {
+  it("tudi po izgubi odgovora knjiženja obnovi ustvarjeno vrstico kot nepotrjeno", async function restoresPendingPostingWithoutRetry() {
     const draft = seedDraft(true);
     sessionStorage.setItem(draftKey, JSON.stringify({
       ...draft, imported: { "tx-1": { paymentId: "payment-1", posting: "pending" } },
     }));
-    const fetchMock = mockImportApi(() => Response.json({}));
+    const fetchMock = mockImportApi(create);
     mountWizard();
     await screen.findByText("Že ustvarjeno plačilo");
     expect(screen.getByText(/Knjiženje ni potrjeno/)).toBeTruthy();
     expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/payments") || url.endsWith("/post"))).toBe(false);
   });
 
-  it("ohrani potrjeno knjiženje in pri popolnem uvozu onemogoči novo potrjevanje", async () => {
+  it("ohrani potrjeno knjiženje in pri popolnem uvozu onemogoči novo potrjevanje", async function restoresCompletedImport() {
     seedDraft(true);
     let id = 0;
-    const create = vi.fn(() => Response.json({ id: `payment-${++id}` }));
+    const create = vi.fn(() => {
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Quota exceeded"); });
+      return Response.json({ id: "payment-1" });
+    });
     mockImportApi(create);
-    const first = mountWizard();
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await waitFor(() => expect(readDraft().imported["tx-2"]?.posting).toBe("posted"));
@@ -222,17 +223,17 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
     expect(create).toHaveBeenCalledTimes(2);
   });
 
-  it("shrani tudi uspešno povezavo obstoječega plačila pred samodejnim knjiženjem", async () => {
+  it("shrani tudi uspešno povezavo obstoječega plačila pred samodejnim knjiženjem", async function persistsPostedReconciliation() {
     seedDraft(true, "reconcile");
     recovery.reconcile
       .mockResolvedValueOnce({ paymentId: "existing-tx-1", status: "draft", requiresExplicitPosting: true })
       .mockRejectedValueOnce({ status: 401 });
     const post = vi.fn(() => {
       expect(readDraft().imported["tx-1"]).toEqual({ paymentId: "existing-tx-1", posting: "pending" });
-      return Response.json({});
+      return Response.json({ error: "Prijavite se" }, { status: 401 });
     });
     mockImportApi(() => Response.json({}), post);
-    const first = mountWizard();
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await screen.findByText(/Seja je potekla\. Ponovno/);
@@ -292,7 +293,7 @@ describe("obnovitev delno potrjenega bančnega uvoza", () => {
       return Response.json({ error: "Prijavite se" }, { status: 401 });
     });
     mockImportApi(() => Response.json({}), post);
-    const first = mountWizard();
+    const first = renderHook(() => useBankImportResult("user-a", "company-a"));
     await screen.findByText("Osnutek uvoza je obnovljen");
     confirmImport(2);
     await screen.findByText("Potrebna potrditev ujemanja (2)");

@@ -27,3 +27,9 @@ odziv. Tak zastoj ni dokaz napake obrazca.
 **How to apply:** Pred brskalniškim preverjanjem novega dela obrazca potrdi,
 da testni uporabnik res doseže urejevalnik. Pri mockih ohrani pravilno
 strukturo pravic in zmožnosti ter ne nadomeščaj dogodkovnega toka z JSON.
+
+Pri izločitvi Vitest mockov v pomožni modul deklariraj `vi.hoisted` lokalno in imena izvozi z ločenim `export { ... }`.
+
+**Why:** Trenutni Vitest transform zavrne neposredni `export const ... = vi.hoisted(...)` že med nalaganjem zbirke. To ni napaka testirane komponente.
+
+**How to apply:** Pomožni modul z mocki uvozi pred testirano komponento; nato preveri dejanski zagon testov, saj TypeScript tega transformacijskega pogoja ne zazna.

@@ -4,6 +4,7 @@ const dbState = vi.hoisted(() => ({
   selectResults: [] as any[],
   inserts: [] as Array<{ table: string; values: any }>,
   updates: [] as Array<{ table: string; values: any }>,
+  transactionError: null as unknown,
 }));
 
 vi.mock("../middlewares/requireAuth", () => ({
@@ -44,7 +45,15 @@ vi.mock("@workspace/db", () => {
       values: (values: any) => {
         dbState.inserts.push({ table: String(target.id ?? target), values });
         return {
-          returning: async () => [{ id: "remainder-payment-id" }],
+          returning: async () => {
+            if (target === table("bankStatements")) return [{ id: "registered-statement-id" }];
+            if (target === table("bankStatementLines")) {
+              return values.map((row: any, index: number) => ({
+                id: `registered-line-${index + 1}`, transactionKey: row.transactionKey,
+              }));
+            }
+            return [{ id: "remainder-payment-id" }];
+          },
           then: (resolve: any, reject: any) => Promise.resolve().then(resolve, reject),
         };
       },
@@ -63,7 +72,8 @@ vi.mock("@workspace/db", () => {
   return {
     db: {
       select: () => query(dbState.selectResults.shift() ?? []),
-      transaction: (callback: (executor: any) => Promise<any>) => callback(tx),
+      transaction: (callback: (executor: any) => Promise<any>) =>
+        dbState.transactionError ? Promise.reject(dbState.transactionError) : callback(tx),
     },
     counterpartiesTable: table("counterparties"),
     invoicesTable: table("invoices"),
@@ -102,6 +112,8 @@ import supertest from "supertest";
 import router from "./bankStatements";
 import {
   auditLogTable,
+  bankStatementsTable,
+  bankStatementLinesTable,
   journalEntriesTable,
   journalEntryLinesTable,
   paymentBatchItemsTable,
@@ -124,6 +136,63 @@ beforeEach(() => {
   dbState.selectResults = [];
   dbState.inserts = [];
   dbState.updates = [];
+  dbState.transactionError = null;
+});
+
+describe("bank statement registration remains separate from payment reconciliation", () => {
+  const registration = {
+    bankAccountId,
+    sourceFilename: "statement.csv",
+    sourceSha256: "a".repeat(64),
+    transactions: [{
+      id: "source-transaction-1", date: "2026-11-01", amount: -60, currency: "EUR",
+      reference: "INV-1", counterpartyName: "Supplier", counterpartyIban: null, description: "Payment",
+    }],
+  };
+
+  it("registers only statement evidence and returns its durable line IDs", async () => {
+    dbState.selectResults = [[{ role: "accountant" }], [{ id: bankAccountId, mappedIban: null }]];
+    const response = await supertest(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send(registration);
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({
+      statementId: "registered-statement-id",
+      lineIds: { "source-transaction-1": "registered-line-1" },
+    });
+    expect(dbState.inserts.map(item => item.table)).toEqual([
+      String(bankStatementsTable.id), String(bankStatementLinesTable.id),
+    ]);
+    expect(dbState.inserts[0].values).toMatchObject({
+      companyId, bankAccountId, sourceSha256: registration.sourceSha256,
+      createdBy: "bank-reconcile-test-user",
+    });
+    expect(dbState.inserts[1].values).toEqual([expect.objectContaining({
+      statementId: "registered-statement-id", transactionKey: "source-transaction-1",
+      amount: "-60", lineNumber: 1,
+    })]);
+    expect(dbState.updates).toEqual([]);
+  });
+
+  it.each([{ code: "23505" }, { cause: { code: "23505" } }])(
+    "keeps the duplicate-import response for %j",
+    async (error) => {
+      dbState.selectResults = [[{ role: "accountant" }], [{ id: bankAccountId, mappedIban: null }]];
+      dbState.transactionError = error;
+      const response = await supertest(app).post(`/companies/${companyId}/bank-statements/register`)
+        .send(registration);
+      expect(response.status).toBe(409);
+      expect(response.body.error).toBe("Ta datoteka bančnega izpiska je bila že evidentirana.");
+      expect(dbState.inserts).toEqual([]);
+    },
+  );
+
+  it("resolves the authenticated user before authorizing statement details", async () => {
+    dbState.selectResults = [[]];
+    const response = await supertest(app)
+      .get(`/companies/${companyId}/bank-statements/detail/55555555-5555-4555-8555-555555555555`);
+    expect(response.status).toBe(403);
+    expect(dbState.inserts).toEqual([]);
+  });
 });
 
 describe("bank statement reconciliation transaction", () => {

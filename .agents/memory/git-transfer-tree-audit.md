@@ -33,9 +33,9 @@ Preverjanje mora zajeti tudi podedovane napake iz novo prevzetega starša, ne le
 
 **How to apply:** Primerjaj starša z zadnjo pravilno različico prizadetih blokov, popravek preveri tudi v shranjenem drevesu in pred končnim preverjanjem obnovi deklaracije skupnih knjižnic.
 
-Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti uporabi ločene, poimenovane funkcije z jasno poslovno vlogo.
+Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti ali testnih callbackov uporabi ločene, poimenovane funkcije z jasno poslovno vlogo.
 
-**Why:** Pri usklajevanju podobnih poročil so se deklaracije, telesa poti in ponavljajoči se bloki pomešali tudi brez očitnih konfliktnih oznak. Samo popravek sintakse ni zagotovil ohranitve obeh poti.
+**Why:** Pri usklajevanju podobnih poročil so se deklaracije, telesa poti in ponavljajoči se bloki pomešali tudi brez očitnih konfliktnih oznak. Enako so se pri zaključni sinhronizaciji že uspešno preverjeni testni bloki znova zamenjali z nepovezanim renderjem. Samo popravek sintakse ni zagotovil ohranitve obeh poti.
 
 **How to apply:** Ob lokalnem popravku jasno razloči obravnavalnike in preveri vsako prizadeto pot po uskladitvi; ne prepisuj drugih veljavnih sprememb cele datoteke.
 

@@ -43,6 +43,12 @@ export class ObjectNotFoundError extends Error {
   }
 }
 
+export class InvalidPublicObjectPathError extends Error {
+  constructor() {
+    super('Invalid public object path');
+    this.name = 'InvalidPublicObjectPathError';
+  }
+}
 function normalizeObjectStorageRoot(
   rawPath: string,
   variableName: 'PRIVATE_OBJECT_DIR' | 'PUBLIC_OBJECT_SEARCH_PATHS',
@@ -120,7 +126,7 @@ function validatePublicObjectPath(relativePath: string): string {
       (part) => !part || part === '.' || part === '..',
     )
   ) {
-    throw new Error('Invalid public object path');
+    throw new InvalidPublicObjectPathError();
   }
   return relativePath;
 }
@@ -177,6 +183,8 @@ export class ObjectStorageService {
   }
 
   async searchPublicObject(filePath: string): Promise<File | null> {
+    // Express has already decoded the wildcard once. Validate the literal key
+    // without decoding again, using the same contract as public writes.
     const validatedPath = validatePublicObjectPath(filePath);
     for (const searchPath of this.getPublicObjectSearchPaths()) {
       const fullPath = `${searchPath}/${validatedPath}`;
