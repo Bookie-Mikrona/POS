@@ -1402,6 +1402,102 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("hides savings that round to zero while keeping lowest-price ties based on exact prices", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const [existing] = originalMappings;
+    const preferred = {
+      ...existing,
+      lastPackagePrice: 1000,
+      lastUnitPrice: 1000,
+    };
+    const makeOffer = (id: number, lastUnitPrice: number) => ({
+      ...existing,
+      id,
+      supplierId: `supplier-${id}`,
+      supplierName: `Dobavitelj ${id}`,
+      packageName: "kos",
+      packageFactor: 1,
+      lastPackagePrice: lastUnitPrice,
+      lastUnitPrice,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    });
+    Object.assign(article, {
+      mappings: [
+        preferred,
+        makeOffer(7201, 999.99999951),
+        makeOffer(7202, 999.99999949),
+        makeOffer(7203, 999.99999949),
+      ],
+    });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      expect(screen.queryByTestId("supplier-savings-7201")).toBeNull();
+      expect(screen.queryByTestId("supplier-total-savings-7201")).toBeNull();
+      expect(screen.getByTestId("lowest-unit-price-7202").textContent)
+        .toContain("Najnižja cena / enoto");
+      expect(screen.getByTestId("lowest-unit-price-7203").textContent)
+        .toContain("Najnižja cena / enoto");
+      expect(screen.queryByTestId("lowest-unit-price-7201")).toBeNull();
+
+      const visibleSaving = screen.getByTestId("supplier-savings-7203");
+      expect(visibleSaving.textContent).toMatch(/0,000001\s?€ \/ L/);
+    } finally {
+      Object.assign(article, { mappings: originalMappings });
+    }
+  });
+
+  it("keeps a saving when the percentage is visible even if the unit amount rounds to zero", () => {
+    const article = mocks.dashboard.articles[0];
+    const originalMappings = article.mappings;
+    const [existing] = originalMappings;
+    const preferred = {
+      ...existing,
+      lastPackagePrice: 1,
+      lastUnitPrice: 1,
+    };
+    const cheaperOffer = {
+      ...existing,
+      id: 7204,
+      supplierId: "supplier-7204",
+      supplierName: "Skoraj enaka cena",
+      packageName: "kos",
+      packageFactor: 1,
+      lastPackagePrice: 0.99999951,
+      lastUnitPrice: 0.99999951,
+      lastPriceReceipt: null,
+      priceHistory: [],
+    };
+    Object.assign(article, { mappings: [preferred, cheaperOffer] });
+
+    try {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      const visibleSaving = screen.getByTestId("supplier-savings-7204");
+      expect(visibleSaving.textContent).toMatch(/0,00\s?€ \/ L/);
+      expect(visibleSaving.textContent).toContain("0,00005 %");
+    } finally {
+      Object.assign(article, { mappings: originalMappings });
+    }
+  });
+
   it("keeps a valid offer ranked lowest when stored prices are non-finite", () => {
     const article = mocks.dashboard.articles[0];
     const originalMappings = article.mappings;

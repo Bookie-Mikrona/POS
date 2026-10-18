@@ -232,7 +232,11 @@ function supplierUnitSavings(
   }
   const amount = preferredUnitPrice - candidateUnitPrice;
   if (amount <= 1e-9) return null;
-  return { amount, percent: (amount / preferredUnitPrice) * 100 };
+  const percent = (amount / preferredUnitPrice) * 100;
+  if (Math.round(amount * 1_000_000) === 0 && formatNonZeroPercentage(percent) == null) {
+    return null;
+  }
+  return { amount, percent };
 }
 
 function supplierTotalSavings(
