@@ -61,3 +61,15 @@ kljub temu čaka do izteka časa. Hitrost preusmeritve ni pogodba funkcionalnost
 
 **How to apply:** Dovoli tako samodejno izbiro kot prikaz dejanske izbire,
 nato preveri končni zaslon, aktivno podjetje in ohranitev prave Clerk seje.
+
+Pri prijavljenih regresijah poslovnih konfliktov sme prestrezanje dovoliti
+ozko določen sintetični POST, ne pa posredovati zapisov v poslovni strežnik.
+
+**Why:** Samo blokiranje vseh POST zahtev ne preizkusi dejanske obravnave
+HTTP konflikta v odjemalcu. Po drugi strani uporaba prave poslovne mutacije
+za dokaz navigacije nepotrebno ogrozi finančne evidence.
+
+**How to apply:** Ohrani pravo razvojno prijavo, preveri točno pot in telo
+dovoljene mutacije ter ji vrni sintetični HTTP odgovor. Vse druge poslovne
+zapise blokiraj in zahtevaj nič nepričakovanih zahtevkov. Tak dokaz potrjuje
+odjemalski tok, ne strežniške avtorizacije ali računovodskih izračunov.

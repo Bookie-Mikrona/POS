@@ -14,6 +14,7 @@
     "test:dimensions:browser": "playwright test --config playwright.dimensions.config.mjs",
     "test:os-accounts:browser": "playwright test --config playwright.os-accounts.config.mjs",
     "test:dimensions:navigation": "node e2e/dimension-report-navigation.browser.mjs",
+    "test:amortization:navigation": "node e2e/amortization-existing-entry.browser.mjs",
     "test:financial-statements:browser": "node e2e/financial-statements-excel.browser.mjs"
   },
   "devDependencies": {

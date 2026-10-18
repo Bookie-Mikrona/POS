@@ -1,5 +1,40 @@
 # ERP browser regressions
 
+## Amortization conflict → existing journal details
+
+With the ERP development preview running:
+
+```sh
+pnpm --filter @workspace/erp-web run test:amortization:navigation
+```
+
+Uses real development Clerk sign-in with a disposable user and one-use ticket,
+the actual protected routes, company selector, amortization dialog, journal page
+and detail sheet. Refuses non-test Clerk keys and removes the user in `finally`.
+Requires Chromium (`CHROMIUM_PATH` overrides `/repl/tools/bin/chromium`).
+No auth bypass, saved session, identity mocks or database changes are used.
+
+All business API calls are intercepted and fail closed. Only the exact synthetic
+preview and confirmation POST payloads are allowed; confirmation returns HTTP
+409. Unexpected endpoints and other writes fail the run and never reach the
+backend. Clerk traffic remains real. This verifies frontend behavior, not backend
+amortization calculations or authorization.
+
+Checks both draft and posted conflicts plus a mixed conflict where the second
+link must open the second entry. The real journal controls persist **2026 /
+Osnutek**, excluding the **2025** target entries from list responses. After
+**Odpri obstoječo temeljnico**, the amortization modal must unmount and the real
+detail sheet must display the exact ID, status, period, reference, description,
+accounts, debit/credit lines and totals. Company and Clerk session stay unchanged.
+
+Synthetic signed-in screenshots and `results.txt` are stored only under ignored,
+non-deployed `generated-artifacts/amortization-existing-entry/`. No auth state,
+SDK errors, tokens, session values or traces are recorded.
+
+Verified on 2026-10-18: all three signed-in scenarios passed, as did the four
+existing amortization-conflict component tests. The temporary Clerk user was
+removed successfully. Signed-in journal details were visually inspected.
+
 ## Signed-in financial-statement Excel downloads
 
 ```sh
