@@ -37,7 +37,7 @@ Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti ali tes
 
 **Why:** Pri usklajevanju podobnih poročil so se deklaracije, telesa poti in ponavljajoči se bloki pomešali tudi brez očitnih konfliktnih oznak. Enako so se pri zaključni sinhronizaciji že uspešno preverjeni testni bloki znova zamenjali z nepovezanim renderjem. Samo popravek sintakse ni zagotovil ohranitve obeh poti.
 
-**How to apply:** Ob lokalnem popravku jasno razloči obravnavalnike in preveri vsako prizadeto pot po uskladitvi; ne prepisuj drugih veljavnih sprememb cele datoteke.
+**How to apply:** Ob lokalnem popravku jasno razloči obravnavalnike in preveri vsako prizadeto pot po uskladitvi; ne prepisuj drugih veljavnih sprememb cele datoteke. Zlasti evidentiranje izpiska in uskladitev plačila morata ostati ločena: ob zaključnem prenosu se je že preverjeno evidentiranje ponovno zamenjalo s telesom uskladitve.
 
 Če poimenovanje callbackov ne prepreči ponovne zamenjave telesa pri uskladitvi, loči poslovno operacijo v samostojen modul in v poti pusti kratek klic.
 

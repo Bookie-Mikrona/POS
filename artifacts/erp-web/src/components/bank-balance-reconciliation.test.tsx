@@ -11,7 +11,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetBankBalanceHistory: () => ({ data: { points: [] }, isLoading: false, isError: false }),
 }));
 afterEach(cleanup);
-beforeEach(() => ledger.mockReturnValue({
+beforeEach(() => ledger.mockReset().mockReturnValue({
   data: { totalDebit: "150.00", totalCredit: "50.00", lines: [] },
   isLoading: false, isError: false, isFetching: false,
 }));
@@ -20,11 +20,16 @@ const props = { companyId: "company-a", accountId: "bank-a", accountCode: "1100"
 function enter(value: string) {
   fireEvent.change(screen.getByLabelText("Stanje po bančnem izpisku · 1100 (€)"), { target: { value } });
 }
+function selectDate(value: string) {
+  fireEvent.change(screen.getByLabelText("Presečni datum izpiska · 1100"), { target: { value } });
+}
 
 describe("primerjava knjiženega salda z izpiskom", () => {
   it("loads the full account totals with only one recent line, scoped to the company", () => {
     render(<BankBalanceReconciliation {...props} />);
-    expect(ledger).toHaveBeenCalledWith("company-a", { accountId: "bank-a", recentLimit: 1 }, expect.anything());
+    expect(ledger).toHaveBeenCalledWith("company-a", {
+      accountId: "bank-a", dateTo: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), recentLimit: 1,
+    }, expect.anything());
     expect(screen.getByText("100,00 €")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
@@ -65,7 +70,7 @@ describe("primerjava knjiženega salda z izpiskom", () => {
   it.each(["abc", "1,234", "1e2", "NaN"])("rejects invalid input %s without a false mismatch", value => {
     render(<BankBalanceReconciliation {...props} />);
     enter(value);
-    expect(screen.getByRole("textbox").getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByLabelText("Stanje po bančnem izpisku · 1100 (€)").getAttribute("aria-invalid")).toBe("true");
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -73,11 +78,56 @@ describe("primerjava knjiženega salda z izpiskom", () => {
     { data: undefined, isLoading: true },
     { data: undefined, isError: true },
     { data: { totalDebit: "100.00", totalCredit: "0.00" }, isFetching: true },
+    { data: { totalDebit: "100.00", totalCredit: "0.00" }, isError: true },
+    { data: { totalDebit: "100.00", totalCredit: "0.00" }, isPlaceholderData: true },
   ])("does not compare missing, failed or refreshing data", state => {
     ledger.mockReturnValue(state);
     render(<BankBalanceReconciliation {...props} />);
     enter("50");
     expect(screen.queryByText(/Saldo ni usklajen/)).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("100,00 €")).toBeNull();
+  });
+
+  it("includes the cutoff in the request and cache key, and compares the historical rather than current balance", () => {
+    ledger.mockImplementation((_company, params = {}) => ({
+      data: { totalDebit: params.dateTo === "2025-01-31" ? "150.00" : "650.00", totalCredit: "50.00" },
+    }));
+    render(<BankBalanceReconciliation {...props} />);
+    enter("100");
+    selectDate("2025-01-31");
+    expect(ledger).toHaveBeenLastCalledWith("company-a",
+      { accountId: "bank-a", dateTo: "2025-01-31", recentLimit: 1 },
+      { query: expect.objectContaining({
+        queryKey: ["company-a", { accountId: "bank-a", dateTo: "2025-01-31", recentLimit: 1 }],
+        enabled: true,
+      }) });
+    expect(screen.getByText(/do vključno 31.01.2025/)).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Saldo je usklajen");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("hides the previous result while another date loads or fails, and after the date is cleared", () => {
+    const { rerender } = render(<BankBalanceReconciliation {...props} />);
+    enter("100");
+    expect(screen.getByRole("status")).toBeTruthy();
+    ledger.mockReturnValue({
+      data: { totalDebit: "150.00", totalCredit: "50.00" }, isFetching: true,
+    });
+    selectDate("2025-01-31");
+    expect(screen.getByText("Nalaganje …")).toBeTruthy();
+    expect(screen.queryByText("100,00 €")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    ledger.mockReturnValue({
+      data: { totalDebit: "150.00", totalCredit: "50.00" }, isError: true,
+    });
+    rerender(<BankBalanceReconciliation {...props} />);
+    expect(screen.getByRole("alert").textContent).toContain("Primerjava ni na voljo");
+    expect(screen.queryByText("100,00 €")).toBeNull();
+    ledger.mockReturnValue({ data: { totalDebit: "150.00", totalCredit: "50.00" } });
+    selectDate("");
+    expect(ledger.mock.lastCall?.[2].query.enabled).toBe(false);
+    expect(screen.getByText("Izberite datum")).toBeTruthy();
     expect(screen.queryByRole("status")).toBeNull();
   });
 
@@ -100,7 +150,7 @@ describe("primerjava knjiženega salda z izpiskom", () => {
     enter("90");
     expect(screen.getByRole("alert").textContent).toContain("10,00");
     rerender(<BankBalanceCard {...cardProps} companyId="company-b" />);
-    expect(screen.getByRole("textbox").getAttribute("value")).toBe("");
+    expect(screen.getByLabelText("Stanje po bančnem izpisku · 1100 (€)").getAttribute("value")).toBe("");
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });

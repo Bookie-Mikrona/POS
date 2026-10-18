@@ -24,7 +24,7 @@ import { eq } from "drizzle-orm";
 import {
   db, pool, companiesTable, accountingRolesTable, accountingPeriodsTable,
   accountsTable, counterpartiesTable, invoicesTable, invoiceLinesTable,
-  journalEntryLinesTable, bankStatementsTable, bankStatementLinesTable,
+  journalEntriesTable, journalEntryLinesTable, bankStatementsTable, bankStatementLinesTable,
   bankAccountMetadataTable, paymentBatchItemsTable, paymentsTable,
 } from "@workspace/db";
 import router from "./payments";
@@ -222,6 +222,56 @@ describe("bank statement per-transaction accounting", () => {
     expect(after.body.totalRemaining).toBe("0.00");
     expect(after.body.items.filter((item: any) => sources.some(line => line.id === item.journalLineId))).toHaveLength(0);
   });
+  it("registers statement evidence and all lines atomically without creating or changing payments or journals", async () => {
+    const priorPayments = await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId));
+    const priorJournals = await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
+    const registration = {
+      bankAccountId: bankId, sourceFilename: "TEST-register.csv", sourceSha256: "d".repeat(64),
+      metadata: {
+        statementNumber: "TEST-10", statementDate: "2026-10-08",
+        openingBalance: 0, closingBalance: 80, currency: "EUR",
+      },
+      transactions: [
+        { id: "income", date: "2026-10-08", amount: 100, currency: "EUR", reference: "TEST-IN", counterpartyName: "TEST sender", counterpartyIban: null, description: "Income" },
+        { id: "expense", date: "2026-10-07", amount: -20, currency: "EUR", reference: null, counterpartyName: "TEST recipient", counterpartyIban: null, description: "Expense" },
+      ],
+    };
+    const registered = await request(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send(registration).expect(201);
+    expect(registered.body).toEqual({
+      statementId: expect.any(String), lineIds: { income: expect.any(String), expense: expect.any(String) },
+    });
+    const [statement] = await db.select().from(bankStatementsTable).where(eq(bankStatementsTable.id, registered.body.statementId));
+    expect(statement).toMatchObject({
+      companyId, bankAccountId: bankId, sourceFilename: registration.sourceFilename,
+      sourceSha256: registration.sourceSha256, statementNumber: "TEST-10",
+      statementDate: "2026-10-08", periodFrom: "2026-10-07", periodTo: "2026-10-08",
+      openingBalance: "0.00", closingBalance: "80.00", currency: "EUR", createdBy: USER,
+    });
+    const lines = await db.select().from(bankStatementLinesTable)
+      .where(eq(bankStatementLinesTable.statementId, statement.id)).orderBy(bankStatementLinesTable.lineNumber);
+    expect(lines).toEqual(registration.transactions.map((transaction, index) => expect.objectContaining({
+      id: registered.body.lineIds[transaction.id], transactionKey: transaction.id,
+      statementId: statement.id, lineNumber: index + 1, bookingDate: transaction.date,
+      amount: transaction.amount.toFixed(2), currency: transaction.currency,
+      reference: transaction.reference, counterpartyName: transaction.counterpartyName,
+      counterpartyIban: transaction.counterpartyIban, description: transaction.description,
+    })));
+    expect(await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId))).toEqual(priorPayments);
+    expect(await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId))).toEqual(priorJournals);
+
+    // A rejected line must not leave a header behind and poison retries.
+    const invalid = {
+      ...registration, sourceSha256: "c".repeat(64),
+      transactions: [registration.transactions[0], registration.transactions[0]],
+    };
+    await request(app).post(`/companies/${companyId}/bank-statements/register`).send(invalid).expect(409);
+    expect(await db.select().from(bankStatementsTable)
+      .where(eq(bankStatementsTable.sourceSha256, invalid.sourceSha256))).toEqual([]);
+    await request(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send({ ...invalid, transactions: registration.transactions }).expect(201);
+  });
+
   it("resumes a partial import using saved registered line IDs instead of registering the same hash twice", async () => {
     const transactions = [37.13, 38.19].map((amount, index) => ({
       id: `resume-${index}`, date: "2026-10-07", amount: -amount,

@@ -4,6 +4,7 @@ import { getGetLedgerQueryKey, useGetLedger } from "@workspace/api-client-react"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatDatum } from "@/lib/utils";
 
 // Compare integer cents, so exactly one cent never triggers a floating-point warning.
 export function moneyCents(value: string): number | null {
@@ -22,16 +23,22 @@ export function BankBalanceReconciliation({
   companyId, accountId, accountCode,
 }: { companyId: string; accountId: string; accountCode: string }) {
   const [statementBalance, setStatementBalance] = useState("");
-  const { data, isLoading, isError, isFetching } = useGetLedger(
+  const [statementDate, setStatementDate] = useState(() =>
+    new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Ljubljana" }));
+  const params = { accountId, dateTo: statementDate, recentLimit: 1 };
+  const { data, isLoading, isError, isFetching, isPlaceholderData } = useGetLedger(
     companyId,
-    { accountId, recentLimit: 1 },
+    params,
     { query: {
-      queryKey: getGetLedgerQueryKey(companyId, { accountId, recentLimit: 1 }),
-      enabled: !!companyId && !!accountId, staleTime: 0, refetchInterval: 60_000,
+      queryKey: getGetLedgerQueryKey(companyId, params),
+      enabled: !!companyId && !!accountId && !!statementDate,
+      placeholderData: () => undefined,
+      staleTime: 0, refetchInterval: 60_000,
     } },
   );
-  const debit = data ? moneyCents(data.totalDebit) : null;
-  const credit = data ? moneyCents(data.totalCredit) : null;
+  const ready = !!statementDate && !isLoading && !isError && !isFetching && !isPlaceholderData;
+  const debit = ready && data ? moneyCents(data.totalDebit) : null;
+  const credit = ready && data ? moneyCents(data.totalCredit) : null;
   const booked = debit !== null && credit !== null ? debit - credit : null;
   const actual = moneyCents(statementBalance);
   const difference = booked !== null && actual !== null && !isError && !isFetching
@@ -41,10 +48,23 @@ export function BankBalanceReconciliation({
 
   return (
     <div className="mx-1.5 mb-3 mt-1 space-y-2 rounded border border-border/60 p-2 text-xs">
+      <div className="space-y-1">
+        <Label htmlFor={`${inputId}-date`} className="text-xs">Presečni datum izpiska · {accountCode}</Label>
+        <Input
+          id={`${inputId}-date`}
+          type="date"
+          value={statementDate}
+          onChange={event => setStatementDate(event.target.value)}
+          className="h-8"
+          required
+        />
+      </div>
       <p className="flex justify-between gap-2">
-        <span className="text-muted-foreground">Knjiženi saldo · {accountCode}</span>
+        <span className="text-muted-foreground">
+          Knjiženi saldo · {accountCode}{statementDate ? ` · do vključno ${formatDatum(statementDate)}` : ""}
+        </span>
         <span className="font-semibold tabular-nums">
-          {isLoading ? "Nalaganje …" : isError || booked === null ? "Ni na voljo" : euros(booked)}
+          {!statementDate ? "Izberite datum" : isLoading || isFetching ? "Nalaganje …" : booked === null ? "Ni na voljo" : euros(booked)}
         </span>
       </p>
       <div className="space-y-1">
@@ -61,7 +81,8 @@ export function BankBalanceReconciliation({
           className="h-8 tabular-nums"
         />
         <p id={`${inputId}-help`} className="text-[11px] text-muted-foreground">
-          Primerjajte stanji na isti datum. Ročni vnos je le za primerjavo in se ne shrani.
+          Primerjava velja na izbrani presečni datum, vključno s knjižbami tega dne.
+          Ročni vnos je le za primerjavo in se ne shrani ter ne spreminja kritja za pripravo plačil.
         </p>
         {invalid && <p id={`${inputId}-error`} className="text-destructive">Vnesite veljaven znesek z največ dvema decimalnima mestoma.</p>}
       </div>

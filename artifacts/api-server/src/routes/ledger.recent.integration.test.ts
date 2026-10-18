@@ -55,6 +55,7 @@ async function seedEntry(company: string, period: string, bank: string, contra: 
     ...(extraBankLine ? [{ entryId: entry.id, accountId: bank, sequence: 3,
       side: "debit" as const, amount: "7.15" }] : []),
   ]);
+  return entry.id;
 }
 
 beforeAll(async () => {
@@ -73,6 +74,9 @@ beforeAll(async () => {
     await seedEntry(companyId, periodId, accountId, contraId, `2025-01-${day}`,
       i === 1 ? "0.10" : i === 2 ? "0.20" : `${i}.35`, i % 3 ? "debit" : "credit");
   }
+  const originalId = await seedEntry(companyId, periodId, accountId, contraId, "2025-01-16", "4.00", "debit", "reversed");
+  const reversalId = await seedEntry(companyId, periodId, accountId, contraId, "2025-01-17", "4.00", "credit", "posted");
+  await db.update(journalEntriesTable).set({ reversalOf: originalId }).where(eq(journalEntriesTable.id, reversalId));
   await seedEntry(companyId, periodId, accountId, contraId, "2025-01-18", "2.35", "debit", "posted", true);
   await seedEntry(companyId, periodId, accountId, contraId, "2025-01-20", "1.25", "credit", "reversed");
   await seedEntry(companyId, periodId, accountId, contraId, "2025-12-31", "999.00", "debit", "draft");
@@ -100,9 +104,32 @@ function getLedger(filters: Record<string, string | number> = {}, company = comp
 }
 
 describe("bounded recent ledger (real database)", () => {
+  it("compares a historical statement on its cutoff, retaining originals and reversals but not later postings", async () => {
+    const historical = await getLedger({ dateTo: "2024-12-31", recentLimit: 1 }).expect(200);
+    expect(historical.body.totalDebit).toBe("100.00");
+    expect(historical.body.totalCredit).toBe("0.00");
+    expect(historical.body.lines[0].runningBalance).toBe("100.00");
+
+    // The reversed original stays present before and on its accounting date.
+    // A posted storno dated later must only change the later comparison.
+    const beforeOriginal = await getLedger({ dateTo: "2025-01-15", recentLimit: 1 }).expect(200);
+    const onOriginal = await getLedger({ dateTo: "2025-01-16", recentLimit: 1 }).expect(200);
+    const onReversal = await getLedger({ dateTo: "2025-01-17", recentLimit: 1 }).expect(200);
+    expect(Number(onOriginal.body.totalDebit) - Number(beforeOriginal.body.totalDebit)).toBeCloseTo(4);
+    expect(onOriginal.body.totalCredit).toBe(beforeOriginal.body.totalCredit);
+    expect(onOriginal.body.lines[0].debit).toBe("4.00");
+    expect(Number(onReversal.body.totalCredit) - Number(onOriginal.body.totalCredit)).toBeCloseTo(4);
+    expect(onReversal.body.totalDebit).toBe(onOriginal.body.totalDebit);
+    expect(onReversal.body.lines[0].credit).toBe("4.00");
+    expect(onReversal.body.lines[0].runningBalance).toBe(beforeOriginal.body.lines[0].runningBalance);
+    const current = await getLedger({ recentLimit: 1 }).expect(200);
+    expect(current.body.totalDebit).not.toBe(historical.body.totalDebit);
+    expect((await getLedger({ dateTo: "2024-12-31", recentLimit: 1 }).expect(200)).body).toEqual(historical.body);
+  });
+
   it("keeps the full default ledger and returns only its last seven lines with identical balances and totals", async () => {
     const full = await getLedger().expect(200);
-    expect(full.body.lines).toHaveLength(16);
+    expect(full.body.lines).toHaveLength(18);
     const recent = await getLedger({ recentLimit: 7 }).expect(200);
     expect(recent.body).toEqual({ ...full.body, lines: full.body.lines.slice(-7) });
     expect(recent.body.lines[0].runningBalance).not.toBe(recent.body.lines[0].debit);
