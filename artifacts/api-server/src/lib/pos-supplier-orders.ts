@@ -367,30 +367,44 @@ export async function syncSupplierOrdersForReceipt(
           AND order_line.supplier_mapping_id IS NOT NULL
       ),
       latest_confirmed_price AS (
-        SELECT DISTINCT ON (order_line.supplier_mapping_id)
-          order_line.supplier_mapping_id,
-          receipt_line.neto_cena AS unit_price
-        FROM prejemnice_postavke receipt_line
-        JOIN prejemnice receipt
-          ON receipt.id = receipt_line.prejemnica_id
-         AND receipt.enota_id = ${enotaId}
-        JOIN pos_supplier_order_lines order_line
-          ON order_line.id = receipt_line.supplier_order_line_id
-         AND order_line.enota_id = ${enotaId}
-        JOIN affected_mappings affected
-          ON affected.supplier_mapping_id = order_line.supplier_mapping_id
-        WHERE receipt.status = 'confirmed'
-          AND receipt_line.neto_cena IS NOT NULL
-          AND (
-            receipt_line.izv_cena IS NOT NULL
-            OR COALESCE(receipt_line.neto_znesek, 0) > 0
-            OR COALESCE(receipt_line.cena_kos, 0) > 0
-          )
+        -- Keep the cached latest price consistent with the per-receipt history:
+        -- use the quantity-weighted net unit price across all linked receipt lines.
+        SELECT DISTINCT ON (receipt_prices.supplier_mapping_id)
+          receipt_prices.supplier_mapping_id,
+          receipt_prices.unit_price
+        FROM (
+          SELECT
+            order_line.supplier_mapping_id,
+            receipt.id AS receipt_id,
+            receipt.datum AS receipt_date,
+            ROUND(
+              SUM(receipt_line.kolicina * receipt_line.neto_cena)
+                / NULLIF(SUM(receipt_line.kolicina), 0),
+              6
+            ) AS unit_price
+          FROM prejemnice_postavke receipt_line
+          JOIN prejemnice receipt
+            ON receipt.id = receipt_line.prejemnica_id
+           AND receipt.enota_id = ${enotaId}
+          JOIN pos_supplier_order_lines order_line
+            ON order_line.id = receipt_line.supplier_order_line_id
+           AND order_line.enota_id = ${enotaId}
+          JOIN affected_mappings affected
+            ON affected.supplier_mapping_id = order_line.supplier_mapping_id
+          WHERE receipt.status = 'confirmed'
+            AND receipt_line.neto_cena IS NOT NULL
+            AND receipt_line.kolicina > 0
+            AND (
+              receipt_line.izv_cena IS NOT NULL
+              OR COALESCE(receipt_line.neto_znesek, 0) > 0
+              OR COALESCE(receipt_line.cena_kos, 0) > 0
+            )
+          GROUP BY order_line.supplier_mapping_id, receipt.id, receipt.datum
+        ) receipt_prices
         ORDER BY
-          order_line.supplier_mapping_id,
-          receipt.datum DESC,
-          receipt.id DESC,
-          receipt_line.id DESC
+          receipt_prices.supplier_mapping_id,
+          receipt_prices.receipt_date DESC,
+          receipt_prices.receipt_id DESC
       )
       UPDATE artikel_dobavitelj mapping
       SET zadnja_cena_enota = latest.unit_price,
@@ -430,8 +444,10 @@ export async function getSupplierPriceHistory(
     : sql`"historyPosition" <= ${historyLimit}`;
 
   const result = await tx.execute(sql`
+    -- A receipt may contain multiple linked lines for the same mapping. Compare
+    -- it using the quantity-weighted net unit price, not an arbitrary line ID.
     WITH receipt_prices AS (
-      SELECT DISTINCT ON (order_line.supplier_mapping_id, receipt.id)
+      SELECT
         order_line.supplier_mapping_id AS "mappingId",
         receipt.id AS "receiptId",
         TO_CHAR(receipt.datum, 'YYYY-MM-DD') AS "date",
@@ -439,8 +455,16 @@ export async function getSupplierPriceHistory(
           NULLIF(BTRIM(receipt.stevilka), ''),
           'ID-' || receipt.id::text
         ) AS "receiptNumber",
-        receipt_line.neto_cena::double precision AS "unitPrice",
-        receipt_line.neto_cena::text AS "unitPriceDecimal"
+        ROUND(
+          SUM(receipt_line.kolicina * receipt_line.neto_cena)
+            / NULLIF(SUM(receipt_line.kolicina), 0),
+          6
+        )::double precision AS "unitPrice",
+        ROUND(
+          SUM(receipt_line.kolicina * receipt_line.neto_cena)
+            / NULLIF(SUM(receipt_line.kolicina), 0),
+          6
+        )::text AS "unitPriceDecimal"
       FROM prejemnice_postavke receipt_line
       JOIN prejemnice receipt
         ON receipt.id = receipt_line.prejemnica_id
@@ -461,7 +485,12 @@ export async function getSupplierPriceHistory(
           OR COALESCE(receipt_line.neto_znesek, 0) > 0
           OR COALESCE(receipt_line.cena_kos, 0) > 0
         )
-      ORDER BY order_line.supplier_mapping_id, receipt.id, receipt_line.id DESC
+        AND receipt_line.kolicina > 0
+      GROUP BY
+        order_line.supplier_mapping_id,
+        receipt.id,
+        receipt.datum,
+        receipt.stevilka
     ),
     ranked_receipts AS (
       SELECT
