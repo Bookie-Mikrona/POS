@@ -620,6 +620,32 @@ export async function requireEnota(
 }
 
 /**
+ * requireIzbranaEnota — require an explicitly selected unit before applying the
+ * normal POS membership and unit-access checks. Use for lists that must never
+ * silently choose a company-wide fallback unit.
+ */
+export async function requireIzbranaEnota(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const enotaIdRaw = req.headers["x-enota-id"] ?? req.query["enota_id"];
+  if (
+    typeof enotaIdRaw !== "string" ||
+    !/^[1-9]\d*$/.test(enotaIdRaw) ||
+    !Number.isSafeInteger(Number(enotaIdRaw))
+  ) {
+    res.status(400).json({
+      napaka: "Izberite aktivno POS enoto z glavo X-Enota-Id",
+      koda: "ENOTA_OBVEZNA",
+    });
+    return;
+  }
+
+  await requireEnota(req, res, next);
+}
+
+/**
  * requirePosCompany — Clerk JWT preverjanje + company izolacija prek POS user zapisa.
  * Uporablja se za rute ki ne zahtevajo X-Enota-Id (npr. upravljanje enot).
  * Nastavi req.companyId in req.clerkUserId.

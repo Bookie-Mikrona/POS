@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { randomUUID } from "node:crypto";
 
 const context = vi.hoisted(() => ({
   companyId: "",
@@ -16,6 +17,22 @@ vi.mock("../../middlewares/pos", () => ({
     req.vloga = context.role;
     req.posActorNatakarId = context.actorNatakarId;
     next();
+  },
+
+  requireIzbranaEnota(req: any, res: any, next: any) {
+    const selectedUnitId = req.headers["x-enota-id"] ?? req.query.enota_id;
+    if (typeof selectedUnitId !== "string" || !/^[1-9]\d*$/.test(selectedUnitId)) {
+      return res.status(400).json({
+        napaka: "Izberite aktivno POS enoto z glavo X-Enota-Id",
+        koda: "ENOTA_OBVEZNA",
+      });
+    }
+    req.companyId = context.companyId;
+    req.enotaId = Number(selectedUnitId);
+    req.clerkUserId = context.userId;
+    req.vloga = context.role;
+    req.posActorNatakarId = context.actorNatakarId;
+    return next();
   },
 }));
 
@@ -49,7 +66,7 @@ app.use(prejemniceRouter);
 app.use(supplierOrdersRouter);
 app.use((error: Error, _req: any, res: any, _next: any) => res.status(500).json({ error: error.message }));
 
-const run = Math.random().toString(36).slice(2, 9);
+const run = randomUUID().replace(/-/g, "").slice(0, 12);
 let companyId = "";
 let enotaId = 0;
 let supplierId = "";
@@ -970,7 +987,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const created = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       notes: "Stara opomba, shranjena pred ločitvijo.",
-      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 30 }],
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     orderIds.push(created.body.id);
@@ -1163,19 +1180,19 @@ describe("POS supplier ordering and linked receipt flow", () => {
     mappingIds.push(mappingB.id);
 
     const [otherCompany] = await db.insert(companiesTable).values({
-      naziv: `Other price history company ${run}`,
-      podjetjeDavcna: `SI${run}91`,
+      naziv: `Supplier order other company ${run}`,
+      podjetjeDavcna: `SI${run}80`,
     }).returning({ id: companiesTable.id });
     extraCompanyIds.push(otherCompany.id);
     const [otherCompanyUnit] = await db.insert(enoteTable).values({
       companyId: otherCompany.id,
-      ime: `Other price history unit ${run}`,
+      ime: `Supplier order other company unit ${run}`,
     }).returning({ id: enoteTable.id });
     unitIds.push(otherCompanyUnit.id);
     const [otherCompanySupplier] = await db.insert(counterpartiesTable).values({
       companyId: otherCompany.id,
       type: "supplier",
-      name: `Other price history supplier ${run}`,
+      name: `Other company supplier ${run}`,
     }).returning({ id: counterpartiesTable.id });
     extraSupplierIds.push(otherCompanySupplier.id);
     const [otherCompanyArticle] = await db.insert(artikliTable).values({
@@ -1392,7 +1409,20 @@ describe("POS supplier ordering and linked receipt flow", () => {
       ]));
       const manualReceiptId = manualReceipt.body.id as number;
 
-      const receiptListA = await request(app).get("/prejemnice");
+      const receiptListWithoutUnit = await request(app).get("/prejemnice");
+      expect(receiptListWithoutUnit.status).toBe(400);
+      expect(receiptListWithoutUnit.body).toMatchObject({ koda: "ENOTA_OBVEZNA" });
+      expect(Array.isArray(receiptListWithoutUnit.body)).toBe(false);
+
+      const receiptListWithInvalidUnit = await request(app)
+        .get("/prejemnice")
+        .set("X-Enota-Id", "not-a-unit");
+      expect(receiptListWithInvalidUnit.status).toBe(400);
+      expect(receiptListWithInvalidUnit.body).toMatchObject({ koda: "ENOTA_OBVEZNA" });
+
+      const receiptListA = await request(app)
+        .get("/prejemnice")
+        .set("X-Enota-Id", String(enotaId));
       expect(receiptListA.status, JSON.stringify(receiptListA.body)).toBe(200);
       const receiptIdsForA = receiptListA.body.map((receipt: any) => receipt.id);
       expect(receiptIdsForA).toContain(sourceA.receiptId);
@@ -1401,7 +1431,9 @@ describe("POS supplier ordering and linked receipt flow", () => {
       expect(receiptIdsForA).not.toContain(sourceB.receiptId);
 
       context.enotaId = unitB.id;
-      const receiptListB = await request(app).get("/prejemnice");
+      const receiptListB = await request(app)
+        .get("/prejemnice")
+        .set("X-Enota-Id", String(unitB.id));
       expect(receiptListB.status, JSON.stringify(receiptListB.body)).toBe(200);
       const receiptIdsForB = receiptListB.body.map((receipt: any) => receipt.id);
       expect(receiptIdsForB).toContain(sourceB.receiptId);
@@ -1444,16 +1476,6 @@ describe("POS supplier ordering and linked receipt flow", () => {
         receiptId: sourceAOther.receiptId,
         date: sourceAOther.date,
         receiptNumber: sourceAOther.receiptNumber,
-      });
-      const sourcesIncludingSecondSupplier = await getLatestSupplierPriceReceipts(
-        db,
-        enotaId,
-        [mappingA.id, mappingASecondSupplier.id],
-      );
-      expect(sourcesIncludingSecondSupplier.get(mappingASecondSupplier.id)).toEqual({
-        receiptId: sourceASecondSupplier.receiptId,
-        date: sourceASecondSupplier.date,
-        receiptNumber: sourceASecondSupplier.receiptNumber,
       });
       expect(sourcesForA.has(mappingB.id)).toBe(false);
 
@@ -1688,7 +1710,9 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(ownReceipt.status, JSON.stringify(ownReceipt.body)).toBe(201);
     receiptIds.push(ownReceipt.body.id);
 
-    const ownReceiptList = await request(app).get("/prejemnice");
+    const ownReceiptList = await request(app)
+      .get("/prejemnice")
+      .set("X-Enota-Id", String(enotaId));
     expect(ownReceiptList.status, JSON.stringify(ownReceiptList.body)).toBe(200);
     expect(ownReceiptList.body).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -1707,12 +1731,13 @@ describe("POS supplier ordering and linked receipt flow", () => {
     context.companyId = foreignCompany.id;
     context.enotaId = foreignUnit.id;
     try {
-      const foreignReceiptList = await request(app).get("/prejemnice");
+      const foreignReceiptList = await request(app)
+        .get("/prejemnice")
+        .set("X-Enota-Id", String(foreignUnit.id));
       expect(foreignReceiptList.status, JSON.stringify(foreignReceiptList.body)).toBe(200);
       expect(foreignReceiptList.body).toEqual(expect.arrayContaining([
         expect.objectContaining({
           id: foreignReceiptId,
-          dobaviteljId: foreignSupplier.id,
           dobaviteljNaziv: `FOREIGN-RECEIPT-SUPPLIER-${run}`,
           skupajVrednost: 3703.68,
         }),

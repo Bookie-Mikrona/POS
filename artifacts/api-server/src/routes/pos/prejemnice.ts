@@ -3,7 +3,7 @@ import { and, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "dr
 import Decimal from "decimal.js";
 import { artikliTable, companiesTable, counterpartiesTable, db, embalazniPrometiTable, enoteTable, goodsReceiptsTable, invoicesTable, nastavitveTable, posSupplierPackageChangeReviewsTable, prejemniceOdvisniStroskiTable, prejemnicePostavkeTable, prejemniceTable, purchaseSourceDocumentsTable, uvozSejaTable, vatCodeTable, zalogaGibiTable } from "@workspace/db";
 import { ConfirmPrejemnicaBody, ConfirmPrejemnicaResponse } from "@workspace/api-zod";
-import { requireEnota } from "../../middlewares/pos";
+import { requireEnota, requireIzbranaEnota } from "../../middlewares/pos";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
@@ -58,7 +58,7 @@ import {
 const router: IRouter = Router();
 
 router.get("/prejemnice/:id/booking-preview", requireEnota, async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
+  const id = parseInt(String(req.params.id));
   const enotaId = (req as any).enotaId as number;
   const companyId = (req as any).companyId as string;
   if (!Number.isInteger(id) || id <= 0) {
@@ -74,7 +74,7 @@ router.get("/prejemnice/:id/booking-preview", requireEnota, async (req, res): Pr
 });
 
 router.post("/prejemnice/:id/booking-draft", requireEnota, async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
+  const id = parseInt(String(req.params.id));
   const enotaId = (req as any).enotaId as number;
   const companyId = (req as any).companyId as string;
   const previewHash = typeof req.body?.previewHash === "string" ? req.body.previewHash : "";
@@ -203,7 +203,7 @@ async function transitionPackagingMovements(
 }
 
 router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
+  const id = parseInt(String(req.params.id));
   const enotaId = (req as any).enotaId as number;
   const companyId = (req as any).companyId as string;
   const actor = (req as any).clerkUserId as string | null;
@@ -665,8 +665,8 @@ async function nextStevilkaPrejemnica(year: number, _davcna: string, tenotaId: n
   return `${yy}${String(nextSeq).padStart(6, "0")}`;
 }
 
-router.get("/prejemnice", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId;
+router.get("/prejemnice", requireIzbranaEnota, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId as number;
   const rows = await db
     .select({
       id: prejemniceTable.id,
@@ -700,7 +700,7 @@ router.get("/prejemnice", requireEnota, async (req, res): Promise<void> => {
 });
 
 router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId;
+  const tenotaId = (req as any).enotaId as number;
   const companyId = (req as any).companyId as string;
   const actorSnapshot = (req as any).clerkUserId as string;
   const parsed = { success: true, data: req.body };
@@ -717,27 +717,56 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
   }
 
   const artikelIds = postavke.map((p: any) => p.artikelId);
-  const artikliRows = await db.select({
-    id: artikliTable.id,
-    ime: artikliTable.ime,
-    imeZaNabavo: artikliTable.imeZaNabavo,
-    enotaMere: artikliTable.enotaMere,
-    davek: artikliTable.davek,
-    brutoTezaG: artikliTable.brutoTezaG,
-    netoTezaG: artikliTable.netoTezaG,
-    netoDelezOdst: artikliTable.netoDelezOdst,
-    jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
-    povratnaEmbalaza: artikliTable.povratnaEmbalaza,
-    depozitnaVrednost: artikliTable.depozitnaVrednost,
-  })
-    .from(artikliTable)
-    .where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId)));
+    const artikliRows = await db.select({
+      id: artikliTable.id,
+      ime: artikliTable.ime,
+      imeZaNabavo: artikliTable.imeZaNabavo,
+      enotaMere: artikliTable.enotaMere,
+      davek: artikliTable.davek,
+      brutoTezaG: artikliTable.brutoTezaG,
+      netoTezaG: artikliTable.netoTezaG,
+      netoDelezOdst: artikliTable.netoDelezOdst,
+      jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
+      povratnaEmbalaza: artikliTable.povratnaEmbalaza,
+      depozitnaVrednost: artikliTable.depozitnaVrednost,
+      alergeni: artikliTable.alergeni,
+      alergeniSledi: artikliTable.alergeniSledi,
+      alergeniStatus: artikliTable.alergeniStatus,
+      alergeniVir: artikliTable.alergeniVir,
+      alergeniOpombaVira: artikliTable.alergeniOpombaVira,
+      alergeniDocumentId: artikliTable.alergeniDocumentId,
+      alergeniVerifiedBy: artikliTable.alergeniVerifiedBy,
+      alergeniVerifiedAt: artikliTable.alergeniVerifiedAt,
+    })
+      .from(artikliTable)
+      .where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId)));
   const foundIds = new Set(artikliRows.map(a => a.id));
   const missingIds = artikelIds.filter((id: any) => !foundIds.has(id));
   if (missingIds.length > 0) {
     res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
   }
-  const artikelMap = new Map(artikliRows.map(a => [a.id, a]));
+  let artikelMap: Map<number, {
+    id: number;
+    ime: string;
+    imeZaNabavo: string | null;
+    enotaMere: string | null;
+    davek: string | null;
+    brutoTezaG: string | null;
+    netoTezaG: string | null;
+    netoDelezOdst: string | null;
+    jeSkupinskiNabavniArtikel: boolean;
+    povratnaEmbalaza: boolean;
+    depozitnaVrednost: string | null;
+    alergeni: unknown;
+    alergeniSledi: unknown;
+    alergeniStatus: string;
+    alergeniVir: string | null;
+    alergeniOpombaVira: string | null;
+    alergeniDocumentId: string | null;
+    alergeniVerifiedBy: string | null;
+    alergeniVerifiedAt: Date | null;
+  }> | undefined;
+  artikelMap = new Map(artikliRows.map(a => [a.id, a]));
   for (const p of postavke as any[]) {
     const art = artikelMap.get(p.artikelId);
     if (!art?.jeSkupinskiNabavniArtikel) continue;
@@ -903,15 +932,15 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
       const stockQuantity = preparedLine.kolicina;
       const stockUnitCost = preparedLine.cenaKos;
       const lineValue = preparedLine.skupaj;
-      let alergeniProfil;
-      try {
-        alergeniProfil = TESTNI_ALERGENSKI_NACIN
-          ? alergenskiSnapshotBrezAlergenov(actorSnapshot)
-          : art?.povratnaEmbalaza
-            ? alergenskiSnapshotZaPovratnoEmbalazo(actorSnapshot)
-            : zahtevajPotrjenAlergenskiSnapshot(p);
-      } catch (error) {
-        const naziv = art?.imeZaNabavo ?? art?.ime ?? `Artikel ${p.artikelId}`;
+        let alergeniProfil;
+        try {
+          alergeniProfil = TESTNI_ALERGENSKI_NACIN
+            ? alergenskiSnapshotBrezAlergenov(actorSnapshot)
+            : art?.povratnaEmbalaza
+              ? alergenskiSnapshotZaPovratnoEmbalazo(actorSnapshot)
+              : zahtevajPotrjenAlergenskiSnapshot(p);
+        } catch (error) {
+          const naziv = art?.imeZaNabavo ?? art?.ime ?? `Artikel ${p.artikelId}`;
         throw new Error(`RECEIPT_ALLERGEN_INVALID:${naziv}: ${(error as Error).message}`);
       }
       const [pp] = await tx.insert(prejemnicePostavkeTable).values({
@@ -1047,7 +1076,7 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId as number;
   const companyId = (req as any).companyId as string;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(rawId, 10);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
   const [prejemnica] = await db
@@ -1087,63 +1116,24 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     .where(and(eq(prejemniceTable.id, id), eq(prejemniceTable.enotaId, tenotaId)));
   if (!prejemnica) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
 
-  const postavke = await db
-    .select({
-      id: prejemnicePostavkeTable.id,
-      artikelId: prejemnicePostavkeTable.artikelId,
-      supplierOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
-      artikelIme: artikliTable.ime,
-      imeZaNabavo: artikliTable.imeZaNabavo,
-      enotaMere: artikliTable.enotaMere,
-      brutoTezaG: prejemnicePostavkeTable.brutoTezaG,
-      netoTezaG: prejemnicePostavkeTable.netoTezaG,
-      netoDelezOdst: prejemnicePostavkeTable.netoDelezOdst,
-      kolicina: prejemnicePostavkeTable.kolicina,
-      cenaKos: prejemnicePostavkeTable.cenaKos,
-      skupaj: prejemnicePostavkeTable.skupaj,
-      enotVPaketu: prejemnicePostavkeTable.enotVPaketu,
-      rabat1Odst: prejemnicePostavkeTable.rabat1Odst,
-      rabat2Odst: prejemnicePostavkeTable.rabat2Odst,
-       izvCena: prejemnicePostavkeTable.izvCena,
-       izvCenaVrsta: prejemnicePostavkeTable.izvCenaVrsta,
-       rabatVkljucenVCeni: prejemnicePostavkeTable.rabatVkljucenVCeni,
-       izvNaziv: prejemnicePostavkeTable.izvNaziv,
-       izvEnota: prejemnicePostavkeTable.izvEnota,
-       izvKolicina: prejemnicePostavkeTable.izvKolicina,
-       enotaMereEslog: prejemnicePostavkeTable.enotaMere,
-       netoCena: prejemnicePostavkeTable.netoCena,
-       netoZnesek: prejemnicePostavkeTable.netoZnesek,
-       ddvKategorija: prejemnicePostavkeTable.ddvKategorija,
-       ddvStopnja: prejemnicePostavkeTable.ddvStopnja,
-       ddvOsnova: prejemnicePostavkeTable.ddvOsnova,
-       ddvZnesek: prejemnicePostavkeTable.ddvZnesek,
-       vatCodeId: prejemnicePostavkeTable.vatCodeId,
-        vrsticaTip: prejemnicePostavkeTable.vrsticaTip,
-        alergeni: prejemnicePostavkeTable.alergeni,
-        alergeniSledi: prejemnicePostavkeTable.alergeniSledi,
-        alergeniStatus: prejemnicePostavkeTable.alergeniStatus,
-        alergeniVir: prejemnicePostavkeTable.alergeniVir,
-        alergeniOpombaVira: prejemnicePostavkeTable.alergeniOpombaVira,
-        alergeniDocumentId: prejemnicePostavkeTable.alergeniDocumentId,
-        alergeniVerifiedBy: prejemnicePostavkeTable.alergeniVerifiedBy,
-        alergeniVerifiedAt: prejemnicePostavkeTable.alergeniVerifiedAt,
-        alergeniRevision: prejemnicePostavkeTable.alergeniRevision,
-        alergeniHash: prejemnicePostavkeTable.alergeniHash})
+  const postavke = await db.select({
+    postavka: prejemnicePostavkeTable,
+    artikelIme: artikliTable.ime,
+    imeZaNabavo: artikliTable.imeZaNabavo,
+    enotaMere: artikliTable.enotaMere,
+  })
     .from(prejemnicePostavkeTable)
     .leftJoin(artikliTable, and(
       eq(prejemnicePostavkeTable.artikelId, artikliTable.id),
       eq(artikliTable.enotaId, tenotaId),
     ))
     .where(eq(prejemnicePostavkeTable.prejemnicaId, id))
-    // ID uvozne vrstice sledi zaporedju na dobavnici. Povratno embalažo
-    // prikažemo šele za vhodnimi artikli, ne da bi premešali katerokoli skupino.
     .orderBy(
       sql`CASE WHEN COALESCE(${artikliTable.povratnaEmbalaza}, false) THEN 1 ELSE 0 END`,
       prejemnicePostavkeTable.id,
-    );
-  const odvisniStroski = await db
-    .select()
-    .from(prejemniceOdvisniStroskiTable)
+    )
+    .then((rows) => rows.map(({ postavka, ...article }) => ({ ...postavka, ...article })));
+  const odvisniStroski = await db.select().from(prejemniceOdvisniStroskiTable)
     .where(eq(prejemniceOdvisniStroskiTable.prejemnicaId, id));
   const packageChangeReviews = await db
     .select()
@@ -1232,7 +1222,7 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
 });
 
 router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId;
+  const tenotaId = (req as any).enotaId as number;
   const companyId = (req as any).companyId as string;
   const actorSnapshot = (req as any).clerkUserId as string;
   const id = parseInt(String(req.params.id));
@@ -1273,7 +1263,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     alergeniVerifiedAt: Date | null;
   }> | undefined;
   if (parsed.data.postavke !== undefined) {
-    const novaPostavke = parsed.data.postavke;
+      const novaPostavke = parsed.data.postavke;
     if (!novaPostavke.length) { res.status(400).json({ error: "Prejemnica mora imeti vsaj eno postavko" }); return; }
 
     const artikelIds = novaPostavke.map((p: any) => p.artikelId);
@@ -1305,11 +1295,13 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     if (putMissingIds.length > 0) {
       res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
     }
-    const vatCodeNapaka = await preveriVhodneDdvKode(
-      novaPostavke,
-      datumAliNull(parsed.data.datumDokumenta)
-        ?? (parsed.data.datum ? new Date(parsed.data.datum).toISOString().slice(0, 10) : existing.datum.toISOString().slice(0, 10)),
-    );
+      const vatCodeNapaka = await preveriVhodneDdvKode(
+        parsed.data.postavke,
+        datumAliNull(parsed.data.datumDokumenta)
+          ?? (parsed.data.datum
+            ? new Date(parsed.data.datum).toISOString().slice(0, 10)
+            : existing.datum.toISOString().slice(0, 10)),
+      );
     if (vatCodeNapaka) { res.status(400).json({ error: vatCodeNapaka }); return; }
     artikelMap = new Map(artikliRows.map(a => [a.id, a]));
   }
@@ -1334,13 +1326,13 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       || parsed.data.vrstaDokumenta !== undefined
       || parsed.data.postavke !== undefined;
     if (changesAllocatedIdentity && existing.sourceDocumentId) {
-      const allocationHistory = await tx.execute(sql`
-        SELECT 1
-        FROM pos_credit_note_allocations
-        WHERE company_id = ${companyId}
-          AND source_document_id = ${existing.sourceDocumentId}
-        LIMIT 1
-      `);
+        const allocationHistory = await tx.execute(sql`
+          SELECT 1
+          FROM pos_credit_note_allocations
+          WHERE company_id = ${companyId}
+            AND source_document_id = ${existing.sourceDocumentId}
+          LIMIT 1
+        `);
       if (allocationHistory.rows.length > 0) {
         throw new ReceiptEditConflict(
           "CREDIT_NOTE_ALLOCATION_HISTORY_LOCKED",
@@ -1684,25 +1676,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
 
   if (didUpdatePostavke) broadcastToUnit(tenotaId, "update", { type: "zaloge" });
 
-  const postavke = await db
-    .select({
-      id: prejemnicePostavkeTable.id,
-      artikelId: prejemnicePostavkeTable.artikelId,
-      artikelIme: artikliTable.ime,
-      imeZaNabavo: artikliTable.imeZaNabavo,
-      enotaMere: artikliTable.enotaMere,
-      kolicina: prejemnicePostavkeTable.kolicina,
-      cenaKos: prejemnicePostavkeTable.cenaKos,
-      skupaj: prejemnicePostavkeTable.skupaj,
-       enotVPaketu: prejemnicePostavkeTable.enotVPaketu,
-       ddvStopnja: prejemnicePostavkeTable.ddvStopnja,
-       ddvOsnova: prejemnicePostavkeTable.ddvOsnova,
-       ddvZnesek: prejemnicePostavkeTable.ddvZnesek,
-       vatCodeId: prejemnicePostavkeTable.vatCodeId,
-       vrsticaTip: prejemnicePostavkeTable.vrsticaTip})
-    .from(prejemnicePostavkeTable)
-    .leftJoin(artikliTable, eq(prejemnicePostavkeTable.artikelId, artikliTable.id))
-    .where(eq(prejemnicePostavkeTable.prejemnicaId, id));
+  const postavke = await db.select().from(prejemnicePostavkeTable).where(eq(prejemnicePostavkeTable.prejemnicaId, id));
   const odvisniStroski = await db.select().from(prejemniceOdvisniStroskiTable)
     .where(eq(prejemniceOdvisniStroskiTable.prejemnicaId, id));
 
