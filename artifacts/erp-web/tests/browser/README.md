@@ -1,5 +1,27 @@
 # Journal dimension table regression
 
+## Asset account keyboard regression
+
+```sh
+CHROMIUM_PATH="$(command -v chromium)" pnpm --filter @workspace/erp-web run test:os-accounts:browser
+```
+
+Runs Chromium at desktop and narrow widths, for both new and existing assets.
+The isolated loopback Vite harness mounts the real `OsDialog` and `OsCombobox`,
+stylesheet, Radix dialogs/popovers and cmdk. Only identity is substituted in the
+test server; application authentication and normal Vite configuration are untouched.
+No API, credentials or database are needed, and any API request fails the test.
+
+All user actions use the keyboard (no clicks, scripted focus or fill): Tab to
+both labelled account fields, code search with two matching accounts, ArrowDown /
+ArrowUp and Enter selection, focus return, Escape with no matches without closing
+the asset form or losing edits, and independent resets to module defaults.
+The final save callback is checked against the complete current form state.
+This verifies component interaction, not signed-in routing or backend persistence.
+Failure screenshots and traces go to `generated-artifacts/os-accounts/`.
+
+## Journal dimension table
+
 From the workspace root:
 
 ```sh
