@@ -43,6 +43,24 @@ export const posSupplierReorderSettingsTable = pgTable(
   ],
 );
 
+export const posSupplierTermsTable = pgTable(
+  "pos_supplier_terms",
+  {
+    id: serial("id").primaryKey(),
+    enotaId: integer("enota_id").notNull().references(() => enoteTable.id, { onDelete: "cascade" }),
+    dobaviteljId: uuid("dobavitelj_id").notNull().references(() => counterpartiesTable.id, { onDelete: "cascade" }),
+    minZnesekNarocila: numeric("min_znesek_narocila", { precision: 15, scale: 2 }),
+    rokDobaveDni: integer("rok_dobave_dni"),
+    updatedBy: text("updated_by"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("pos_supplier_terms_unit_supplier_uq").on(t.enotaId, t.dobaviteljId),
+    check("pos_supplier_terms_min_znesek_check", sql`${t.minZnesekNarocila} IS NULL OR ${t.minZnesekNarocila} >= 0`),
+    check("pos_supplier_terms_rok_check", sql`${t.rokDobaveDni} IS NULL OR (${t.rokDobaveDni} >= 0 AND ${t.rokDobaveDni} <= 365)`),
+  ],
+);
+
 export const posSupplierOrdersTable = pgTable(
   "pos_supplier_orders",
   {

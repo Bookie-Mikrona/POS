@@ -3187,5 +3187,90 @@ describe("POS supplier ordering and linked receipt flow", () => {
       receiptNumber: detailsAfterLink.body.stevilka,
     });
   });
-});
+  it("splits needed articles by supplier, applies supplier terms and keeps terms scoped to the unit", async () => {
+    const [splitSupplier] = await db.insert(counterpartiesTable).values({
+      companyId,
+      type: "supplier",
+      name: `Split supplier ${run}`,
+    }).returning({ id: counterpartiesTable.id });
+    const supplierId = splitSupplier!.id;
+    extraSupplierIds.push(supplierId);
+    const [splitArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Split article ${run}`,
+      cena: "5",
+      davek: "22",
+      enotaMere: "KOS",
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+      aktiven: true,
+    }).returning({ id: artikliTable.id });
+    const articleId = splitArticle!.id;
+    articleIds.push(articleId);
+    const [splitMapping] = await db.insert(artikelDobaviteljTable).values({
+      enotaId,
+      artikelId: articleId,
+      dobaviteljId: supplierId,
+      sifraDobavitelja: `SPLIT-${run}`,
+      nazivDobavitelja: `Split pack ${run}`,
+      enotVPaketu: "6",
+      nazivPaketa: "zaboj",
+      zadnjaCenaPaket: "18",
+      zadnjaCenaEnota: "3",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    const mappingId = splitMapping!.id;
+    mappingIds.push(mappingId);
 
+    const settings = await request(app)
+      .put(`/narocila-dobaviteljem/artikli/${articleId}/nastavitve`)
+      .send({ reorderPoint: 5, targetStock: 20, preferredMappingId: mappingId });
+    expect(settings.status, JSON.stringify(settings.body)).toBe(200);
+
+    const terms = await request(app)
+      .put(`/narocila-dobaviteljem/dobavitelji/${supplierId}/pogoji`)
+      .send({ minOrderAmount: 100, leadTimeDays: 2 });
+    expect(terms.status, JSON.stringify(terms.body)).toBe(200);
+    expect(terms.body).toEqual({ supplierId, minOrderAmount: 100, leadTimeDays: 2 });
+
+    const first = await request(app).get("/narocila-dobaviteljem/razdelitev?strategy=cheapest");
+    expect(first.status, JSON.stringify(first.body)).toBe(200);
+    const group = first.body.groups.find((entry: any) => entry.supplierId === supplierId);
+    expect(group).toMatchObject({ leadTimeDays: 2, minOrderAmount: 100, total: 72, meetsMinimum: false, shortfall: 28 });
+    expect(group.lines).toEqual([expect.objectContaining({
+      articleId,
+      supplierMappingId: mappingId,
+      packageQuantity: 4,
+      moqRaised: false,
+      lineTotal: 72,
+    })]);
+
+    const minimum = await request(app)
+      .put(`/narocila-dobaviteljem/povezave/${mappingId}/najmanjsa-kolicina`)
+      .send({ minPackageQuantity: 5 });
+    expect(minimum.status, JSON.stringify(minimum.body)).toBe(200);
+    const raised = await request(app).get("/narocila-dobaviteljem/razdelitev?strategy=fewest_suppliers");
+    const raisedGroup = raised.body.groups.find((entry: any) => entry.supplierId === supplierId);
+    expect(raisedGroup.lines[0]).toMatchObject({ packageQuantity: 5, moqRaised: true, lineTotal: 90 });
+    expect(raisedGroup).toMatchObject({ shortfall: 10 });
+
+    const invalid = await request(app)
+      .put(`/narocila-dobaviteljem/dobavitelji/${supplierId}/pogoji`)
+      .send({ minOrderAmount: -1, leadTimeDays: 2 });
+    expect(invalid.status).toBe(400);
+    const badStrategy = await request(app).get("/narocila-dobaviteljem/razdelitev?strategy=random");
+    expect(badStrategy.status).toBe(400);
+    const unknownSupplier = await request(app)
+      .put(`/narocila-dobaviteljem/dobavitelji/${randomUUID()}/pogoji`)
+      .send({ minOrderAmount: 1, leadTimeDays: 1 });
+    expect(unknownSupplier.status).toBe(404);
+    const foreignMapping = await request(app)
+      .put("/narocila-dobaviteljem/povezave/2147483000/najmanjsa-kolicina")
+      .send({ minPackageQuantity: 1 });
+    expect(foreignMapping.status).toBe(404);
+
+    const dashboard = await request(app).get("/narocila-dobaviteljem/pregled");
+    expect(dashboard.body.articles.find((entry: any) => entry.articleId === articleId).mappings[0])
+      .toMatchObject({ minPackageQuantity: 5 });
+  });
+});

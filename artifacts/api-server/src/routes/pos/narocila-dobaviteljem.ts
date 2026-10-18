@@ -14,6 +14,7 @@ import {
   posSupplierOrderLinesTable,
   posSupplierOrdersTable,
   posSupplierReorderSettingsTable,
+  posSupplierTermsTable,
   prejemnicePostavkeTable,
   prejemniceTable,
   zalogeTable,
@@ -23,6 +24,10 @@ import {
   getSupplierPriceHistory,
   SupplierOrderReceiptConflict,
 } from "../../lib/pos-supplier-orders";
+import {
+  buildSupplierSplit,
+  type SplitTerms,
+} from "../../lib/pos-supplier-split";
 
 const router: IRouter = Router();
 
@@ -499,8 +504,7 @@ async function getOpenQuantitiesByArticle(enotaId: number): Promise<Map<number, 
     .map(row => [Number(row.articleId), Number(row.quantity)]));
 }
 
-router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => {
-  const { enotaId, companyId } = requestScope(req);
+async function loadSupplierDashboard(enotaId: number, companyId: string) {
   const [articleRows, openQuantities, recentOrders] = await Promise.all([
     db.select({
       articleId: artikliTable.id,
@@ -545,6 +549,7 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
       lastPackagePrice: artikelDobaviteljTable.zadnjaCenaPaket,
       lastUnitPrice: artikelDobaviteljTable.zadnjaCenaEnota,
       active: artikelDobaviteljTable.aktivno,
+      minPackageQuantity: artikelDobaviteljTable.minKolicinaPakiranj,
     })
       .from(artikelDobaviteljTable)
       .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, artikelDobaviteljTable.dobaviteljId))
@@ -617,6 +622,7 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
             mapping.lastUnitPrice,
           ),
           lastUnitPriceInvalid: isInvalidStoredNumber(mapping.lastUnitPrice),
+          minPackageQuantity: nullableNumber(mapping.minPackageQuantity),
           lastPriceReceipt: latestPriceReceipt
             ? {
                 receiptId: latestPriceReceipt.receiptId,
@@ -631,41 +637,168 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
       }),
     };
   });
+  return { articles, orders: recentOrders };
+}
+
+router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => {
+  const { enotaId, companyId } = requestScope(req);
+  const dashboard = await loadSupplierDashboard(enotaId, companyId);
   res.setHeader("Cache-Control", "no-store");
-  res.json({ articles, orders: recentOrders });
+  res.json(dashboard);
 });
+
+router.get("/narocila-dobaviteljem/razdelitev", async (req, res): Promise<void> => {
+  const { enotaId, companyId } = requestScope(req);
+  const parsed = z.object({
+    strategy: z.enum(["cheapest", "fewest_suppliers"]).default("cheapest"),
+  }).safeParse(req.query);
+  if (!parsed.success) { res.status(400).json({ error: "Neveljavna strategija razdelitve." }); return; }
+
+  const [dashboard, termRows] = await Promise.all([
+    loadSupplierDashboard(enotaId, companyId),
+    db.select({
+      supplierId: posSupplierTermsTable.dobaviteljId,
+      minOrderAmount: posSupplierTermsTable.minZnesekNarocila,
+      leadTimeDays: posSupplierTermsTable.rokDobaveDni,
+    })
+      .from(posSupplierTermsTable)
+      .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, posSupplierTermsTable.dobaviteljId))
+      .where(and(
+        eq(posSupplierTermsTable.enotaId, enotaId),
+        eq(counterpartiesTable.companyId, companyId),
+      )),
+  ]);
+  const terms = new Map<string, SplitTerms>(termRows.map(row => [
+    row.supplierId,
+    { minOrderAmount: nullableNumber(row.minOrderAmount), leadTimeDays: row.leadTimeDays },
+  ]));
+  const proposal = buildSupplierSplit(
+    dashboard.articles.map(article => ({
+      articleId: article.articleId,
+      articleName: article.purchaseName?.trim() || article.articleName,
+      baseUnit: article.baseUnit,
+      suggestedBaseQuantity: article.suggestedBaseQuantity,
+      preferredMappingId: article.preferredMappingId,
+      mappings: article.mappings.map(mapping => ({
+        id: mapping.id,
+        supplierId: mapping.supplierId,
+        supplierName: mapping.supplierName,
+        supplierItemName: mapping.supplierItemName,
+        packageName: mapping.packageName,
+        packageFactor: mapping.packageFactor,
+        lastPackagePrice: mapping.lastPackagePrice,
+        lastUnitPrice: mapping.lastUnitPrice,
+        minPackageQuantity: mapping.minPackageQuantity,
+      })),
+    })),
+    terms,
+    parsed.data.strategy,
+  );
+  res.setHeader("Cache-Control", "no-store");
+  res.json(proposal);
+});
+
+router.put("/narocila-dobaviteljem/dobavitelji/:supplierId/pogoji", async (req, res): Promise<void> => {
+  const { enotaId, companyId, actor } = requestScope(req);
+  const supplierId = z.string().uuid().safeParse(req.params.supplierId);
+  const parsed = z.object({
+    minOrderAmount: z.number().finite().min(0).max(1_000_000_000).nullable(),
+    leadTimeDays: z.number().int().min(0).max(365).nullable(),
+  }).safeParse(req.body);
+  if (!supplierId.success || !parsed.success) {
+    res.status(400).json({ error: "Neveljavni pogoji dobavitelja." });
+    return;
+  }
+  const supplier = await assertSupplierInCompany(db, supplierId.data, companyId);
+  if (!supplier) { res.status(404).json({ error: "Dobavitelj ni najden v aktivnem podjetju." }); return; }
+
+  const values = {
+    minZnesekNarocila: parsed.data.minOrderAmount === null ? null : parsed.data.minOrderAmount.toFixed(2),
+    rokDobaveDni: parsed.data.leadTimeDays,
+    updatedBy: actor ?? null,
+    updatedAt: new Date(),
+  };
+  await db.insert(posSupplierTermsTable)
+    .values({ enotaId, dobaviteljId: supplierId.data, ...values })
+    .onConflictDoUpdate({
+      target: [posSupplierTermsTable.enotaId, posSupplierTermsTable.dobaviteljId],
+      set: values,
+    });
+  res.json({
+    supplierId: supplierId.data,
+    minOrderAmount: parsed.data.minOrderAmount,
+    leadTimeDays: parsed.data.leadTimeDays,
+  });
+});
+
+router.put("/narocila-dobaviteljem/povezave/:mappingId/najmanjsa-kolicina", async (req, res): Promise<void> => {
+  const { enotaId, companyId } = requestScope(req);
+  const mappingId = parseId(req.params.mappingId);
+  const parsed = z.object({
+    minPackageQuantity: z.number().finite().positive().max(1_000_000).nullable(),
+  }).safeParse(req.body);
+  if (!mappingId || !parsed.success) {
+    res.status(400).json({ error: "Neveljavna najmanjša količina." });
+    return;
+  }
+  const [mapping] = await db.select({ id: artikelDobaviteljTable.id })
+    .from(artikelDobaviteljTable)
+    .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, artikelDobaviteljTable.dobaviteljId))
+    .where(and(
+      eq(artikelDobaviteljTable.id, mappingId),
+      eq(artikelDobaviteljTable.enotaId, enotaId),
+      eq(counterpartiesTable.companyId, companyId),
+    ))
+    .limit(1);
+  if (!mapping) { res.status(404).json({ error: "Dobaviteljska povezava ni najdena." }); return; }
+  await db.update(artikelDobaviteljTable)
+    .set({
+      minKolicinaPakiranj: parsed.data.minPackageQuantity === null
+        ? null
+        : String(parsed.data.minPackageQuantity),
+    })
+    .where(and(
+      eq(artikelDobaviteljTable.id, mappingId),
+      eq(artikelDobaviteljTable.enotaId, enotaId),
+    ));
+  res.json({ mappingId, minPackageQuantity: parsed.data.minPackageQuantity });
+});
+
 
 router.get("/narocila-dobaviteljem/preslikave/:mappingId/zgodovina.csv", async (req, res): Promise<void> => {
   const { enotaId, companyId } = requestScope(req);
-  const mappingId = parsedParams.data.mappingId;
+  const mappingId = parseId(req.params.mappingId);
   if (!mappingId) {
     res.status(400).json({ error: "Neveljaven ID dobaviteljske povezave." });
     return;
   }
 
-    const [mapping] = await db.select({ id: artikelDobaviteljTable.id })
-      .from(artikelDobaviteljTable)
-      .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, artikelDobaviteljTable.dobaviteljId))
-      .where(and(
-        eq(artikelDobaviteljTable.id, preferredMappingId),
-        eq(artikelDobaviteljTable.enotaId, enotaId),
-        eq(artikelDobaviteljTable.artikelId, artikelId),
-        eq(artikelDobaviteljTable.aktivno, true),
-        eq(counterpartiesTable.companyId, companyId),
-      ))
-      .limit(1);
+  const [mapping] = await db.select({
+    id: artikelDobaviteljTable.id,
+    baseUnit: artikliTable.enotaMere,
+  })
+    .from(artikelDobaviteljTable)
+    .innerJoin(
+      artikliTable,
+      and(
+        eq(artikliTable.id, artikelDobaviteljTable.artikelId),
+        eq(artikliTable.enotaId, artikelDobaviteljTable.enotaId),
+      ),
+    )
+    .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, artikelDobaviteljTable.dobaviteljId))
+    .where(and(
+      eq(artikelDobaviteljTable.id, mappingId),
+      eq(artikelDobaviteljTable.enotaId, enotaId),
+      eq(counterpartiesTable.companyId, companyId),
+    ))
+    .limit(1);
   if (!mapping) {
     res.status(404).json({ error: "Dobaviteljska povezava ni najdena." });
     return;
   }
 
-  const history = await getSupplierPriceHistory(
-    db,
-    enotaId,
-    [mappingId],
-    limit + 1,
-    { date: beforeDate, receiptId: beforeReceiptId },
-  );
+  const history = (await getSupplierPriceHistory(db, enotaId, [mappingId], null))
+    .get(mappingId) ?? [];
   const unitLabel = mapping.baseUnit?.trim() || "enota";
   const rows = [
     ["Številka prejemnice", "Datum", `Cena na osnovno enoto (${unitLabel})`],
@@ -695,17 +828,21 @@ router.get("/narocila-dobaviteljem/povezave/:mappingId/cene", async (req, res): 
   }
 
   const mappingId = parsedParams.data.mappingId;
-    const [mapping] = await db.select({ id: artikelDobaviteljTable.id })
-      .from(artikelDobaviteljTable)
-      .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, artikelDobaviteljTable.dobaviteljId))
-      .where(and(
-        eq(artikelDobaviteljTable.id, preferredMappingId),
-        eq(artikelDobaviteljTable.enotaId, enotaId),
-        eq(artikelDobaviteljTable.artikelId, artikelId),
-        eq(artikelDobaviteljTable.aktivno, true),
-        eq(counterpartiesTable.companyId, companyId),
-      ))
-      .limit(1);
+  const [mapping] = await db.select({ id: artikelDobaviteljTable.id })
+    .from(artikelDobaviteljTable)
+    .innerJoin(artikliTable, eq(artikliTable.id, artikelDobaviteljTable.artikelId))
+    .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, artikelDobaviteljTable.dobaviteljId))
+    .where(and(
+      eq(artikelDobaviteljTable.id, mappingId),
+      eq(artikelDobaviteljTable.enotaId, enotaId),
+      eq(artikelDobaviteljTable.aktivno, true),
+      eq(artikliTable.enotaId, enotaId),
+      eq(artikliTable.nabavniArtikel, true),
+      eq(artikliTable.aktiven, true),
+      eq(artikliTable.povratnaEmbalaza, false),
+      eq(counterpartiesTable.companyId, companyId),
+    ))
+    .limit(1);
   if (!mapping) {
     res.status(404).json({ error: "Dobaviteljska povezava ni najdena." });
     return;
@@ -750,7 +887,7 @@ router.put("/narocila-dobaviteljem/artikli/:artikelId/nastavitve", async (req, r
   const { enotaId, companyId, actor } = requestScope(req);
   const artikelId = parseId(req.params.artikelId);
   if (!artikelId) { res.status(400).json({ error: "Neveljaven ID artikla." }); return; }
-  const parsed = z.object({ reason: z.string().trim().min(3).max(500) }).safeParse(req.body);
+  const parsed = reorderSettingsInput.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Neveljavne nastavitve." }); return; }
 
   const [article] = await db.select({ id: artikliTable.id, purchase: artikliTable.nabavniArtikel })
@@ -806,7 +943,10 @@ router.put("/narocila-dobaviteljem/artikli/:artikelId/nastavitve", async (req, r
 
 router.get("/narocila-dobaviteljem", async (req, res): Promise<void> => {
   const { enotaId } = requestScope(req);
-  const parsed = z.object({ reason: z.string().trim().min(3).max(500) }).safeParse(req.body);
+  const parsed = z.object({
+    status: orderStatus.optional(),
+    missingSupplierInstructionsOnly: z.enum(["true", "false"]).optional().transform(value => value === "true"),
+  }).safeParse(req.query);
   if (!parsed.success) { res.status(400).json({ error: "Neveljaven filter seznama naročil." }); return; }
   res.setHeader("Cache-Control", "no-store");
   res.json(await getSupplierOrderSummaries(
@@ -819,7 +959,12 @@ router.get("/narocila-dobaviteljem", async (req, res): Promise<void> => {
 
 router.get("/narocila-dobaviteljem/brez-navodil", async (req, res): Promise<void> => {
   const { enotaId } = requestScope(req);
-  const parsed = z.object({ reason: z.string().trim().min(3).max(500) }).safeParse(req.body);
+  const parsed = z.object({
+    status: orderStatus.optional(),
+    page: z.coerce.number().int().min(1).max(100_000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+    search: z.string().trim().max(200).optional(),
+  }).safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: "Neveljaven filter pregleda naročil brez navodil." });
     return;
@@ -836,7 +981,7 @@ router.get("/narocila-dobaviteljem/brez-navodil", async (req, res): Promise<void
 
 router.post("/narocila-dobaviteljem", async (req, res): Promise<void> => {
   const { enotaId, companyId, actor } = requestScope(req);
-  const parsed = z.object({ reason: z.string().trim().min(3).max(500) }).safeParse(req.body);
+  const parsed = orderInput.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Neveljaven osnutek naročila." }); return; }
   const supplier = await assertSupplierInCompany(db, parsed.data.supplierId, companyId);
   if (!supplier) { res.status(404).json({ error: "Dobavitelj ni najden v aktivnem podjetju." }); return; }
@@ -896,7 +1041,7 @@ router.get("/narocila-dobaviteljem/:id", async (req, res): Promise<void> => {
   const { enotaId } = requestScope(req);
   const id = parseId(req.params.id);
   if (!id) { res.status(400).json({ error: "Neveljaven ID naročila." }); return; }
-    const detail = await getSupplierOrderDetail(enotaId, id);
+  const detail = await getSupplierOrderDetail(enotaId, id);
   if (!detail) { res.status(404).json({ error: "Naročilo ni najdeno." }); return; }
   res.setHeader("Cache-Control", "no-store");
   res.json(detail);
@@ -906,43 +1051,76 @@ router.put("/narocila-dobaviteljem/:id", async (req, res): Promise<void> => {
   const { enotaId, companyId } = requestScope(req);
   const id = parseId(req.params.id);
   if (!id) { res.status(400).json({ error: "Neveljaven ID naročila." }); return; }
-  const parsed = z.object({ reason: z.string().trim().min(3).max(500) }).safeParse(req.body);
+  const parsed = orderInput.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Neveljaven osnutek naročila." }); return; }
   const supplier = await assertSupplierInCompany(db, parsed.data.supplierId, companyId);
   if (!supplier) { res.status(404).json({ error: "Dobavitelj ni najden v aktivnem podjetju." }); return; }
 
   try {
-  const outcome = await db.transaction(async tx => {
-    await tx.execute(sql`SELECT id FROM pos_supplier_orders WHERE id = ${id} AND enota_id = ${enotaId} FOR UPDATE`);
-    const [header] = await tx.select({ status: posSupplierOrdersTable.status })
-      .from(posSupplierOrdersTable)
-      .where(and(eq(posSupplierOrdersTable.id, id), eq(posSupplierOrdersTable.enotaId, enotaId)))
-      .limit(1);
-    if (!header) return "missing" as const;
-    if (header.status !== "draft" && header.status !== "sent") return "locked" as const;
-    const linked = await tx.execute(sql`
-      SELECT 1
-      FROM prejemnice_postavke pp
-      JOIN prejemnice p ON p.id = pp.prejemnica_id
-      JOIN pos_supplier_order_lines line ON line.id = pp.supplier_order_line_id
-      WHERE line.narocilo_id = ${id} AND line.enota_id = ${enotaId}
-        AND p.enota_id = ${enotaId}
-      LIMIT 1
-    `);
-    if (linked.rows.length > 0) return "has_receipts" as const;
-    await tx.update(posSupplierOrdersTable)
-      .set({ status: "cancelled", posodobljeno: new Date() })
-      .where(and(eq(posSupplierOrdersTable.id, id), eq(posSupplierOrdersTable.enotaId, enotaId)));
-    return "cancelled" as const;
-  });
-  if (outcome === "missing") { res.status(404).json({ error: "Naročilo ni najdeno." }); return; }
-  if (outcome === "locked") { res.status(409).json({ error: "Naročila v tem stanju ni mogoče zapreti." }); return; }
-  if (outcome === "nothing_open") { res.status(409).json({ error: "Naročilo nima več odprte količine; prevzemi so že zaključeni." }); return; }
-  if (outcome === "open_receipt") { res.status(409).json({ error: "Najprej uredite ali odstranite odprto prejemnico za to naročilo." }); return; }
-  res.json(await getSupplierOrderDetail(enotaId, id));
+    const outcome = await db.transaction(async tx => {
+      await tx.execute(sql`SELECT id FROM pos_supplier_orders WHERE id = ${id} AND enota_id = ${enotaId} FOR UPDATE`);
+      const [header] = await tx.select({
+        id: posSupplierOrdersTable.id,
+        status: posSupplierOrdersTable.status,
+      }).from(posSupplierOrdersTable)
+        .where(and(eq(posSupplierOrdersTable.id, id), eq(posSupplierOrdersTable.enotaId, enotaId)))
+        .limit(1);
+      if (!header) return "missing" as const;
+      if (header.status !== "draft") return "locked" as const;
+      const mappings = await readOrderMappings(
+        tx,
+        enotaId,
+        companyId,
+        parsed.data.supplierId,
+        parsed.data.lines,
+      );
+      const internalNotes = getInternalNotes(parsed.data);
+      await tx.update(posSupplierOrdersTable)
+        .set({
+          dobaviteljId: parsed.data.supplierId,
+          dobaviteljNaziv: supplier.name,
+          datumDobave: parsed.data.expectedDeliveryDate ?? null,
+          ...(internalNotes !== undefined ? { opomba: normalizeOrderNote(internalNotes) } : {}),
+          ...(parsed.data.supplierNotes !== undefined
+            ? { navodiloDobavitelju: normalizeOrderNote(parsed.data.supplierNotes) }
+            : {}),
+          posodobljeno: new Date(),
+        })
+        .where(eq(posSupplierOrdersTable.id, id));
+      await tx.delete(posSupplierOrderLinesTable)
+        .where(and(
+          eq(posSupplierOrderLinesTable.narociloId, id),
+          eq(posSupplierOrderLinesTable.enotaId, enotaId),
+        ));
+      for (let index = 0; index < mappings.length; index += 1) {
+        const mapping = mappings[index]!;
+        const inputLine = parsed.data.lines[index]!;
+        await tx.insert(posSupplierOrderLinesTable).values({
+          enotaId,
+          narociloId: id,
+          supplierMappingId: mapping.id,
+          artikelId: mapping.articleId,
+          artikelNaziv: mapping.purchaseName?.trim() || mapping.articleName,
+          dobaviteljevNaziv: mapping.supplierItemName,
+          dobaviteljevaSifra: mapping.supplierCode,
+          kolicinaPakiranj: String(inputLine.packageQuantity),
+          faktorPakiranja: String(mapping.packageFactor),
+          nazivPakiranja: mapping.packageName,
+          osnovnaEnota: mapping.baseUnit,
+          cenaPakiranja: inputLine.unitPrice == null ? null : String(inputLine.unitPrice),
+        });
+      }
+      return "updated" as const;
+    });
+    if (outcome === "missing") { res.status(404).json({ error: "Naročilo ni najdeno." }); return; }
+    if (outcome === "locked") { res.status(409).json({ error: "Urejati je mogoče samo osnutek naročila." }); return; }
+    res.json(await getSupplierOrderDetail(enotaId, id));
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Naročila ni bilo mogoče posodobiti." });
+  }
 });
 
-router.post("/narocila-dobaviteljem/:id/cancel", async (req, res): Promise<void> => {
+router.post("/narocila-dobaviteljem/:id/send", async (req, res): Promise<void> => {
   const { enotaId } = requestScope(req);
   const id = parseId(req.params.id);
   if (!id) { res.status(400).json({ error: "Neveljaven ID naročila." }); return; }
@@ -974,21 +1152,49 @@ router.post("/narocila-dobaviteljem/:id/close", async (req, res): Promise<void> 
       .where(and(eq(posSupplierOrdersTable.id, id), eq(posSupplierOrdersTable.enotaId, enotaId)))
       .limit(1);
     if (!header) return "missing" as const;
-    if (header.status !== "draft" && header.status !== "sent") return "locked" as const;
-    const linked = await tx.execute(sql`
+    if (header.status !== "sent" && header.status !== "partially_received") return "locked" as const;
+
+    const result = await tx.execute(sql`
+      WITH confirmed_received AS (
+        SELECT pp.supplier_order_line_id,
+          SUM(pp.kolicina) AS received_base_quantity
+        FROM prejemnice_postavke pp
+        JOIN prejemnice p ON p.id = pp.prejemnica_id
+        WHERE p.enota_id = ${enotaId} AND p.status = 'confirmed'
+          AND pp.supplier_order_line_id IS NOT NULL
+        GROUP BY pp.supplier_order_line_id
+      )
+      SELECT COALESCE(SUM(GREATEST(
+        line.kolicina_pakiranj * line.faktor_pakiranja
+          - COALESCE(received.received_base_quantity, 0), 0
+      )), 0)::float8 AS open_quantity
+      FROM pos_supplier_order_lines line
+      LEFT JOIN confirmed_received received ON received.supplier_order_line_id = line.id
+      WHERE line.enota_id = ${enotaId} AND line.narocilo_id = ${id}
+    `);
+    const openQty = Number((result.rows[0] as { open_quantity?: number | string } | undefined)?.open_quantity ?? 0);
+    if (openQty <= 0.000001) return "nothing_open" as const;
+
+    const drafts = await tx.execute(sql`
       SELECT 1
       FROM prejemnice_postavke pp
       JOIN prejemnice p ON p.id = pp.prejemnica_id
       JOIN pos_supplier_order_lines line ON line.id = pp.supplier_order_line_id
       WHERE line.narocilo_id = ${id} AND line.enota_id = ${enotaId}
-        AND p.enota_id = ${enotaId}
+        AND p.enota_id = ${enotaId} AND p.status = 'draft'
       LIMIT 1
     `);
-    if (linked.rows.length > 0) return "has_receipts" as const;
+    if (drafts.rows.length > 0) return "open_receipt" as const;
+
     await tx.update(posSupplierOrdersTable)
-      .set({ status: "cancelled", posodobljeno: new Date() })
+      .set({
+        status: "closed",
+        razlogZaprtja: parsed.data.reason,
+        zaprtoDne: new Date(),
+        posodobljeno: new Date(),
+      })
       .where(and(eq(posSupplierOrdersTable.id, id), eq(posSupplierOrdersTable.enotaId, enotaId)));
-    return "cancelled" as const;
+    return "closed" as const;
   });
   if (outcome === "missing") { res.status(404).json({ error: "Naročilo ni najdeno." }); return; }
   if (outcome === "locked") { res.status(409).json({ error: "Naročila v tem stanju ni mogoče zapreti." }); return; }

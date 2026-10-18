@@ -595,6 +595,7 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
   { file: "267-report-export-retention-index.sql", classification: "schema", dependsOn: ["266-report-export-identity-snapshot.sql"] },
   { file: "268-report-export-company-history-index.sql", classification: "schema", dependsOn: ["267-report-export-retention-index.sql"] },
   { file: "269-os-amortizacija-identity-snapshots.sql", classification: "audit" },
+  { file: "270-pos-supplier-terms.sql", classification: "schema", dependsOn: ["260-pos-supplier-orders.sql"] },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

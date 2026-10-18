@@ -132,6 +132,7 @@ export const artikelDobaviteljTable = pgTable(
     zadnjaCenaEnota: numeric('zadnja_cena_enota', { precision: 15, scale: 6 }),
     zadnjaDdvStopnja: numeric('zadnja_ddv_stopnja', { precision: 5, scale: 2 }),
     zadnjiPrevzem: date('zadnji_prevzem'),
+    minKolicinaPakiranj: numeric('min_kolicina_pakiranj', { precision: 18, scale: 6 }),
     stPrevzemov: integer('st_prevzemov').notNull().default(0),
 
     aktivno: boolean('aktivno').notNull().default(true),

@@ -8475,6 +8475,8 @@ export interface SupplierItemMapping {
   lastPackagePrice?: number | null;
   /** @nullable */
   lastUnitPrice: number | null;
+  /** @nullable */
+  minPackageQuantity?: number | null;
   lastPackagePriceInvalid: boolean;
   lastUnitPriceInvalid: boolean;
   /** @nullable */
@@ -8551,6 +8553,107 @@ export interface SupplierReorderSettings {
   targetStock: number;
   /** @nullable */
   preferredMappingId: number | null;
+}
+
+export interface SupplierTermsInput {
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  minOrderAmount: number | null;
+  /**
+     * @minimum 0
+     * @maximum 365
+     * @nullable
+     */
+  leadTimeDays: number | null;
+}
+
+export interface SupplierTerms {
+  supplierId: string;
+  /** @nullable */
+  minOrderAmount: number | null;
+  /** @nullable */
+  leadTimeDays: number | null;
+}
+
+export interface SupplierMappingMinimumInput {
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
+  minPackageQuantity: number | null;
+}
+
+export interface SupplierMappingMinimum {
+  mappingId: number;
+  /** @nullable */
+  minPackageQuantity: number | null;
+}
+
+export interface SupplierOrderSplitLine {
+  articleId: number;
+  articleName: string;
+  supplierMappingId: number;
+  /** @nullable */
+  supplierItemName: string | null;
+  /** @nullable */
+  packageName: string | null;
+  packageQuantity: number;
+  /** @nullable */
+  minPackageQuantity: number | null;
+  moqRaised: boolean;
+  /**
+     * Zadnja cena za pakiranje.
+     * @nullable
+     */
+  unitPrice: number | null;
+  /** @nullable */
+  lineTotal: number | null;
+}
+
+export interface SupplierOrderSplitGroup {
+  supplierId: string;
+  supplierName: string;
+  /** @nullable */
+  minOrderAmount: number | null;
+  /** @nullable */
+  leadTimeDays: number | null;
+  total: number;
+  totalComplete: boolean;
+  /** @nullable */
+  meetsMinimum: boolean | null;
+  /** @nullable */
+  shortfall: number | null;
+  lines: SupplierOrderSplitLine[];
+}
+
+export type SupplierOrderSplitUnassignedReason = typeof SupplierOrderSplitUnassignedReason[keyof typeof SupplierOrderSplitUnassignedReason];
+
+
+export const SupplierOrderSplitUnassignedReason = {
+  no_supplier: 'no_supplier',
+  no_price: 'no_price',
+} as const;
+
+export interface SupplierOrderSplitUnassigned {
+  articleId: number;
+  articleName: string;
+  reason: SupplierOrderSplitUnassignedReason;
+}
+
+export type SupplierOrderSplitStrategy = typeof SupplierOrderSplitStrategy[keyof typeof SupplierOrderSplitStrategy];
+
+
+export const SupplierOrderSplitStrategy = {
+  cheapest: 'cheapest',
+  fewest_suppliers: 'fewest_suppliers',
+} as const;
+
+export interface SupplierOrderSplit {
+  strategy: SupplierOrderSplitStrategy;
+  groups: SupplierOrderSplitGroup[];
+  unassigned: SupplierOrderSplitUnassigned[];
 }
 
 export interface SupplierOrderLineInput {
@@ -14749,6 +14852,18 @@ beforeReceiptId: number;
  */
 limit?: number;
 };
+
+export type GetSupplierOrderSplitParams = {
+strategy?: GetSupplierOrderSplitStrategy;
+};
+
+export type GetSupplierOrderSplitStrategy = typeof GetSupplierOrderSplitStrategy[keyof typeof GetSupplierOrderSplitStrategy];
+
+
+export const GetSupplierOrderSplitStrategy = {
+  cheapest: 'cheapest',
+  fewest_suppliers: 'fewest_suppliers',
+} as const;
 
 export type ListSupplierOrdersMissingInstructionsParams = {
 status?: SupplierOrderStatus;

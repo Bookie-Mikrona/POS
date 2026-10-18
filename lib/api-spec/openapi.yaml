@@ -5862,6 +5862,74 @@ paths:
               schema:
                 $ref: "#/components/schemas/SupplierReorderSettings"
         "400": { description: Neveljavne nastavitve ali neveljavna dobaviteljska povezava }
+  /narocila-dobaviteljem/razdelitev:
+    get:
+      operationId: getSupplierOrderSplit
+      tags: [nabava]
+      summary: Predlog razdelitve potrebnih artiklov po dobaviteljih (najcenejša ali najmanj dobaviteljev)
+      parameters:
+        - name: strategy
+          in: query
+          required: false
+          schema: { type: string, enum: [cheapest, fewest_suppliers], default: cheapest }
+      responses:
+        "200":
+          description: Predlagane skupine naročil po dobaviteljih
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderSplit"
+        "400": { description: Neveljavna strategija }
+  /narocila-dobaviteljem/dobavitelji/{supplierId}/pogoji:
+    put:
+      operationId: saveSupplierTerms
+      tags: [nabava]
+      summary: Shrani najmanjši znesek naročila in dobavni rok dobavitelja v aktivni enoti
+      parameters:
+        - name: supplierId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierTermsInput"
+      responses:
+        "200":
+          description: Pogoji so shranjeni
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierTerms"
+        "400": { description: Neveljavni pogoji }
+        "404": { description: Dobavitelj ni najden v aktivnem podjetju }
+  /narocila-dobaviteljem/povezave/{mappingId}/najmanjsa-kolicina:
+    put:
+      operationId: saveSupplierMappingMinimum
+      tags: [nabava]
+      summary: Shrani najmanjšo naročljivo količino pakiranj za dobaviteljsko povezavo
+      parameters:
+        - name: mappingId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierMappingMinimumInput"
+      responses:
+        "200":
+          description: Najmanjša količina je shranjena
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierMappingMinimum"
+        "400": { description: Neveljavna količina }
+        "404": { description: Dobaviteljska povezava ni najdena v aktivni enoti }
   /narocila-dobaviteljem/brez-navodil:
     get:
       operationId: listSupplierOrdersMissingInstructions
@@ -20499,6 +20567,7 @@ components:
         packageFactor: { type: number }
         lastPackagePrice: { type: [number, "null"] }
         lastUnitPrice: { type: [number, "null"] }
+        minPackageQuantity: { type: [number, "null"] }
         lastPackagePriceInvalid: { type: boolean }
         lastUnitPriceInvalid: { type: boolean }
         lastPriceReceipt:
@@ -20565,6 +20634,77 @@ components:
         reorderPoint: { type: number }
         targetStock: { type: number }
         preferredMappingId: { type: [integer, "null"] }
+    SupplierTermsInput:
+      type: object
+      required: [minOrderAmount, leadTimeDays]
+      properties:
+        minOrderAmount: { type: [number, "null"], minimum: 0 }
+        leadTimeDays: { type: [integer, "null"], minimum: 0, maximum: 365 }
+    SupplierTerms:
+      type: object
+      required: [supplierId, minOrderAmount, leadTimeDays]
+      properties:
+        supplierId: { type: string }
+        minOrderAmount: { type: [number, "null"] }
+        leadTimeDays: { type: [integer, "null"] }
+    SupplierMappingMinimumInput:
+      type: object
+      required: [minPackageQuantity]
+      properties:
+        minPackageQuantity: { type: [number, "null"], exclusiveMinimum: 0 }
+    SupplierMappingMinimum:
+      type: object
+      required: [mappingId, minPackageQuantity]
+      properties:
+        mappingId: { type: integer }
+        minPackageQuantity: { type: [number, "null"] }
+    SupplierOrderSplitLine:
+      type: object
+      required: [articleId, articleName, supplierMappingId, supplierItemName, packageName, packageQuantity, minPackageQuantity, moqRaised, unitPrice, lineTotal]
+      properties:
+        articleId: { type: integer }
+        articleName: { type: string }
+        supplierMappingId: { type: integer }
+        supplierItemName: { type: [string, "null"] }
+        packageName: { type: [string, "null"] }
+        packageQuantity: { type: number }
+        minPackageQuantity: { type: [number, "null"] }
+        moqRaised: { type: boolean }
+        unitPrice: { type: [number, "null"], description: Zadnja cena za pakiranje. }
+        lineTotal: { type: [number, "null"] }
+    SupplierOrderSplitGroup:
+      type: object
+      required: [supplierId, supplierName, minOrderAmount, leadTimeDays, total, totalComplete, meetsMinimum, shortfall, lines]
+      properties:
+        supplierId: { type: string }
+        supplierName: { type: string }
+        minOrderAmount: { type: [number, "null"] }
+        leadTimeDays: { type: [integer, "null"] }
+        total: { type: number }
+        totalComplete: { type: boolean }
+        meetsMinimum: { type: [boolean, "null"] }
+        shortfall: { type: [number, "null"] }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOrderSplitLine" }
+    SupplierOrderSplitUnassigned:
+      type: object
+      required: [articleId, articleName, reason]
+      properties:
+        articleId: { type: integer }
+        articleName: { type: string }
+        reason: { type: string, enum: [no_supplier, no_price] }
+    SupplierOrderSplit:
+      type: object
+      required: [strategy, groups, unassigned]
+      properties:
+        strategy: { type: string, enum: [cheapest, fewest_suppliers] }
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOrderSplitGroup" }
+        unassigned:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOrderSplitUnassigned" }
     SupplierOrderLineInput:
       type: object
       required: [supplierMappingId, packageQuantity]

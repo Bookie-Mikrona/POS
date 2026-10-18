@@ -35,6 +35,7 @@ import type {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SupplierSplitPanel } from "@/components/SupplierSplitPanel";
 import { posFetch } from "@/lib/pos-auth-headers";
 import { registerPosNavigationBlocker } from "@/lib/route-navigation-guard";
 
@@ -1619,6 +1620,7 @@ export default function NarocilaDobaviteljem() {
             })}
           </div>
         </div>}
+        {!dashboardLoading && !dashboardError && suggestions.length > 0 && <div className="px-4 pb-4 sm:px-5"><SupplierSplitPanel onNotice={(text, error) => setNotice({ text, error })} /></div>}
       </section> : <section className="overflow-hidden rounded-2xl border border-[#ded6c7] bg-[#fffefa] shadow-[0_8px_28px_rgba(54,47,31,.04)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eee8dc] px-4 py-4 sm:px-5">
           <div><h2 className="text-base font-bold text-[#203d39]">Evidenca naročil</h2><p className="mt-0.5 text-xs text-[#77817b]">Stanje naročila in dejanski prevzem sta ločena procesa.</p></div>

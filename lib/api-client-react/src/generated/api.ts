@@ -194,6 +194,7 @@ import type {
   GetPublicMenuDeviceHistoryParams,
   GetPublicMenuParams,
   GetQrOrderCompletionParams,
+  GetSupplierOrderSplitParams,
   GetSupplierPriceHistoryPageParams,
   GetTrialBalanceParams,
   GetVatFormPreviewParams,
@@ -523,14 +524,19 @@ import type {
   SumupPayBody,
   SumupPayOdgovor,
   SumupStatusOdgovor,
+  SupplierMappingMinimum,
+  SupplierMappingMinimumInput,
   SupplierOrderDashboard,
   SupplierOrderDetail,
   SupplierOrderInput,
+  SupplierOrderSplit,
   SupplierOrderSummary,
   SupplierOrderSummaryPage,
   SupplierPriceHistoryPage,
   SupplierReorderSettings,
   SupplierReorderSettingsInput,
+  SupplierTerms,
+  SupplierTermsInput,
   TerminalPlaciloOdgovor,
   TerminalPlaciloPovprasevanje,
   TerminalTestOdgovor,
@@ -21400,6 +21406,234 @@ export const useSaveSupplierReorderSettings = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSaveSupplierReorderSettingsMutationOptions(options));
+    }
+
+export const getGetSupplierOrderSplitUrl = (params?: GetSupplierOrderSplitParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/narocila-dobaviteljem/razdelitev?${stringifiedParams}` : `/api/narocila-dobaviteljem/razdelitev`
+}
+
+/**
+ * @summary Predlog razdelitve potrebnih artiklov po dobaviteljih (najcenejša ali najmanj dobaviteljev)
+ */
+export const getSupplierOrderSplit = async (params?: GetSupplierOrderSplitParams, options?: RequestInit): Promise<SupplierOrderSplit> => {
+
+  return customFetch<SupplierOrderSplit>(getGetSupplierOrderSplitUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierOrderSplitQueryKey = (params?: GetSupplierOrderSplitParams,) => {
+    return [
+    `/api/narocila-dobaviteljem/razdelitev`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSupplierOrderSplitQueryOptions = <TData = Awaited<ReturnType<typeof getSupplierOrderSplit>>, TError = ErrorType<void>>(params?: GetSupplierOrderSplitParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrderSplit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierOrderSplitQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplierOrderSplit>>> = ({ signal }) => getSupplierOrderSplit(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrderSplit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSupplierOrderSplitQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplierOrderSplit>>>
+export type GetSupplierOrderSplitQueryError = ErrorType<void>
+
+
+/**
+ * @summary Predlog razdelitve potrebnih artiklov po dobaviteljih (najcenejša ali najmanj dobaviteljev)
+ */
+
+export function useGetSupplierOrderSplit<TData = Awaited<ReturnType<typeof getSupplierOrderSplit>>, TError = ErrorType<void>>(
+ params?: GetSupplierOrderSplitParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierOrderSplit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSupplierOrderSplitQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveSupplierTermsUrl = (supplierId: string,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/dobavitelji/${supplierId}/pogoji`
+}
+
+/**
+ * @summary Shrani najmanjši znesek naročila in dobavni rok dobavitelja v aktivni enoti
+ */
+export const saveSupplierTerms = async (supplierId: string,
+    supplierTermsInput: SupplierTermsInput, options?: RequestInit): Promise<SupplierTerms> => {
+
+  return customFetch<SupplierTerms>(getSaveSupplierTermsUrl(supplierId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierTermsInput)
+  }
+);}
+
+
+
+
+
+export const getSaveSupplierTermsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSupplierTerms>>, TError,{supplierId: string;data: BodyType<SupplierTermsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSupplierTerms>>, TError,{supplierId: string;data: BodyType<SupplierTermsInput>}, TContext> => {
+
+const mutationKey = ['saveSupplierTerms'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSupplierTerms>>, {supplierId: string;data: BodyType<SupplierTermsInput>}> = (props) => {
+          const {supplierId,data} = props ?? {};
+
+          return  saveSupplierTerms(supplierId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSupplierTermsMutationResult = NonNullable<Awaited<ReturnType<typeof saveSupplierTerms>>>
+    export type SaveSupplierTermsMutationBody = BodyType<SupplierTermsInput>
+    export type SaveSupplierTermsMutationError = ErrorType<void>
+
+    /**
+ * @summary Shrani najmanjši znesek naročila in dobavni rok dobavitelja v aktivni enoti
+ */
+export const useSaveSupplierTerms = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSupplierTerms>>, TError,{supplierId: string;data: BodyType<SupplierTermsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveSupplierTerms>>,
+        TError,
+        {supplierId: string;data: BodyType<SupplierTermsInput>},
+        TContext
+      > => {
+      return useMutation(getSaveSupplierTermsMutationOptions(options));
+    }
+
+export const getSaveSupplierMappingMinimumUrl = (mappingId: number,) => {
+
+
+
+
+  return `/api/narocila-dobaviteljem/povezave/${mappingId}/najmanjsa-kolicina`
+}
+
+/**
+ * @summary Shrani najmanjšo naročljivo količino pakiranj za dobaviteljsko povezavo
+ */
+export const saveSupplierMappingMinimum = async (mappingId: number,
+    supplierMappingMinimumInput: SupplierMappingMinimumInput, options?: RequestInit): Promise<SupplierMappingMinimum> => {
+
+  return customFetch<SupplierMappingMinimum>(getSaveSupplierMappingMinimumUrl(mappingId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierMappingMinimumInput)
+  }
+);}
+
+
+
+
+
+export const getSaveSupplierMappingMinimumMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSupplierMappingMinimum>>, TError,{mappingId: number;data: BodyType<SupplierMappingMinimumInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSupplierMappingMinimum>>, TError,{mappingId: number;data: BodyType<SupplierMappingMinimumInput>}, TContext> => {
+
+const mutationKey = ['saveSupplierMappingMinimum'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSupplierMappingMinimum>>, {mappingId: number;data: BodyType<SupplierMappingMinimumInput>}> = (props) => {
+          const {mappingId,data} = props ?? {};
+
+          return  saveSupplierMappingMinimum(mappingId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSupplierMappingMinimumMutationResult = NonNullable<Awaited<ReturnType<typeof saveSupplierMappingMinimum>>>
+    export type SaveSupplierMappingMinimumMutationBody = BodyType<SupplierMappingMinimumInput>
+    export type SaveSupplierMappingMinimumMutationError = ErrorType<void>
+
+    /**
+ * @summary Shrani najmanjšo naročljivo količino pakiranj za dobaviteljsko povezavo
+ */
+export const useSaveSupplierMappingMinimum = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSupplierMappingMinimum>>, TError,{mappingId: number;data: BodyType<SupplierMappingMinimumInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveSupplierMappingMinimum>>,
+        TError,
+        {mappingId: number;data: BodyType<SupplierMappingMinimumInput>},
+        TContext
+      > => {
+      return useMutation(getSaveSupplierMappingMinimumMutationOptions(options));
     }
 
 export const getListSupplierOrdersMissingInstructionsUrl = (params?: ListSupplierOrdersMissingInstructionsParams,) => {

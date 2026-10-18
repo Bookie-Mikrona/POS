@@ -11080,6 +11080,7 @@ export const GetSupplierOrderDashboardResponse = zod.object({
   "packageFactor": zod.number(),
   "lastPackagePrice": zod.number().nullish(),
   "lastUnitPrice": zod.number().nullable(),
+  "minPackageQuantity": zod.number().nullish(),
   "lastPackagePriceInvalid": zod.boolean(),
   "lastUnitPriceInvalid": zod.boolean(),
   "lastPriceReceipt": zod.object({
@@ -11173,6 +11174,97 @@ export const SaveSupplierReorderSettingsResponse = zod.object({
   "reorderPoint": zod.number(),
   "targetStock": zod.number(),
   "preferredMappingId": zod.number().nullable()
+})
+
+
+/**
+ * @summary Predlog razdelitve potrebnih artiklov po dobaviteljih (najcenejša ali najmanj dobaviteljev)
+ */
+export const getSupplierOrderSplitQueryStrategyDefault = `cheapest`;
+
+export const GetSupplierOrderSplitQueryParams = zod.object({
+  "strategy": zod.enum(['cheapest', 'fewest_suppliers']).default(getSupplierOrderSplitQueryStrategyDefault)
+})
+
+export const GetSupplierOrderSplitResponse = zod.object({
+  "strategy": zod.enum(['cheapest', 'fewest_suppliers']),
+  "groups": zod.array(zod.object({
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "minOrderAmount": zod.number().nullable(),
+  "leadTimeDays": zod.number().nullable(),
+  "total": zod.number(),
+  "totalComplete": zod.boolean(),
+  "meetsMinimum": zod.boolean().nullable(),
+  "shortfall": zod.number().nullable(),
+  "lines": zod.array(zod.object({
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "supplierMappingId": zod.number(),
+  "supplierItemName": zod.string().nullable(),
+  "packageName": zod.string().nullable(),
+  "packageQuantity": zod.number(),
+  "minPackageQuantity": zod.number().nullable(),
+  "moqRaised": zod.boolean(),
+  "unitPrice": zod.number().nullable().describe('Zadnja cena za pakiranje.'),
+  "lineTotal": zod.number().nullable()
+}))
+})),
+  "unassigned": zod.array(zod.object({
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "reason": zod.enum(['no_supplier', 'no_price'])
+}))
+})
+
+
+/**
+ * @summary Shrani najmanjši znesek naročila in dobavni rok dobavitelja v aktivni enoti
+ */
+export const SaveSupplierTermsParams = zod.object({
+  "supplierId": zod.coerce.string()
+})
+
+export const saveSupplierTermsBodyMinOrderAmountMin = 0;
+
+export const saveSupplierTermsBodyLeadTimeDaysMin = 0;
+export const saveSupplierTermsBodyLeadTimeDaysMax = 365;
+
+
+
+export const SaveSupplierTermsBody = zod.object({
+  "minOrderAmount": zod.number().min(saveSupplierTermsBodyMinOrderAmountMin).nullable(),
+  "leadTimeDays": zod.number().min(saveSupplierTermsBodyLeadTimeDaysMin).max(saveSupplierTermsBodyLeadTimeDaysMax).nullable()
+})
+
+export const SaveSupplierTermsResponse = zod.object({
+  "supplierId": zod.string(),
+  "minOrderAmount": zod.number().nullable(),
+  "leadTimeDays": zod.number().nullable()
+})
+
+
+/**
+ * @summary Shrani najmanjšo naročljivo količino pakiranj za dobaviteljsko povezavo
+ */
+
+
+
+export const SaveSupplierMappingMinimumParams = zod.object({
+  "mappingId": zod.coerce.number().min(1)
+})
+
+export const saveSupplierMappingMinimumBodyMinPackageQuantityExclusiveMin = 0;
+
+
+
+export const SaveSupplierMappingMinimumBody = zod.object({
+  "minPackageQuantity": zod.number().gt(saveSupplierMappingMinimumBodyMinPackageQuantityExclusiveMin).nullable()
+})
+
+export const SaveSupplierMappingMinimumResponse = zod.object({
+  "mappingId": zod.number(),
+  "minPackageQuantity": zod.number().nullable()
 })
 
 
