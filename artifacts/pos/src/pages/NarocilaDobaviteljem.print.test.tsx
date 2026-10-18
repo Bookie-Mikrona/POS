@@ -2372,6 +2372,21 @@ describe("supplier order print view", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
+  it("closes a saved draft without warning when its instructions are restored to the saved text", () => {
+    renderSupplierOrderPage();
+    openSavedDraftEditor();
+    const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    const savedInstructions = supplierNotes.value;
+
+    fireEvent.change(supplierNotes, { target: { value: "Dostavite pred 12. uro." } });
+    fireEvent.change(supplierNotes, { target: { value: savedInstructions } });
+    dismissOrderEditor("close-button");
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Naročilo dobavitelju" })).toBeNull();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
   it("returns focus to the order row after closing an editor whose details trigger unmounted", () => {
     renderSupplierOrderPage();
     const editor = openSavedDraftEditor();
