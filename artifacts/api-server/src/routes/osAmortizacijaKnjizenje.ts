@@ -2078,6 +2078,32 @@ router.post(
       .delete(osAmortizacijaObracunTable)
       .where(eq(osAmortizacijaObracunTable.id, obracun.id));
 
+    // Status glave ni izhodišče: po stornu ga ponovno izpelji iz doknjižb
+    // in PREOSTALIH obračunov/oslabitev. Uvoženega odpisa ne spreminjamo.
+    const { glaveRows, doknjizbeByGlava } = await loadSredstvaData(companyId);
+    const odpisi = await loadObracunaniOdpisi(companyId, glaveRows.map(g => g.id));
+    for (const glava of glaveRows) {
+      const doknjizbe = doknjizbeByGlava.get(glava.id) ?? [];
+      const status = resolveStatusSredstvo(
+        glava.status,
+        {
+          nabavna: doknjizbe.reduce((sum, d) => sum + Number(d.nabavnaVrednost), 0),
+          odpisana: doknjizbe.reduce((sum, d) => sum + Number(d.odpisanaVrednost), 0),
+          hasAktivirana: doknjizbe.some(d => !!d.datumAktivacije),
+          obracunaniOdpisi: odpisi.get(glava.id) ?? 0,
+        },
+        glava.datumOdtujitve,
+      );
+      if (status !== glava.status) {
+        await db.update(osnovnaSredstvaTable)
+          .set({ status, updatedAt: new Date() })
+          .where(and(
+            eq(osnovnaSredstvaTable.id, glava.id),
+            eq(osnovnaSredstvaTable.companyId, companyId),
+          ));
+      }
+    }
+
     // ── Varovalo: pobriši morebitne osirotele AMORT:{leto} draft temeljnice ──
     // Nastanejo, ko je /knjizenje ustvaril JE brez glk_temeljnica_id povezave
     // (historični zapisi ali edge case). Briše se SAMO draft — posted pusti nedotaknjen.

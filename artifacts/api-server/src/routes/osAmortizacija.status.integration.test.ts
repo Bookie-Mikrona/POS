@@ -37,8 +37,8 @@ const app = express();
 app.use(express.json(), router, sredstvaRouter);
 afterAll(() => pool.end());
 
-describe("status sredstva ob zaključku letnega obračuna", () => {
-  it("shrani izračunani status po amortizaciji, ohrani izločitve in ne podvoji odpisa", async () => {
+describe("status sredstva ob zaključku in stornu letnega obračuna", () => {
+  it("shrani status po zaključku in ga po stornu povrne iz veljavne zgodovine brez podvajanja odpisa", async () => {
     const rollback = new Error("rollback OS status fixtures");
     let companyId = "";
     try {
@@ -69,14 +69,17 @@ describe("status sredstva ob zaključku letnega obračuna", () => {
           companyId, leto: 2025, doMeseca: 12, status: "zakljucen",
         }).returning();
         const cases = [
-          { name: "polni odpis", status: "v_uporabi", active: true, expected: "odpisano" },
-          { name: "dograditev", status: "odpisano", active: true, expected: "v_uporabi", upgrade: true },
-          { name: "brez aktivacije", status: "odpisano", active: false, expected: "v_teku" },
-          { name: "izločeno", status: "izloceno", active: true, expected: "izloceno" },
-          { name: "odtujeno", status: "v_uporabi", active: true, expected: "izloceno", disposed: true },
-          { name: "neznan status", status: "pokvarjeno", active: true, expected: "odpisano" },
-          { name: "prejšnji obračun", status: "v_uporabi", active: true, expected: "odpisano", previous: true },
-          { name: "neamortizljivi del", status: "v_uporabi", active: true, expected: "v_uporabi", residual: true },
+          { name: "polni odpis", status: "v_uporabi", active: true, expected: "odpisano", afterStorno: "v_uporabi" },
+          { name: "dograditev", status: "odpisano", active: true, expected: "v_uporabi", afterStorno: "v_uporabi", upgrade: true },
+          { name: "brez aktivacije", status: "odpisano", active: false, expected: "v_teku", afterStorno: "v_teku" },
+          { name: "izločeno", status: "izloceno", active: true, expected: "izloceno", afterStorno: "izloceno" },
+          { name: "odtujeno", status: "v_uporabi", active: true, expected: "izloceno", afterStorno: "izloceno", disposed: true },
+          { name: "neznan status", status: "pokvarjeno", active: true, expected: "odpisano", afterStorno: "v_uporabi" },
+          { name: "prejšnji obračun", status: "v_uporabi", active: true, expected: "odpisano", afterStorno: "v_uporabi", previous: true },
+          { name: "neamortizljivi del", status: "v_uporabi", active: true, expected: "v_uporabi", afterStorno: "v_uporabi", residual: true },
+          { name: "izhodiščni odpis", status: "odpisano", active: true, expected: "odpisano", afterStorno: "odpisano", imported: true },
+          { name: "prejšnji polni odpis", status: "odpisano", active: true, expected: "odpisano", afterStorno: "odpisano", previousFull: true },
+          { name: "prejšnja oslabitev", status: "odpisano", active: true, expected: "odpisano", afterStorno: "odpisano", impairment: true },
         ];
         const fixtures = [];
         for (const [index, item] of cases.entries()) {
@@ -85,13 +88,14 @@ describe("status sredstva ob zaključku letnega obračuna", () => {
             status: item.status, datumOdtujitve: item.disposed ? "2026-06-01" : null,
           }).returning();
           await db.insert(osDoknjizbeTable).values({
-            sredstvoId: asset.id, seq: 0, nabavnaVrednost: "1200", odpisanaVrednost: "0",
+            sredstvoId: asset.id, seq: 0, nabavnaVrednost: "1200", odpisanaVrednost: item.imported ? "1200" : "0",
             datumNabave: "2025-01-01", datumAktivacije: item.active ? "2025-01-01" : null,
             neamortizljiviDelPct: item.residual ? "10" : "0",
           });
-          if (item.previous) {
+          if (item.previous || item.previousFull || item.impairment) {
             await db.insert(osAmortizacijaObracunSredstvoTable).values({
-              obracunId: previousRun.id, sredstvoId: asset.id, osnova: "1200", stopnja: "50", obracunano: "600",
+              obracunId: previousRun.id, sredstvoId: asset.id, osnova: "1200", stopnja: "50",
+              obracunano: item.previousFull ? "1200" : "600", oslabitev: item.impairment ? "600" : "0",
             });
           }
           if (item.upgrade) {
@@ -138,7 +142,29 @@ describe("status sredstva ob zaključku letnega obračuna", () => {
           const [purchase] = await db.select().from(osDoknjizbeTable)
             .where(eq(osDoknjizbeTable.sredstvoId, fixtures[0].id));
           expect(purchase.odpisanaVrednost).toBe("0.00");
+          // Obračun ni več vir odpisa: preveri dejansko DB, register in kartico.
+          const storno = await request(app).post(`${url}/storno`).send({ leto: 2026 }).expect(200);
+          expect(storno.body.storniranLeto).toBe(2026);
+          const restored = await db.select().from(osnovnaSredstvaTable)
+            .where(eq(osnovnaSredstvaTable.companyId, companyId));
+          const restoredRegister = (await request(app).get(`${baseUrl}?includeIzloceno=true`).expect(200)).body.osnovnaSredstva;
+          for (const fixture of fixtures) {
+            expect(restored.find(row => row.id === fixture.id)?.status, fixture.name).toBe(fixture.afterStorno);
+            expect(restoredRegister.find((row: any) => row.id === fixture.id)?.status, fixture.name).toBe(fixture.afterStorno);
+            const card = (await request(app).get(`${baseUrl}/${fixture.id}`).expect(200)).body;
+            expect(card.status, fixture.name).toBe(fixture.afterStorno);
+          }
         }
+        // Storno še preostalega leta vrne sredstva na uvožene vrednosti.
+        await request(app).post(`${url}/storno`).send({ leto: 2025 }).expect(200);
+        const withoutHistory = await db.select().from(osnovnaSredstvaTable)
+          .where(eq(osnovnaSredstvaTable.companyId, companyId));
+        for (const fixture of fixtures) {
+          const expected = fixture.previousFull || fixture.impairment ? "v_uporabi" : fixture.afterStorno;
+          expect(withoutHistory.find(row => row.id === fixture.id)?.status, fixture.name).toBe(expected);
+        }
+        expect(await db.select().from(osAmortizacijaObracunTable)
+          .where(eq(osAmortizacijaObracunTable.companyId, companyId))).toEqual([]);
         expect((await db.select().from(osnovnaSredstvaTable).where(eq(osnovnaSredstvaTable.id, foreignAsset.id)))[0].status)
           .toBe("v_uporabi");
         throw rollback;
