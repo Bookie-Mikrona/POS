@@ -952,35 +952,103 @@ describe("POS supplier ordering and linked receipt flow", () => {
     });
     expect(unitChangeReceipt.status, JSON.stringify(unitChangeReceipt.body)).toBe(201);
     receiptIds.push(unitChangeReceipt.body.id);
+    const [unitChangeOrderSnapshot] = await db.select({
+      packageName: posSupplierOrderLinesTable.nazivPakiranja,
+      packageFactor: posSupplierOrderLinesTable.faktorPakiranja,
+      baseUnit: posSupplierOrderLinesTable.osnovnaEnota,
+    }).from(posSupplierOrderLinesTable)
+      .where(eq(posSupplierOrderLinesTable.id, unitChangeLine.id));
+    const [unitChangeReceiptSnapshot] = await db.select({
+      supplierOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+      packageFactor: prejemnicePostavkeTable.enotVPaketu,
+      baseUnit: prejemnicePostavkeTable.izvEnota,
+      quantity: prejemnicePostavkeTable.kolicina,
+    }).from(prejemnicePostavkeTable)
+      .where(eq(prejemnicePostavkeTable.prejemnicaId, unitChangeReceipt.body.id));
     await db.update(artikliTable)
       .set({ enotaMere: "L" })
       .where(eq(artikliTable.id, openArticle.id));
 
-    const unitChangeWarning = await request(app)
+    const unitChangeBlock = await request(app)
       .post(`/prejemnice/${unitChangeReceipt.body.id}/confirm`)
       .send({});
-    expect(unitChangeWarning.status).toBe(409);
-    expect(unitChangeWarning.body.packageFactorChanges).toMatchObject([{
-      supplierOrderLineId: unitChangeLine.id,
-      orderPackageName: "transportni zaboj 7 - nova oznaka",
-      orderFactor: 7,
-      orderBaseUnit: "KOS",
-      currentPackageName: "transportni zaboj 7 - nova oznaka",
-      currentFactor: 7,
-      currentBaseUnit: "L",
-    }]);
+    expect(unitChangeBlock.status).toBe(409);
+    expect(unitChangeBlock.body).toMatchObject({
+      code: "SUPPLIER_ORDER_BASE_UNIT_CHANGED",
+      packageFactorChanges: [{
+        supplierOrderLineId: unitChangeLine.id,
+        orderPackageName: "transportni zaboj 7 - nova oznaka",
+        orderFactor: 7,
+        orderBaseUnit: "KOS",
+        currentPackageName: "transportni zaboj 7 - nova oznaka",
+        currentFactor: 7,
+        currentBaseUnit: "L",
+      }],
+    });
+
+    const acknowledgedUnitMismatch = await request(app)
+      .post(`/prejemnice/${unitChangeReceipt.body.id}/confirm`)
+      .send({ reviewedPackageFactorChanges: unitChangeBlock.body.packageFactorChanges });
+    expect(acknowledgedUnitMismatch.status).toBe(409);
+    expect(acknowledgedUnitMismatch.body.code).toBe("SUPPLIER_ORDER_BASE_UNIT_CHANGED");
 
     await db.update(artikliTable)
       .set({ enotaMere: "ML" })
       .where(eq(artikliTable.id, openArticle.id));
     const latestUnitWarning = await request(app)
       .post(`/prejemnice/${unitChangeReceipt.body.id}/confirm`)
-      .send({ reviewedPackageFactorChanges: unitChangeWarning.body.packageFactorChanges });
+      .send({ reviewedPackageFactorChanges: unitChangeBlock.body.packageFactorChanges });
     expect(latestUnitWarning.status).toBe(409);
-    expect(latestUnitWarning.body.packageFactorChanges).toMatchObject([{
-      orderBaseUnit: "KOS",
-      currentBaseUnit: "ML",
-    }]);
+    expect(latestUnitWarning.body).toMatchObject({
+      code: "SUPPLIER_ORDER_BASE_UNIT_CHANGED",
+      packageFactorChanges: [{
+        orderBaseUnit: "KOS",
+        currentBaseUnit: "ML",
+      }],
+    });
+
+    const [draftAfterMismatch] = await db.select({
+      status: prejemniceTable.status,
+    }).from(prejemniceTable)
+      .where(eq(prejemniceTable.id, unitChangeReceipt.body.id));
+    expect(draftAfterMismatch.status).toBe("draft");
+    const [orderSnapshotAfterMismatch] = await db.select({
+      packageName: posSupplierOrderLinesTable.nazivPakiranja,
+      packageFactor: posSupplierOrderLinesTable.faktorPakiranja,
+      baseUnit: posSupplierOrderLinesTable.osnovnaEnota,
+    }).from(posSupplierOrderLinesTable)
+      .where(eq(posSupplierOrderLinesTable.id, unitChangeLine.id));
+    const [receiptSnapshotAfterMismatch] = await db.select({
+      supplierOrderLineId: prejemnicePostavkeTable.supplierOrderLineId,
+      packageFactor: prejemnicePostavkeTable.enotVPaketu,
+      baseUnit: prejemnicePostavkeTable.izvEnota,
+      quantity: prejemnicePostavkeTable.kolicina,
+    }).from(prejemnicePostavkeTable)
+      .where(eq(prejemnicePostavkeTable.prejemnicaId, unitChangeReceipt.body.id));
+    expect(orderSnapshotAfterMismatch).toEqual(unitChangeOrderSnapshot);
+    expect(receiptSnapshotAfterMismatch).toEqual(unitChangeReceiptSnapshot);
+    const movementsBeforeResolution = await db.select({ id: zalogaGibiTable.id })
+      .from(zalogaGibiTable)
+      .where(and(
+        eq(zalogaGibiTable.referencaId, unitChangeReceipt.body.id),
+        eq(zalogaGibiTable.tip, "prejemnica"),
+      ));
+    expect(movementsBeforeResolution).toHaveLength(0);
+
+    await db.update(artikliTable)
+      .set({ enotaMere: "KOS" })
+      .where(eq(artikliTable.id, openArticle.id));
+    const resolvedUnitReceipt = await request(app)
+      .post(`/prejemnice/${unitChangeReceipt.body.id}/confirm`)
+      .send({});
+    expect(resolvedUnitReceipt.status, JSON.stringify(resolvedUnitReceipt.body)).toBe(200);
+    const movementsAfterResolution = await db.select({ id: zalogaGibiTable.id })
+      .from(zalogaGibiTable)
+      .where(and(
+        eq(zalogaGibiTable.referencaId, unitChangeReceipt.body.id),
+        eq(zalogaGibiTable.tip, "prejemnica"),
+      ));
+    expect(movementsAfterResolution).toHaveLength(1);
   });
 
   it("keeps legacy notes internal and preserves supplier instructions for older clients", async () => {

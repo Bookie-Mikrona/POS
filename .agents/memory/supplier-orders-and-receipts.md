@@ -19,6 +19,12 @@ Pri naročilih dobaviteljem cena zadnjega paketa iz potrjenih, povezanih prejemn
 
 Pred potrditvijo povezane prejemnice primerjaj shranjeni faktor naročilne vrstice s trenutnim faktorjem dobaviteljske povezave. Ob razliki naj bo prvi poskus brez sprememb, uporabnik pa mora potrditi točno pregledani par faktorjev; ob ponovitvi primerjavo ponovno preberi in zakleni, da zastarelo soglasje ne potrdi nove spremembe. Potrditev nikoli ne prepiše posnetkov naročila ali prejemnice.
 
+Razlika med shranjeno osnovno enoto naročila in trenutno osnovno enoto artikla je blokada, ne opozorilo za uporabniško potrditev. Potrditev je dovoljena šele, ko se enoti ujemata; shranjeni posnetki se ne prilagodijo samodejno.
+
+**Why:** Pregled spremembe faktorja ne more potrditi, da količina pomeni isto zalogovno enoto, zato bi potrditev ob različni osnovni enoti lahko napačno povečala zalogo.
+
+**How to apply:** Preveri osnovno enoto pod zaklepanjem skupaj s primerjavo pakiranja. Ob neskladju zavrni celotno potrditev pred gibanjem zaloge ali knjiženjem; popravek mora biti izrecen in izveden na osnutku ali z uskladitvijo artikla.
+
 Naročilo dobavitelju ima ločeno interno opombo in izrecno navodilo dobavitelju. Stara enotna opomba ostane interna in se nikoli samodejno ne natisne; uporabniku mora biti jasno prikazana, za dobavitelja pa jo lahko izrecno prekopira v ločeno polje. Kopija se doda obstoječemu navodilu brez podvajanja in brez spreminjanja izvirnika; če bi presegla omejitev 2.000 znakov, se ne skrajša ali shrani. Navodilo se natisne šele po pregledu in shranjevanju naročila.
 
 Ročni izpis naročila oziroma shranjevanje v PDF je samo prikaz: ne spreminja statusa naročila in ne pošilja e-pošte.

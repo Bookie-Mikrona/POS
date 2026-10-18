@@ -38,6 +38,7 @@ import {
 import {
   getLinkedSupplierOrderIdsForReceipt,
   requireSupplierOrderPackageFactorReview,
+  SupplierOrderBaseUnitMismatch,
   SupplierOrderPackageFactorReviewRequired,
   SupplierOrderReceiptConflict,
   syncSupplierOrders,
@@ -322,6 +323,14 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
     broadcastToUnit(enotaId, "update", { type: "zaloge" });
     res.json(ConfirmPrejemnicaResponse.parse({ id: result.id, status: result.status }));
   } catch (error) {
+    if (error instanceof SupplierOrderBaseUnitMismatch) {
+      res.status(409).json({
+        code: "SUPPLIER_ORDER_BASE_UNIT_CHANGED",
+        error: error.message,
+        packageFactorChanges: error.changes,
+      });
+      return;
+    }
     if (error instanceof SupplierOrderPackageFactorReviewRequired) {
       res.status(409).json({
         code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED",

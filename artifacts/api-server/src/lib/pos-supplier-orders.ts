@@ -45,6 +45,13 @@ export class SupplierOrderPackageFactorReviewRequired extends Error {
   }
 }
 
+export class SupplierOrderBaseUnitMismatch extends Error {
+  constructor(readonly changes: SupplierOrderPackageFactorChange[]) {
+    super("Osnovna enota artikla se razlikuje od enote, shranjene na naročilu. Prejemnice ni mogoče potrditi, dokler enoti nista usklajeni.");
+    this.name = "SupplierOrderBaseUnitMismatch";
+  }
+}
+
 export async function validateSupplierOrderReceiptLines(
   tx: typeof db | any,
   input: {
@@ -285,6 +292,15 @@ export async function requireSupplierOrderPackageFactorReview(
     ...change
   }) => change);
   if (changes.length === 0) return [];
+
+  const normalizeBaseUnit = (unit: string | null) =>
+    unit?.trim().toLocaleLowerCase("sl-SI") || null;
+  const baseUnitMismatches = changes.filter(change =>
+    normalizeBaseUnit(change.orderBaseUnit) !== normalizeBaseUnit(change.currentBaseUnit),
+  );
+  if (baseUnitMismatches.length > 0) {
+    throw new SupplierOrderBaseUnitMismatch(baseUnitMismatches);
+  }
 
   const reviewed = input.reviewedPackageFactorChanges ?? [];
   const reviewedByLineId = new Map(reviewed.map(change => [change.supplierOrderLineId, change]));

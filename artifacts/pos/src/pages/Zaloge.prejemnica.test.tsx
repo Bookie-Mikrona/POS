@@ -512,7 +512,7 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
         status: 409,
         ok: false,
         json: async () => ({
-          code: "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED",
+          code: "SUPPLIER_ORDER_BASE_UNIT_CHANGED",
           packageFactorChanges: unitChanges,
         }),
       } as Response;
@@ -540,12 +540,16 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     const confirmDialog = await screen.findByRole("alertdialog");
     fireEvent.click(within(confirmDialog).getByRole("button", { name: "Potrdi prejemnico" }));
 
-    expect(await screen.findByRole("heading", { name: "Preveri spremenjeno pakiranje" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Osnovna enota artikla se je spremenila" })).toBeInTheDocument();
     expect(screen.getByText(/V naročilu: 6 KOS \/ zaboj/)).toBeInTheDocument();
     expect(screen.getByText(/Trenutno pri dobavitelju: 6 L \/ karton/)).toBeInTheDocument();
     expect(screen.getByTestId("package-factor-unit-warning")).toHaveTextContent(
-      "Faktorja sta prikazana v različnih enotah in ju ni mogoče neposredno primerjati.",
+      "Pregled spremembe ne omogoča potrditve.",
     );
+    expect(within(confirmDialog).queryByRole("button", {
+      name: "Pregledal/a sem — potrdi prejemnico",
+    })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/confirm"))).toHaveLength(1);
   });
 });
 

@@ -2329,6 +2329,9 @@ function EditPrejemnicaDialog({
   const [bookingPreviewId, setBookingPreviewId] = useState<number | null>(null);
   const status = (data as any)?.status as "draft" | "confirmed" | undefined;
   const isConfirmed = status === "confirmed";
+  const hasBaseUnitMismatch = packageFactorChanges?.some(change =>
+    normalizePackageUnit(change.orderBaseUnit) !== normalizePackageUnit(change.currentBaseUnit),
+  ) ?? false;
   const confirmPrejemnica = async (
     reviewedChanges: SupplierOrderPackageFactorChange[] = packageFactorChanges ?? [],
   ) => {
@@ -2350,7 +2353,8 @@ function EditPrejemnicaDialog({
         packageFactorChanges?: SupplierOrderPackageFactorChange[];
       } | null;
       if (response.status === 409
-        && responseBody?.code === "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED"
+        && (responseBody?.code === "SUPPLIER_ORDER_PACKAGE_FACTOR_CHANGED"
+          || responseBody?.code === "SUPPLIER_ORDER_BASE_UNIT_CHANGED")
         && Array.isArray(responseBody.packageFactorChanges)
         && responseBody.packageFactorChanges.length > 0) {
         setPackageFactorChanges(responseBody.packageFactorChanges);
@@ -3322,18 +3326,26 @@ function EditPrejemnicaDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {packageFactorChanges ? "Preveri spremenjeno pakiranje" : "Potrdi prejemnico?"}
+              {hasBaseUnitMismatch
+                ? "Osnovna enota artikla se je spremenila"
+                : packageFactorChanges
+                  ? "Preveri spremenjeno pakiranje"
+                  : "Potrdi prejemnico?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {packageFactorChanges
-                ? "Pakiranje se je od nastanka naročila spremenilo. Pregled ne prepiše shranjenih posnetkov; potrditev bo uporabila količine in pakiranje, shranjene na prejemnici."
+              {hasBaseUnitMismatch
+                ? "Prejemnice ni mogoče potrditi, dokler osnovna enota artikla ne ustreza enoti, shranjeni na naročilu. Uskladite enoti in poskusite znova; shranjena posnetka naročila in prejemnice ostaneta nespremenjena."
+                : packageFactorChanges
+                  ? "Pakiranje se je od nastanka naročila spremenilo. Pregled ne prepiše shranjenih posnetkov; potrditev bo uporabila količine in pakiranje, shranjene na prejemnici."
                 : "Šele potrditev vpliva na zalogo in evidenco embalaže. Po potrditvi postavk prejemnice ni več mogoče urejati."}
             </AlertDialogDescription>
-            {packageFactorChanges?.some(change =>
-              normalizePackageUnit(change.orderBaseUnit) !== normalizePackageUnit(change.currentBaseUnit),
-            ) && (
+            {hasBaseUnitMismatch && (
               <div className="pt-2 text-sm font-medium text-amber-800" data-testid="package-factor-unit-warning">
-                Osnovna enota artikla se je spremenila. Faktorja sta prikazana v različnih enotah in ju ni mogoče neposredno primerjati.
+                Enota v naročilu: {packageFactorChanges?.find(change =>
+                  normalizePackageUnit(change.orderBaseUnit) !== normalizePackageUnit(change.currentBaseUnit),
+                )?.orderBaseUnit || "ni določena"}; trenutna enota artikla: {packageFactorChanges?.find(change =>
+                  normalizePackageUnit(change.orderBaseUnit) !== normalizePackageUnit(change.currentBaseUnit),
+                )?.currentBaseUnit || "ni določena"}. Pregled spremembe ne omogoča potrditve.
               </div>
             )}
             {packageFactorChanges && (
@@ -3359,16 +3371,18 @@ function EditPrejemnicaDialog({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isConfirming}>Prekliči</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isConfirming}
-              onClick={(event) => { event.preventDefault(); void confirmPrejemnica(); }}
-            >
-              {isConfirming
-                ? "Preverjam..."
-                : packageFactorChanges
-                  ? "Pregledal/a sem — potrdi prejemnico"
-                  : "Potrdi prejemnico"}
-            </AlertDialogAction>
+            {!hasBaseUnitMismatch && (
+              <AlertDialogAction
+                disabled={isConfirming}
+                onClick={(event) => { event.preventDefault(); void confirmPrejemnica(); }}
+              >
+                {isConfirming
+                  ? "Preverjam..."
+                  : packageFactorChanges
+                    ? "Pregledal/a sem — potrdi prejemnico"
+                    : "Potrdi prejemnico"}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
