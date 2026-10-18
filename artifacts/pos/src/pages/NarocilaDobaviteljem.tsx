@@ -465,6 +465,7 @@ export default function NarocilaDobaviteljem() {
   const [closeDialog, setCloseDialog] = useState(false);
   const closeDialogTriggerRef = useRef<HTMLElement | null>(null);
   const closeDialogWasOpenRef = useRef(false);
+  const closeDialogFocusOnSuccessRef = useRef(false);
   const [packageReview, setPackageReview] = useState<{
     order: SupplierOrderDetail;
     lines: SupplierOrderDetail["lines"];
@@ -525,7 +526,11 @@ export default function NarocilaDobaviteljem() {
     }
     if (closeDialogWasOpenRef.current) {
       closeDialogWasOpenRef.current = false;
-      focusIfAvailable(closeDialogTriggerRef.current, orderDetailsDialogRef.current);
+      const target = closeDialogFocusOnSuccessRef.current
+        ? printButtonRef.current
+        : closeDialogTriggerRef.current;
+      closeDialogFocusOnSuccessRef.current = false;
+      focusIfAvailable(target, orderDetailsDialogRef.current);
     }
   }, [closeDialog]);
 
@@ -796,6 +801,7 @@ export default function NarocilaDobaviteljem() {
           return;
         }
         await closeOrder.mutateAsync({ id: orderDetail.id, data: { reason: closeReason.trim() } });
+        closeDialogFocusOnSuccessRef.current = true;
         setCloseDialog(false);
         setCloseReason("");
       }
@@ -1588,6 +1594,7 @@ export default function NarocilaDobaviteljem() {
                 data-testid="button-open-close-order-dialog"
                 onClick={event => {
                   closeDialogTriggerRef.current = event.currentTarget;
+                  closeDialogFocusOnSuccessRef.current = false;
                   setCloseDialog(true);
                 }}
               >Zapri z razlogom</Button>}

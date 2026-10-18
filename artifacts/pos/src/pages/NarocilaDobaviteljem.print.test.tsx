@@ -1822,6 +1822,65 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("closes a supplier order once and focuses the stable print control after the opener disappears", async () => {
+    const originalStatus = mocks.order.status;
+    mocks.order.status = "sent";
+    mocks.mutation.mockImplementation(async () => {
+      mocks.order.status = "closed";
+      return mocks.order;
+    });
+    try {
+      renderSupplierOrderPage();
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      const opener = screen.getByTestId("button-open-close-order-dialog");
+      fireEvent.click(opener);
+      fireEvent.change(screen.getByLabelText("Razlog zaprtja"), {
+        target: { value: "Dobavitelj ne more dobaviti preostanka" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Potrdi zaprtje" }));
+
+      await waitFor(() => {
+        expect(mocks.mutation).toHaveBeenCalledOnce();
+        expect(mocks.mutation).toHaveBeenCalledWith({
+          id: 704,
+          data: { reason: "Dobavitelj ne more dobaviti preostanka" },
+        });
+        expect(screen.queryByRole("dialog", { name: "Zapri naročilo" })).toBeNull();
+      });
+      const printButton = screen.getByTestId("button-print-supplier-order-704");
+      expect(opener.isConnected).toBe(false);
+      expect(document.activeElement).toBe(printButton);
+    } finally {
+      mocks.order.status = originalStatus;
+    }
+  });
+
+  it("keeps the close-order dialog and typed reason after a failed close", async () => {
+    const originalStatus = mocks.order.status;
+    mocks.order.status = "sent";
+    mocks.mutation.mockRejectedValueOnce(new Error("Close failed"));
+    try {
+      renderSupplierOrderPage();
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      fireEvent.click(screen.getByTestId("button-open-close-order-dialog"));
+      const reason = "Dobavitelj ne more dobaviti preostanka";
+      fireEvent.change(screen.getByLabelText("Razlog zaprtja"), { target: { value: reason } });
+
+      fireEvent.click(screen.getByRole("button", { name: "Potrdi zaprtje" }));
+
+      await waitFor(() => expect(screen.getByText("Close failed")).toBeTruthy());
+      expect(mocks.mutation).toHaveBeenCalledOnce();
+      expect(screen.getByRole("dialog", { name: "Zapri naročilo" })).toBeTruthy();
+      expect((screen.getByLabelText("Razlog zaprtja") as HTMLInputElement).value).toBe(reason);
+      expect(screen.getByRole("button", { name: "Potrdi zaprtje" }).hasAttribute("disabled")).toBe(false);
+    } finally {
+      mocks.order.status = originalStatus;
+    }
+  });
+
   it("warns about changed saved-draft instructions and keeps them when continuing", () => {
     renderSupplierOrderPage();
     openSavedDraftEditor();
