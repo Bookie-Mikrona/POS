@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 const isolation = vi.hoisted(() => ({ root: null as any, tx: null as any }));
 vi.mock("@workspace/db", async () => {
@@ -20,7 +20,7 @@ vi.mock("@workspace/db", async () => {
 });
 vi.mock("../middlewares/requireAuth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
-    req.clerkUserId = "TEST-amortization-draft";
+    req.clerkUserId = req.get("X-Test-User") ?? "TEST-amortization-draft";
     next();
   },
 }));
@@ -42,6 +42,12 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 });
 
 let companyId: string, periodId: string, expenseId: string, adjustmentId: string;
+let foreignCompanyId: string;
+const ownerUser = "TEST-amortization-owner";
+const accountantUser = "TEST-amortization-accountant";
+const viewerUser = "TEST-amortization-viewer";
+const foreignOwnerUser = "TEST-amortization-foreign-owner";
+const noAccessUser = "TEST-amortization-no-access";
 let finish: (() => void) | undefined;
 let transactionFinished: Promise<void>;
 const rollback = new Error("Rollback amortization test fixtures");
@@ -56,31 +62,43 @@ beforeAll(async () => {
     throw rollback;
   }).catch((error: unknown) => { if (error !== rollback) throw error; });
   await started;
+  const primary = await createCompanyFixture("primary", "TEST-amortization-draft");
+  ({ companyId, periodId, expenseId, adjustmentId } = primary);
+  const foreign = await createCompanyFixture("foreign", foreignOwnerUser);
+  foreignCompanyId = foreign.companyId;
+  await db.insert(accountingRolesTable).values([
+    { companyId, clerkUserId: ownerUser, role: "owner" },
+    { companyId, clerkUserId: accountantUser, role: "accountant" },
+    { companyId, clerkUserId: viewerUser, role: "viewer" },
+  ]);
+});
+
+async function createCompanyFixture(label: string, clerkUserId: string) {
   const [company] = await db.insert(companiesTable).values({
-    podjetjeDavcna: `TEST_AMORT_DRAFT_${Date.now()}`, naziv: "TEST amortization draft",
+    podjetjeDavcna: `TEST_AMORT_DRAFT_${label}_${Date.now()}`, naziv: `TEST amortization draft ${label}`,
   }).returning();
-  companyId = company.id;
+  const companyId = company.id;
   await db.insert(companyModulesTable).values(
     (["erp", "osnovna_sredstva"] as const).map(module => ({
-      companyId, module, enabledBy: "TEST-amortization-draft",
+      companyId, module, enabledBy: clerkUserId,
     })),
   );
   await db.insert(osRolesTable).values({
-    companyId, clerkUserId: "TEST-amortization-draft", role: "os_admin",
+    companyId, clerkUserId, role: "os_admin",
   });
   await db.insert(accountingRolesTable).values({
-    companyId, clerkUserId: "TEST-amortization-draft", role: "owner",
+    companyId, clerkUserId, role: "owner",
   });
   const [period] = await db.insert(accountingPeriodsTable).values({
     companyId, name: "TEST 2024", startDate: "2024-01-01", endDate: "2024-12-31", status: "open",
   }).returning();
-  periodId = period.id;
+  const periodId = period.id;
   const [expense, adjustment] = await db.insert(accountsTable).values([
     { companyId, code: "4300000", name: "Amortizacija", type: "expense" },
     { companyId, code: "0500000", name: "Popravek vrednosti", type: "asset" },
   ]).returning();
-  expenseId = expense.id;
-  adjustmentId = adjustment.id;
+  const expenseId = expense.id;
+  const adjustmentId = adjustment.id;
   await db.insert(osAmortizacijaNastavitveTable).values({
     companyId, kontoStroskaId: expenseId, kontoPopravkaId: adjustmentId,
   });
@@ -94,20 +112,27 @@ beforeAll(async () => {
     sredstvoId: asset.id, seq: 0, nabavnaVrednost: "12000.00",
     datumNabave: "2023-01-01", datumAktivacije: "2023-01-01", status: "active",
   });
-});
+  return { companyId, periodId, expenseId, adjustmentId };
+}
 
 afterAll(async () => {
   finish?.();
   try { await transactionFinished; } finally { isolation.tx = null; }
-  if (companyId) {
-    const remaining = await db.select().from(companiesTable).where(eq(companiesTable.id, companyId));
-    expect(remaining).toHaveLength(0);
+  try {
+    const fixtureIds = [companyId, foreignCompanyId].filter(Boolean);
+    const remainingCompanies = await db.select().from(companiesTable)
+      .where(inArray(companiesTable.id, fixtureIds));
+    expect(remainingCompanies).toHaveLength(0);
+  } finally {
+    await pool.end();
   }
-  await pool.end();
 });
 
-async function createAmortization(mesec: number) {
-  const response = await request(app).post(`/os/${companyId}/amortizacija/knjizenje`)
+async function createAmortization(
+  mesec: number, targetCompanyId = companyId, clerkUserId = "TEST-amortization-draft",
+) {
+  const response = await request(app).post(`/os/${targetCompanyId}/amortizacija/knjizenje`)
+    .set("X-Test-User", clerkUserId)
     .send({ leto: 2024, mesec, dryRun: false });
   expect(response.status, JSON.stringify(response.body)).toBe(201);
   expect(response.body.status).toBe("draft");
@@ -118,6 +143,63 @@ async function createAmortization(mesec: number) {
   });
   return entry;
 }
+
+describe("amortization posting does not disclose another company's journal", () => {
+  let ownEntry: typeof journalEntriesTable.$inferSelect;
+  let foreignEntry: typeof journalEntriesTable.$inferSelect;
+
+  beforeAll(async () => {
+    ownEntry = await createAmortization(4);
+    foreignEntry = await createAmortization(4, foreignCompanyId, foreignOwnerUser);
+    expect(ownEntry.companyId).toBe(companyId);
+    expect(foreignEntry.companyId).toBe(foreignCompanyId);
+  });
+
+  async function snapshotEntries() {
+    const ids = [ownEntry.id, foreignEntry.id];
+    return {
+      entries: await db.select().from(journalEntriesTable)
+        .where(inArray(journalEntriesTable.id, ids)).orderBy(journalEntriesTable.id),
+      lines: await db.select().from(journalEntryLinesTable)
+        .where(inArray(journalEntryLinesTable.entryId, ids)).orderBy(journalEntryLinesTable.id),
+    };
+  }
+
+  it.each([
+    { role: "owner", user: ownerUser, target: "own", entry: "foreign", status: 404 },
+    { role: "accountant", user: accountantUser, target: "own", entry: "foreign", status: 404 },
+    { role: "viewer", user: viewerUser, target: "own", entry: "foreign", status: 403 },
+    { role: "viewer", user: viewerUser, target: "own", entry: "own", status: 403 },
+    { role: "no access", user: noAccessUser, target: "own", entry: "own", status: 403 },
+    { role: "no access", user: noAccessUser, target: "own", entry: "foreign", status: 403 },
+    { role: "owner", user: ownerUser, target: "foreign", entry: "foreign", status: 403 },
+    { role: "accountant", user: accountantUser, target: "foreign", entry: "foreign", status: 403 },
+    { role: "viewer", user: viewerUser, target: "foreign", entry: "foreign", status: 403 },
+    { role: "no access", user: noAccessUser, target: "foreign", entry: "foreign", status: 403 },
+  ])("returns $status for $role posting $entry entry via $target company", async ({ user, target, entry, status }) => {
+    const targetCompanyId = target === "own" ? companyId : foreignCompanyId;
+    const entryId = entry === "own" ? ownEntry.id : foreignEntry.id;
+    const before = await snapshotEntries();
+    expect(before.entries).toHaveLength(2);
+    for (const journal of before.entries) {
+      expect(journal).toMatchObject({ status: "draft", sourceType: "amortizacija", postedAt: null });
+      expect(before.lines.filter(line => line.entryId === journal.id).length).toBeGreaterThanOrEqual(2);
+    }
+
+    const response = await request(app)
+      .post(`/companies/${targetCompanyId}/entries/${entryId}/post`)
+      .set("X-Test-User", user).send({});
+    expect(response.status, JSON.stringify(response.body)).toBe(status);
+    expect(response.body).toEqual(status === 404
+      ? { code: "ACCOUNT_NOT_FOUND", message: "Temeljnica ni najdena" }
+      : { error: user === viewerUser && target === "own"
+        ? "Za knjiženje potrebujete vlogo računovodja ali lastnik"
+        : "Dostop do tega podjetja ni dovoljen" });
+    expect(JSON.stringify(response.body)).not.toMatch(/amortiza|osnutek|sourceType/i);
+    expect(JSON.stringify(response.body)).not.toContain(entryId);
+    expect(await snapshotEntries()).toEqual(before);
+  });
+});
 
 describe("amortization drafts cannot be posted through general journals", () => {
   it("rejects autoPost amortization creation through the general API without inserting an entry", async () => {
@@ -149,7 +231,7 @@ describe("amortization drafts cannot be posted through general journals", () => 
 
   it("posts ordinary drafts in a series but leaves amortization untouched for an accountant", async () => {
     await db.update(accountingRolesTable).set({ role: "accountant" })
-      .where(eq(accountingRolesTable.companyId, companyId));
+      .where(eq(accountingRolesTable.clerkUserId, "TEST-amortization-draft"));
     const amortization = await createAmortization(2);
     const [ordinary] = await db.insert(journalEntriesTable).values({
       companyId, periodId, documentDate: "2024-02-29", entryDate: "2024-02-29",
