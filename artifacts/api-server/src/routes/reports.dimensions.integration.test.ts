@@ -28,7 +28,7 @@ import { eq } from "drizzle-orm";
 import {
   db, pool, companiesTable, accountingRolesTable, accountingPeriodsTable,
   accountsTable, costCentersTable, projectsTable, departmentsTable,
-  journalEntriesTable, journalEntryLinesTable,
+  journalEntriesTable, journalEntryLinesTable, reportExportsTable,
 } from "@workspace/db";
 import router from "./reports";
 
@@ -126,12 +126,24 @@ describe("dimension report line-level attribution", () => {
         await db.insert(accountingRolesTable).values({
           companyId: foreignCompany.id, clerkUserId: "TEST-dimension-report", role: "viewer",
         });
+        // An existing export must never become an account-breakdown row.
+        await db.insert(reportExportsTable).values({
+          companyId: foreignCompany.id, reportType: "balance-sheet", params: {},
+          filename: "not-an-account.pdf", exportedBy: "TEST-dimension-report",
+          pdfData: Buffer.from("%PDF-test"), emailSentTo: "not-an-account@example.test",
+        });
         for (const query of queries) {
           const response = await request(app).get(url).query(query).expect(200);
           expect(response.body.rows).toMatchObject([{ id: dimension.id, totalDebit: "1234.56", totalCredit: "1234.56" }]);
           if (query.groupBy === "account") {
             expect(response.body.rows[0].accounts.map((account: { accountId: string }) => account.accountId).sort())
               .toEqual([expense.id, bank.id].sort());
+            for (const account of response.body.rows[0].accounts) {
+              expect(Object.keys(account).sort()).toEqual([
+                "accountId", "balance", "code", "name", "totalCredit", "totalDebit",
+              ]);
+            }
+            expect(response.text).not.toContain("not-an-account");
           }
         }
         throw rollback;

@@ -1,4 +1,5 @@
 import { formatDatum } from "@/lib/utils";
+import { createReportEmailAttempt } from "@/lib/report-email-attempt";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -148,17 +149,20 @@ async function serverSendEmail(opts: {
   reportType: "balance-sheet" | "income-statement" | "trial-balance";
   email: string;
   token: string;
+  attempt: ReturnType<typeof createReportEmailAttempt>;
 }): Promise<void> {
-  const { companyId, params, reportType, email, token } = opts;
+  const { companyId, params, reportType, email, token, attempt } = opts;
+  const requestKey = attempt.keyFor({ companyId, reportType, email, ...params });
   const res = await fetch(`${BASE}/api/companies/${companyId}/reports/export`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": requestKey },
     body: JSON.stringify({ reportType, email, ...params }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
   }
+  attempt.reset();
 }
 
 // ── E-mail dialog ─────────────────────────────────────────────────────────────
@@ -559,6 +563,7 @@ function BalanceSheetTab() {
 
   // Email dialog state
   const [emailOpen, setEmailOpen] = useState(false);
+  const emailAttempt = useRef(createReportEmailAttempt());
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState(false);
@@ -597,6 +602,7 @@ function BalanceSheetTab() {
   }
 
   function handleOpenEmail() {
+    emailAttempt.current.reset();
     setEmailError(null);
     setEmailSuccess(false);
     setEmailOpen(true);
@@ -611,6 +617,7 @@ function BalanceSheetTab() {
       await serverSendEmail({
         companyId: activeCompany.id,
         reportType: "balance-sheet",
+        attempt: emailAttempt.current,
         params: {
           asOf: appliedAsOf,
           ...(appliedCompareAsOf ? { compareAsOf: appliedCompareAsOf } : {}),
@@ -932,6 +939,7 @@ function IncomeStatementTab() {
 
   // Email dialog state
   const [emailOpen, setEmailOpen] = useState(false);
+  const emailAttempt = useRef(createReportEmailAttempt());
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState(false);
@@ -974,6 +982,7 @@ function IncomeStatementTab() {
   }
 
   function handleOpenEmail() {
+    emailAttempt.current.reset();
     setEmailError(null);
     setEmailSuccess(false);
     setEmailOpen(true);
@@ -988,6 +997,7 @@ function IncomeStatementTab() {
       await serverSendEmail({
         companyId: activeCompany.id,
         reportType: "income-statement",
+        attempt: emailAttempt.current,
         params: {
           dateFrom: applied.dateFrom,
           dateTo: applied.dateTo,
@@ -1350,6 +1360,7 @@ function TrialBalanceTab() {
 
   // Email dialog state
   const [emailOpen, setEmailOpen] = useState(false);
+  const emailAttempt = useRef(createReportEmailAttempt());
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState(false);
@@ -1505,6 +1516,7 @@ function TrialBalanceTab() {
   }
 
   function handleOpenEmail() {
+    emailAttempt.current.reset();
     setEmailError(null);
     setEmailSuccess(false);
     setEmailOpen(true);
@@ -1519,6 +1531,7 @@ function TrialBalanceTab() {
       await serverSendEmail({
         companyId: activeCompany.id,
         reportType: "trial-balance",
+        attempt: emailAttempt.current,
         params: {
           dateFrom: appliedFrom, dateTo: appliedTo,
           ...(statementView !== "standard" ? { statementView } : {}),

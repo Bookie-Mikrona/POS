@@ -32,3 +32,11 @@ Global sending diagnostics must remain separate from company ERP and POS-unit SM
 **Why:** The requested platform overview must not mislead administrators into editing a tenant's settings to repair global sending or into treating SMTP acceptance as confirmed inbox delivery.
 
 **How to apply:** Use only the global environment transport for platform tests, require an explicitly confirmed recipient, and keep global credential changes in the protected project-secrets flow.
+
+## SMTP retries and report retention
+
+An uncertain SMTP outcome must not be retried automatically, and deleting an old PDF copy must not make its sending attempt eligible for SMTP again.
+
+**Why:** SMTP can accept a message before either its confirmation or the HTTP response is lost. The temporary PDF-history retention period is not a safe deduplication period.
+
+**How to apply:** Keep sending-attempt protection separate from retained PDF bytes. A repeated attempt may return confirmed success or explain the uncertainty; sending again requires a new explicit export.

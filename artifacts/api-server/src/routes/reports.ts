@@ -26,6 +26,7 @@ import { expectedAccountType } from "../lib/accountTypeWarning";
 import { logger } from "../lib/logger";
 import { REPORT_EXPORT_RETENTION_DAYS, reportExportCutoff } from "../lib/reportExportRetention";
 import { resolveReportExporterNames } from "../lib/reportExporterNames";
+import { reportEmailHash, reportEmailRequest, completeReportEmail, type EmailRequestState } from "../lib/reportEmailRequest";
 
 const router: IRouter = Router();
 router.use(erpSmtpRouter);
@@ -1080,6 +1081,33 @@ router.post(
       return;
     }
 
+    const requestKey = req.header("Idempotency-Key");
+    const emailHash = reportEmailHash({
+      reportType, email, asOf, compareAsOf, dateFrom, dateTo,
+      compareDateFrom, compareDateTo, statementView, accountClass, searchTerm,
+    });
+    const replyToReplay = (state: EmailRequestState): boolean => {
+      if (state === "succeeded") {
+        res.json({ uspeh: true, sporocilo: `PDF poslan na ${email}` });
+        return true;
+      }
+      if (state === "pending" || state === "conflict") {
+        res.status(409).json({ error: state === "conflict"
+          ? "Ključ pošiljanja je že uporabljen za drug izvoz."
+          : "Pošiljanje že poteka ali njegov izid ni potrjen. E-pošta ne bo ponovno poslana. Pred novim izvozom preverite prejem pri naslovniku." });
+        return true;
+      }
+      return false;
+    };
+    if (email) {
+      if (typeof email !== "string" || !requestKey ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestKey)) {
+        res.status(400).json({ error: "Za pošiljanje je obvezen veljaven Idempotency-Key (UUID)." });
+        return;
+      }
+      if (replyToReplay(await reportEmailRequest(companyId, requestKey, authReq.clerkUserId, emailHash))) return;
+    }
+
     // Pridobi ime podjetja
     const [companyRow] = await db
       .select({ naziv: companiesTable.naziv, email: companiesTable.email })
@@ -1215,6 +1243,8 @@ router.post(
     // Neuspelega pošiljanja ne beleži kot uspešno poslan izvoz.
     if (email) {
       try {
+        // Atomic durable claim before SMTP. An uncertain outcome is never reclaimed.
+        if (replyToReplay(await reportEmailRequest(companyId, requestKey!, authReq.clerkUserId, emailHash, true))) return;
         const result = await posljiPorociloPdf({
           companyId,
           prejemnik: email,
@@ -1228,6 +1258,8 @@ router.post(
           res.status(502).json({ error: result.napaka ?? "Pošiljanje ni uspelo." });
           return;
         }
+        // Persist SMTP success before history or the HTTP response can fail.
+        await completeReportEmail(companyId, requestKey!);
       } catch (err) {
         logger.error({ err, companyId, reportType }, "Report email sending failed");
         res.status(502).json({ error: "Pošiljanje ni uspelo." });

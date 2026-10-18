@@ -83,6 +83,7 @@ const migrations = [
   "246-bookie-old-ap-settlements.sql",
   "247-bookie-old-native-ledger-evidence.sql",
   "263-erp-smtp-settings.sql",
+  "266-report-email-requests.sql",
   "264-amortizacija-active-entry-unique.sql",
   "265-viva-refund-evidence.sql",
   "265-viva-refund-aging-alerts.sql",

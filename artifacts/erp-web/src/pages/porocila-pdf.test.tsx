@@ -150,6 +150,36 @@ describe.each(reports)("$reportType – strežniški prenos PDF", (report) => {
     });
   });
 
+  it("ponovi e-poštni poskus z istim ključem po izgubi odgovora, nov izvoz pa dobi nov ključ", async () => {
+    openReport(report);
+    fetchMock.mockRejectedValueOnce(new TypeError("Povezava prekinjena"));
+    fireEvent.click(screen.getByTitle("Pošlji po e-pošti"));
+    fireEvent.change(screen.getByLabelText("E-poštni naslov prejemnika"), { target: { value: "test@example.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Pošlji" }));
+    await screen.findByText("Povezava prekinjena");
+    const first = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const key = (first[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key).toMatch(/^[0-9a-f-]{36}$/);
+    expect(JSON.parse(first[1].body as string)).toEqual({
+      reportType: report.reportType, email: "test@example.test", ...report.params,
+    });
+
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ uspeh: true }), { status: 200 }));
+    fireEvent.click(screen.getByRole("button", { name: "Pošlji" }));
+    await screen.findByText("E-pošta je bila uspešno poslana!");
+    const retry = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect(retry[1]).toEqual(first[1]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Zapri" }));
+    fireEvent.click(screen.getByTitle("Pošlji po e-pošti"));
+    fireEvent.change(screen.getByLabelText("E-poštni naslov prejemnika"), { target: { value: "test@example.test" } });
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ uspeh: true }), { status: 200 }));
+    fireEvent.click(screen.getByRole("button", { name: "Pošlji" }));
+    await screen.findByText("E-pošta je bila uspešno poslana!");
+    const next = fetchMock.mock.calls[2] as unknown as [string, RequestInit];
+    expect((next[1].headers as Record<string, string>)["Idempotency-Key"]).not.toBe(key);
+  });
+
   it.each([
     { status: 403, body: JSON.stringify({ error: "Nimate pravice za izvoz." }), message: "Nimate pravice za izvoz." },
     { status: 500, body: JSON.stringify({ error: "Izvoz trenutno ni na voljo." }), message: "Izvoz trenutno ni na voljo." },
