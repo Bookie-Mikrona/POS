@@ -12,6 +12,7 @@ import { poslovniDatumZaCas } from "@/lib/posCas";
 
 const roles = ["starter", "soup", "main", "dessert"] as const;
 const labels = { starter: "Predjed", soup: "Juha", main: "Glavna jed", dessert: "Sladica" };
+const LUNCH_CATEGORIES = ["Glavne jedi", "Juhe", "Otroški meni", "Sezonske jedi", "Zajtrki", "Sladice", "Solate", "Pice"];
 const today = () => poslovniDatumZaCas();
 
 export default function KosilaPage() {
@@ -30,8 +31,8 @@ export default function KosilaPage() {
   const offer = data?.offers?.find((row) => row.businessDate === businessDate);
   const available = useMemo(() => (articles ?? []).filter((article) =>
     article.aktiven && article.prodajniArtikel && !article.nabavniArtikel &&
-    (article.mealType === "prepared" || article.mealType === "composite") &&
-    article.taxCategory === "food"), [articles]);
+    article.taxCategory === "food" &&
+    LUNCH_CATEGORIES.includes(article.kategorijaIme ?? "")), [articles]);
 
   useEffect(() => {
     if (!offer) { setBase("8"); setStarter("10"); setChoices({}); return; }

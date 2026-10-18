@@ -50,7 +50,6 @@ async function choicesBelongToUnit(enotaId: number, choices: Array<{ role: Role;
   return ids.length > 0 && ids.every((id) => {
     const article = byId.get(id);
     return !!article && article.aktiven && article.prodajniArtikel && !article.nabavniArtikel &&
-      (article.mealType === "prepared" || article.mealType === "composite") &&
       article.taxCategory === "food";
   });
 }
@@ -206,8 +205,7 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
       )).for("update");
       const byId = new Map(articles.map((article) => [article.id, article]));
       if (articles.length !== new Set(ids).size || articles.some((article) =>
-        !article.aktiven || !article.prodajniArtikel || article.nabavniArtikel ||
-        (article.mealType !== "prepared" && article.mealType !== "composite") || article.taxCategory !== "food")) {
+        !article.aktiven || !article.prodajniArtikel || article.nabavniArtikel || article.taxCategory !== "food")) {
         throw new Error("Izbrana jed ni več prodajna hrana.");
       }
       await assertPreparedFoodAvailability(tx, enotaId, offer.businessDate,
