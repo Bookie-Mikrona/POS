@@ -9,7 +9,8 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "test:uvoz": "node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/01-csv.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/02-locilo.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/03-eslog20.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/04-format.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/05-cenik.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/06-integracija-profil.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/07-naziv.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/08-reklamacija.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/09-eslog161.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/11-xlsx-karakterizacija.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/10-kratki-naziv.test.ts",
     "test:eracun": "node_modules/.pnpm/node_modules/.bin/tsx tests/eracun-generator/01-generator.test.ts",
-    "test": "pnpm run test:uvoz && pnpm run test:eracun && pnpm run test:cenik && pnpm run test:zalog-sync",
+    "test": "pnpm run test:security-dependencies && pnpm run test:uvoz && pnpm run test:eracun && pnpm run test:cenik && pnpm run test:zalog-sync",
+    "test:security-dependencies": "node --test scripts/security-dependency-pins.test.mjs scripts/security-dependencies.runtime.test.mjs",
     "test:cenik": "node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-cenik/01-zapisi-preslikave.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-cenik/02-profil-tip.test.ts",
     "test:zalog-sync": "node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-zalog-sync/01-zalog-sync.test.ts"
   },
@@ -30,7 +31,7 @@
       "decode-uri-component": "0.5.0",
       "deepmerge-ts": "8.0.2",
       "dompurify": "3.4.14",
-      "js-yaml": "^4.3.1",
+      "js-yaml": "^4.3.2",
       "fast-uri": "^3.1.6",
       "metro": "0.83.8",
       "nanoid": "^3.3.18",

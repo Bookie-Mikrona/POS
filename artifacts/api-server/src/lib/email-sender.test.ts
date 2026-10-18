@@ -96,6 +96,7 @@ describe("company e-mail sender", () => {
     const mime = info.message.toString();
     expect(mime).toContain("From: Issuing Company <info@mikrona.si>");
     expect(mime).toContain("Reply-To: Issuing Company <office@company.si>");
-    expect(info.envelope).toEqual({ from: "info@mikrona.si", to });
+    // Nodemailer normalizes even a single recipient into an address array.
+    expect(info.envelope).toEqual({ from: "info@mikrona.si", to: [to] });
   });
 });
