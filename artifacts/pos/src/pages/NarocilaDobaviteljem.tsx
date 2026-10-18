@@ -346,12 +346,12 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
         </tbody>
         <tfoot>
           <tr>
-            <th colSpan={4} className="supplier-order-print__number">Skupaj</th>
+            <th colSpan={4} className="supplier-order-print__number">{hasUnpricedLines ? "Vmesni seštevek" : "Skupaj"}</th>
             <th className="supplier-order-print__number">{pricedLines.length ? formatMoney(total) : "—"}</th>
           </tr>
         </tfoot>
       </table>
-      {hasUnpricedLines && <p className="supplier-order-print__subtotal-note">Vsota ne vključuje postavk brez določene cene.</p>}
+      {hasUnpricedLines && <p className="supplier-order-print__subtotal-note">Vmesni seštevek ne vključuje postavk brez določene cene.</p>}
 
       {order.supplierNotes && (
         <section className="supplier-order-print__notes">

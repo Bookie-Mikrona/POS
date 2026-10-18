@@ -546,13 +546,19 @@ async function main() {
     const emptyOrderPageIndex = pages.findIndex(page => page.includes("EMPTY-ORDER-CASE"));
     const noInstructionsPageIndex = pages.findIndex(page =>
       compactText(page).includes(compactText("NO-INSTRUCTIONS-ORDER-CASE")));
+    const mixedPricedPageIndex = pages.findIndex(page => page.includes("MIXED-PRICED-ORDER-CASE"));
+    const fullyUnpricedPageIndex = pages.findIndex(page => page.includes("FULLY-UNPRICED-ORDER-CASE"));
     assert(lastInstructionPageIndex >= 0, "The long order's final instruction page is missing.");
     assert(oneRowPageIndex >= 0, "The one-row order is missing from the PDF.");
     assert(emptyOrderPageIndex >= 0, "The empty order is missing from the PDF.");
     assert(noInstructionsPageIndex >= 0, "The order without supplier instructions is missing from the PDF.");
+    assert(mixedPricedPageIndex >= 0, "The mixed priced/unpriced order is missing from the PDF.");
+    assert(fullyUnpricedPageIndex >= 0, "The fully unpriced order is missing from the PDF.");
     assert.equal(oneRowPageIndex, lastInstructionPageIndex + 1, "A blank page appeared before the one-row order.");
     assert.equal(emptyOrderPageIndex, oneRowPageIndex + 1, "The one-row order produced an unexpected extra page.");
     assert.equal(noInstructionsPageIndex, emptyOrderPageIndex + 1, "The empty order produced an unexpected extra page.");
+    assert.equal(mixedPricedPageIndex, noInstructionsPageIndex + 1, "The order without instructions produced an unexpected extra page.");
+    assert.equal(fullyUnpricedPageIndex, mixedPricedPageIndex + 1, "The mixed priced/unpriced order produced an unexpected extra page.");
 
     const oneRowPage = pages[oneRowPageIndex];
     assert(oneRowPage.includes("Enovrstični preizkusni dobavitelj"), "The one-row order supplier is missing.");
@@ -599,6 +605,42 @@ async function main() {
     const noInstructionsTotalLine = noInstructionsPage.split("\n").map(normalizeText)
       .find(line => line.includes("Skupaj"));
     assert(noInstructionsTotalLine?.includes(decimalToken(3.6)), "The order without instructions is missing its total.");
+
+    const mixedPricedPage = pages[mixedPricedPageIndex];
+    const mixedPricedLine = mixedPricedPage.split("\n").map(normalizeText)
+      .find(line => line.includes("MIXED-PRICED-ARTICLE"));
+    const mixedUnpricedLine = mixedPricedPage.split("\n").map(normalizeText)
+      .find(line => line.includes("MIXED-UNPRICED-ARTICLE"));
+    assert(mixedPricedLine, "The priced line is missing from the mixed-price order.");
+    assert(mixedUnpricedLine, "The unpriced line is missing from the mixed-price order.");
+    assert(mixedPricedLine.includes(decimalToken(3.5)), "The priced line is missing its unit price.");
+    assert(mixedPricedLine.includes(decimalToken(7)), "The priced line is missing its amount.");
+    assert.equal(
+      (mixedUnpricedLine.match(/—/g) ?? []).length,
+      2,
+      "The unpriced line must show dashes for both its price and amount.",
+    );
+    assert(mixedPricedPage.includes("Vmesni seštevek ne vključuje postavk brez določene cene."),
+      "The mixed-price order does not explain that unpriced lines are excluded.");
+    const mixedTotalLine = mixedPricedPage.split("\n").map(normalizeText)
+      .find(line => line.includes("Vmesni seštevek"));
+    assert(mixedTotalLine?.includes(decimalToken(7)), "The mixed-price subtotal must include only the priced line.");
+    assert(!mixedTotalLine?.includes(decimalToken(50)), "The mixed-price subtotal incorrectly includes the unpriced line.");
+
+    const fullyUnpricedPage = pages[fullyUnpricedPageIndex];
+    const fullyUnpricedLine = fullyUnpricedPage.split("\n").map(normalizeText)
+      .find(line => line.includes("FULLY-UNPRICED-ARTICLE"));
+    assert(fullyUnpricedLine, "The fully unpriced order's line is missing.");
+    assert(
+      (fullyUnpricedLine.match(/—/g) ?? []).length >= 2,
+      "The fully unpriced line must show dashes for both its price and amount.",
+    );
+    assert(fullyUnpricedPage.includes("Vmesni seštevek ne vključuje postavk brez določene cene."),
+      "The fully unpriced order does not explain that its line is excluded.");
+    const fullyUnpricedTotalLine = fullyUnpricedPage.split("\n").map(normalizeText)
+      .find(line => line.includes("Vmesni seštevek"));
+    assert(fullyUnpricedTotalLine?.includes("—"), "The fully unpriced order's subtotal placeholder is missing.");
+    assert(!fullyUnpricedPage.includes("EMPTY-ORDER-CASE"), "The fully unpriced order was confused with the empty order.");
 
     const boundingBoxes = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-bbox-layout", pdfPath, "-"]);
     const pdfPages = [...boundingBoxes.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)];

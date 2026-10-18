@@ -99,6 +99,37 @@ const noInstructionsLine: SupplierOrderDetail["lines"][number] = {
   openBaseQuantity: 3,
   unitPrice: 1.2,
 };
+const mixedPricedLine: SupplierOrderDetail["lines"][number] = {
+  ...oneRowLine,
+  id: 90_003,
+  supplierMappingId: 90_003,
+  articleId: 90_003,
+  articleName: "MIXED-PRICED-ARTICLE",
+  supplierItemName: "MIXED-PRICED-SUPPLIER-ITEM",
+  supplierCode: "MIXED-PRICED-SUPPLIER-CODE",
+};
+const mixedUnpricedLine: SupplierOrderDetail["lines"][number] = {
+  ...oneRowLine,
+  id: 90_004,
+  supplierMappingId: 90_004,
+  articleId: 90_004,
+  articleName: "MIXED-UNPRICED-ARTICLE",
+  supplierItemName: "MIXED-UNPRICED-SUPPLIER-ITEM",
+  supplierCode: "MIXED-UNPRICED-SUPPLIER-CODE",
+  packageQuantity: 4,
+  orderedBaseQuantity: 4,
+  openBaseQuantity: 4,
+  unitPrice: null,
+};
+const fullyUnpricedLine: SupplierOrderDetail["lines"][number] = {
+  ...mixedUnpricedLine,
+  id: 90_005,
+  supplierMappingId: 90_005,
+  articleId: 90_005,
+  articleName: "FULLY-UNPRICED-ARTICLE",
+  supplierItemName: "FULLY-UNPRICED-SUPPLIER-ITEM",
+  supplierCode: "FULLY-UNPRICED-SUPPLIER-CODE",
+};
 const shortOrders: SupplierOrderDetail[] = [
   {
     ...order,
@@ -135,6 +166,30 @@ const shortOrders: SupplierOrderDetail[] = [
     internalNotes: "INTERNAL-NOTE-MUST-NOT-PRINT",
     supplierNotes: null,
     lines: [noInstructionsLine],
+  },
+  {
+    ...order,
+    id: 952,
+    number: "MIXED-PRICED-ORDER-CASE",
+    supplierId: "supplier-mixed-priced-test",
+    supplierName: "Dobavitelj z določenimi in manjkajočimi cenami",
+    lineCount: 2,
+    openQuantity: 6,
+    internalNotes: null,
+    supplierNotes: null,
+    lines: [mixedPricedLine, mixedUnpricedLine],
+  },
+  {
+    ...order,
+    id: 953,
+    number: "FULLY-UNPRICED-ORDER-CASE",
+    supplierId: "supplier-fully-unpriced-test",
+    supplierName: "Dobavitelj brez določenih cen",
+    lineCount: 1,
+    openQuantity: 4,
+    internalNotes: null,
+    supplierNotes: null,
+    lines: [fullyUnpricedLine],
   },
 ];
 
