@@ -730,15 +730,19 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
 
-  const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, {
+  const costCentersQuery = useListCostCenters(activeCompany?.id ?? "", {}, {
     query: { enabled: !!activeCompany?.id, refetchOnWindowFocus: "always" } as any,
   });
+  const { data: costCentersData } = costCentersQuery;
   const costCenters = costCentersData?.costCenters ?? [];
+  const costCentersReady = costCentersQuery.isSuccess && !costCentersQuery.isFetching;
 
-  const { data: projectsData } = useListProjects(activeCompany?.id ?? "", {}, {
+  const projectsQuery = useListProjects(activeCompany?.id ?? "", {}, {
     query: { enabled: !!activeCompany?.id, refetchOnWindowFocus: "always" } as any,
   });
+  const { data: projectsData } = projectsQuery;
   const projects = projectsData?.projects ?? [];
+  const projectsReady = projectsQuery.isSuccess && !projectsQuery.isFetching;
 
   const { data: departmentsData } = useListDepartments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
   const departments = departmentsData?.departments ?? [];
@@ -881,9 +885,9 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
     const costCenterPolicy = acc.costCenterPolicy
       ?? (acc.requiresCostCenter ? "required" : "allowed");
     if (acc.requiresPartner && !l.partnerId) return true;
-    if (costCenterPolicy === "required" && !costCenters.some(cc => cc.id === l.costCenterId)) return true;
+    if (costCenterPolicy === "required" && (!costCentersReady || !costCenters.some(cc => cc.id === l.costCenterId))) return true;
     if (costCenterPolicy === "not_allowed" && !!l.costCenterId) return true;
-    if (acc.requiresProject && !projects.some(project => project.id === l.projectId)) return true;
+    if (acc.requiresProject && (!projectsReady || !projects.some(project => project.id === l.projectId))) return true;
     return false;
   });
   const groupAccountErrors = lines.some(l => {
@@ -1121,8 +1125,8 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                     const reqProject = selAcc?.requiresProject ?? false;
                     const showPartner = true;
                     const showCostCenter = costCenterPolicy !== "not_allowed"
-                      && (costCenters.length > 0 || reqCostCenter);
-                    const showProject = projects.length > 0 || reqProject;
+                      && (costCenters.length > 0 || reqCostCenter || !costCentersReady);
+                    const showProject = projects.length > 0 || reqProject || !projectsReady;
                     const showDept = departments.length > 0;
                     return (
                       <div className="grid grid-cols-2 gap-3">
@@ -1155,7 +1159,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                             <Label className={`text-xs ${reqCostCenter ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                               Stroškovno mesto{reqCostCenter ? <span className="text-destructive ml-0.5">*</span> : " (neobvezno)"}
                             </Label>
-                            <Select value={line.costCenterId || "__none__"} onValueChange={(val) => updateLine(line.id, "costCenterId", val === "__none__" ? "" : val)}>
+                            <Select disabled={!costCentersReady} value={line.costCenterId || "__none__"} onValueChange={(val) => updateLine(line.id, "costCenterId", val === "__none__" ? "" : val)}>
                               <SelectTrigger className={`h-9 ${reqCostCenter && !line.costCenterId ? "border-destructive ring-1 ring-destructive" : ""}`}>
                                 <SelectValue placeholder="—" />
                               </SelectTrigger>
@@ -1166,14 +1170,23 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                                 ))}
                               </SelectContent>
                             </Select>
-                            {reqCostCenter && costCentersData && costCenters.length === 0 ? (
+                            {costCentersQuery.isFetching || costCentersQuery.isPending ? (
+                              <p role="status" className="text-xs text-muted-foreground">Nalaganje stroškovnih mest …</p>
+                            ) : costCentersQuery.isError ? (
+                              <div role="alert" className="text-xs text-destructive">
+                                Stroškovnih mest ni bilo mogoče naložiti.{" "}
+                                <Button type="button" variant="outline" size="sm" onClick={() => void costCentersQuery.refetch()}>
+                                  Poskusi znova — stroškovna mesta
+                                </Button>
+                              </div>
+                            ) : reqCostCenter && costCentersReady && costCenters.length === 0 ? (
                               <p role="alert" className="text-xs text-destructive">
                                 Najprej dodajte stroškovno mesto v nastavitvah.{" "}
                                 <a href={`${BASE_URL}/stroskovana-mesta`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
                                   Nastavitve stroškovnih mest (nov zavihek)
                                 </a>
                               </p>
-                            ) : reqCostCenter && !line.costCenterId && (
+                            ) : reqCostCenter && costCentersReady && !line.costCenterId && (
                               <p className="text-xs text-destructive">Za ta konto je stroškovno mesto obvezno.</p>
                             )}
                           </div>
@@ -1183,7 +1196,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                             <Label className={`text-xs ${reqProject ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                               Projekt{reqProject ? <span className="text-destructive ml-0.5">*</span> : " (neobvezno)"}
                             </Label>
-                            <Select value={line.projectId || "__none__"} onValueChange={(val) => updateLine(line.id, "projectId", val === "__none__" ? "" : val)}>
+                            <Select disabled={!projectsReady} value={line.projectId || "__none__"} onValueChange={(val) => updateLine(line.id, "projectId", val === "__none__" ? "" : val)}>
                               <SelectTrigger className={`h-9 ${reqProject && !line.projectId ? "border-destructive ring-1 ring-destructive" : ""}`}>
                                 <SelectValue placeholder="—" />
                               </SelectTrigger>
@@ -1194,14 +1207,23 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                                 ))}
                               </SelectContent>
                             </Select>
-                            {reqProject && projectsData && projects.length === 0 ? (
+                            {projectsQuery.isFetching || projectsQuery.isPending ? (
+                              <p role="status" className="text-xs text-muted-foreground">Nalaganje projektov …</p>
+                            ) : projectsQuery.isError ? (
+                              <div role="alert" className="text-xs text-destructive">
+                                Projektov ni bilo mogoče naložiti.{" "}
+                                <Button type="button" variant="outline" size="sm" onClick={() => void projectsQuery.refetch()}>
+                                  Poskusi znova — projekti
+                                </Button>
+                              </div>
+                            ) : reqProject && projectsReady && projects.length === 0 ? (
                               <p role="alert" className="text-xs text-destructive">
                                 Najprej dodajte projekt v nastavitvah.{" "}
                                 <a href={`${BASE_URL}/dimenzije`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
                                   Nastavitve projektov (nov zavihek)
                                 </a>
                               </p>
-                            ) : reqProject && !line.projectId && (
+                            ) : reqProject && projectsReady && !line.projectId && (
                               <p className="text-xs text-destructive">Za ta konto je projekt obvezen.</p>
                             )}
                           </div>

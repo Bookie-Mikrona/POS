@@ -8,6 +8,8 @@ const state = vi.hoisted(() => ({
   projects: { projects: [] as { id: string; name: string }[] } as { projects: { id: string; name: string }[] } | undefined,
   mutate: vi.fn(),
   listEntries: vi.fn(),
+  loadCostCenters: vi.fn(),
+  loadProjects: vi.fn(),
 }));
 vi.mock("@clerk/react", () => ({ useAuth: () => ({ getToken: vi.fn() }) }));
 vi.mock("@/contexts/CompanyContext", () => ({
@@ -29,12 +31,12 @@ vi.mock("@workspace/api-client-react", async () => {
   useListCounterparties: () => ({ data: { counterparties: [] } }),
   useListCostCenters: (companyId: string, _params: unknown, options: any) => useQuery({
     queryKey: ["cost-centers", companyId],
-    queryFn: () => state.costCenters ?? new Promise(() => {}),
+    queryFn: () => state.loadCostCenters(),
     ...options?.query,
   }),
   useListProjects: (companyId: string, _params: unknown, options: any) => useQuery({
     queryKey: ["projects", companyId],
-    queryFn: () => state.projects ?? new Promise(() => {}),
+    queryFn: () => state.loadProjects(),
     ...options?.query,
   }),
   useListDepartments: () => ({ data: { departments: [] } }),
@@ -48,7 +50,7 @@ vi.mock("@workspace/api-client-react", async () => {
   getListInvoicesQueryKey: () => ["invoices"],
 }); });
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ value, onValueChange, children }: any) => <select value={value} onChange={e => onValueChange(e.target.value)}>{children}</select>,
+  Select: ({ value, onValueChange, children, disabled }: any) => <select disabled={disabled} value={value} onChange={e => onValueChange(e.target.value)}>{children}</select>,
   SelectTrigger: () => null,
   SelectValue: () => null,
   SelectContent: ({ children }: any) => <>{children}</>,
@@ -64,6 +66,8 @@ beforeEach(() => {
   state.projects = { projects: [] };
   state.mutate.mockReset();
   state.listEntries.mockReset();
+  state.loadCostCenters.mockReset().mockImplementation(() => state.costCenters ?? new Promise(() => {}));
+  state.loadProjects.mockReset().mockImplementation(() => state.projects ?? new Promise(() => {}));
 });
 afterEach(() => {
   cleanup();
@@ -76,8 +80,8 @@ async function openEntry() {
   render(<QueryClientProvider client={client}><Temeljnice /></QueryClientProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Nova temeljnica" }));
   await waitFor(() => {
-    if (state.costCenters) expect(client.getQueryData(["cost-centers", "company"])).toBeDefined();
-    if (state.projects) expect(client.getQueryData(["projects", "company"])).toBeDefined();
+    if (state.costCenters) expect(client.getQueryState(["cost-centers", "company"])?.status).not.toBe("pending");
+    if (state.projects) expect(client.getQueryState(["projects", "company"])?.status).not.toBe("pending");
   });
 }
 function chooseAccount(index: number, value: string) {
@@ -160,6 +164,88 @@ describe("Manjkajoči šifranti obveznih dimenzij", () => {
     await openEntry();
     chooseAccount(0, "required");
     expect(screen.queryByText(/Najprej dodajte/)).toBeNull();
+    expect(screen.getAllByText("Nalaganje stroškovnih mest …").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Nalaganje projektov …").length).toBeGreaterThan(0);
+    fillEntry();
+    fireEvent.keyDown(window, { key: "F2" });
+    expect((screen.getByRole("button", { name: /Shrani temeljnico/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(state.mutate).not.toHaveBeenCalled();
+  });
+
+  it.each(["costCenter", "project"] as const)("po napaki seznama %s ponovi le nalaganje in ohrani vnos", async kind => {
+    const costCenter = kind === "costCenter";
+    const loader = costCenter ? state.loadCostCenters : state.loadProjects;
+    const otherLoader = costCenter ? state.loadProjects : state.loadCostCenters;
+    state.costCenters = { costCenters: [{ id: "cc", name: "Uprava" }] };
+    state.projects = { projects: [{ id: "pr", name: "Projekt A" }] };
+    loader.mockRejectedValue(new Error("Nedosegljiv strežnik"));
+    await openEntry();
+    fillEntry();
+    const message = costCenter ? /Stroškovnih mest ni bilo mogoče naložiti/ : /Projektov ni bilo mogoče naložiti/;
+    await waitFor(() => expect(screen.getAllByText(message).length).toBeGreaterThan(0));
+    expect(screen.queryByText(/Najprej dodajte/)).toBeNull();
+    expect(screen.queryByRole("link", { name: /Nastavitve (stroškovnih mest|projektov)/ })).toBeNull();
+    const save = screen.getByRole("button", { name: /Shrani temeljnico/ }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(save);
+    fireEvent.keyDown(window, { key: "F2" });
+    expect(state.mutate).not.toHaveBeenCalled();
+    const otherCalls = otherLoader.mock.calls.length;
+    let resolveRetry!: (value: unknown) => void;
+    loader.mockImplementation(() => new Promise(resolve => { resolveRetry = resolve; }));
+    fireEvent.click(screen.getAllByRole("button", {
+      name: costCenter ? "Poskusi znova — stroškovna mesta" : "Poskusi znova — projekti",
+    })[0]!);
+    await waitFor(() => expect(screen.getAllByText(costCenter ? "Nalaganje stroškovnih mest …" : "Nalaganje projektov …").length).toBeGreaterThan(0));
+    expect(save.disabled).toBe(true);
+    await act(async () => resolveRetry(costCenter ? state.costCenters : state.projects));
+    await waitFor(() => expect(screen.queryAllByText(message)).toHaveLength(0));
+    expect(otherLoader).toHaveBeenCalledTimes(otherCalls);
+    expect((screen.getByPlaceholderText("Npr. Prejeti račun 2024-001") as HTMLInputElement).value).toBe("Test");
+    expect(screen.getAllByPlaceholderText("0.00").map(el => (el as HTMLInputElement).value)).toEqual(["100", "100"]);
+    expect(save.disabled).toBe(true);
+    for (const value of ["cc", "pr"]) {
+      const select = screen.getAllByRole("combobox").find(el =>
+        Array.from((el as HTMLSelectElement).options).some(option => option.value === value));
+      fireEvent.change(select!, { target: { value } });
+    }
+    expect(save.disabled).toBe(false);
+    fireEvent.keyDown(window, { key: "F2" });
+    expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ description: "Test", lines: expect.arrayContaining([
+        expect.objectContaining({ accountId: "required", amount: 100, costCenterId: "cc", projectId: "pr" }),
+        expect.objectContaining({ accountId: "optional", amount: 100 }),
+      ]) }),
+    }), expect.anything());
+  });
+
+  it.each(["costCenter", "project"] as const)("podatki v predpomnilniku ne obidejo napake pri osvežitvi %s", async kind => {
+    state.costCenters = { costCenters: [{ id: "cc", name: "Uprava" }] };
+    state.projects = { projects: [{ id: "pr", name: "Projekt A" }] };
+    await openEntry();
+    fillEntry();
+    for (const value of ["cc", "pr"]) {
+      const select = screen.getAllByRole("combobox").find(el =>
+        Array.from((el as HTMLSelectElement).options).some(option => option.value === value));
+      fireEvent.change(select!, { target: { value } });
+    }
+    const save = screen.getByRole("button", { name: /Shrani temeljnico/ }) as HTMLButtonElement;
+    expect(save.disabled).toBe(false);
+    const loader = kind === "costCenter" ? state.loadCostCenters : state.loadProjects;
+    loader.mockRejectedValue(new Error("Napaka osvežitve"));
+    await act(async () => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() => expect(save.disabled).toBe(true));
+    fireEvent.keyDown(window, { key: "F2" });
+    expect(state.mutate).not.toHaveBeenCalled();
+    loader.mockImplementation(() => kind === "costCenter" ? state.costCenters : state.projects);
+    fireEvent.click(screen.getAllByRole("button", {
+      name: kind === "costCenter" ? "Poskusi znova — stroškovna mesta" : "Poskusi znova — projekti",
+    })[0]!);
+    await waitFor(() => expect(save.disabled).toBe(false));
+    expect(screen.getAllByPlaceholderText("0.00").map(el => (el as HTMLInputElement).value)).toEqual(["100", "100"]);
   });
 
   it("ob obstoječih dimenzijah zahteva izbiro in nato omogoči shranjevanje", async () => {
