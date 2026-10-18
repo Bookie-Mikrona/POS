@@ -2389,6 +2389,8 @@ router.post("/narocila/:id/multicourse", async (req, res): Promise<void> => {
             courseSequence: selection.courseSequence,
             courseNameSnapshot: configuredCourses.find(course => course.courseNumber === selection.courseNumber)?.courseName ?? null,
             pairingGroupId,
+            // Naprava, ki je naročila: nanjo se pošlje obvestilo o pripravljenem hodu.
+            napravaId: typeof req.headers["x-naprava-id"] === "string" ? req.headers["x-naprava-id"] : null,
             velikostPice: pizzaSnapshot?.size,
             normativFaktor: String(pizzaSnapshot?.factor ?? 1),
           }).returning({ id: postavkeTable.id });

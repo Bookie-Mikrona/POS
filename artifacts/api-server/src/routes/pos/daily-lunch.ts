@@ -224,6 +224,7 @@ router.post("/daily-lunch-offers/:offerId/quote", async (req, res): Promise<void
 
 router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
   const enotaId = unit(req);
+  const napravaId = typeof req.headers["x-naprava-id"] === "string" ? req.headers["x-naprava-id"] : null;
   const orderId = Number(req.params.id);
   const offerId = Number(req.body?.offerId);
   const mode = req.body?.mode as Mode;
@@ -310,7 +311,7 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
           narociloId: orderId, artikelId: main.id, ime: main.ime, kolicina: 1,
           cenaKos: total.toFixed(2), cenaKosOriginalna: total.toFixed(2), skupaj: total.toFixed(2),
           davek: String(main.davek), mealType: main.mealType, vrstaArtikla: main.vrstaArtikla,
-          jeDelMenija: true, pairingGroupId, idempotencyKey: copy === 0 ? idempotencyKey : `${idempotencyKey}#${copy}`,
+          jeDelMenija: true, pairingGroupId, napravaId, idempotencyKey: copy === 0 ? idempotencyKey : `${idempotencyKey}#${copy}`,
           courseNumber: mode === "four_course" ? 3 : 2, courseSequence: mode === "four_course" ? 3 : 2,
           courseNameSnapshot: "main", availabilityRequirements: [{ articleId: main.id, quantity: 1, mealType: main.mealType }],
         }).returning({ id: postavkeTable.id });
@@ -330,7 +331,7 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
           const [courseRow] = await tx.insert(postavkeTable).values({
             narociloId: orderId, artikelId: article.id, ime: article.ime, kolicina: 1,
             cenaKos: "0.00", cenaKosOriginalna: "0.00", skupaj: "0.00", davek: String(article.davek),
-            mealType: article.mealType, vrstaArtikla: article.vrstaArtikla, jeDelMenija: true, pairingGroupId,
+            mealType: article.mealType, vrstaArtikla: article.vrstaArtikla, jeDelMenija: true, pairingGroupId, napravaId,
             courseNumber, courseSequence: courseNumber, courseNameSnapshot: role,
             availabilityRequirements: [{ articleId: article.id, quantity: 1, mealType: article.mealType }],
           }).returning({ id: postavkeTable.id });
