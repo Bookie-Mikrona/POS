@@ -37,6 +37,7 @@ vi.mock("@workspace/db", async original => {
         };
         return query;
       },
+      execute: async () => ({ rows: [], rowCount: 0 }),
       transaction: async (fn: (tx: any) => Promise<unknown>) => {
         const snapshot = mocks.row;
         try { return await fn(mockDb); } catch (error) { mocks.row = snapshot; throw error; }
@@ -63,6 +64,11 @@ vi.mock("@workspace/db", async original => {
     db: mockDb,
   };
 });
+vi.mock("../lib/reportEmailRequest", () => ({
+  reportEmailHash: () => "test-hash",
+  reportEmailRequest: vi.fn(async (_c: string, _k: string, _u: string, _h: string, claim = false) => claim ? "claimed" : "new"),
+  completeReportEmail: vi.fn(async () => undefined),
+}));
 vi.mock("nodemailer", () => ({
   default: { createTransport: () => ({ sendMail: mocks.sendMail, close: mocks.close }) },
 }));

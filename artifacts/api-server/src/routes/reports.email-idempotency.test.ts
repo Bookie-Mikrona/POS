@@ -32,6 +32,8 @@ vi.mock("@workspace/db", async (original) => ({
       return chain;
     },
     insert: () => ({ values: state.history }),
+    transaction: async (work: (tx: unknown) => unknown) =>
+      work({ execute: async () => ({ rows: [], rowCount: 0 }), insert: () => ({ values: state.history }) }),
   },
 }));
 import router from "./reports";

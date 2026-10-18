@@ -20,6 +20,9 @@ vi.mock("../middlewares/requireAuth", () => ({
     next();
   },
 }));
+vi.mock("@clerk/express", () => ({
+  clerkClient: { users: { getUser: async () => ({ firstName: "Test", lastName: "Exporter", emailAddresses: [] }) } },
+}));
 import express from "express";
 import { spawnSync } from "node:child_process";
 import request from "supertest";

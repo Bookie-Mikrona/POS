@@ -3,9 +3,10 @@ const USER = "credit-note-integration-owner";
 vi.mock("../middlewares/requireAuth", () => ({
   requireAuth: (req: any, _res: any, next: any) => { req.clerkUserId = USER; next(); },
 }));
-vi.mock("../middlewares/pos", () => ({
-  requireEnota: (req: any, _res: any, next: any) => { req.clerkUserId = USER; req.companyId = currentCompanyId; req.enotaId = currentEnotaId; req.log = { warn: () => {} }; next(); },
-}));
+vi.mock("../middlewares/pos", () => {
+  const attachContext = (req: any, _res: any, next: any) => { req.clerkUserId = USER; req.companyId = currentCompanyId; req.enotaId = currentEnotaId; req.log = { warn: () => {} }; next(); };
+  return { requireEnota: attachContext, requireIzbranaEnota: attachContext };
+});
 vi.mock("@clerk/express", () => ({ getAuth: () => ({ userId: USER }) }));
 import express from "express";
 import request from "supertest";

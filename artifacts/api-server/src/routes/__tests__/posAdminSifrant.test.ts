@@ -47,7 +47,7 @@ vi.mock("@workspace/db", () => {
       innerJoin: () => chain,
       leftJoin: () => chain,
       orderBy: () => chain,
-      limit: () => p,
+      limit: () => Object.assign(p, { for: () => p }),
       then: p.then.bind(p),
       catch: (p as Promise<unknown[]>).catch.bind(p),
     };
@@ -75,13 +75,15 @@ vi.mock("@workspace/db", () => {
 
   const deleteChain = { where: () => Promise.resolve([]) };
 
+  const mockDb: Record<string, unknown> = {
+    select: () => makeChain(),
+    update: () => updateChain,
+    insert: () => insertChain,
+    delete: () => deleteChain,
+    transaction: async (work: (tx: unknown) => unknown) => work(mockDb),
+  };
   return {
-    db: {
-      select: () => makeChain(),
-      update: () => updateChain,
-      insert: () => insertChain,
-      delete: () => deleteChain,
-    },
+    db: mockDb,
     costCentersTable: {
       id: "id",
       companyId: "company_id",

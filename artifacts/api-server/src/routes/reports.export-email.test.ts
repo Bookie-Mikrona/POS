@@ -47,6 +47,11 @@ vi.mock("../lib/erp-email", () => ({
   posljiPorociloPdf: mocks.send,
   getErpSmtp: vi.fn(),
 }));
+vi.mock("../lib/reportEmailRequest", () => ({
+  reportEmailHash: () => "test-hash",
+  reportEmailRequest: vi.fn(async (_c: string, _k: string, _u: string, _h: string, claim = false) => claim ? "claimed" : "new"),
+  completeReportEmail: vi.fn(async () => undefined),
+}));
 vi.mock("../lib/logger", () => ({ logger: { error: mocks.error } }));
 
 import router from "./reports";
@@ -102,7 +107,7 @@ describe("report email export audit trail", () => {
   function exportReport(email?: string, params: Record<string, unknown> = {}) {
     return fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "11111111-1111-4111-8111-111111111111" },
       body: JSON.stringify({ reportType: "income-statement", dateFrom: "2026-01-01", dateTo: "2026-12-31", email, ...params }),
     });
   }

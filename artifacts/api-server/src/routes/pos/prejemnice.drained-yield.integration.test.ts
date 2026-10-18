@@ -9,14 +9,15 @@ const anthropicMock = vi.hoisted(() => ({
   create: vi.fn(),
 }));
 
-vi.mock("../../middlewares/pos", () => ({
-  requireEnota(req: any, _res: any, next: any) {
+vi.mock("../../middlewares/pos", () => {
+  const attachContext = (req: any, _res: any, next: any) => {
     req.companyId = context.companyId;
     req.enotaId = context.enotaId;
     req.clerkUserId = context.userId;
     next();
-  },
-}));
+  };
+  return { requireEnota: attachContext, requireIzbranaEnota: attachContext };
+});
 vi.mock("@workspace/integrations-anthropic-ai", () => ({
   anthropic: { messages: { create: anthropicMock.create } },
 }));
