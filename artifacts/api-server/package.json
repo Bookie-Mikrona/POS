@@ -25,6 +25,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:backup-roundtrip": "vitest run --config vitest.backup-roundtrip.config.ts",
+    "test:clerk-export-history:live": "vitest run --config vitest.clerk-integration.config.ts",
     "test:watch": "vitest"
   },
   "dependencies": {

@@ -25,6 +25,7 @@ import erpSmtpRouter from "./erp-smtp";
 import { expectedAccountType } from "../lib/accountTypeWarning";
 import { logger } from "../lib/logger";
 import { REPORT_EXPORT_RETENTION_DAYS, reportExportCutoff } from "../lib/reportExportRetention";
+import { resolveReportExporterNames } from "../lib/reportExporterNames";
 
 const router: IRouter = Router();
 router.use(erpSmtpRouter);
@@ -809,7 +810,24 @@ router.get(
 
     const accountsByDimension = new Map<string, AccountBreakdownRow[]>();
     for (const account of accountMap.values()) {
-      const rows = accountsByDimension.get(account.dimId) ?? [];
+    const rows = await db
+      .select({
+        id: reportExportsTable.id,
+        reportType: reportExportsTable.reportType,
+        params: reportExportsTable.params,
+        filename: reportExportsTable.filename,
+        exportedBy: reportExportsTable.exportedBy,
+        exportedByName: reportExportsTable.exportedByName,
+        exportedAt: reportExportsTable.exportedAt,
+        emailSentTo: reportExportsTable.emailSentTo,
+      })
+      .from(reportExportsTable)
+      .where(and(
+        eq(reportExportsTable.companyId, companyId),
+        gte(reportExportsTable.exportedAt, reportExportCutoff()),
+      ))
+      .orderBy(desc(reportExportsTable.exportedAt))
+      .limit(200);
       rows.push({
         accountId: account.accountId,
         code: account.code,
@@ -1295,21 +1313,11 @@ router.get(
       ))
       .orderBy(desc(reportExportsTable.exportedAt))
       .limit(200);
-
     const userIds = [...new Set(rows.filter((row) => !row.exportedByName?.trim())
       .map((row) => row.exportedBy).filter(Boolean))];
-    const displayNames = new Map<string, string>();
-    // Deduplicate and batch only this company's exporters (Clerk's page size is 100).
+    let displayNames: Map<string, string>;
     try {
-      for (let offset = 0; offset < userIds.length; offset += 100) {
-        const { data: users } = await clerkClient.users.getUserList({
-          userId: userIds.slice(offset, offset + 100),
-          limit: 100,
-        });
-        for (const user of users) {
-          displayNames.set(user.id, exporterDisplayName(user) ?? "Neznan uporabnik");
-        }
-      }
+      displayNames = await resolveReportExporterNames(userIds, clerkClient.users);
     } catch {
       // A directory outage is not evidence that the exporter was deleted.
       res.status(502).json({ error: "Podatkov o izvoznikih ni mogoče pridobiti. Poskusite znova." });

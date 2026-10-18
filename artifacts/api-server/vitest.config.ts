@@ -15,6 +15,7 @@ export default defineConfig({
     exclude: [
       ...configDefaults.exclude,
       "src/routes/backup.roundtrip.integration.test.ts",
+      "src/lib/reportExporterNames.clerk.integration.test.ts",
       ...(!process.env.OFFLINE_FISCAL_TEST_DATABASE_NAME ? isolatedOfflineFiscalSuites : []),
     ],
     // Run test files and tests serially to avoid DB race conditions.

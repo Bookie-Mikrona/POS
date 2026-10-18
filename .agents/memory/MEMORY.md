@@ -45,6 +45,7 @@
 - [Privzete konto nastavitve](privzete-konto-nastavitve.md) — novi seed je fill-only in serializiran po podjetju; obstoječih podjetij ne spreminja samodejno.
 - [Dostop cron endpointov](cron-endpoint-access.md) — scheduled poti morajo biti pred POS requireEnota in brez CRON_SECRET vedno odpovedati zaprto.
 - [Prijava Clerk v POS](clerk-pos-guides.md) — povezane omejitve host-aware SDK-ja, prevodov, E2E, prehodnih 401 in obsega varoval.
+- [Clerk razvojni integracijski testi](clerk-live-test-guards.md) — paginirani seznam opravi tudi ločen count; varovalo fetch je odvisno od testnega runtime-a SDK-ja.
 - [FURS certifikat scope](furs-certifikat-scope.md) — premise override je legacy disk-pot; globalni upload in resolver nista usklajena, zato naj bo en šifriran company vir.
 - [PostgreSQL backup manifest](postgres-backup-manifest.md) — DDL dump ni tekstovno idempotenten; pred restore preveri odtis, po njem strukturo in pravilno obravnavaj neuporabljene sekvence.
 - [XLSX native numerika](xlsx-native-numerics.md) — typed kanal je opt-in; Excel formule v numeričnih poljih berejo cached number, GTIN in besedilo vedno ostaneta text.
