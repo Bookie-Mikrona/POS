@@ -8403,6 +8403,17 @@ export interface AvailableSupplierOrderReceiptLine {
   baseUnit: string | null;
   remainingBaseQuantity: number;
 }
+
+export interface ManualReceiptSupplierOrderLinkInput {
+  /** @minimum 1 */
+  supplierOrderLineId: number;
+}
+
+export interface ManualReceiptSupplierOrderLink {
+  id: number;
+  supplierOrderLineId: number;
+}
+
 export type SupplierOrderStatus = typeof SupplierOrderStatus[keyof typeof SupplierOrderStatus];
 
 
@@ -15405,13 +15416,3 @@ month: string;
 counterpartyId: string;
 };
 
-
-export interface ManualReceiptSupplierOrderLinkInput {
-  /** @minimum 1 */
-  supplierOrderLineId: number;
-}
-
-export interface ManualReceiptSupplierOrderLink {
-  id: number;
-  supplierOrderLineId: number;
-}
