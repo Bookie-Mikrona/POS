@@ -69,6 +69,12 @@ function focusIfAvailable(target: HTMLElement | null, fallback: HTMLElement | nu
   }
   if (fallback?.isConnected) fallback.focus();
 }
+function normalizeSupplierOrderSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("sl");
+}
 const formatQty = (value: number | null | undefined, digits = 2) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { maximumFractionDigits: digits }).format(value);
 const formatDate = (value?: string | null) =>
@@ -604,10 +610,10 @@ export default function NarocilaDobaviteljem() {
     ? ordersMissingSupplierInstructions
     : orderList ?? [];
   const activeOrderSearch = orderSearch.trim();
-  const normalizedOrderSearch = activeOrderSearch.toLocaleLowerCase("sl");
+  const normalizedOrderSearch = normalizeSupplierOrderSearch(activeOrderSearch);
   const filteredOrders = ordersWithInstructionFilter.filter(order =>
     !normalizedOrderSearch
-    || `${order.number} ${order.supplierName}`.toLocaleLowerCase("sl").includes(normalizedOrderSearch),
+    || normalizeSupplierOrderSearch(`${order.number} ${order.supplierName}`).includes(normalizedOrderSearch),
   );
   const supplierNotesAfterCopy = orderEditor
     ? appendInternalNoteToSupplierNotes(orderEditor.internalNotes, orderEditor.supplierNotes)

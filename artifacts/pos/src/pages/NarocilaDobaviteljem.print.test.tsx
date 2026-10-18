@@ -440,7 +440,7 @@ describe("supplier order print view", () => {
         ...sharedSummary,
         id: 705,
         number: "N-2026-0705",
-        supplierName: "Kmetija Planika",
+        supplierName: "Kmetija Domače",
         status: "sent",
         internalNotes: "INTERNAL ONLY: second private note",
         supplierNotes: "Dostavite pred 10. uro.",
@@ -454,7 +454,13 @@ describe("supplier order print view", () => {
     expect(screen.getByTestId("row-supplier-order-704")).toBeTruthy();
     expect(screen.queryByTestId("row-supplier-order-705")).toBeNull();
 
-    fireEvent.change(search, { target: { value: "kmetija" } });
+    fireEvent.change(search, { target: { value: "domace" } });
+    expect(screen.getByTestId("row-supplier-order-705")).toBeTruthy();
+    expect(screen.queryByTestId("row-supplier-order-704")).toBeNull();
+    expect(screen.getByTestId("row-supplier-order-705").textContent).toContain("Kmetija Domače");
+    expect(screen.getByTestId("row-supplier-order-705").textContent).toContain("N-2026-0705");
+
+    fireEvent.change(search, { target: { value: "Kmetija" } });
     expect(screen.getByTestId("row-supplier-order-705")).toBeTruthy();
     expect(screen.queryByTestId("row-supplier-order-704")).toBeNull();
 
