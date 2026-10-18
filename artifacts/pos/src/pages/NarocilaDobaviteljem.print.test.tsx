@@ -2300,6 +2300,33 @@ describe("supplier order print view", () => {
     expect(internalCounter.textContent).toBe(`${noteToCopy.length} / 2000 znakov · preostalo ${2000 - noteToCopy.length}`);
   });
 
+  it("initializes both character counters from a saved draft and updates only the internal-note counter", () => {
+    const internalNote = "Preveri količino embalaže.";
+    const supplierInstruction = "Dostavite do 10. ure.";
+    mocks.order.internalNotes = internalNote;
+    mocks.order.supplierNotes = supplierInstruction;
+
+    renderSupplierOrderPage();
+    openSavedDraftEditor();
+
+    const internalCounter = screen.getByTestId("internal-note-character-count");
+    const supplierCounter = screen.getByTestId("supplier-note-character-count");
+    const initialSupplierCount = `${supplierInstruction.length} / 2000 znakov · preostalo ${2000 - supplierInstruction.length}`;
+    const changedInternalNote = "Preveri tudi rok uporabe.";
+
+    expect((screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement).value).toBe(internalNote);
+    expect((screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement).value).toBe(supplierInstruction);
+    expect(internalCounter.textContent).toBe(`${internalNote.length} / 2000 znakov · preostalo ${2000 - internalNote.length}`);
+    expect(supplierCounter.textContent).toBe(initialSupplierCount);
+
+    fireEvent.change(screen.getByLabelText(/Interna opomba/), {
+      target: { value: changedInternalNote },
+    });
+
+    expect(internalCounter.textContent).toBe(`${changedInternalNote.length} / 2000 znakov · preostalo ${2000 - changedInternalNote.length}`);
+    expect(supplierCounter.textContent).toBe(initialSupplierCount);
+  });
+
   it("counts emoji and multiple line breaks in both notes and submits text within the field limit", async () => {
     mocks.mutation.mockResolvedValue(mocks.order);
     renderSupplierOrderPage();
