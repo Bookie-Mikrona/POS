@@ -513,6 +513,42 @@
     color: #59645e;
     font-size: 7.5pt;
   }
+  .receipt-review-print__allergens {
+    display: block;
+    margin-top: 6px;
+    padding-top: 4px;
+    border-top: 1px solid #cbd1cd;
+    color: #263a32;
+    font-size: 7pt;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .receipt-review-print__allergens > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+  .receipt-review-print__allergens > div:first-child > span:first-child {
+    font-weight: 700;
+  }
+  .receipt-review-print__allergens dl {
+    display: grid;
+    gap: 2px;
+    margin: 3px 0 0;
+  }
+  .receipt-review-print__allergens dt { font-weight: 700; }
+  .receipt-review-print__allergens dd { margin: 0; }
+  .receipt-review-print__allergens [role="status"],
+  .receipt-review-print__allergens [data-slot="badge"] {
+    border: 1px solid #87958d;
+    border-radius: 3px;
+    padding: 0 3px;
+    color: #263a32;
+    background: #fff !important;
+    font-size: 6.5pt;
+    line-height: 1.3;
+  }
   .receipt-review-print__number {
     text-align: right !important;
     white-space: nowrap;

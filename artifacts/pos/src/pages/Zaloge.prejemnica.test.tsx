@@ -283,6 +283,24 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     expect(printDocument).toHaveTextContent("Prevoz");
     expect(printDocument).toHaveTextContent("Ločen strošek");
     expect(printDocument).toHaveTextContent("2,00 EUR");
+    const printedMilkAllergens = within(printDocument).getByTestId("receipt-print-allergens-1");
+    expect(printedMilkAllergens).toHaveTextContent("Potrjeno in preverjeno");
+    expect(printedMilkAllergens).toHaveTextContent("Specifikacija proizvajalca");
+    expect(printedMilkAllergens).toHaveTextContent("MLEKO — Mleko in mlečni proizvodi");
+    expect(printedMilkAllergens).toHaveTextContent("GLUTEN — Žita, ki vsebujejo gluten");
+    expect(printedMilkAllergens).toHaveTextContent("Specifikacija proizvajalca, izdaja 4");
+    expect(printedMilkAllergens).toHaveTextContent("Dokazilo: Priloženo");
+    const printedBreadAllergens = within(printDocument).getByTestId("receipt-print-allergens-2");
+    expect(printedBreadAllergens).toHaveTextContent("Potrjeno brez alergenov");
+    expect(printedBreadAllergens).toHaveTextContent("Etiketa embalaže");
+    expect(printedBreadAllergens).toHaveTextContent("Brez alergenov");
+    const printedSauceAllergens = within(printDocument).getByTestId("receipt-print-allergens-3");
+    expect(printedSauceAllergens).toHaveTextContent("Nepreverjeno — zabeležene kode");
+    expect(printedSauceAllergens).toHaveTextContent("Nepreverjeno — možne sledi");
+    expect(printedSauceAllergens).toHaveTextContent("Drugo");
+    expect(printedSauceAllergens).toHaveTextContent("SEZAM — Sezamovo seme");
+    expect(printedSauceAllergens).toHaveTextContent("GORČICA — Gorčično seme");
+    expect(printedSauceAllergens).toHaveTextContent("Samodejni spletni predlog");
     expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: /^(?:shrani|potrdi prejemnico|pripravi računovodski osnutek)$/i }))
       .not.toBeInTheDocument();

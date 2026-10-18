@@ -1854,7 +1854,15 @@ const RECEIPT_ALLERGEN_SOURCE_LABELS: Record<string, string> = {
   drugo: "Drugo",
 };
 
-function ReceiptLineAllergens({ line, index }: { line: any; index: number }) {
+function ReceiptLineAllergens({
+  line,
+  index,
+  print = false,
+}: {
+  line: any;
+  index: number;
+  print?: boolean;
+}) {
   const snapshot: AlergenSnapshot = {
     alergeni: Array.isArray(line.alergeni) ? line.alergeni : [],
     alergeniSledi: Array.isArray(line.alergeniSledi) ? line.alergeniSledi : [],
@@ -1877,8 +1885,8 @@ function ReceiptLineAllergens({ line, index }: { line: any; index: number }) {
 
   return (
     <section
-      className="mt-2 rounded-md border bg-muted/20 p-2"
-      data-testid={`receipt-view-allergens-${line.id ?? index}`}
+      className={print ? "receipt-review-print__allergens" : "mt-2 rounded-md border bg-muted/20 p-2"}
+      data-testid={`${print ? "receipt-print" : "receipt-view"}-allergens-${line.id ?? index}`}
       aria-label={`Alergenski posnetek za ${line.artikelIme || line.imeZaNabavo || "postavko"}`}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -1993,6 +2001,7 @@ function ReceiptPrintDocument({
                 <td>
                   <strong>{line.artikelIme || line.imeZaNabavo || line.izvNaziv || "–"}</strong>
                   {line.izvNaziv && line.izvNaziv !== line.artikelIme && <small>{line.izvNaziv}</small>}
+                  <ReceiptLineAllergens line={line} index={index} print />
                 </td>
                 <td className="receipt-review-print__number">
                   {Number(line.kolicina ?? 0).toLocaleString("sl-SI", { maximumFractionDigits: 4 })}
