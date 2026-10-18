@@ -23,6 +23,12 @@ vi.mock("@workspace/api-client-react", async () => ({
   useListCounterparties: () => ({ data: { counterparties: [{ id: "partner", name: "Partner" }] } }),
   useListPayments: () => ({ data: { payments: [] } }),
   useListInvoices: () => ({ data: { invoices: [{ id: "invoice", arApAccountId: "required" }] } }),
+  useListCostCenters: () => ({ data: { costCenters: [
+    { id: "cc-bank", code: "B", name: "Banka" }, { id: "cc-counter", code: "S", name: "Stroški" },
+  ] } }),
+  useListProjects: () => ({ data: { projects: [
+    { id: "project-bank", code: "PB", name: "Bančni projekt" }, { id: "project-counter", code: "PS", name: "Projekt stroška" },
+  ] } }),
 }));
 vi.mock("@/components/ui/select", () => ({
   Select: ({ value, onValueChange, children }: any) => (
@@ -81,6 +87,31 @@ function confirmButtons() {
 }
 
 describe("warnings before confirming bank imports", () => {
+  it("keeps both line dimensions when reopening the wizard and submits them without leaving it", async () => {
+    const fetchMock = await openReview();
+    const fields = Array.from(fetchMock.view.container.querySelectorAll("fieldset select"));
+    expect(fields).toHaveLength(4);
+    const values = ["cc-bank", "project-bank", "cc-counter", "project-counter"];
+    fields.forEach((field, index) => fireEvent.change(field, { target: { value: values[index] } }));
+    expect(screen.queryByText("Preverite obvezne dimenzije")).toBeNull();
+    confirmButtons().forEach(button => expect(button.disabled).toBe(false));
+    fetchMock.view.unmount();
+    const reopened = render(<QueryClientProvider client={fetchMock.client}><BancniIzpis /></QueryClientProvider>);
+    await screen.findByText("Protikonto računa: 4150000 — Strošek");
+    expect(Array.from(reopened.container.querySelectorAll("fieldset select")).map(field => (field as HTMLSelectElement).value)).toEqual(values);
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith("/register")) return Response.json({ statementId: "statement", lineIds: { tx: "line" } });
+      if (url.endsWith("/payments")) return Response.json({ id: "saved-payment" });
+      return Response.json({ statements: [] });
+    });
+    fireEvent.click(confirmButtons()[0]);
+    await screen.findByText("Uvoz zaključen");
+    const create = fetchMock.mock.calls.find(([url]) => url.endsWith("/payments")) as unknown as [string, RequestInit];
+    expect(JSON.parse(create[1].body as string)).toMatchObject({
+      bankCostCenterId: values[0], bankProjectId: values[1],
+      counterCostCenterId: values[2], counterProjectId: values[3],
+    });
+  });
   it("shows per-row missing dimensions and disables both confirmation buttons without sending an import", async () => {
     const fetchMock = await openReview();
     expect(screen.getByText("Konto 4150000: manjkajo obvezne dimenzije — stroškovno mesto, projekt.")).toBeTruthy();
@@ -97,10 +128,10 @@ describe("warnings before confirming bank imports", () => {
     // Standalone defaults to a partner-required account; no partner is selected yet.
     expect(screen.getByText(/Konto 2200000:.*poslovni partner/)).toBeTruthy();
     confirmButtons().forEach(button => expect(button.disabled).toBe(true));
-    fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "partner" } });
+    fireEvent.change(screen.getAllByRole("combobox").filter(c => !c.closest("fieldset"))[1], { target: { value: "partner" } });
     expect(screen.queryByText("Preverite obvezne dimenzije")).toBeNull();
     confirmButtons().forEach(button => expect(button.disabled).toBe(false));
-    fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value: "required" } });
+    fireEvent.change(screen.getAllByRole("combobox").filter(c => !c.closest("fieldset"))[0], { target: { value: "required" } });
     expect(screen.getByText(/Konto 4150000:.*stroškovno mesto, projekt/)).toBeTruthy();
     confirmButtons().forEach(button => expect(button.disabled).toBe(true));
     fireEvent.click(screen.getByRole("button", { name: "Preskoči" }));
@@ -111,7 +142,7 @@ describe("warnings before confirming bank imports", () => {
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
     const fetchMock = await openReview(true);
     fireEvent.click(screen.getByRole("button", { name: /Brez računa/ }));
-    fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "partner" } });
+    fireEvent.change(screen.getAllByRole("combobox").filter(c => !c.closest("fieldset"))[1], { target: { value: "partner" } });
     let paymentStatus = "draft";
     fetchMock.mockImplementation(async (url: string) => {
       if (url.endsWith("/register")) return Response.json({ statementId: "statement", lineIds: { tx: "line" } });
@@ -141,7 +172,7 @@ describe("odhod po delnem uvozu", () => {
   async function finishImport(failPosting = true) {
     const fetchMock = await openReview(true);
     fireEvent.click(screen.getByRole("button", { name: /Brez računa/ }));
-    fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "partner" } });
+    fireEvent.change(screen.getAllByRole("combobox").filter(c => !c.closest("fieldset"))[1], { target: { value: "partner" } });
     fetchMock.mockImplementation(async (url: string) => {
       if (url.endsWith("/register")) return Response.json({ statementId: "statement", lineIds: { tx: "line" } });
       if (url.endsWith("/post")) return failPosting

@@ -11100,6 +11100,14 @@ export const PaymentRecordStatus = {
 } as const;
 
 export interface PaymentRecord {
+  /** @nullable */
+  bankCostCenterId?: string | null;
+  /** @nullable */
+  bankProjectId?: string | null;
+  /** @nullable */
+  counterCostCenterId?: string | null;
+  /** @nullable */
+  counterProjectId?: string | null;
   id: string;
   companyId: string;
   counterpartyId: string;
@@ -11469,6 +11477,28 @@ export interface PaymentLedgerAllocationInput {
   allocatedAmount: number;
 }
 
+export interface PaymentDimensionsInput {
+  /**
+     * @nullable
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  bankCostCenterId?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  bankProjectId?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  counterCostCenterId?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  counterProjectId?: string | null;
+}
 export type CreatePaymentBodyDirection = typeof CreatePaymentBodyDirection[keyof typeof CreatePaymentBodyDirection];
 
 
@@ -11478,6 +11508,26 @@ export const CreatePaymentBodyDirection = {
 } as const;
 
 export interface CreatePaymentBody {
+  /**
+     * @nullable
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  bankCostCenterId?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  bankProjectId?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  counterCostCenterId?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  counterProjectId?: string | null;
   counterpartyId: string;
   periodId: string;
   direction: CreatePaymentBodyDirection;
@@ -15307,4 +15357,3 @@ export type PreviewPosMonthlyInvoiceParams = {
 month: string;
 counterpartyId: string;
 };
-

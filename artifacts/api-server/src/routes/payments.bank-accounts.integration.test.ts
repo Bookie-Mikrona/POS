@@ -27,6 +27,7 @@ import {
   journalEntriesTable, journalEntryLinesTable, bankStatementsTable, bankStatementLinesTable,
   bankAccountMetadataTable, paymentBatchItemsTable, paymentsTable, paymentBatchesTable,
   paymentAllocationsTable,
+  costCentersTable, projectsTable,
 } from "@workspace/db";
 import router from "./payments";
 import journalsRouter from "./journalEntries";
@@ -160,7 +161,153 @@ describe("bank statement per-transaction accounting", () => {
   });
   it("blocks a standalone entry that would omit required accounting dimensions", async () => {
     const response = await request(app).post(`/companies/${companyId}/payments`).send(await payload(dimensionId)).expect(400);
-    expect(response.body.error).toMatch(/zahteva stroškovno mesto ali projekt/);
+    expect(response.body.error).toMatch(/obvezno stroškovno mesto in projekt/);
+  });
+  it("persists independent bank/counter dimensions, reloads them and posts them for both directions", async () => {
+    const centers = await db.insert(costCentersTable).values([
+      { companyId, code: "TEST-B", name: "TEST bank center" },
+      { companyId, code: "TEST-C", name: "TEST counter center" },
+    ]).returning();
+    const projects = await db.insert(projectsTable).values([
+      { companyId, code: "TEST-B", name: "TEST bank project" },
+      { companyId, code: "TEST-C", name: "TEST counter project" },
+    ]).returning();
+    const dimensions = {
+      bankCostCenterId: centers[0].id, bankProjectId: projects[0].id,
+      counterCostCenterId: centers[1].id, counterProjectId: projects[1].id,
+    };
+    await db.update(accountsTable).set({ costCenterPolicy: "required", requiresProject: true })
+      .where(eq(accountsTable.id, bankId));
+    await db.update(accountsTable).set({ requiresCostCenter: true })
+      .where(eq(accountsTable.id, dimensionId));
+    try {
+    for (const direction of ["outbound", "inbound"] as const) {
+      const input = { ...await payload(dimensionId, direction === "outbound" ? 28 : 29), direction, ...dimensions };
+      if (direction === "inbound") {
+        await db.update(bankStatementLinesTable).set({ amount: "29.00" }).where(eq(bankStatementLinesTable.id, input.bankStatementLineId));
+      }
+      const created = await request(app).post(`/companies/${companyId}/payments`).send(input).expect(201);
+      expect(created.body).toMatchObject(dimensions);
+      const url = `/companies/${companyId}/payments/${created.body.id}`;
+      const read = await request(app).get(url).expect(200);
+      expect(read.body).toMatchObject(dimensions);
+      const list = await request(app).get(`/companies/${companyId}/payments`).expect(200);
+      expect(list.body.payments.find((p: any) => p.id === created.body.id)).toMatchObject(dimensions);
+      const posted = await request(app).post(`${url}/post`).expect(200);
+      const lines = await db.select().from(journalEntryLinesTable).where(eq(journalEntryLinesTable.entryId, posted.body.linkedEntryId));
+      expect(lines).toEqual(expect.arrayContaining([
+        expect.objectContaining({ accountId: bankId, costCenterId: centers[0].id, projectId: projects[0].id }),
+        expect.objectContaining({ accountId: dimensionId, costCenterId: centers[1].id, projectId: projects[1].id }),
+      ]));
+      await request(app).patch(url).send({ bankProjectId: null }).expect(409);
+    }
+    } finally {
+      await db.update(accountsTable).set({ costCenterPolicy: "allowed", requiresProject: false })
+        .where(eq(accountsTable.id, bankId));
+      await db.update(accountsTable).set({ requiresCostCenter: false })
+        .where(eq(accountsTable.id, dimensionId));
+    }
+  });
+  it("edits draft dimensions with explicit clearing and rejects foreign, inactive and malformed IDs", async () => {
+    const [foreign] = await db.insert(companiesTable).values({
+      podjetjeDavcna: "TEST_FOREIGN_DIMENSION", naziv: "TEST foreign dimensions",
+    }).returning();
+    const [ownCenter, foreignCenter, inactiveCenter] = await db.insert(costCentersTable).values([
+      { companyId, code: "TEST-P", name: "TEST own" },
+      { companyId: foreign.id, code: "TEST-P", name: "TEST foreign" },
+      { companyId, code: "TEST-I", name: "TEST inactive", isActive: false },
+    ]).returning();
+    const [ownProject, foreignProject, inactiveProject] = await db.insert(projectsTable).values([
+      { companyId, code: "TEST-P", name: "TEST own" },
+      { companyId: foreign.id, code: "TEST-P", name: "TEST foreign" },
+      { companyId, code: "TEST-I", name: "TEST inactive", isActive: false },
+    ]).returning();
+    const created = await request(app).post(`/companies/${companyId}/payments`).send(await payload(feeId, 31)).expect(201);
+    const url = `/companies/${companyId}/payments/${created.body.id}`;
+    await request(app).patch(url).send({ bankCostCenterId: ownCenter.id, counterProjectId: ownProject.id }).expect(200);
+    const read = await request(app).get(url).expect(200);
+    expect(read.body).toMatchObject({ bankCostCenterId: ownCenter.id, counterProjectId: ownProject.id });
+    for (const bad of [
+      { bankCostCenterId: foreignCenter.id }, { counterCostCenterId: foreignCenter.id },
+      { bankProjectId: foreignProject.id }, { counterProjectId: foreignProject.id },
+      { bankCostCenterId: inactiveCenter.id }, { counterProjectId: inactiveProject.id },
+      { bankProjectId: "not-a-uuid" },
+    ]) {
+      await request(app).patch(url).send(bad).expect(400);
+      await request(app).post(`/companies/${companyId}/payments`).send({ ...await payload(feeId, 32), ...bad }).expect(400);
+    }
+    await request(app).patch(`/companies/${foreign.id}/payments/${created.body.id}`).send({ bankCostCenterId: null }).expect(403);
+    await request(app).patch(url).send({ bankCostCenterId: null }).expect(200);
+    const cleared = await request(app).get(url).expect(200);
+    expect(cleared.body).toMatchObject({ bankCostCenterId: null, counterProjectId: ownProject.id });
+  });
+  it("blocks posting after required counter dimensions are cleared and allows posting after correction", async () => {
+    const [center] = await db.insert(costCentersTable).values({ companyId, code: "TEST-REQ", name: "TEST required" }).returning();
+    const [project] = await db.insert(projectsTable).values({ companyId, code: "TEST-REQ", name: "TEST required" }).returning();
+    const [account] = await db.insert(accountsTable).values({
+      companyId, code: "4150002", name: "TEST required dimensions", type: "expense",
+      costCenterPolicy: "required", requiresProject: true,
+    }).returning();
+    const dimensions = { counterCostCenterId: center.id, counterProjectId: project.id };
+    const created = await request(app).post(`/companies/${companyId}/payments`)
+      .send({ ...await payload(account.id, 33), ...dimensions }).expect(201);
+    const url = `/companies/${companyId}/payments/${created.body.id}`;
+    for (const [key, message] of [
+      ["counterCostCenterId", /obvezno stroškovno mesto/],
+      ["counterProjectId", /obvezen projekt/],
+    ] as const) {
+      await request(app).patch(url).send({ [key]: null }).expect(200);
+      const failed = await request(app).post(`${url}/post`).expect(400);
+      expect(failed.body.error).toMatch(message);
+      const [draft] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, created.body.id));
+      expect(draft).toMatchObject({ status: "draft", linkedEntryId: null });
+      await request(app).patch(url).send(dimensions).expect(200);
+    }
+    await request(app).post(`${url}/post`).expect(200);
+  });
+  it("enforces required dimensions on the bank line too", async () => {
+    const [center] = await db.insert(costCentersTable).values({ companyId, code: "TEST-BREQ", name: "TEST bank required" }).returning();
+    const [project] = await db.insert(projectsTable).values({ companyId, code: "TEST-BREQ", name: "TEST bank required" }).returning();
+    await db.update(accountsTable).set({ requiresCostCenter: true, requiresProject: true }).where(eq(accountsTable.id, bankId));
+    try {
+      const dimensions = { bankCostCenterId: center.id, bankProjectId: project.id };
+      const created = await request(app).post(`/companies/${companyId}/payments`)
+        .send({ ...await payload(feeId, 34), ...dimensions }).expect(201);
+      const url = `/companies/${companyId}/payments/${created.body.id}`;
+      for (const key of ["bankCostCenterId", "bankProjectId"] as const) {
+        await request(app).patch(url).send({ [key]: null }).expect(200);
+        const failed = await request(app).post(`${url}/post`).expect(400);
+        expect(failed.body.error).toContain("Konto 1100000");
+        await request(app).patch(url).send(dimensions).expect(200);
+      }
+      await request(app).post(`${url}/post`).expect(200);
+    } finally {
+      await db.update(accountsTable).set({ requiresCostCenter: false, requiresProject: false }).where(eq(accountsTable.id, bankId));
+    }
+  });
+  it("rejects prohibited cost centers on creation, editing and posting on either line", async () => {
+    const [center] = await db.insert(costCentersTable).values({ companyId, code: "TEST-NO", name: "TEST forbidden" }).returning();
+    const created = await request(app).post(`/companies/${companyId}/payments`).send(await payload(feeId, 35)).expect(201);
+    const url = `/companies/${companyId}/payments/${created.body.id}`;
+    for (const [accountId, field] of [[bankId, "bankCostCenterId"], [feeId, "counterCostCenterId"]] as const) {
+      await db.update(accountsTable).set({ costCenterPolicy: "not_allowed" }).where(eq(accountsTable.id, accountId));
+      try {
+        const bad = { [field]: center.id };
+        const rejectedCreate = await request(app).post(`/companies/${companyId}/payments`)
+          .send({ ...await payload(feeId, 36), ...bad }).expect(400);
+        expect(rejectedCreate.body.error).toMatch(/stroškovno mesto ni dovoljeno/);
+        await request(app).patch(url).send(bad).expect(400);
+        // Simulate a draft saved before its account policy was changed.
+        await db.update(paymentsTable).set(bad).where(eq(paymentsTable.id, created.body.id));
+        const rejectedPost = await request(app).post(`${url}/post`).expect(400);
+        expect(rejectedPost.body.error).toMatch(/stroškovno mesto ni dovoljeno/);
+        const [draft] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, created.body.id));
+        expect(draft).toMatchObject({ status: "draft", linkedEntryId: null });
+        await request(app).patch(url).send({ [field]: null }).expect(200);
+      } finally {
+        await db.update(accountsTable).set({ costCenterPolicy: "allowed" }).where(eq(accountsTable.id, accountId));
+      }
+    }
   });
   it("accepts an invoice link with the invoice's own account", async () => {
     const response = await request(app).post(`/companies/${companyId}/payments`).send({

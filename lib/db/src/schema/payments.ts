@@ -15,6 +15,7 @@ import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
 import { invoicesTable } from "./invoices";
 import { bankStatementLinesTable } from "./bank-statements";
+import { costCentersTable, projectsTable } from "./dimensions";
 
 export const paymentDirectionEnum = pgEnum("payment_direction", [
   "inbound",  // prejet (kupec plača nam)
@@ -60,6 +61,10 @@ export const paymentsTable = pgTable("payments", {
     .notNull()
     .references(() => accountsTable.id),
   status: paymentStatusEnum("status").notNull().default("draft"),
+  bankCostCenterId: uuid("bank_cost_center_id").references(() => costCentersTable.id),
+  bankProjectId: uuid("bank_project_id").references(() => projectsTable.id),
+  counterCostCenterId: uuid("counter_cost_center_id").references(() => costCentersTable.id),
+  counterProjectId: uuid("counter_project_id").references(() => projectsTable.id),
   linkedEntryId: uuid("linked_entry_id").references(() => journalEntriesTable.id),
   bankStatementLineId: uuid("bank_statement_line_id")
     .references(() => bankStatementLinesTable.id),

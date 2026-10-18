@@ -8929,6 +8929,34 @@ paths:
         "403":
           description: No role in this company
   /companies/{companyId}/payments/{id}:
+    patch:
+      operationId: updatePaymentDimensions
+      tags: [payments]
+      summary: Update the dimensions of a draft payment
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentDimensionsInput"
+      responses:
+        "200":
+          description: Saved payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWithAllocations"
+        "400":
+          description: Invalid dimensions
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Payment is no longer a draft
     get:
       operationId: getPayment
       tags:
@@ -24050,6 +24078,10 @@ components:
     PaymentRecord:
       type: object
       properties:
+        bankCostCenterId: { type: [string, "null"] }
+        bankProjectId: { type: [string, "null"] }
+        counterCostCenterId: { type: [string, "null"] }
+        counterProjectId: { type: [string, "null"] }
         id:
           type: string
         companyId:
@@ -24439,9 +24471,20 @@ components:
         journalLineId: { type: string }
         allocatedAmount: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
       required: [journalLineId, allocatedAmount]
+    PaymentDimensionsInput:
+      type: object
+      properties:
+        bankCostCenterId: { type: [string, "null"], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        bankProjectId: { type: [string, "null"], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        counterCostCenterId: { type: [string, "null"], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        counterProjectId: { type: [string, "null"], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
     CreatePaymentBody:
       type: object
       properties:
+        bankCostCenterId: { type: [string, "null"], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        bankProjectId: { type: [string, "null"], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        counterCostCenterId: { type: [string, "null"], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        counterProjectId: { type: [string, "null"], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
         counterpartyId:
           type: string
         periodId:

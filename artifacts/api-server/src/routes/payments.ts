@@ -27,11 +27,14 @@ import {
   paymentBatchesTable,
   paymentBatchItemsTable,
   partnerSettlementEventsTable,
+  costCentersTable,
+  projectsTable,
 } from "@workspace/db";
 import {
   CreatePaymentBody,
   GetPaymentStatusesBody,
   VoidPaymentBody,
+  UpdatePaymentDimensionsBody,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { getLatestBankStatementBalance } from "../lib/bankStatementBalances";
@@ -46,6 +49,96 @@ import { activeSettlementAmounts } from "../lib/partner-ledger-calculator";
 export { invoiceClosingTotals };
 
 const router: IRouter = Router();
+
+const paymentDimensionColumns = {
+  bankCostCenterId: paymentsTable.bankCostCenterId,
+  bankProjectId: paymentsTable.bankProjectId,
+  counterCostCenterId: paymentsTable.counterCostCenterId,
+  counterProjectId: paymentsTable.counterProjectId,
+};
+
+type PaymentDimensions = Partial<Record<keyof typeof paymentDimensionColumns, string | null>>;
+
+async function validatePaymentDimensions(conn: typeof db, companyId: string, dimensions: PaymentDimensions): Promise<void> {
+  for (const key of Object.keys(paymentDimensionColumns) as (keyof PaymentDimensions)[]) {
+    const id = dimensions[key];
+    if (!id) continue;
+    const table = key.endsWith("CostCenterId") ? costCentersTable : projectsTable;
+    const [row] = await conn.select({ id: table.id }).from(table)
+      .where(and(eq(table.id, id), eq(table.companyId, companyId), eq(table.isActive, true))).limit(1);
+    if (!row) throw Object.assign(new Error("Stroškovno mesto ali projekt ni aktiven ali ne pripada temu podjetju"), { statusCode: 400 });
+  }
+}
+
+async function validatePaymentAccountDimensions(
+  conn: typeof db,
+  companyId: string,
+  payment: PaymentDimensions & { bankAccountId: string; arApAccountId: string },
+  requireComplete: boolean,
+): Promise<void> {
+  const accounts = await conn.select({
+    id: accountsTable.id, code: accountsTable.code,
+    isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting,
+    requiresCostCenter: accountsTable.requiresCostCenter,
+    costCenterPolicy: accountsTable.costCenterPolicy, requiresProject: accountsTable.requiresProject,
+  }).from(accountsTable).where(and(
+    eq(accountsTable.companyId, companyId),
+    inArray(accountsTable.id, [payment.bankAccountId, payment.arApAccountId]),
+  )).for("share");
+  for (const line of [
+    { accountId: payment.bankAccountId, costCenterId: payment.bankCostCenterId, projectId: payment.bankProjectId },
+    { accountId: payment.arApAccountId, costCenterId: payment.counterCostCenterId, projectId: payment.counterProjectId },
+  ]) {
+    const account = accounts.find(row => row.id === line.accountId);
+    if (!account || !account.isActive || account.allowsPosting === false) {
+      throw Object.assign(new Error("Konto ni aktiven, knjižljiv ali ne pripada temu podjetju"), { statusCode: 400 });
+    }
+    if (account.costCenterPolicy === "not_allowed" && line.costCenterId) {
+      throw Object.assign(new Error(`Konto ${account.code}: stroškovno mesto ni dovoljeno`), { statusCode: 400 });
+    }
+    if (requireComplete) {
+      if ((account.costCenterPolicy === "required" || account.requiresCostCenter) && !line.costCenterId) {
+        throw Object.assign(new Error(`Konto ${account.code}: manjka obvezno stroškovno mesto`), { statusCode: 400 });
+      }
+      if (account.requiresProject && !line.projectId) {
+        throw Object.assign(new Error(`Konto ${account.code}: manjka obvezen projekt`), { statusCode: 400 });
+      }
+    }
+  }
+}
+
+router.patch("/companies/:companyId/payments/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const companyId = extractParam(req.params.companyId);
+  const id = extractParam(req.params.id);
+  const authReq = req as AuthenticatedRequest;
+  const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+  if (!access) return;
+  if (access.role === "viewer") { res.status(403).json({ error: "Za urejanje potrebujete računovodsko vlogo" }); return; }
+  const parsed = UpdatePaymentDimensionsBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  try {
+    await db.transaction(async tx => {
+      const [payment] = await tx.select().from(paymentsTable)
+        .where(and(eq(paymentsTable.id, id), eq(paymentsTable.companyId, companyId))).for("update").limit(1);
+      if (!payment) throw Object.assign(new Error("Plačilo ni najdeno"), { statusCode: 404 });
+      if (payment.status !== "draft" || payment.createdBy === "bookie-old-payment-import") {
+        throw Object.assign(new Error("Dimenzije je mogoče urejati samo na osnutku plačila"), { statusCode: 409 });
+      }
+      await validatePaymentDimensions(tx as unknown as typeof db, companyId, parsed.data);
+      await validatePaymentAccountDimensions(tx as unknown as typeof db, companyId, { ...payment, ...parsed.data }, false);
+      if (!Object.keys(parsed.data).length) return;
+      await tx.update(paymentsTable).set(parsed.data).where(eq(paymentsTable.id, id));
+      await tx.insert(auditLogTable).values({
+        companyId, entityType: "payment", entityId: id, action: "update",
+        changedBy: authReq.clerkUserId, payload: { dimensions: parsed.data },
+      });
+    });
+    res.json(await fetchPaymentWithAllocations(id));
+  } catch (error: any) {
+    if (error.statusCode) { res.status(error.statusCode).json({ error: error.message }); return; }
+    throw error;
+  }
+});
 
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
@@ -200,6 +293,7 @@ async function fetchPaymentWithAllocations(paymentId: string) {
     .select({
       id: paymentsTable.id,
       companyId: paymentsTable.companyId,
+      ...paymentDimensionColumns,
       counterpartyId: paymentsTable.counterpartyId,
       counterpartyName: counterpartiesTable.name,
       periodId: paymentsTable.periodId,
@@ -367,6 +461,7 @@ router.get(
       .select({
         id: paymentsTable.id,
         companyId: paymentsTable.companyId,
+        ...paymentDimensionColumns,
         counterpartyId: paymentsTable.counterpartyId,
         counterpartyName: counterpartiesTable.name,
         periodId: paymentsTable.periodId,
@@ -482,6 +577,18 @@ router.post(
     }
 
     const { counterpartyId, periodId, direction, amount, bankAccountId, arApAccountId, reference, notes, allocations } = parsed.data;
+    const dimensions: PaymentDimensions = {
+      bankCostCenterId: parsed.data.bankCostCenterId,
+      bankProjectId: parsed.data.bankProjectId,
+      counterCostCenterId: parsed.data.counterCostCenterId,
+      counterProjectId: parsed.data.counterProjectId,
+    };
+    try {
+      await validatePaymentDimensions(db, companyId, dimensions);
+    } catch (error: any) {
+      if (error.statusCode) { res.status(error.statusCode).json({ error: error.message }); return; }
+      throw error;
+    }
     const ledgerAllocationsRaw = (req.body as any)?.ledgerAllocations;
     if (ledgerAllocationsRaw != null && !Array.isArray(ledgerAllocationsRaw)) {
       res.status(400).json({ error: "ledgerAllocations mora biti seznam knjižbenih vrstic in zneskov" });
@@ -631,8 +738,9 @@ router.post(
       return;
     }
     if (bankStatementLineId && !allocations?.length && !ledgerAllocations.length
-      && (arApAcc.requiresCostCenter || arApAcc.costCenterPolicy === "required" || arApAcc.requiresProject)) {
-      res.status(400).json({ error: "Izbrani protikonto zahteva stroškovno mesto ali projekt. To transakcijo vnesite s potrebnimi dimenzijami v temeljnici; uvoz je ne bo knjižil brez njih." });
+      && (((arApAcc.requiresCostCenter || arApAcc.costCenterPolicy === "required") && !dimensions.counterCostCenterId)
+        || (arApAcc.requiresProject && !dimensions.counterProjectId))) {
+      res.status(400).json({ error: "Za protikonto izberite obvezno stroškovno mesto in projekt." });
       return;
     }
 
@@ -779,6 +887,8 @@ router.post(
     let paymentId: string;
     try {
     paymentId = await db.transaction(async (tx) => {
+      await validatePaymentDimensions(tx as unknown as typeof db, companyId, dimensions);
+      await validatePaymentAccountDimensions(tx as unknown as typeof db, companyId, { bankAccountId, arApAccountId, ...dimensions }, false);
       if (ledgerAllocations.length) {
         await lockNativeSourceLines(tx as unknown as typeof db, companyId, ledgerAllocations.map(item => item.journalLineId));
         await validateNativeAllocations(tx as unknown as typeof db, {
@@ -787,6 +897,7 @@ router.post(
         });
       }
       const [newPay] = await tx.insert(paymentsTable).values({
+        ...dimensions,
         companyId,
         counterpartyId,
         periodId,
@@ -829,8 +940,8 @@ router.post(
 
       return newPay.id;
     });
-    } catch (error) {
-      res.status(409).json({ error: error instanceof Error ? error.message : "Plačila ni bilo mogoče ustvariti" });
+    } catch (error: any) {
+      res.status(error.statusCode ?? 409).json({ error: error instanceof Error ? error.message : "Plačila ni bilo mogoče ustvariti" });
       return;
     }
 
@@ -1038,6 +1149,7 @@ router.post(
         amount: paymentsTable.amount,
         bankAccountId: paymentsTable.bankAccountId,
         arApAccountId: paymentsTable.arApAccountId,
+        ...paymentDimensionColumns,
         reference: paymentsTable.reference,
         counterpartyId: paymentsTable.counterpartyId,
         createdBy: paymentsTable.createdBy,
@@ -1080,16 +1192,20 @@ router.post(
     // Temeljnica:
     // inbound:  DEBIT banka ← amount, CREDIT terjatve ← amount
     // outbound: DEBIT obveznosti ← amount, CREDIT banka ← amount
-    const journalLines =
-      payment.direction === "inbound"
+    const buildJournalLines = (current: typeof payment) =>
+      (current.direction === "inbound"
         ? [
-            { accountId: payment.bankAccountId, side: "debit" as const, amount: amount.toFixed(2), description },
-            { accountId: payment.arApAccountId, side: "credit" as const, amount: amount.toFixed(2), description, partnerId: payment.counterpartyId },
+            { accountId: current.bankAccountId, side: "debit" as const, amount: amount.toFixed(2), description, bank: true },
+            { accountId: current.arApAccountId, side: "credit" as const, amount: amount.toFixed(2), description, partnerId: current.counterpartyId, bank: false },
           ]
         : [
-            { accountId: payment.arApAccountId, side: "debit" as const, amount: amount.toFixed(2), description, partnerId: payment.counterpartyId },
-            { accountId: payment.bankAccountId, side: "credit" as const, amount: amount.toFixed(2), description },
-          ];
+            { accountId: current.arApAccountId, side: "debit" as const, amount: amount.toFixed(2), description, partnerId: current.counterpartyId, bank: false },
+            { accountId: current.bankAccountId, side: "credit" as const, amount: amount.toFixed(2), description, bank: true },
+          ]).map(line => ({
+            ...line,
+            costCenterId: line.bank ? current.bankCostCenterId : current.counterCostCenterId,
+            projectId: line.bank ? current.bankProjectId : current.counterProjectId,
+          }));
 
     // Vse v eni transakciji:
     // 1. Zakleni plačilo + račune z FOR UPDATE (prepreči race condition)
@@ -1101,7 +1217,7 @@ router.post(
     await db.transaction(async (tx) => {
       // Zakleni to plačilo
       const [lockedPayment] = await tx
-        .select({ id: paymentsTable.id, status: paymentsTable.status })
+        .select()
         .from(paymentsTable)
         .where(and(eq(paymentsTable.id, id), eq(paymentsTable.companyId, companyId)))
         .for("update")
@@ -1113,9 +1229,12 @@ router.post(
       if (!lockedPayment || lockedPayment.status !== "draft") {
         throw Object.assign(new Error("Samo osnutke plačil je mogoče knjižiti"), { statusCode: 400 });
       }
+      await validatePaymentDimensions(tx as unknown as typeof db, companyId, lockedPayment);
+      await validatePaymentAccountDimensions(tx as unknown as typeof db, companyId, lockedPayment, true);
+      const journalLines = buildJournalLines(lockedPayment);
 
       // Validate the actual posting lines, not the payment's partner or its
-      // allocations: the bank line has no partner, cost centre, or project.
+      // allocations: the bank line has no partner; each line has its own dimensions.
       // Re-read current account rules even for drafts created before a rule changed.
       const postingAccounts = await tx.select({
         id: accountsTable.id,
@@ -1140,11 +1259,10 @@ router.post(
         else if (!account.isActive) error = `Konto ${account.code} ni aktiven.`;
         else if (!account.allowsPosting) error = `Na konto ${account.code} ni dovoljeno neposredno knjižiti.`;
         else if (account.requiresPartner && !line.partnerId) error = `Za konto ${account.code} je poslovni partner obvezen.`;
-        // Payment lines do not carry cost centres or projects. Allocations do
-        // not supply those dimensions to the generated journal lines either.
-        else if (account.costCenterPolicy === "required" || account.requiresCostCenter) {
+        // Check the saved dimensions on this exact posting line.
+        else if ((account.costCenterPolicy === "required" || account.requiresCostCenter) && !line.costCenterId) {
           error = `Za konto ${account.code} je stroškovno mesto obvezno.`;
-        } else if (account.requiresProject) error = `Za konto ${account.code} je projekt obvezen.`;
+        } else if (account.requiresProject && !line.projectId) error = `Za konto ${account.code} je projekt obvezen.`;
         if (error) throw Object.assign(new Error(error), { statusCode: 400 });
       }
 
@@ -1338,6 +1456,8 @@ router.post(
           description: l.description,
           sequence: i,
           partnerId: l.partnerId ?? null,
+          costCenterId: l.costCenterId ?? null,
+          projectId: l.projectId ?? null,
         })),
       ).returning({
         id: journalEntryLinesTable.id,
@@ -1475,6 +1595,8 @@ router.post(
           description: journalEntryLinesTable.description,
           sequence: journalEntryLinesTable.sequence,
           partnerId: journalEntryLinesTable.partnerId,
+          costCenterId: journalEntryLinesTable.costCenterId,
+          projectId: journalEntryLinesTable.projectId,
         })
         .from(journalEntryLinesTable)
         .where(eq(journalEntryLinesTable.entryId, payment.linkedEntryId))
@@ -1521,6 +1643,8 @@ router.post(
             description: l.description,
             sequence: l.sequence,
             partnerId: l.partnerId,
+            costCenterId: l.costCenterId,
+            projectId: l.projectId,
           })),
         ).returning({
           id: journalEntryLinesTable.id,

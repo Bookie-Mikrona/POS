@@ -25,6 +25,8 @@ vi.mock("@workspace/api-client-react", async () => ({
   useListCounterparties: () => ({ data: { counterparties: [{ id: "partner", name: "Partner" }] } }),
   useListPayments: () => ({ data: { payments: [] } }),
   useListInvoices: () => ({ data: { invoices: [{ id: "invoice", arApAccountId: "ar" }] } }),
+  useListCostCenters: () => ({ data: { costCenters: [] } }),
+  useListProjects: () => ({ data: { projects: [] } }),
 }));
 // Native selects avoid testing Radix pointer geometry in jsdom.
 vi.mock("@/components/ui/select", () => ({
@@ -131,7 +133,7 @@ async function startReview(view: ReturnType<typeof mountSession>) {
   fireEvent.click(screen.getByRole("button", { name: "Nadaljuj" }));
   await screen.findByText(/✓ INV-1 — 25.00/);
   fireEvent.click(screen.getAllByRole("button", { name: /Brez računa/ })[1]);
-  fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "partner" } });
+  fireEvent.change(screen.getAllByRole("combobox").filter(c => !c.closest("fieldset"))[1], { target: { value: "partner" } });
   await waitFor(() => expect(screen.getAllByRole("button", { name: "Potrdi 2 transakcij" })).toHaveLength(2));
   expect(sessionStorage.getItem(bankImportDraftKey("user-a", companyA.id))).not.toBeNull();
 }
@@ -163,7 +165,7 @@ describe("obnova bančnega pregleda skozi odjavo in ponovno prijavo", () => {
     expect(screen.getByTestId("company").textContent).toBe(companyA.id);
     expect(screen.getAllByRole("button", { name: "Potrdi 2 transakcij" })).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Nadaljuj" })).toBeNull();
-    const controls = screen.getAllByRole("combobox") as HTMLSelectElement[];
+    const controls = screen.getAllByRole("combobox").filter(c => !c.closest("fieldset")) as HTMLSelectElement[];
     expect(controls.map(c => c.value)).toEqual(["custom", "partner"]);
     // Check all global accounts and period, not only the visible row decision.
     fireEvent.click(screen.getByRole("button", { name: /Nazaj na uvoz/ }));

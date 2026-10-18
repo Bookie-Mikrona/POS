@@ -14,6 +14,32 @@ const warnings = (decision: BankImportDecision, accs = accounts, autoPost = fals
   bankImportDimensionWarnings(decision, "bank", accs, invoices, [{ ...payment, status }], autoPost);
 
 describe("bank import required dimensions", () => {
+  it("clears required dimensions independently on both journal lines", () => {
+    const decision = { ...standalone, counterpartyId: "partner", counterCostCenterId: "cc", counterProjectId: "project" };
+    expect(warnings(decision)).toEqual([]);
+    const requiredBank = [{ ...accounts[0], requiresCostCenter: true, requiresProject: true }, ...accounts.slice(1)];
+    expect(warnings(decision, requiredBank)).toEqual([
+      "Konto 1100000: manjkajo obvezne dimenzije — stroškovno mesto, projekt.",
+    ]);
+    expect(warnings({ ...decision, bankCostCenterId: "bank-cc", bankProjectId: "bank-project" }, requiredBank)).toEqual([]);
+  });
+  it("uses saved dimensions when reconciling a draft and respects explicit clearing", () => {
+    const saved = { ...payment, counterCostCenterId: "cc", counterProjectId: "project" };
+    const decision = { kind: "reconcile" as const, paymentId: saved.id };
+    expect(bankImportDimensionWarnings(decision, "bank", accounts, invoices, [saved], true)).toEqual([]);
+    expect(bankImportDimensionWarnings({ ...decision, counterProjectId: null }, "bank", accounts, invoices, [saved], true))
+      .toEqual(["Konto 4150000: manjkajo obvezne dimenzije — projekt."]);
+  });
+  it("warns about a prohibited cost center on either line without blocking its removal", () => {
+    const decision = { ...standalone, arApAccountId: "normal", counterpartyId: "partner",
+      bankCostCenterId: "bank-cc", counterCostCenterId: "counter-cc" };
+    const notAllowed = accounts.map(account => ({ ...account, costCenterPolicy: "not_allowed" }));
+    expect(warnings(decision, notAllowed)).toEqual([
+      "Konto 1100000: stroškovno mesto ni dovoljeno.",
+      "Konto 2200000: stroškovno mesto ni dovoljeno.",
+    ]);
+    expect(warnings({ ...decision, bankCostCenterId: null, counterCostCenterId: null }, notAllowed)).toEqual([]);
+  });
   it("lists every missing dimension and the account code", () => {
     expect(warnings(standalone)).toEqual([
       "Konto 4150000: manjkajo obvezne dimenzije — poslovni partner, stroškovno mesto, projekt.",

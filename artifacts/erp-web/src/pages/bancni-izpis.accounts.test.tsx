@@ -42,7 +42,7 @@ describe("accounting controls on bank statement rows", () => {
   it("lets the accountant choose a wage, VAT or expense account without an invoice", () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: /Brez računa/ }));
-    const controls = screen.getAllByRole("combobox");
+    const controls = screen.getAllByRole("combobox").filter(control => !control.closest("fieldset"));
     for (const accountId of ["wages", "vat", "fee"]) {
       fireEvent.change(controls[0], { target: { value: accountId } });
       fireEvent.change(controls[1], { target: { value: "partner" } });

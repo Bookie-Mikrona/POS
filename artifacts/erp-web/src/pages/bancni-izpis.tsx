@@ -28,6 +28,9 @@ import {
   useListPayments,
   useListInvoices,
   reconcileBankStatementLine,
+  useListCostCenters,
+  useListProjects,
+  updatePaymentDimensions,
 } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,7 +45,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BankStatementDetail } from "@/components/bank-statement-detail";
-import { bankImportDimensionWarnings } from "@/lib/bank-import-dimensions";
+import { bankImportDimensionWarnings, paymentDimensions, type BankPaymentDimensions } from "@/lib/bank-import-dimensions";
 import { bankImportDraftKey, readBankImportDraft, writeBankImportDraft, type ImportedBankPayment } from "@/lib/bank-import-draft";
 import { useBankPostingRefresh } from "@/hooks/use-bank-posting-refresh";
 import { useBankImportResult } from "@/hooks/use-bank-import-result";
@@ -96,12 +99,12 @@ interface TransactionWithSuggestions {
 
 // ─── Decision per transaction ─────────────────────────────────────────────────
 
-type MatchDecision =
+type MatchDecision = (
   | { kind: "matched"; invoiceId: string; invoiceNumber: string; counterpartyId: string; counterpartyName: string; allocatedAmount: string }
   | { kind: "standalone"; counterpartyId: string; arApAccountId: string }
   | { kind: "reconcile"; paymentId: string; label: string }
   | { kind: "skip" }
-  | { kind: "pending" };
+  | { kind: "pending" }) & BankPaymentDimensions;
 
 interface PendingReconcileConfirm {
   transactionId: string;
@@ -195,7 +198,7 @@ async function registerBankStatement(
   return resp.json();
 }
 
-interface CreatePaymentPayload {
+interface CreatePaymentPayload extends BankPaymentDimensions {
   direction: "inbound" | "outbound";
   counterpartyId: string;
   periodId: string;
@@ -632,6 +635,8 @@ function BankImportWizard({ onCompanyReady }: { onCompanyReady: (companyId: stri
 
   const { data: paymentsData } = useListPayments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
   const reconcilablePayments = (paymentsData?.payments ?? []).filter(p => p.status === "draft" || p.status === "posted");
+  const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const { data: projectsData } = useListProjects(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
 
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
@@ -871,6 +876,9 @@ function BankImportWizard({ onCompanyReady }: { onCompanyReady: (companyId: stri
         setConfirmProgress({ current: processedIndex, total, action: "creating", label: `Povezujem obstoječe plačilo ${processedIndex} od ${total}` });
         try {
           if (!lineId) throw new Error("Vrstica izpiska ni evidentirana");
+          if (Object.keys(paymentDimensions(decision)).length) {
+            await updatePaymentDimensions(activeCompany.id, decision.paymentId, paymentDimensions(decision));
+          }
           const rec = await reconcileBankStatementLine(activeCompany.id, lineId, { paymentId: decision.paymentId });
           created++;
           if (!checkpointPayment(tx.id, { paymentId: rec.paymentId, posting: rec.status === "posted" ? "posted" : autoPost && rec.requiresExplicitPosting ? "pending" : "draft" })) break;
@@ -929,6 +937,7 @@ function BankImportWizard({ onCompanyReady }: { onCompanyReady: (companyId: stri
         if (!arApAccountId) throw new Error("Za transakcijo manjka protikonto. Preverite račun oziroma izberite konto.");
         if (!registered.lineIds[tx.id]) throw new Error("Vrstica izpiska ni evidentirana.");
         paymentId = await createPaymentApi(activeCompany.id, {
+          ...paymentDimensions(decision),
           direction,
           counterpartyId,
           periodId,
@@ -1503,11 +1512,10 @@ function BankImportWizard({ onCompanyReady }: { onCompanyReady: (companyId: stri
           {hasMissingDimensions && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Manjkajo obvezne dimenzije</AlertTitle>
+              <AlertTitle>Preverite dimenzije</AlertTitle>
               <AlertDescription>
-                Pred potrditvijo preverite označene transakcije in izberite manjkajočega partnerja.
-                Stroškovnega mesta in projekta pri uvozu plačil ni mogoče vnesti.
-                Transakcije, ki ju zahtevajo, preskočite in vnesite s potrebnimi dimenzijami v temeljnici.
+                Pred potrditvijo preverite označene transakcije ter izberite partnerja,
+                stroškovno mesto in projekt neposredno pri ustrezni knjižbeni vrstici.
               </AlertDescription>
             </Alert>
           )}
@@ -1530,6 +1538,9 @@ function BankImportWizard({ onCompanyReady }: { onCompanyReady: (companyId: stri
                   ? invoices.find(invoice => invoice.id === (decisions.get(item.transaction.id) as Extract<MatchDecision, { kind: "matched" }>).invoiceId)?.arApAccountId ?? ""
                   : ""}
                 dimensionWarnings={dimensionWarnings.get(item.transaction.id)}
+                bankAccountId={bankAccountId}
+                costCenters={costCentersData?.costCenters ?? []}
+                projects={projectsData?.projects ?? []}
               />
             ))}
           </div>
@@ -1684,6 +1695,9 @@ export function TransactionReviewRow({
   invoiceAccountId,
   dimensionWarnings = [],
   imported,
+  bankAccountId = "",
+  costCenters = [],
+  projects = [],
 }: {
   item: TransactionWithSuggestions;
   decision: MatchDecision;
@@ -1696,9 +1710,18 @@ export function TransactionReviewRow({
   invoiceAccountId: string;
   dimensionWarnings?: string[];
   imported?: ImportedBankPayment;
+  bankAccountId?: string;
+  costCenters?: Array<{ id: string; code: string; name: string; isActive?: boolean }>;
+  projects?: Array<{ id: string; code: string; name: string; isActive?: boolean }>;
 }) {
   const tx = item.transaction;
   const isInbound = tx.amount > 0;
+  const existing = decision.kind === "reconcile" ? existingPayments.find(p => p.id === decision.paymentId) : undefined;
+  const dimensions = { ...paymentDimensions(existing ?? {}), ...paymentDimensions(decision) };
+  const lineAccounts = [
+    { label: "Bančna vrstica", accountId: existing?.bankAccountId ?? bankAccountId, costKey: "bankCostCenterId", projectKey: "bankProjectId" },
+    { label: "Protikontna vrstica", accountId: existing?.arApAccountId ?? (decision.kind === "standalone" ? decision.arApAccountId : invoiceAccountId), costKey: "counterCostCenterId", projectKey: "counterProjectId" },
+  ] as const;
   const [showManual, setShowManual] = useState(false);
   const [manualInvoiceId, setManualInvoiceId] = useState("");
   const [manualAmount, setManualAmount] = useState(Math.abs(tx.amount).toFixed(2));
@@ -1729,6 +1752,34 @@ export function TransactionReviewRow({
 
   return (
     <div className={`border-2 rounded-lg p-4 transition-colors ${statusColor}`}>
+      {(decision.kind === "matched" || decision.kind === "standalone" || (decision.kind === "reconcile" && existing?.status === "draft")) && (
+        <div className="grid gap-3 mb-3 md:grid-cols-2">
+          {lineAccounts.map(line => (
+            <fieldset key={line.label} className="border rounded p-3 space-y-2">
+              <legend className="text-sm font-medium">{line.label} · {accounts.find(a => a.id === line.accountId)?.code ?? "izberite konto"}</legend>
+              {([
+                { key: line.costKey, label: "Stroškovno mesto", options: costCenters },
+                { key: line.projectKey, label: "Projekt", options: projects },
+              ] as const).map(field => (
+                <label key={field.key} className="block text-sm">
+                  {field.label}
+                  <Select value={dimensions[field.key] ?? "__none__"} onValueChange={value => onDecision({
+                    ...decision, ...dimensions, [field.key]: value === "__none__" ? null : value,
+                  })}>
+                    <SelectTrigger aria-label={`${line.label} – ${field.label}`}><SelectValue placeholder="Ni izbrano" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Ni izbrano</SelectItem>
+                      {field.options.filter(option => option.isActive !== false).map(option => (
+                        <SelectItem key={option.id} value={option.id}>{option.code} — {option.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+              ))}
+            </fieldset>
+          ))}
+        </div>
+      )}
       {dimensionWarnings.length > 0 && (
         <Alert variant="destructive" role="alert" className="mb-3">
           <AlertCircle className="h-4 w-4" />
