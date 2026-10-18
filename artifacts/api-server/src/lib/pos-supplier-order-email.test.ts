@@ -20,9 +20,10 @@ describe("buildSupplierOrderEmail", () => {
   it("shows the supplier's item name, code and EAN when known", () => {
     const { text, html } = buildSupplierOrderEmail({
       number: "N-2", supplierName: "D", expectedDeliveryDate: null, supplierNotes: null,
-      lines: [{ articleName: "Jušna zelenjava", supplierItemName: "Por", supplierCode: "P-1", supplierGtin: "3850123456789", packageQuantity: 3, packageName: "vreča 5 kg", unitPrice: 8 }],
+      lines: [{ articleName: "Jušna zelenjava", supplierItemName: "Por", supplierCode: "P-1", supplierGtin: "3850123456789", packageQuantity: 3, packageName: "vreča", packageFactor: 5, baseUnit: "kg", unitPrice: 8 }],
     }, "Gostilna");
     expect(text).toContain("Por [P-1] (EAN 3850123456789)");
     expect(html).toContain("EAN 3850123456789");
+    expect(text).toContain("1 pak. = 5 kg");
   });
 });

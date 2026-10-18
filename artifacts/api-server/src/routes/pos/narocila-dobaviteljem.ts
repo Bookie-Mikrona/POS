@@ -1202,6 +1202,8 @@ router.post("/narocila-dobaviteljem/:id/send-email", async (req, res): Promise<v
           supplierItemName: line.supplierItemName,
           supplierCode: line.supplierCode ?? null,
           supplierGtin: line.supplierGtin ?? null,
+          packageFactor: line.packageFactor,
+          baseUnit: line.baseUnit ?? null,
           packageQuantity: line.packageQuantity,
           packageName: line.packageName,
           unitPrice: line.unitPrice,

@@ -428,15 +428,15 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
                 className={canSplitAcrossPages ? "supplier-order-print__row--fragmentable" : undefined}
               >
                 <td>
-                  <strong>{line.articleName}</strong>
-                  {(line.supplierItemName || line.supplierCode || line.supplierGtin) && (
-                    <small>{[line.supplierItemName, line.supplierCode, line.supplierGtin ? `EAN ${line.supplierGtin}` : null].filter(Boolean).join(" · ")}</small>
+                  <strong>{line.supplierItemName?.trim() || line.articleName}</strong>
+                  {(line.supplierCode || line.supplierGtin || line.supplierItemName?.trim()) && (
+                    <small>{[line.supplierCode ? `Šifra ${line.supplierCode}` : null, line.supplierGtin ? `EAN ${line.supplierGtin}` : null, line.supplierItemName?.trim() ? `(${line.articleName})` : null].filter(Boolean).join(" · ")}</small>
                   )}
                 </td>
                 <td>
                   {line.packageName ?? "pakiranje"}
                   {line.packageFactor > 0 && line.baseUnit
-                    ? <small>1 pak. = {formatQty(line.packageFactor)} {line.baseUnit}</small>
+                    ? <small>1 pak. = {formatQty(line.packageFactor)} {line.baseUnit} · enota mere: {line.baseUnit}</small>
                     : null}
                 </td>
                 <td className="supplier-order-print__number">{formatQty(line.packageQuantity, 3)}</td>

@@ -7,6 +7,8 @@ export interface SupplierOrderEmailLine {
   supplierItemName: string | null;
   supplierCode: string | null;
   supplierGtin?: string | null;
+  packageFactor?: number | null;
+  baseUnit?: string | null;
   packageQuantity: number;
   packageName: string | null;
   unitPrice: number | null;
@@ -40,7 +42,8 @@ export function buildSupplierOrderEmail(order: SupplierOrderEmailInput, companyN
     const name = line.supplierItemName?.trim() || line.articleName;
     const code = (line.supplierCode ? ` [${line.supplierCode}]` : "")
       + (line.supplierGtin ? ` (EAN ${line.supplierGtin})` : "");
-    return `- ${name}${code}: ${qty(line.packageQuantity)}${line.packageName ? ` ${line.packageName}` : ""}`
+    const unit = line.baseUnit && line.packageFactor ? ` (1 pak. = ${qty(line.packageFactor)} ${line.baseUnit})` : "";
+    return `- ${name}${code}: ${qty(line.packageQuantity)}${line.packageName ? ` ${line.packageName}` : ""}${unit}`
       + (line.unitPrice == null ? "" : ` po ${money(line.unitPrice)}`);
   });
   const text = [
@@ -57,7 +60,7 @@ export function buildSupplierOrderEmail(order: SupplierOrderEmailInput, companyN
   const rows = order.lines.map(line => {
     const name = line.supplierItemName?.trim() || line.articleName;
     return `<tr><td style="padding:6px 8px;border-top:1px solid #e5e7eb">${escapeHtml(name)}${line.supplierCode ? ` <span style="color:#888">[${escapeHtml(line.supplierCode)}]</span>` : ""}${line.supplierGtin ? ` <span style="color:#888">EAN ${escapeHtml(line.supplierGtin)}</span>` : ""}</td>`
-      + `<td style="padding:6px 8px;border-top:1px solid #e5e7eb;text-align:right">${escapeHtml(qty(line.packageQuantity))}${line.packageName ? ` ${escapeHtml(line.packageName)}` : ""}</td>`
+      + `<td style="padding:6px 8px;border-top:1px solid #e5e7eb;text-align:right">${escapeHtml(qty(line.packageQuantity))}${line.packageName ? ` ${escapeHtml(line.packageName)}` : ""}${line.baseUnit && line.packageFactor ? ` <span style="color:#888">(1 pak. = ${escapeHtml(qty(line.packageFactor))} ${escapeHtml(line.baseUnit)})</span>` : ""}</td>`
       + `<td style="padding:6px 8px;border-top:1px solid #e5e7eb;text-align:right">${escapeHtml(money(line.unitPrice))}</td></tr>`;
   }).join("");
   const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px">
