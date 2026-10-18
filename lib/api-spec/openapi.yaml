@@ -5798,6 +5798,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/SupplierReorderSettings"
         "400": { description: Neveljavne nastavitve ali neveljavna dobaviteljska povezava }
+  /narocila-dobaviteljem/brez-navodil:
+    get:
+      operationId: listSupplierOrdersMissingInstructions
+      tags: [nabava]
+      summary: Straničen pregled naročil z interno opombo in brez navodila dobavitelju
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/SupplierOrderStatus"
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+        - name: pageSize
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: search
+          in: query
+          required: false
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: Stran zadetkov pregleda, omejena na aktivno enoto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderSummaryPage"
+        "400": { description: Neveljavni filtri pregleda }
   /narocila-dobaviteljem:
     get:
       operationId: listSupplierOrders
@@ -20255,6 +20286,16 @@ components:
         openQuantity: { type: number }
         internalNotes: { type: [string, "null"], description: Interna opomba; ne natisne se. }
         supplierNotes: { type: [string, "null"], description: Navodilo za dobavitelja; natisne se na naročilu. }
+    SupplierOrderSummaryPage:
+      type: object
+      required: [orders, total, page, pageSize]
+      properties:
+        orders:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOrderSummary" }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
     SupplierOrderReceipt:
       type: object
       required: [receiptId, receiptNumber, supplierDocumentNumber, receiptDate, receivedBaseQuantity]

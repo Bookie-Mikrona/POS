@@ -8516,6 +8516,19 @@ export interface SupplierOrderInput {
   lines: SupplierOrderLineInput[];
 }
 
+export interface SupplierOrderSummaryPage {
+  orders: SupplierOrderSummary[];
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+}
+
 export interface SupplierOrderReceipt {
   receiptId: number;
   /** @nullable */
@@ -14547,6 +14560,24 @@ datumDo?: string;
 
 export type ListZalogaGibiParams = {
 artikelId?: number;
+};
+
+export type ListSupplierOrdersMissingInstructionsParams = {
+status?: SupplierOrderStatus;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+/**
+ * @maxLength 200
+ */
+search?: string;
 };
 
 export type ListSupplierOrdersParams = {

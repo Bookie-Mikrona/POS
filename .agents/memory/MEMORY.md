@@ -150,6 +150,7 @@
 - [Avtomatizacija brez ročnih vnosov](avtomatizacija-brez-rocnih-vnosov.md) — privzeto samodejno, ročni vnos le za popravek; sprašuj le pri nepovratnem ali dvoumnem
 - [Uskladitev POS temeljnic](pos-receipt-booking-reconciliation.md) — plačan B2B ostane posamičen; zbirniki ohranijo izdani DDV in časovno sled storna.
 - [Naročila dobaviteljem in prevzemi](supplier-orders-and-receipts.md) — naročilo ne spreminja zaloge; interne opombe so ločene, dolga navodila pa se varno paginirajo.
+- [Izolacija testov naročil](supplier-order-test-isolation.md) — pri agregatih na skupnem testnem podjetju filtriraj unikatne testne številke, da drugi scenariji ne vplivajo na števec.
 - [POS Zod resolver tipi](pos-zod-v3-resolver.md) — POS obrazci z v3 resolverjem naj izrecno uvozijo zod/v3, da se izognejo navzkrižju tipov shem.
 - [Starostna opozorila vračil](refund-aging-policy.md) — zvišanje pragov ne umakne že sproženega finančnega opozorila; zapre ga dejanska razrešitev.
 - [Stripe operativna obvestila](stripe-operational-notifications.md) — rezervni kanal ne sme obiti skupnega cooldowna; dostava je namenoma best-effort.

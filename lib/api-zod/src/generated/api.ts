@@ -11108,6 +11108,53 @@ export const SaveSupplierReorderSettingsResponse = zod.object({
 
 
 /**
+ * @summary Straničen pregled naročil z interno opombo in brez navodila dobavitelju
+ */
+export const listSupplierOrdersMissingInstructionsQueryPageDefault = 1;
+export const listSupplierOrdersMissingInstructionsQueryPageMax = 100000;
+
+export const listSupplierOrdersMissingInstructionsQueryPageSizeDefault = 50;
+export const listSupplierOrdersMissingInstructionsQueryPageSizeMax = 100;
+
+export const listSupplierOrdersMissingInstructionsQuerySearchMax = 200;
+
+
+
+export const ListSupplierOrdersMissingInstructionsQueryParams = zod.object({
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']).optional(),
+  "page": zod.coerce.number().min(1).max(listSupplierOrdersMissingInstructionsQueryPageMax).default(listSupplierOrdersMissingInstructionsQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listSupplierOrdersMissingInstructionsQueryPageSizeMax).default(listSupplierOrdersMissingInstructionsQueryPageSizeDefault),
+  "search": zod.coerce.string().max(listSupplierOrdersMissingInstructionsQuerySearchMax).optional()
+})
+
+export const listSupplierOrdersMissingInstructionsResponseTotalMin = 0;
+
+
+export const listSupplierOrdersMissingInstructionsResponsePageSizeMax = 100;
+
+
+
+export const ListSupplierOrdersMissingInstructionsResponse = zod.object({
+  "orders": zod.array(zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "supplierId": zod.string(),
+  "supplierName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "lineCount": zod.number(),
+  "openQuantity": zod.number(),
+  "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
+  "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.')
+})),
+  "total": zod.number().min(listSupplierOrdersMissingInstructionsResponseTotalMin),
+  "page": zod.number().min(1),
+  "pageSize": zod.number().min(1).max(listSupplierOrdersMissingInstructionsResponsePageSizeMax)
+})
+
+
+/**
  * @summary Seznam naročil dobaviteljem
  */
 export const listSupplierOrdersQueryMissingSupplierInstructionsOnlyDefault = false;

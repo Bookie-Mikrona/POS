@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  AlertCircle, ArrowDownToLine, ArrowRight, Check, ChevronDown, ChevronUp,
+  AlertCircle, ArrowDownToLine, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   CircleDot, ClipboardList, Copy, FileText, PackageCheck, Plus, Printer, RefreshCw,
   Search, Send, Settings2, ShoppingCart, X,
 } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   getGetSupplierOrderDashboardQueryKey,
   getGetSupplierOrderQueryKey,
   getListSupplierOrdersQueryKey,
+  getListSupplierOrdersMissingInstructionsQueryKey,
   useCancelSupplierOrder,
   useCloseSupplierOrder,
   useCreatePrejemnica,
@@ -18,6 +19,7 @@ import {
   useGetSupplierOrder,
   useGetSupplierOrderDashboard,
   useListSupplierOrders,
+  useListSupplierOrdersMissingInstructions,
   useMarkSupplierOrderSent,
   useSaveSupplierReorderSettings,
   useUpdateSupplierOrder,
@@ -59,9 +61,6 @@ const statusClass: Record<SupplierOrderStatus, string> = {
   closed: "border-stone-300 bg-stone-100 text-stone-700",
   cancelled: "border-rose-300 bg-rose-50 text-rose-900",
 };
-const hasInternalNoteWithoutSupplierInstructions = (
-  order: Pick<SupplierOrderSummary, "internalNotes" | "supplierNotes">,
-) => Boolean(order.internalNotes?.trim()) && !order.supplierNotes?.trim();
 function focusIfAvailable(target: HTMLElement | null, fallback: HTMLElement | null = null) {
   if (target?.isConnected) {
     target.focus();
@@ -126,6 +125,7 @@ const formatReceiptDate = (value: string | null | undefined) => {
 const formatMoney = (value: number | null | undefined) =>
   value == null ? "—" : new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(value);
 const MAX_ORDER_NOTE_LENGTH = 2000;
+const MISSING_INSTRUCTIONS_PAGE_SIZE = 50;
 const formatUnitMoney = (value: number) =>
   new Intl.NumberFormat("sl-SI", {
     style: "currency",
@@ -379,22 +379,26 @@ export default function NarocilaDobaviteljem() {
   const dashboardKey = getGetSupplierOrderDashboardQueryKey();
   const { data: dashboard, isLoading: dashboardLoading, isError: dashboardError, refetch: refetchDashboard } =
     useGetSupplierOrderDashboard({ query: { queryKey: dashboardKey } });
+  const [orderSearch, setOrderSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<SupplierOrderStatus | "all">("all");
   const [missingSupplierInstructionsOnly, setMissingSupplierInstructionsOnly] = useState(false);
+  const [missingInstructionsPage, setMissingInstructionsPage] = useState(1);
   const listParams = statusFilter === "all" ? undefined : { status: statusFilter };
   const { data: orderList, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } =
     useListSupplierOrders(listParams, { query: { queryKey: getListSupplierOrdersQueryKey(listParams) } });
   const missingInstructionsParams = {
     ...(statusFilter === "all" ? {} : { status: statusFilter }),
-    missingSupplierInstructionsOnly: true,
+    page: missingInstructionsPage,
+    pageSize: MISSING_INSTRUCTIONS_PAGE_SIZE,
+    ...(orderSearch.trim() ? { search: orderSearch.trim() } : {}),
   };
   const {
-    data: completeMissingInstructionsList,
+    data: missingInstructionsResult,
     isLoading: missingInstructionsLoading,
     isError: missingInstructionsError,
     refetch: refetchMissingInstructions,
-  } = useListSupplierOrders(missingInstructionsParams, {
-    query: { queryKey: getListSupplierOrdersQueryKey(missingInstructionsParams) },
+  } = useListSupplierOrdersMissingInstructions(missingInstructionsParams, {
+    query: { queryKey: getListSupplierOrdersMissingInstructionsQueryKey(missingInstructionsParams) },
   });
   const activeOrdersLoading = missingSupplierInstructionsOnly ? missingInstructionsLoading : ordersLoading;
   const activeOrdersError = missingSupplierInstructionsOnly ? missingInstructionsError : ordersError;
@@ -435,7 +439,6 @@ export default function NarocilaDobaviteljem() {
 
   const [activeView, setActiveView] = useState<"suggestions" | "orders">("suggestions");
   const [search, setSearch] = useState("");
-  const [orderSearch, setOrderSearch] = useState("");
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [settingsArticle, setSettingsArticle] = useState<SupplierReorderArticle | null>(null);
   const [settingPoint, setSettingPoint] = useState("");
@@ -598,8 +601,17 @@ export default function NarocilaDobaviteljem() {
     const q = search.trim().toLocaleLowerCase("sl");
     return (!q || `${article.articleName} ${article.purchaseName ?? ""}`.toLocaleLowerCase("sl").includes(q));
   });
-  const ordersMissingSupplierInstructions = (completeMissingInstructionsList ?? [])
-    .filter(hasInternalNoteWithoutSupplierInstructions);
+  const ordersMissingSupplierInstructions = missingInstructionsResult?.orders ?? [];
+  const missingInstructionsTotal = missingInstructionsResult?.total ?? 0;
+  const missingInstructionsTotalPages = Math.max(
+    1,
+    Math.ceil(missingInstructionsTotal / MISSING_INSTRUCTIONS_PAGE_SIZE),
+  );
+  useEffect(() => {
+    if (missingInstructionsResult && missingInstructionsPage > missingInstructionsTotalPages) {
+      setMissingInstructionsPage(missingInstructionsTotalPages);
+    }
+  }, [missingInstructionsPage, missingInstructionsResult, missingInstructionsTotalPages]);
   const ordersWithInstructionFilter = missingSupplierInstructionsOnly
     ? ordersMissingSupplierInstructions
     : orderList ?? [];
@@ -608,10 +620,12 @@ export default function NarocilaDobaviteljem() {
   const hasActiveOrderFilters = Boolean(activeOrderSearch)
     || statusFilter !== "all"
     || missingSupplierInstructionsOnly;
-  const filteredOrders = ordersWithInstructionFilter.filter(order =>
-    !normalizedOrderSearch
-    || `${order.number} ${order.supplierName}`.toLocaleLowerCase("sl").includes(normalizedOrderSearch),
-  );
+  const filteredOrders = missingSupplierInstructionsOnly
+    ? ordersWithInstructionFilter
+    : ordersWithInstructionFilter.filter(order =>
+      !normalizedOrderSearch
+      || `${order.number} ${order.supplierName}`.toLocaleLowerCase("sl").includes(normalizedOrderSearch),
+    );
   const supplierNotesAfterCopy = orderEditor
     ? appendInternalNoteToSupplierNotes(orderEditor.internalNotes, orderEditor.supplierNotes)
     : "";
@@ -631,6 +645,7 @@ export default function NarocilaDobaviteljem() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: dashboardKey }),
       queryClient.invalidateQueries({ queryKey: getListSupplierOrdersQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListSupplierOrdersMissingInstructionsQueryKey() }),
       ...(orderId ? [queryClient.invalidateQueries({ queryKey: getGetSupplierOrderQueryKey(orderId) })] : []),
     ]);
   };
@@ -920,7 +935,10 @@ export default function NarocilaDobaviteljem() {
         {activeView === "suggestions" ? <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78847e]" />
           <Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Išči artikel…" className="h-10 border-[#ded6c7] bg-[#fffefa] pl-9" data-testid="input-search-articles" />
-        </div> : <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as SupplierOrderStatus | "all")} className="h-10 rounded-lg border border-[#ded6c7] bg-[#fffefa] px-3 text-sm text-[#314a44]" aria-label="Filtriraj naročila po statusu">
+        </div> : <select value={statusFilter} onChange={event => {
+          setMissingInstructionsPage(1);
+          setStatusFilter(event.target.value as SupplierOrderStatus | "all");
+        }} className="h-10 rounded-lg border border-[#ded6c7] bg-[#fffefa] px-3 text-sm text-[#314a44]" aria-label="Filtriraj naročila po statusu">
           <option value="all">Vsi statusi</option>
           {Object.entries(statusCopy).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>}
@@ -1165,7 +1183,10 @@ export default function NarocilaDobaviteljem() {
                 aria-label="Poišči po številki ali dobavitelju"
                 data-testid="input-search-supplier-orders"
                 value={orderSearch}
-                onChange={event => setOrderSearch(event.target.value)}
+                onChange={event => {
+                  setMissingInstructionsPage(1);
+                  setOrderSearch(event.target.value);
+                }}
                 placeholder="Številka ali dobavitelj"
                 className="h-10 border-[#ded6c7] bg-[#fffefa] pl-9"
               />
@@ -1178,14 +1199,20 @@ export default function NarocilaDobaviteljem() {
               data-testid="filter-orders-missing-supplier-instructions"
               title="Pokaži naročila z interno opombo in praznim navodilom za dobavitelja"
               disabled={activeOrdersLoading}
-              onClick={() => setMissingSupplierInstructionsOnly(value => !value)}
+              onClick={() => {
+                setMissingInstructionsPage(1);
+                setMissingSupplierInstructionsOnly(value => !value);
+              }}
               className={`h-10 ${missingSupplierInstructionsOnly ? "border-amber-400 bg-amber-50 text-amber-950" : "border-[#ded6c7] bg-[#fffefa] text-[#52645d]"}`}
             >
               <AlertCircle className="mr-1.5 h-3.5 w-3.5" />
               Interna opomba brez navodila
-              <span className="ml-1 rounded-full bg-[#eee9de] px-2 py-0.5 text-[11px] font-semibold">{ordersMissingSupplierInstructions.length}</span>
+              <span className="ml-1 rounded-full bg-[#eee9de] px-2 py-0.5 text-[11px] font-semibold">{missingInstructionsTotal}</span>
             </Button>
-            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as SupplierOrderStatus | "all")} className="h-10 rounded-lg border border-[#ded6c7] bg-[#fffefa] px-3 text-sm text-[#314a44]" aria-label="Filtriraj naročila po statusu">
+            <select value={statusFilter} onChange={event => {
+              setMissingInstructionsPage(1);
+              setStatusFilter(event.target.value as SupplierOrderStatus | "all");
+            }} className="h-10 rounded-lg border border-[#ded6c7] bg-[#fffefa] px-3 text-sm text-[#314a44]" aria-label="Filtriraj naročila po statusu">
               <option value="all">Vsi statusi</option>
               {Object.entries(statusCopy).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
@@ -1207,6 +1234,7 @@ export default function NarocilaDobaviteljem() {
                 setOrderSearch("");
                 setStatusFilter("all");
                 setMissingSupplierInstructionsOnly(false);
+                setMissingInstructionsPage(1);
               }}
             >
               Ponastavi iskanje in filtre
@@ -1229,6 +1257,35 @@ export default function NarocilaDobaviteljem() {
             </tr>)}</tbody>
           </table>
         </div>}
+        {missingSupplierInstructionsOnly && !activeOrdersLoading && !activeOrdersError && missingInstructionsResult && (
+          <div className="orders-no-print flex flex-wrap items-center justify-between gap-3 border-t border-[#eee8dc] px-4 py-3 text-sm text-[#52645d] sm:px-5">
+            <span aria-live="polite" data-testid="supplier-orders-missing-instructions-page">
+              Stran {missingInstructionsPage} od {missingInstructionsTotalPages} · {missingInstructionsTotal} zadetkov
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="button-previous-missing-instructions-page"
+                disabled={missingInstructionsPage <= 1}
+                onClick={() => setMissingInstructionsPage(page => Math.max(1, page - 1))}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" /> Prejšnja
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="button-next-missing-instructions-page"
+                disabled={missingInstructionsPage >= missingInstructionsTotalPages}
+                onClick={() => setMissingInstructionsPage(page => page + 1)}
+              >
+                Naslednja <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </section>}
 
       <aside className="flex flex-col gap-3 rounded-xl border border-[#d8dfd4] bg-[#edf2e9] px-4 py-3 text-xs text-[#52685f] sm:flex-row sm:items-center">

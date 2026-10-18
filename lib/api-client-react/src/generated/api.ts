@@ -296,6 +296,7 @@ import type {
   ListRacuniParams,
   ListRazpolozljiveMizeParams,
   ListRezervacijeParams,
+  ListSupplierOrdersMissingInstructionsParams,
   ListSupplierOrdersParams,
   ListTestniZagoniParams,
   ListTipsLedgerParams,
@@ -519,6 +520,7 @@ import type {
   SupplierOrderDetail,
   SupplierOrderInput,
   SupplierOrderSummary,
+  SupplierOrderSummaryPage,
   SupplierReorderSettings,
   SupplierReorderSettingsInput,
   TerminalPlaciloOdgovor,
@@ -21157,6 +21159,90 @@ export const useSaveSupplierReorderSettings = <TError = ErrorType<void>,
       > => {
       return useMutation(getSaveSupplierReorderSettingsMutationOptions(options));
     }
+
+export const getListSupplierOrdersMissingInstructionsUrl = (params?: ListSupplierOrdersMissingInstructionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/narocila-dobaviteljem/brez-navodil?${stringifiedParams}` : `/api/narocila-dobaviteljem/brez-navodil`
+}
+
+/**
+ * @summary Straničen pregled naročil z interno opombo in brez navodila dobavitelju
+ */
+export const listSupplierOrdersMissingInstructions = async (params?: ListSupplierOrdersMissingInstructionsParams, options?: RequestInit): Promise<SupplierOrderSummaryPage> => {
+
+  return customFetch<SupplierOrderSummaryPage>(getListSupplierOrdersMissingInstructionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupplierOrdersMissingInstructionsQueryKey = (params?: ListSupplierOrdersMissingInstructionsParams,) => {
+    return [
+    `/api/narocila-dobaviteljem/brez-navodil`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSupplierOrdersMissingInstructionsQueryOptions = <TData = Awaited<ReturnType<typeof listSupplierOrdersMissingInstructions>>, TError = ErrorType<void>>(params?: ListSupplierOrdersMissingInstructionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupplierOrdersMissingInstructions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupplierOrdersMissingInstructionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupplierOrdersMissingInstructions>>> = ({ signal }) => listSupplierOrdersMissingInstructions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupplierOrdersMissingInstructions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSupplierOrdersMissingInstructionsQueryResult = NonNullable<Awaited<ReturnType<typeof listSupplierOrdersMissingInstructions>>>
+export type ListSupplierOrdersMissingInstructionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Straničen pregled naročil z interno opombo in brez navodila dobavitelju
+ */
+
+export function useListSupplierOrdersMissingInstructions<TData = Awaited<ReturnType<typeof listSupplierOrdersMissingInstructions>>, TError = ErrorType<void>>(
+ params?: ListSupplierOrdersMissingInstructionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupplierOrdersMissingInstructions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSupplierOrdersMissingInstructionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSupplierOrdersUrl = (params?: ListSupplierOrdersParams,) => {
   const normalizedParams = new URLSearchParams();

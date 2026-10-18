@@ -155,8 +155,13 @@ async function getSupplierOrderSummaries(
   status?: string,
   limit = 200,
   missingSupplierInstructionsOnly = false,
+  offset = 0,
+  paginateMissingInstructions = false,
+  search?: string | null,
 ) {
-  const limitClause = missingSupplierInstructionsOnly ? sql`` : sql`LIMIT ${limit}`;
+  const limitClause = missingSupplierInstructionsOnly && !paginateMissingInstructions
+    ? sql``
+    : sql`LIMIT ${limit} OFFSET ${offset}`;
   const result = await db.execute(sql`
     WITH confirmed_received AS (
       SELECT pp.supplier_order_line_id,
@@ -197,6 +202,11 @@ async function getSupplierOrderSummaries(
           AND NULLIF(regexp_replace(COALESCE(o.navodilo_dobavitelju, ''), '^[[:space:]]+|[[:space:]]+$', '', 'g'), '') IS NULL
         )
       )
+      AND (
+        ${search ?? null}::text IS NULL
+        OR position(lower(${search ?? null}) in lower(o.stevilka)) > 0
+        OR position(lower(${search ?? null}) in lower(o.dobavitelj_naziv)) > 0
+      )
     GROUP BY o.id
     ORDER BY o.ustvarjeno DESC, o.id DESC
     ${limitClause}
@@ -214,6 +224,47 @@ async function getSupplierOrderSummaries(
     internalNotes: row.internalNotes == null ? null : String(row.internalNotes),
     supplierNotes: row.supplierNotes == null ? null : String(row.supplierNotes),
   }));
+}
+
+async function getMissingSupplierInstructionsPage(
+  enotaId: number,
+  status: string | undefined,
+  page: number,
+  pageSize: number,
+  search: string | null,
+) {
+  const offset = (page - 1) * pageSize;
+  const [orders, countResult] = await Promise.all([
+    getSupplierOrderSummaries(
+      enotaId,
+      status,
+      pageSize,
+      true,
+      offset,
+      true,
+      search,
+    ),
+    db.execute(sql`
+      SELECT COUNT(*)::integer AS total
+      FROM pos_supplier_orders o
+      WHERE o.enota_id = ${enotaId}
+        AND (${status ?? null}::text IS NULL OR o.status = ${status ?? null})
+        AND NULLIF(regexp_replace(COALESCE(o.opomba, ''), '^[[:space:]]+|[[:space:]]+$', '', 'g'), '') IS NOT NULL
+        AND NULLIF(regexp_replace(COALESCE(o.navodilo_dobavitelju, ''), '^[[:space:]]+|[[:space:]]+$', '', 'g'), '') IS NULL
+        AND (
+          ${search}::text IS NULL
+          OR position(lower(${search}) in lower(o.stevilka)) > 0
+          OR position(lower(${search}) in lower(o.dobavitelj_naziv)) > 0
+        )
+    `),
+  ]);
+
+  return {
+    orders,
+    total: Number((countResult.rows[0] as { total: number | string }).total),
+    page,
+    pageSize,
+  };
 }
 
 async function getSupplierOrderDetail(enotaId: number, id: number) {
@@ -626,6 +677,28 @@ router.get("/narocila-dobaviteljem", async (req, res): Promise<void> => {
     parsed.data.status,
     200,
     parsed.data.missingSupplierInstructionsOnly,
+  ));
+});
+
+router.get("/narocila-dobaviteljem/brez-navodil", async (req, res): Promise<void> => {
+  const { enotaId } = requestScope(req);
+  const parsed = z.object({
+    status: orderStatus.optional(),
+    page: z.coerce.number().int().min(1).max(100_000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+    search: z.string().trim().max(200).optional(),
+  }).safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Neveljaven filter pregleda naročil brez navodil." });
+    return;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json(await getMissingSupplierInstructionsPage(
+    enotaId,
+    parsed.data.status,
+    parsed.data.page,
+    parsed.data.pageSize,
+    parsed.data.search || null,
   ));
 });
 

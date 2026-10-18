@@ -1887,7 +1887,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
       dobaviteljNaziv: `Supplier ${run}`,
       stevilka: `HISTORY-${run}-${index}`,
       status: "draft",
-      opomba: null,
+      opomba: `Opomba brez navodila ${index}`,
       navodiloDobavitelju: null,
       ustvaril: context.userId,
       ustvarjeno: recentCreatedAt,
@@ -1998,5 +1998,56 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(sentMissingInstructionOrders.body.map((order: any) => order.id)).not.toContain(oldDraftOrder.id);
     expect(sentMissingInstructionOrders.body.map((order: any) => order.id)).not.toContain(otherUnitOrder.id);
     expect(sentMissingInstructionOrders.body.map((order: any) => order.id)).not.toContain(otherCompanyOrder.id);
+
+    const firstPage = await request(app)
+      .get("/narocila-dobaviteljem/brez-navodil")
+      .query({ page: 1, pageSize: 100, search: `HISTORY-${run}` });
+    expect(firstPage.status, JSON.stringify(firstPage.body)).toBe(200);
+    expect(firstPage.body).toMatchObject({ page: 1, pageSize: 100, total: 203 });
+    expect(firstPage.body.orders).toHaveLength(100);
+    expect(firstPage.body.orders.map((order: any) => order.id)).not.toContain(oldSentOrder.id);
+
+    const secondPage = await request(app)
+      .get("/narocila-dobaviteljem/brez-navodil")
+      .query({ page: 2, pageSize: 100, search: `HISTORY-${run}` });
+    expect(secondPage.status, JSON.stringify(secondPage.body)).toBe(200);
+    expect(secondPage.body).toMatchObject({ page: 2, pageSize: 100, total: 203 });
+    expect(secondPage.body.orders).toHaveLength(100);
+    expect(secondPage.body.orders.map((order: any) => order.id)).not.toContain(oldSentOrder.id);
+
+    const thirdPage = await request(app)
+      .get("/narocila-dobaviteljem/brez-navodil")
+      .query({ page: 3, pageSize: 100, search: `HISTORY-${run}` });
+    expect(thirdPage.status, JSON.stringify(thirdPage.body)).toBe(200);
+    expect(thirdPage.body).toMatchObject({ page: 3, pageSize: 100, total: 203 });
+    expect(thirdPage.body.orders.map((order: any) => order.id)).toContain(oldSentOrder.id);
+    expect(thirdPage.body.orders.map((order: any) => order.id)).toContain(oldDraftOrder.id);
+    expect(thirdPage.body.orders.map((order: any) => order.id)).not.toContain(otherUnitOrder.id);
+    expect(thirdPage.body.orders.map((order: any) => order.id)).not.toContain(otherCompanyOrder.id);
+
+    const emptyLastPage = await request(app)
+      .get("/narocila-dobaviteljem/brez-navodil")
+      .query({ page: 4, pageSize: 100, search: `HISTORY-${run}` });
+    expect(emptyLastPage.status, JSON.stringify(emptyLastPage.body)).toBe(200);
+    expect(emptyLastPage.body).toMatchObject({ page: 4, pageSize: 100, total: 203, orders: [] });
+
+    const sentPage = await request(app)
+      .get("/narocila-dobaviteljem/brez-navodil")
+      .query({ status: "sent", page: 1, pageSize: 1, search: `HISTORY-${run}` });
+    expect(sentPage.status, JSON.stringify(sentPage.body)).toBe(200);
+    expect(sentPage.body).toMatchObject({ page: 1, pageSize: 1, total: 1 });
+    expect(sentPage.body.orders.map((order: any) => order.id)).toEqual([oldSentOrder.id]);
+    const emptySentPage = await request(app)
+      .get("/narocila-dobaviteljem/brez-navodil")
+      .query({ status: "sent", page: 2, pageSize: 1, search: `HISTORY-${run}` });
+    expect(emptySentPage.status, JSON.stringify(emptySentPage.body)).toBe(200);
+    expect(emptySentPage.body).toMatchObject({ page: 2, pageSize: 1, total: 1, orders: [] });
+
+    const searchedPage = await request(app)
+      .get("/narocila-dobaviteljem/brez-navodil")
+      .query({ search: "old-draft", page: 1, pageSize: 50 });
+    expect(searchedPage.status, JSON.stringify(searchedPage.body)).toBe(200);
+    expect(searchedPage.body).toMatchObject({ total: 1 });
+    expect(searchedPage.body.orders.map((order: any) => order.id)).toEqual([oldDraftOrder.id]);
   });
 });
