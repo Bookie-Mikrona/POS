@@ -1,4 +1,4 @@
-import { bankStatementLinesTable, bankStatementsTable, db } from "@workspace/db";
+import { registerBankStatementEvidence } from "./register-bank-statement";
 import type { BankTransaction } from "../routes/bankStatements";
 
 interface StatementRegistration {
@@ -26,8 +26,7 @@ export async function persistBankStatement(input: StatementRegistration) {
   const dates = transactions.map(item => item.date).sort();
   const lastDate = dates.at(-1);
   if (!lastDate) throw new Error("Bančni izpisek potrebuje vsaj eno transakcijo z datumom.");
-  return db.transaction(async function insertStatementEvidence(tx) {
-    const [statement] = await tx.insert(bankStatementsTable).values({
+  return registerBankStatementEvidence({
       companyId,
       bankAccountId,
       sourceIban: metadata?.sourceIban ?? null,
@@ -41,10 +40,8 @@ export async function persistBankStatement(input: StatementRegistration) {
       sourceFilename,
       sourceSha256,
       createdBy,
-    }).returning({ id: bankStatementsTable.id });
-    const lines = await tx.insert(bankStatementLinesTable).values(
+    },
       transactions.map((item, index) => ({
-        statementId: statement.id,
         transactionKey: item.id,
         lineNumber: index + 1,
         bookingDate: item.date,
@@ -55,7 +52,5 @@ export async function persistBankStatement(input: StatementRegistration) {
         counterpartyIban: item.counterpartyIban,
         description: item.description,
       })),
-    ).returning({ id: bankStatementLinesTable.id, transactionKey: bankStatementLinesTable.transactionKey });
-    return { statementId: statement.id, lineIds: Object.fromEntries(lines.map(line => [line.transactionKey, line.id])) };
-  });
+    );
 }

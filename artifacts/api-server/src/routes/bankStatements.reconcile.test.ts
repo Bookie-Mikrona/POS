@@ -150,6 +150,16 @@ describe("bank statement registration remains separate from payment reconciliati
     }],
   };
 
+  it("rejects a viewer before writing statement evidence or reserving the source hash", async () => {
+    dbState.selectResults = [[{ role: "viewer" }]];
+    const response = await supertest(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send(registration);
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe("Za evidentiranje bančnega izpiska potrebujete računovodsko vlogo");
+    expect(dbState.inserts).toEqual([]);
+    expect(dbState.updates).toEqual([]);
+  });
+
   it("registers only statement evidence and returns its durable line IDs", async () => {
     dbState.selectResults = [[{ role: "accountant" }], [{ id: bankAccountId, mappedIban: null }]];
     const response = await supertest(app).post(`/companies/${companyId}/bank-statements/register`)

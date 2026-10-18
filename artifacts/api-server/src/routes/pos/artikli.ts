@@ -1259,6 +1259,7 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
       nabavniArtikel: artikliTable.nabavniArtikel,
       prodajniArtikel: artikliTable.prodajniArtikel,
       mealType: artikliTable.mealType,
+      kdsIzkljucen: artikliTable.kdsIzkljucen,
       imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
       toGo: artikliTable.toGo,
@@ -1311,6 +1312,7 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
       skupina: a.skupina, gtin: a.gtin, nabavnaDdvStopnja: a.nabavnaDdvStopnja,
       taxCategory: a.taxCategory,
       mealType: a.mealType,
+      kdsIzkljucen: a.kdsIzkljucen,
     };
     wsSif.addRow(["", "", a.id, JSON.stringify({ version: 1, fields })]);
   }
@@ -1337,6 +1339,7 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
     { header: "nabavnaDdvStopnja", key: "nabavnaDdvStopnja", width: 19 },
     { header: "taxCategory",     key: "taxCategory",     width: 20 },
     { header: "povratnaEmbalaza", key: "povratnaEmbalaza", width: 18 },
+    { header: "kdsIzkljucen", key: "kdsIzkljucen", width: 20 },
   ];
   const wsArt = wb.addWorksheet("Artikli");
   wsArt.columns = columns;
@@ -1364,6 +1367,9 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
     ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
     ws.views = [{ state: "frozen", ySplit: 1 }];
   }
+  for (const ws of [wsArt, wsReturn, wsInventory]) {
+    ws.getCell("T1").note = "Ne prikazuj na KDS: DA = izključen iz KDS, NE = vključen. Prazno polje pri posodobitvi ohrani obstoječo nastavitev; nov artikel je privzeto vključen.";
+  }
 
   // Obstoječi artikli
   const articleRow = (a: typeof artikli[number]) => ({
@@ -1390,6 +1396,7 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
       nabavnaDdvStopnja: a.nabavnaDdvStopnja == null ? "" : Number(a.nabavnaDdvStopnja),
       taxCategory:     a.taxCategory ?? "food",
       povratnaEmbalaza: a.povratnaEmbalaza ? "DA" : "NE",
+      kdsIzkljucen:     a.kdsIzkljucen ? "DA" : "NE",
   });
   for (const a of artikli) {
     const values = articleRow(a);
@@ -1454,7 +1461,7 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
   }
 
   // DA/NE polja: I=aktiven, J=nabavniArtikel, K=prodajniArtikel, N=toGo, S=povratnaEmbalaza
-  for (const col of ["I", "J", "K", "N", "S"]) {
+  for (const col of ["I", "J", "K", "N", "S", "T"]) {
     wsArtDv.add(`${col}${r1}:${col}${r2}`, {
       type: "list",
       allowBlank: false,
@@ -1485,7 +1492,7 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
     });
   };
   for (const sheet of [wsReturn, wsInventory]) {
-    for (const column of ["E", "I", "J", "K", "N", "S"]) {
+    for (const column of ["E", "I", "J", "K", "N", "S", "T"]) {
       addSheetListValidation(sheet, column, column === "E" ? '"blago,material,storitev"' : '"DA,NE"', column !== "E");
     }
     addSheetListValidation(sheet, "D", '"0,5,9.5,22"');
@@ -1493,8 +1500,8 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
     if (katImena.length > 0) addSheetListValidation(sheet, "F", `Sifranti!$A$1:$A$${katImena.length}`);
     addSheetListValidation(sheet, "M", `Sifranti!$B$1:$B$${ENOTE_MERE.length}`);
   }
-  addSheetListValidation(wsReturn, "T", '"steklenica,zaboj,keg,balon,drugo"');
-  addSheetListValidation(wsInventory, "T", '"DA,NE"', false);
+  addSheetListValidation(wsReturn, "U", '"steklenica,zaboj,keg,balon,drugo"');
+  addSheetListValidation(wsInventory, "U", '"DA,NE"', false);
 
   // ── List 2: Normativi ──────────────────────────────────────────────────────
   const normRows = normativi.rows as { artikelIme: string; artikelId: number; sestavinaIme: string; sestavinaId: number; kolicina: string; enotaMere: string | null }[];

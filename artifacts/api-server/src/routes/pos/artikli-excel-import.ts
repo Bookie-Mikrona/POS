@@ -23,6 +23,7 @@ type ExcelRow = {
   opis?: string;
   barva?: string;
   aktiven?: boolean;
+  kdsIzkljucen?: boolean;
   nabavniArtikel?: boolean;
   prodajniArtikel?: boolean;
   imeZaNabavo?: string;
@@ -59,6 +60,9 @@ function baselineMatches(article: Record<string, any>, baseline: ArticleBaseline
       && Number(article.cena) === Number(baseline.cena)
       && Number(article.davek) === Number(baseline.ddv);
   }
+  // Older snapshots lack this field and must remain valid.
+  if ("kdsIzkljucen" in baseline.fields
+    && baseline.fields.kdsIzkljucen !== article.kdsIzkljucen) return false;
   return FULL_BASELINE_FIELDS.every(field => {
     const expected = baseline.fields[field];
     const actual = article[field];
@@ -208,7 +212,7 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
             if (purchaseTax === undefined || !validTaxRates.includes(purchaseTax)) errors.push({ vrstica: rowNo, list: sheet.name, napaka: "Nabavna DDV stopnja mora biti ena od vrednosti 0, 5, 9,5 ali 22." });
             else parsed.nabavnaDdvStopnja = purchaseTax;
           }
-          for (const key of ["aktiven", "nabavniArtikel", "prodajniArtikel", "toGo", "drobniInventar", "povratnaEmbalaza"] as const) {
+          for (const key of ["aktiven", "nabavniArtikel", "prodajniArtikel", "toGo", "drobniInventar", "povratnaEmbalaza", "kdsIzkljucen"] as const) {
             const cell = val(key);
             if (!cell) continue;
             const parsedBool = bool(cell);
@@ -507,6 +511,7 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
         if (a.opis !== undefined) patch.opis = a.opis;
         if (a.barva !== undefined) patch.barva = a.barva;
         if (a.aktiven !== undefined) patch.aktiven = a.aktiven;
+        if (a.kdsIzkljucen !== undefined) patch.kdsIzkljucen = a.kdsIzkljucen;
         if (a.nabavniArtikel !== undefined) patch.nabavniArtikel = a.nabavniArtikel;
         if (a.prodajniArtikel !== undefined) patch.prodajniArtikel = a.prodajniArtikel;
         if (a.imeZaNabavo !== undefined) patch.imeZaNabavo = a.imeZaNabavo;

@@ -43,7 +43,7 @@ Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti ali tes
 
 **Why:** Tudi že poimenovan in preverjen bančni obravnavalnik je ob poznejši uskladitvi znova dobil telo sosednje transakcije. Različna imena sama niso zadostovala.
 
-**How to apply:** Ohrani avtorizacijo na poti, poslovni zapis pa izloči brez spremembe pogodbe; na dejanski bazi preveri uspešen dovoljen zapis in zavrnjen nedovoljen zapis, ne samo zavrnitve.
+**How to apply:** Ohrani avtorizacijo na poti, poslovni zapis pa izloči brez spremembe pogodbe; na dejanski bazi preveri uspešen dovoljen zapis in zavrnjen nedovoljen zapis, ne samo zavrnitve. Ponovno preveri obe poti v končnem drevesu, ne odpravljaj zgolj napak manjkajočih spremenljivk.
 
 Generirane API sheme po združitvi regeneriraj iz trenutne specifikacije, namesto da ročno združuješ posamezne deklaracije.
 
