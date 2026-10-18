@@ -21,6 +21,7 @@ const { dbState } = vi.hoisted(() => {
     queues: [] as unknown[][],
     idx: 0,
     deletes: 0,
+    inserts: [] as Array<{ table: unknown; values: Record<string, unknown> }>,
     updates: [] as Array<{ table: string; values: Record<string, unknown> }>,
   };
   return { dbState };
@@ -48,11 +49,14 @@ vi.mock("@workspace/db", () => {
     };
     return chain;
   }
-  function makeInsertChain(): Record<string, unknown> {
+  function makeInsertChain(table: unknown): Record<string, unknown> {
     const rows = nextFrom(dbState);
     const p = Promise.resolve(rows);
     const chain: Record<string, unknown> = {
-      values: () => chain,
+      values: (values: Record<string, unknown>) => {
+        dbState.inserts.push({ table, values });
+        return chain;
+      },
       onConflictDoUpdate: () => chain,
       returning: () => p,
       then: p.then.bind(p),
@@ -79,7 +83,7 @@ vi.mock("@workspace/db", () => {
   return {
     db: {
       select: () => makeChain(),
-      insert: () => makeInsertChain(),
+      insert: (table: unknown) => makeInsertChain(table),
       delete: () => makeDeleteChain(),
       update: () => makeUpdateChain(),
     },
@@ -253,6 +257,7 @@ describe("POST /os/:companyId/amortizacija/obracun — GLK integracija (3a)", ()
     dbState.queues = [];
     dbState.idx = 0;
     dbState.deletes = 0;
+    dbState.inserts = [];
     dbState.updates = [];
   });
 
@@ -357,27 +362,28 @@ describe("POST /os/:companyId/amortizacija/obracun — GLK integracija (3a)", ()
 
   // ── 5. Osnutek NIKOLI ni auto-posted ─────────────────────────────────────
 
-  it("GLK osnutek ima status=draft v INSERT klicu (nikoli auto-posted)", async () => {
-    // Ujamemo, katera vrednost je bila vstavljena v journal_entries
-    const insertedEntries: unknown[] = [];
+  it.each([1, 6, 9, 12])("GLK osnutek do meseca %i je v INSERT klicu vedno draft", async (doMeseca) => {
     pushBaseQueues({ glavaResult: MOCK_GLAVA_NO_GLK });
     dbState.queues.push([{ module: "erp" }]);
     dbState.queues.push(MOCK_PERIOD);
-    // Mock INSERT za journal_entries: vrni vrednosti, ki smo jih vstavili
     dbState.queues.push([{ id: "draft-entry" }]);
 
     const app = await buildApp();
     const res = await request(app)
       .post("/os/company-1/amortizacija/obracun")
       .set("Authorization", "Bearer test-clerk-uid")
-      .send({ leto: 2024, doMeseca: 12 });
+      .send({ leto: 2024, doMeseca });
+
+    const { journalEntriesTable } = await import("@workspace/db");
 
     expect(res.status).toBe(201);
-    // Statusu v odgovoru obračuna je 'zakljucen', a GLK entry je draft
-    expect(res.body.status).toBe("zakljucen");
     expect(res.body.glkOsnutek.ustvarjen).toBe(true);
-    // Ključni test: sporocilo NIMA besede 'poknjizeno' ali 'posted'
     expect(res.body.glkOsnutek.sporocilo).not.toMatch(/poknjižen|posted/i);
+    const entries = dbState.inserts.filter((insert) => insert.table === journalEntriesTable);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].values.status).toBe("draft");
+    expect(entries[0].values.sourceType).toBe("amortizacija");
+    expect(entries[0].values).not.toHaveProperty("postedAt");
   });
 
   // ── 6. glk_temeljnica_id shranjen na obračun po ustvaritvi ────────────────
