@@ -486,7 +486,11 @@ export default function NarocilaDobaviteljem() {
   const orderDetailsWasOpenRef = useRef(false);
   const { data: orderDetail, isLoading: detailLoading, isError: detailError, refetch: refetchDetail } =
     useGetSupplierOrder(selectedOrderId ?? 0, {
-      query: { enabled: selectedOrderId !== null, queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0) },
+      query: {
+        enabled: selectedOrderId !== null,
+        queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0),
+        refetchInterval: selectedOrderId !== null ? 10_000 : false,
+      },
     });
   const [printWarningOpen, setPrintWarningOpen] = useState(false);
   const printButtonRef = useRef<HTMLButtonElement | null>(null);

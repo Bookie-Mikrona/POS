@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   dashboardFetches: 0,
   queryDashboard: false,
   querySupplierOrderLists: false,
+  supplierOrderDetailFetches: [] as number[],
+  querySupplierOrderDetails: false,
   order: {
     id: 704,
     number: "N-2026-0704",
@@ -216,12 +218,31 @@ vi.mock("@workspace/api-client-react", async () => {
         refetch: vi.fn(),
       };
     },
-    useGetSupplierOrder: () => ({
-      data: mocks.order,
-      isLoading: false,
-      isError: false,
-      refetch: async () => ({ data: mocks.order, isError: false }),
-    }),
+    useGetSupplierOrder: (id: number, options?: { query?: Record<string, unknown> }) => {
+      if (!mocks.querySupplierOrderDetails) {
+        return {
+          data: mocks.order,
+          isLoading: false,
+          isError: false,
+          refetch: async () => ({ data: mocks.order, isError: false }),
+        };
+      }
+      const query = useQuery({
+        queryKey: actual.getGetSupplierOrderQueryKey(id),
+        queryFn: () => {
+          mocks.supplierOrderDetailFetches.push(id);
+          return structuredClone(mocks.order);
+        },
+        initialData: structuredClone(mocks.order),
+        ...options?.query,
+      });
+      return {
+        data: query.data,
+        isLoading: query.isLoading,
+        isError: query.isError,
+        refetch: query.refetch,
+      };
+    },
     useSaveSupplierReorderSettings: mutation,
     useCreateSupplierOrder: mutation,
     useUpdateSupplierOrder: mutation,
@@ -327,6 +348,8 @@ describe("supplier order print view", () => {
     mocks.dashboardFetches = 0;
     mocks.queryDashboard = false;
     mocks.querySupplierOrderLists = false;
+    mocks.supplierOrderDetailFetches = [];
+    mocks.querySupplierOrderDetails = false;
     mocks.order.id = 704;
     mocks.order.number = "N-2026-0704";
     mocks.order.status = "draft";
@@ -527,6 +550,94 @@ describe("supplier order print view", () => {
       mocks.order.status = originalOrder.status;
       mocks.order.openQuantity = originalOrder.openQuantity;
       mocks.order.lines = originalOrder.lines;
+    }
+  });
+
+  it("refreshes receipt details while the order is open and stops polling after it closes", async () => {
+    const originalOrder = structuredClone(mocks.order);
+    mocks.querySupplierOrderDetails = true;
+    vi.useFakeTimers();
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NarocilaDobaviteljem />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mocks.supplierOrderDetailFetches).toContain(704);
+      expect(screen.queryByTestId("button-toggle-order-line-receipts-7041")).toBeNull();
+
+      mocks.order = {
+        ...originalOrder,
+        status: "partially_received",
+        openQuantity: 6,
+        lines: [{
+          ...originalOrder.lines[0],
+          receivedBaseQuantity: 6,
+          openBaseQuantity: 6,
+          receipts: [{
+            receiptId: 7044,
+            receiptNumber: "26100001",
+            supplierDocumentNumber: "R-54",
+            receiptDate: "2026-10-17",
+            receivedBaseQuantity: 6,
+          }],
+        }],
+      };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(mocks.supplierOrderDetailFetches.length).toBeGreaterThan(1);
+      fireEvent.click(screen.getByTestId("button-toggle-order-line-receipts-7041"));
+      const receipts = screen.getByTestId("order-line-receipts-7041");
+      expect(receipts.textContent).toContain("Prejemnica 26100001");
+      expect(screen.getByTestId("text-order-line-receipts-total-7041").textContent).toContain("6 L");
+
+      fireEvent.click(screen.getByTestId("button-close-supplier-order-detail"));
+      const fetchCountWhenClosed = mocks.supplierOrderDetailFetches.length;
+      mocks.order = {
+        ...mocks.order,
+        lines: [{
+          ...mocks.order.lines[0],
+          receivedBaseQuantity: 9,
+          openBaseQuantity: 3,
+          receipts: [
+            ...mocks.order.lines[0].receipts,
+            {
+              receiptId: 7045,
+              receiptNumber: "26100002",
+              supplierDocumentNumber: "R-55",
+              receiptDate: "2026-10-18",
+              receivedBaseQuantity: 3,
+            },
+          ],
+        }],
+      };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+      expect(mocks.supplierOrderDetailFetches).toHaveLength(fetchCountWhenClosed);
+    } finally {
+      cleanup();
+      queryClient.clear();
+      mocks.querySupplierOrderDetails = false;
+      vi.useRealTimers();
+      mocks.order = originalOrder;
     }
   });
 
