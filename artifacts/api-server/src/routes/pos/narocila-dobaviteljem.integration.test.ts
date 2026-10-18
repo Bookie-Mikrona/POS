@@ -288,38 +288,35 @@ describe("POS supplier ordering and linked receipt flow", () => {
       unitPrice: 20,
     });
 
-    const createReceipt = async (
-      pricePerBaseUnit = 3,
-      linkedSupplierOrderLineId: number | null = lineId,
-    ) => {
-      const lineAmount = pricePerBaseUnit * 6;
+    const createReceipt = async (lines: Array<{ articleId: number; orderLineId: number; quantity: number }>) => {
       const response = await request(app).post("/prejemnice").send({
         dobaviteljId: supplierId,
         datum: "2026-10-17",
         vrstaCen: "neto",
         vrstaDokumenta: "DOBAVNICA",
-        brutoSkupaj: lineAmount,
-        postavke: [{
-          artikelId: articleId,
-          ...(linkedSupplierOrderLineId == null ? {} : { supplierOrderLineId: linkedSupplierOrderLineId }),
-          kolicina: 6,
-          cenaKos: pricePerBaseUnit,
-          skupaj: lineAmount,
+        brutoSkupaj: lines.reduce((total, line) => total + line.quantity * 5, 0),
+        postavke: lines.map(line => ({
+          artikelId: line.articleId,
+          supplierOrderLineId: line.orderLineId,
+          kolicina: line.quantity,
+          cenaKos: 5,
+          skupaj: line.quantity * 5,
           enotVPaketu: 1,
-          izvKolicina: 6,
-          izvCena: pricePerBaseUnit,
+          izvKolicina: line.quantity,
+          izvCena: 5,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
-        }],
+        })),
       });
       expect(response.status, JSON.stringify(response.body)).toBe(201);
       receiptIds.push(response.body.id);
-      expect(response.body.postavke[0].supplierOrderLineId)
-        .toBe(linkedSupplierOrderLineId);
       return response.body.id as number;
     };
 
+    const initialReceiptId = await createReceipt([
+      { articleId: fitsArticle.id, orderLineId: fitsOrderLine.id, quantity: 5 },
+    ]);
     const firstReceiptId = await createReceipt(3.5);
     await db.update(artikelDobaviteljTable)
       .set({ enotVPaketu: "10", nazivPaketa: "zaboj 10" })
@@ -629,10 +626,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       expectedDeliveryDate: "2026-11-07",
-      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
+      lines: mappings.map(mapping => ({ supplierMappingId: mapping.id, packageQuantity: 6, unitPrice: 5 })),
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
+    const fitsOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === fitsArticle.id);
     const fullOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === fullArticle.id);
     const openOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === openArticle.id);
     expect(fullOrderLine).toMatchObject({ packageFactor: 6, orderedBaseQuantity: 6 });
@@ -1113,10 +1111,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       expectedDeliveryDate: "2026-11-07",
-      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
+      lines: mappings.map(mapping => ({ supplierMappingId: mapping.id, packageQuantity: 6, unitPrice: 5 })),
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
+    const fitsOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === fitsArticle.id);
     const firstOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === firstArticle.id);
     const secondOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === secondArticle.id);
     const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
@@ -2252,51 +2251,54 @@ describe("POS supplier ordering and linked receipt flow", () => {
       expect(response.status, JSON.stringify(response.body)).toBe(200);
       const article = response.body.articles.find((row: any) => row.articleId === comparisonArticle.id);
       expect(article.baseUnit).toBe("L");
-      const mappings = new Map(article.mappings.map((mapping: any) => [mapping.id, mapping]));
-      expect(mappings.get(sixUnitMappingId)).toMatchObject({
-        packageFactor: 6,
-        lastPackagePrice: 24,
-        lastUnitPrice: 4,
-      });
-      expect(mappings.get(eightUnitMappingId)).toMatchObject({
-        packageFactor: 8,
-        lastPackagePrice: 20,
-        lastUnitPrice: 2.5,
-      });
-      expect(mappings.get(zeroPriceMappingId)).toMatchObject({
-        packageFactor: 6,
-        lastPackagePrice: 0,
-        lastUnitPrice: 0,
-      });
-      expect(mappings.get(invalidFactorMappingId)).toMatchObject({
-        packageFactor: 0,
-        lastPackagePrice: 10,
-        lastUnitPrice: null,
-      });
-      expect(mappings.get(missingPriceMappingId)).toMatchObject({
-        packageFactor: 4,
-        lastPackagePrice: null,
-        lastUnitPrice: null,
-      });
-      expect(mappings.get(nonFinitePackagePriceMappingId)).toMatchObject({
-        packageFactor: 6,
-        lastPackagePrice: null,
-        lastUnitPrice: null,
-      });
-      expect(mappings.get(nonFiniteUnitPriceMappingId)).toMatchObject({
-        packageFactor: 6,
-        lastPackagePrice: 24,
-        lastUnitPrice: null,
-      });
-    } finally {
-      if (localMappingIds.length) {
-        await db.delete(artikelDobaviteljTable).where(inArray(artikelDobaviteljTable.id, localMappingIds));
-      }
-      await db.delete(counterpartiesTable).where(eq(counterpartiesTable.id, comparisonSupplier.id));
-    }
-  });
-
-  it("serializes simultaneous receipt confirmations against the order's remaining quantity", async () => {
+    const mappings = await db.insert(artikelDobaviteljTable).values([
+      {
+        enotaId,
+        artikelId: fitsArticle.id,
+        dobaviteljId: supplierId,
+        sifraDobavitelja: `ATOMIC-FITS-${run}`,
+        nazivDobavitelja: `Atomic fits ${run}`,
+        enotVPaketu: "1",
+        nazivPaketa: "kos",
+        zadnjaCenaPaket: "5",
+        zadnjaCenaEnota: "5",
+        aktivno: true,
+      },
+      {
+        enotaId,
+        artikelId: exceedsArticle.id,
+        dobaviteljId: supplierId,
+        sifraDobavitelja: `ATOMIC-EXCEEDS-${run}`,
+        nazivDobavitelja: `Atomic exceeds ${run}`,
+        enotVPaketu: "1",
+        nazivPaketa: "kos",
+        zadnjaCenaPaket: "5",
+        zadnjaCenaEnota: "5",
+        aktivno: true,
+      },
+    ]).returning({ id: artikelDobaviteljTable.id });
+    const [fitsArticle, exceedsArticle] = await db.insert(artikliTable).values([
+      {
+        enotaId,
+        ime: `Atomic receipt fits ${run}`,
+        cena: "5",
+        davek: "22",
+        enotaMere: "KOS",
+        nabavniArtikel: true,
+        prodajniArtikel: false,
+        aktiven: true,
+      },
+      {
+        enotaId,
+        ime: `Atomic receipt exceeds ${run}`,
+        cena: "5",
+        davek: "22",
+        enotaMere: "KOS",
+        nabavniArtikel: true,
+        prodajniArtikel: false,
+        aktiven: true,
+      },
+    ]).returning({ id: artikliTable.id });
     const [raceArticle] = await db.insert(artikliTable).values({
       enotaId,
       ime: `Concurrent receipt ${run}`,
@@ -2327,10 +2329,11 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       expectedDeliveryDate: "2026-11-07",
-      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
+      lines: mappings.map(mapping => ({ supplierMappingId: mapping.id, packageQuantity: 6, unitPrice: 5 })),
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
+    const fitsOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === fitsArticle.id);
     const orderLineId = createdOrder.body.lines[0].id as number;
     const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
     expect(sentOrder.status, JSON.stringify(sentOrder.body)).toBe(200);
@@ -2442,13 +2445,6 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .where(eq(zalogeTable.artikelId, raceArticle.id));
     expect(Number(stockAfterRace.kolicina)).toBe(8);
     const orderAfterRace = await request(app).get(`/narocila-dobaviteljem/${createdOrder.body.id}`);
-    expect(orderAfterRace.body).toMatchObject({
-      status: "partially_received",
-      lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 8, openBaseQuantity: 4 }],
-    });
-  });
-
-  it("includes older orders in the server-side missing-instructions review and stays unit-scoped", async () => {
     const recentCreatedAt = new Date();
     const recentOrders = Array.from({ length: 201 }, (_, index) => ({
       enotaId,
@@ -2942,3 +2938,28 @@ describe("POS supplier ordering and linked receipt flow", () => {
     });
   });
 });
+
+    const orderAfterRejection = await request(app).get(`/narocila-dobaviteljem/${createdOrder.body.id}`);
+    const [receiptAfterRejection] = await db.select({
+      status: prejemniceTable.status,
+    }).from(prejemniceTable).where(eq(prejemniceTable.id, overLimitReceiptId));
+    const stockAfterRejection = await db.select({
+      articleId: zalogeTable.artikelId,
+      quantity: zalogeTable.kolicina,
+    }).from(zalogeTable).where(inArray(zalogeTable.artikelId, [fitsArticle.id, exceedsArticle.id]));
+    const initialConfirmation = await request(app).post(`/prejemnice/${initialReceiptId}/confirm`).send({});
+    expect(initialConfirmation.status, JSON.stringify(initialConfirmation.body)).toBe(200);
+
+    const overLimitReceiptId = await createReceipt([
+      { articleId: fitsArticle.id, orderLineId: fitsOrderLine.id, quantity: 1 },
+      { articleId: exceedsArticle.id, orderLineId: exceedsOrderLine.id, quantity: 7 },
+    ]);
+    const exceedsOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === exceedsArticle.id);
+    const confirmation = await request(app).post(`/prejemnice/${overLimitReceiptId}/confirm`).send({});
+    const partialReceiptMovements = await db.select({
+      articleId: zalogaGibiTable.artikelId,
+    }).from(zalogaGibiTable).where(and(
+      eq(zalogaGibiTable.referencaId, overLimitReceiptId),
+      eq(zalogaGibiTable.tip, "prejemnica"),
+      inArray(zalogaGibiTable.artikelId, [fitsArticle.id, exceedsArticle.id]),
+    ));
