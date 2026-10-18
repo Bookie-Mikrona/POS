@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { aroundPosNavigation } from "@/lib/route-navigation-guard";
 import NarocilaDobaviteljem from "./NarocilaDobaviteljem";
 
@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   aroundNavigation: null as any,
   supplierOrderSummaries: null as any[] | null,
+  supplierOrderListFetches: [] as Array<{ status?: string; missingSupplierInstructionsOnly?: boolean }>,
+  querySupplierOrderLists: false,
   order: {
     id: 704,
     number: "N-2026-0704",
@@ -99,7 +101,7 @@ vi.mock("wouter", () => ({
 }));
 
 vi.mock("@workspace/api-client-react", async () => {
-  const actual = await vi.importActual("@workspace/api-client-react");
+  const actual = await vi.importActual<any>("@workspace/api-client-react");
   const mutation = () => ({ mutateAsync: mocks.mutation, isPending: false });
   return {
     ...actual as any,
@@ -110,29 +112,50 @@ vi.mock("@workspace/api-client-react", async () => {
       refetch: vi.fn(),
     }),
     useListSupplierOrders: (params?: { status?: string; missingSupplierInstructionsOnly?: boolean }) => {
-      const summaries = mocks.supplierOrderSummaries ?? [{
-        id: mocks.order.id,
-        number: mocks.order.number,
-        supplierId: mocks.order.supplierId,
-        supplierName: mocks.order.supplierName,
-        status: mocks.order.status,
-        createdAt: mocks.order.createdAt,
-        expectedDeliveryDate: mocks.order.expectedDeliveryDate,
-        lineCount: mocks.order.lineCount,
-        openQuantity: mocks.order.openQuantity,
-        internalNotes: mocks.order.internalNotes,
-        supplierNotes: mocks.order.supplierNotes,
-      }];
-      const statusFiltered = params?.status
-        ? summaries.filter(order => order.status === params.status)
-        : summaries;
-      return {
-        data: params?.missingSupplierInstructionsOnly
+      const getSummaries = () => {
+        const summaries = mocks.supplierOrderSummaries ?? [{
+          id: mocks.order.id,
+          number: mocks.order.number,
+          supplierId: mocks.order.supplierId,
+          supplierName: mocks.order.supplierName,
+          status: mocks.order.status,
+          createdAt: mocks.order.createdAt,
+          expectedDeliveryDate: mocks.order.expectedDeliveryDate,
+          lineCount: mocks.order.lineCount,
+          openQuantity: mocks.order.openQuantity,
+          internalNotes: mocks.order.internalNotes,
+          supplierNotes: mocks.order.supplierNotes,
+        }];
+        const statusFiltered = params?.status
+          ? summaries.filter(order => order.status === params.status)
+          : summaries;
+        return params?.missingSupplierInstructionsOnly
           ? statusFiltered.filter(order => Boolean(order.internalNotes?.trim()) && !order.supplierNotes?.trim())
-          : statusFiltered.slice(0, 200),
-        isLoading: false,
-        isError: false,
-        refetch: vi.fn(),
+          : statusFiltered.slice(0, 200);
+      };
+      const query = mocks.querySupplierOrderLists
+        ? useQuery({
+          queryKey: actual.getListSupplierOrdersQueryKey(params),
+          queryFn: () => {
+            mocks.supplierOrderListFetches.push(params ?? {});
+            return getSummaries();
+          },
+          initialData: getSummaries,
+        })
+        : null;
+      if (!query) {
+        return {
+          data: getSummaries(),
+          isLoading: false,
+          isError: false,
+          refetch: vi.fn(),
+        };
+      }
+      return {
+        data: query.data,
+        isLoading: query.isLoading,
+        isError: query.isError,
+        refetch: query.refetch,
       };
     },
     useGetSupplierOrder: () => ({
@@ -220,6 +243,11 @@ describe("supplier order print view", () => {
     mocks.navigate.mockReset();
     mocks.aroundNavigation = aroundPosNavigation;
     mocks.supplierOrderSummaries = null;
+    mocks.supplierOrderListFetches = [];
+    mocks.querySupplierOrderLists = false;
+    mocks.order.id = 704;
+    mocks.order.number = "N-2026-0704";
+    mocks.order.status = "draft";
     mocks.order.internalNotes = "INTERNAL ONLY: preveriti stanje embalaže.";
     mocks.order.supplierNotes = "Prosimo za dostavo do 10.00.\nHvala.";
     print.mockReset();
@@ -417,6 +445,95 @@ describe("supplier order print view", () => {
     expect(screen.queryByTestId("row-supplier-order-2000")).toBeNull();
   });
 
+  it("removes a saved old order from the missing-instructions review and refreshes both list caches", async () => {
+    const recentOrders = Array.from({ length: 200 }, (_, index) => ({
+      id: 2000 + index,
+      number: `N-2026-${String(index).padStart(4, "0")}`,
+      supplierId: "supplier-704",
+      supplierName: "Nedavni dobavitelj",
+      status: "draft",
+      createdAt: mocks.order.createdAt,
+      expectedDeliveryDate: null,
+      lineCount: 0,
+      openQuantity: 0,
+      internalNotes: null,
+      supplierNotes: null,
+    }));
+    const oldOrder = {
+      id: 1999,
+      number: "N-2010-1999",
+      supplierId: "supplier-704",
+      supplierName: "Zgodovinski dobavitelj",
+      status: "draft",
+      createdAt: "2010-01-01T10:00:00.000Z",
+      expectedDeliveryDate: null,
+      lineCount: 1,
+      openQuantity: 12,
+      internalNotes: "Starejša interna opomba.",
+      supplierNotes: null,
+    };
+    Object.assign(mocks.order, {
+      id: oldOrder.id,
+      number: oldOrder.number,
+      supplierName: oldOrder.supplierName,
+      status: oldOrder.status,
+      internalNotes: oldOrder.internalNotes,
+      supplierNotes: "",
+    });
+    mocks.supplierOrderSummaries = [...recentOrders, oldOrder];
+    mocks.querySupplierOrderLists = true;
+    mocks.mutation.mockImplementation(async ({ data }: any) => {
+      Object.assign(mocks.order, {
+        internalNotes: data.internalNotes,
+        supplierNotes: data.supplierNotes,
+      });
+      Object.assign(oldOrder, {
+        internalNotes: data.internalNotes,
+        supplierNotes: data.supplierNotes,
+      });
+      return mocks.order;
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NarocilaDobaviteljem />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    fireEvent.click(screen.getByTestId("filter-orders-missing-supplier-instructions"));
+
+    const missingInstructionsFilter = screen.getByTestId("filter-orders-missing-supplier-instructions");
+    expect(missingInstructionsFilter.textContent).toContain("1");
+    expect(screen.getByTestId("row-supplier-order-1999")).toBeTruthy();
+    await waitFor(() => {
+      expect(mocks.supplierOrderListFetches).toEqual(expect.arrayContaining([
+        {},
+        { missingSupplierInstructionsOnly: true },
+      ]));
+    });
+    const regularFetchesBeforeSave = mocks.supplierOrderListFetches.filter(params => !params.missingSupplierInstructionsOnly).length;
+    const historyFetchesBeforeSave = mocks.supplierOrderListFetches.filter(params => params.missingSupplierInstructionsOnly).length;
+
+    fireEvent.click(screen.getByTestId("button-open-supplier-order-1999"));
+    fireEvent.click(screen.getByRole("button", { name: "Uredi osnutek" }));
+    fireEvent.change(screen.getByLabelText(/Navodilo dobavitelju/), {
+      target: { value: "Dostavite pred 10. uro." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Shrani osnutek" }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("row-supplier-order-1999")).toBeNull();
+      expect(missingInstructionsFilter.textContent).toContain("0");
+      expect(mocks.supplierOrderListFetches.filter(params => !params.missingSupplierInstructionsOnly).length)
+        .toBeGreaterThan(regularFetchesBeforeSave);
+      expect(mocks.supplierOrderListFetches.filter(params => params.missingSupplierInstructionsOnly).length)
+        .toBeGreaterThan(historyFetchesBeforeSave);
+    });
+  });
+
   it("searches supplier orders by number or supplier without exposing internal notes", () => {
     const internalNote = "INTERNAL ONLY: unique note search token";
     const sharedSummary = {
@@ -454,7 +571,7 @@ describe("supplier order print view", () => {
     expect(screen.getByTestId("row-supplier-order-704")).toBeTruthy();
     expect(screen.queryByTestId("row-supplier-order-705")).toBeNull();
 
-    fireEvent.change(search, { target: { value: "domace" } });
+    fireEvent.change(search, { target: { value: "domače" } });
     expect(screen.getByTestId("row-supplier-order-705")).toBeTruthy();
     expect(screen.queryByTestId("row-supplier-order-704")).toBeNull();
     expect(screen.getByTestId("row-supplier-order-705").textContent).toContain("Kmetija Domače");

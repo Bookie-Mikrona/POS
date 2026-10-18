@@ -619,9 +619,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(fullOrderLine).toMatchObject({ packageFactor: 6, orderedBaseQuantity: 6 });
     expect(openOrderLine).toMatchObject({ packageFactor: 4, orderedBaseQuantity: 4 });
 
-    const sentOrder = await request(app)
-      .post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`)
-      .send({});
+    const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
     expect(sentOrder.status, JSON.stringify(sentOrder.body)).toBe(200);
 
     const fullReceipt = await request(app).post("/prejemnice").send({
@@ -2049,5 +2047,32 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(searchedPage.status, JSON.stringify(searchedPage.body)).toBe(200);
     expect(searchedPage.body).toMatchObject({ total: 1 });
     expect(searchedPage.body.orders.map((order: any) => order.id)).toEqual([oldDraftOrder.id]);
+
+    const updatedOldDraft = await request(app)
+      .put(`/narocila-dobaviteljem/${oldDraftOrder.id}`)
+      .send({
+        supplierId,
+        expectedDeliveryDate: null,
+        internalNotes: "Starejša interna opomba za osnutek.",
+        supplierNotes: "Dostavite pred 10. uro.",
+        lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
+      });
+    expect(updatedOldDraft.status, JSON.stringify(updatedOldDraft.body)).toBe(200);
+    expect(updatedOldDraft.body.supplierNotes).toBe("Dostavite pred 10. uro.");
+
+    const missingInstructionsAfterEdit = await request(app)
+      .get("/narocila-dobaviteljem")
+      .query({ missingSupplierInstructionsOnly: true });
+    expect(missingInstructionsAfterEdit.status, JSON.stringify(missingInstructionsAfterEdit.body)).toBe(200);
+    expect(missingInstructionsAfterEdit.body.map((order: any) => order.id)).not.toContain(oldDraftOrder.id);
+    expect(missingInstructionsAfterEdit.body.map((order: any) => order.id)).toContain(oldSentOrder.id);
+
+    const historyAfterEdit = await request(app)
+      .get("/narocila-dobaviteljem/brez-navodil")
+      .query({ page: 3, pageSize: 100, search: `HISTORY-${run}` });
+    expect(historyAfterEdit.status, JSON.stringify(historyAfterEdit.body)).toBe(200);
+    expect(historyAfterEdit.body).toMatchObject({ page: 3, pageSize: 100, total: 202 });
+    expect(historyAfterEdit.body.orders.map((order: any) => order.id)).not.toContain(oldDraftOrder.id);
+    expect(historyAfterEdit.body.orders.map((order: any) => order.id)).toContain(oldSentOrder.id);
   });
 });
