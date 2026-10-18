@@ -328,7 +328,12 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
       {order.supplierNotes && (
         <section className="supplier-order-print__notes">
           <h2>Navodilo dobavitelju</h2>
-          <p data-testid="text-supplier-order-print-instructions">{order.supplierNotes}</p>
+          <p
+            data-testid="text-supplier-order-print-instructions"
+            style={{ whiteSpace: "pre-wrap" }}
+          >
+            {order.supplierNotes}
+          </p>
         </section>
       )}
     </article>,

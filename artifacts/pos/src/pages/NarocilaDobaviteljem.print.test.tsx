@@ -229,6 +229,8 @@ describe("supplier order print view", () => {
   afterEach(() => cleanup());
 
   it("prints the selected order details without marking it as sent", () => {
+    const supplierInstructions = "Prosimo za dostavo do 10.00. 🚚\nOdložite pri zadnjem vhodu.\nHvala.";
+    mocks.order.supplierNotes = supplierInstructions;
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -248,8 +250,9 @@ describe("supplier order print view", () => {
     expect(screen.getByTestId("row-supplier-order-print-7041").textContent).toContain("2");
     expect(screen.getByTestId("row-supplier-order-print-7041").textContent).toContain("18,00");
     expect(screen.getByTestId("row-supplier-order-print-7041").textContent).toContain("36,00");
-    expect(screen.getByTestId("text-supplier-order-print-instructions").textContent).toContain("Prosimo za dostavo do 10.00.");
-    expect(screen.getByTestId("text-supplier-order-print-instructions").textContent).toContain("Hvala.");
+    const instructions = screen.getByTestId("text-supplier-order-print-instructions");
+    expect(instructions.textContent).toBe(supplierInstructions);
+    expect(instructions.style.whiteSpace).toBe("pre-wrap");
     expect(document.querySelector(".supplier-order-print")?.textContent).not.toContain("INTERNAL ONLY");
     expect(screen.getByText("INTERNAL ONLY: preveriti stanje embalaže.")).toBeTruthy();
 
