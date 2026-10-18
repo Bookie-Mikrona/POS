@@ -2973,7 +2973,7 @@ export default function Order() {
                 </>
               )}
             </div>}
-            <TabsList className="h-auto flex-wrap w-full justify-start gap-1 bg-transparent p-0">
+            <TabsList className="h-auto flex-nowrap overflow-x-auto md:flex-wrap w-full justify-start gap-1 bg-transparent p-0 pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [&>*]:shrink-0 [&>*]:whitespace-nowrap">
               <TabsTrigger value="all" className="rounded-full border text-xs h-7 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary">Vse</TabsTrigger>
               {narocilo.status === "odprto" && kosilaAktivna && (
                 <TabsTrigger value="kosilo" data-testid="tab-dnevno-kosilo" className="rounded-full border-2 border-amber-500 text-xs h-7 px-3 data-[state=active]:bg-amber-500 data-[state=active]:text-white">Dnevno kosilo</TabsTrigger>
