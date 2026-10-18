@@ -43,6 +43,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BankStatementDetail } from "@/components/bank-statement-detail";
 import { bankImportDimensionWarnings } from "@/lib/bank-import-dimensions";
+import { bankImportDraftKey, readBankImportDraft, writeBankImportDraft, type ImportedBankPayment } from "@/lib/bank-import-draft";
 import { useBankPostingRefresh } from "@/hooks/use-bank-posting-refresh";
 
 type ImportError = { message: string; paymentId?: string };
@@ -109,6 +110,7 @@ type MatchDecision =
   | { kind: "pending" };
 
 interface PendingReconcileConfirm {
+  transactionId: string;
   lineId: string;
   paymentId: string;
   label: string;
@@ -194,7 +196,7 @@ async function registerBankStatement(
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    throw new Error((err as any).error ?? `HTTP ${resp.status}`);
+    throw Object.assign(new Error((err as any).error ?? `HTTP ${resp.status}`), { status: resp.status });
   }
   return resp.json();
 }
@@ -222,7 +224,7 @@ async function createPaymentApi(companyId: string, payload: CreatePaymentPayload
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    throw new Error((err as any).error ?? `HTTP ${resp.status}`);
+    throw Object.assign(new Error((err as any).error ?? `HTTP ${resp.status}`), { status: resp.status });
   }
   const data = await resp.json();
   return data.id as string;
@@ -236,7 +238,7 @@ async function postPayment(companyId: string, paymentId: string): Promise<void> 
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    throw new Error((err as any).error ?? `HTTP ${resp.status}`);
+    throw Object.assign(new Error((err as any).error ?? `HTTP ${resp.status}`), { status: resp.status });
   }
 }
 
@@ -303,6 +305,19 @@ export async function matchTransactions(
 // ─── Wizard steps ─────────────────────────────────────────────────────────────
 
 type Step = "upload" | "review" | "confirm";
+
+interface BankImportDraft {
+  parsedStatement: ParsedStatement;
+  suggestions: TransactionWithSuggestions[];
+  decisions: [string, MatchDecision][];
+  periodId: string;
+  bankAccountId: string;
+  arAccountId: string;
+  apAccountId: string;
+  autoPost: boolean;
+  imported: Record<string, ImportedBankPayment>;
+  registered?: { statementId: string; lineIds: Record<string, string> };
+}
 
 // ─── Import config persistence (API-based) ───────────────────────────────────
 
@@ -378,15 +393,17 @@ export default function BancniIzpis() {
     setConfigLoaded(false);
     setInvalidAccountsCleared(false);
     const companyId = activeCompany.id;
+    let cancelled = false;
     fetchImportConfig(companyId).then(saved => {
       // Guard: company may have changed while the request was in-flight
-      if (companyId !== activeCompany.id) return;
+      if (cancelled || wizardCompanyIdRef.current) return;
       setBankAccountId(saved?.bankAccountId ?? "");
       setArAccountId(saved?.arAccountId ?? "");
       setApAccountId(saved?.apAccountId ?? "");
       setConfigLoaded(!!saved);
       setInvalidAccountsCleared(false);
     });
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompany?.id]);
 
@@ -420,6 +437,13 @@ export default function BancniIzpis() {
 
   // Auto-post option
   const [autoPost, setAutoPost] = useState(false);
+  const [imported, setImported] = useState<Record<string, ImportedBankPayment>>({});
+  const importedRef = useRef<Record<string, ImportedBankPayment>>({});
+  const draftRef = useRef<BankImportDraft | null>(null);
+  const restoredKeyRef = useRef<string | null>(null);
+  const draftKey = userId && activeCompany?.id ? bankImportDraftKey(userId, activeCompany.id) : null;
+  const [restored, setRestored] = useState(false);
+  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
 
   // Track the company that was active when the wizard started (step 1 → 2 transition).
   // If the user switches company while mid-wizard we detect it and reset.
@@ -435,27 +459,119 @@ export default function BancniIzpis() {
   const [storedConfirmResult, setConfirmResult] = useState<ConfirmResult | null>(null);
   const confirmResult = userId && storedConfirmResult?.userId === userId
     && storedConfirmResult.companyId === activeCompany?.id ? storedConfirmResult : null;
-  const clearPostedWarnings = useCallback((postedIds: Set<string>) => {
-    setConfirmResult(cur => {
-      if (!cur || cur.userId !== userId || cur.companyId !== activeCompany?.id) return cur;
-      const resolved = new Set(cur.postErrors.flatMap(error =>
-        error.paymentId && postedIds.has(error.paymentId) ? [error.paymentId] : []));
-      return {
-        ...cur,
-        posted: cur.posted + resolved.size,
-        postErrors: cur.postErrors.filter(error => !error.paymentId || !resolved.has(error.paymentId)),
-      };
-    });
-  }, [userId, activeCompany?.id]);
-  useBankPostingRefresh(userId, activeCompany?.id,
-    confirmResult?.postErrors.flatMap(error => error.paymentId ? [error.paymentId] : []) ?? [],
-    clearPostedWarnings);
   const [confirmProgress, setConfirmProgress] = useState<{
     current: number;
     total: number;
     action: "creating" | "posting";
     label: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!draftKey || restoredKeyRef.current === draftKey) return;
+    const previousKey = restoredKeyRef.current;
+    restoredKeyRef.current = draftKey;
+    // Existing company-switch confirmation owns clearing the old wizard.
+    if (wizardCompanyIdRef.current && wizardCompanyIdRef.current !== activeCompany?.id) return;
+    if (previousKey && previousKey !== draftKey) {
+      wizardCompanyIdRef.current = null;
+      draftRef.current = null;
+      importedRef.current = {};
+      setImported({});
+      setParsedStatement(null);
+      setSuggestions([]);
+      setDecisions(new Map());
+      setStep("upload");
+      setRestored(false);
+      setConfirmResult(null);
+      setConfirmError(null);
+    }
+    setHydratedKey(draftKey);
+    try {
+      const draft = readBankImportDraft<BankImportDraft>(draftKey);
+      if (!draft) return;
+      draftRef.current = draft;
+      importedRef.current = draft.imported ?? {};
+      setImported(importedRef.current);
+      wizardCompanyIdRef.current = activeCompany!.id;
+      setParsedStatement(draft.parsedStatement);
+      setSkippedRows(draft.parsedStatement.skippedRows ?? []);
+      setSuggestions(draft.suggestions);
+      setDecisions(new Map(draft.decisions));
+      setPeriodId(draft.periodId);
+      setBankAccountId(draft.bankAccountId);
+      setArAccountId(draft.arAccountId);
+      setApAccountId(draft.apAccountId);
+      setConfigLoaded(true);
+      setAutoPost(draft.autoPost);
+      setRestored(true);
+      setStep("review");
+    } catch {
+      setParseError("Osnutka bančnega uvoza ni bilo mogoče obnoviti. Preverite obstoječa plačila pred ponovnim uvozom.");
+    }
+  }, [draftKey, activeCompany?.id]);
+
+  const saveDraft = (): boolean => {
+    if (!draftKey || hydratedKey !== draftKey || !parsedStatement || wizardCompanyIdRef.current !== activeCompany?.id) return false;
+    const draft: BankImportDraft = {
+      parsedStatement, suggestions, decisions: [...decisions], periodId,
+      bankAccountId, arAccountId, apAccountId, autoPost, imported: importedRef.current,
+      registered: draftRef.current?.registered,
+    };
+    draftRef.current = draft;
+    try {
+      writeBankImportDraft(draftKey, draft);
+      return true;
+    } catch {
+      setConfirmError("Napredka uvoza ni mogoče shraniti v brskalnik. Uvoz je ustavljen. Pred nadaljevanjem preverite že ustvarjena plačila v seznamu plačil.");
+      return false;
+    }
+  };
+  useEffect(() => {
+    if (step !== "upload") saveDraft();
+  }, [draftKey, hydratedKey, step, parsedStatement, suggestions, decisions, periodId, bankAccountId, arAccountId, apAccountId, autoPost]);
+
+  const checkpointPayment = (transactionId: string, payment: ImportedBankPayment): boolean => {
+    importedRef.current = { ...importedRef.current, [transactionId]: payment };
+    setImported(importedRef.current);
+    // Synchronous storage write before any following request (especially posting).
+    if (!draftKey || !draftRef.current) return false;
+    draftRef.current = { ...draftRef.current, imported: importedRef.current };
+    try {
+      writeBankImportDraft(draftKey, draftRef.current);
+      return true;
+    } catch {
+      setConfirmError("Plačilo je ustvarjeno, vendar napredka ni mogoče shraniti. Uvoz je ustavljen; pred ponovnim uvozom preverite seznam plačil.");
+      return false;
+    }
+  };
+
+  const sessionExpired = (error: any): boolean => {
+    if (error?.status !== 401) return false;
+    setConfirmError("Seja je potekla. Ponovno se prijavite in nadaljujte uvoz. Že ustvarjena plačila ne bodo poslana znova; stanje nepotrjenega knjiženja preverite v seznamu plačil.");
+    return true;
+  };
+
+  const clearPostedWarnings = useCallback((postedIds: Set<string>) => {
+    // Refresh confirmed posting status in the recovery journal as well as the
+    // summary, without changing which rows are eligible for creation.
+    for (const [transactionId, payment] of Object.entries(importedRef.current)) {
+      if (postedIds.has(payment.paymentId) && payment.posting !== "posted") {
+        checkpointPayment(transactionId, { paymentId: payment.paymentId, posting: "posted" });
+      }
+    }
+    setConfirmResult(cur => {
+      if (!cur || cur.userId !== userId || cur.companyId !== activeCompany?.id) return cur;
+      const resolved = new Set(cur.postErrors.flatMap(error =>
+        error.paymentId && postedIds.has(error.paymentId) ? [error.paymentId] : []));
+      return {
+        ...cur, posted: cur.posted + resolved.size,
+        postErrors: cur.postErrors.filter(error => !error.paymentId || !resolved.has(error.paymentId)),
+      };
+    });
+  }, [userId, activeCompany?.id, draftKey]);
+  useBankPostingRefresh(userId, activeCompany?.id,
+    confirmResult?.postErrors.flatMap(error => error.paymentId ? [error.paymentId] : []) ?? [],
+    clearPostedWarnings);
 
   // Data fetching
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
@@ -543,6 +659,12 @@ export default function BancniIzpis() {
     setParseError(null);
     try {
       const parsed = await parseBankStatement(activeCompany.id, file);
+      if (parsedStatement?.sourceSha256 !== parsed.sourceSha256) {
+        importedRef.current = {};
+        draftRef.current = null;
+        setImported({});
+        setRestored(false);
+      }
       const { transactions, skippedRows: sr } = parsed;
       setParsedStatement(parsed);
       setSkippedRows(sr);
@@ -603,16 +725,17 @@ export default function BancniIzpis() {
   // ─── Step 2: Review matches ────────────────────────────────────────────────
 
   const setDecision = (txId: string, decision: MatchDecision) => {
+    if (importedRef.current[txId] || confirmInFlightRef.current) return;
     setDecisions(prev => new Map(prev).set(txId, decision));
   };
 
-  const matchedCount = [...decisions.values()].filter(d => d.kind === "matched" || d.kind === "reconcile" || d.kind === "standalone").length;
+  const matchedCount = [...decisions].filter(([id, d]) => !imported[id] && (d.kind === "matched" || d.kind === "reconcile" || d.kind === "standalone")).length;
   const skippedCount = [...decisions.values()].filter(d => d.kind === "skip").length;
   const pendingCount = [...decisions.values()].filter(d => d.kind === "pending").length;
   const duplicateCount = suggestions.filter(s => s.duplicateOf).length;
   const dimensionWarnings = new Map(suggestions.map(item => [
     item.transaction.id,
-    bankImportDimensionWarnings(
+    imported[item.transaction.id] ? [] : bankImportDimensionWarnings(
       decisions.get(item.transaction.id) ?? { kind: "pending" },
       bankAccountId, accounts, invoices, reconcilablePayments, autoPost,
     ),
@@ -636,6 +759,7 @@ export default function BancniIzpis() {
       return;
     }
     for (const item of suggestions) {
+      if (importedRef.current[item.transaction.id]) continue;
       const decision = decisions.get(item.transaction.id);
       if (decision?.kind !== "matched" && decision?.kind !== "standalone") continue;
       const accountId = decision.kind === "standalone"
@@ -650,6 +774,7 @@ export default function BancniIzpis() {
     // this handler before `confirming` disables the button. Acquire a synchronous
     // lock before the first state update to guarantee one import per confirmation.
     if (confirmInFlightRef.current) return;
+    if (!saveDraft()) return;
     confirmInFlightRef.current = true;
     setConfirming(true);
     setConfirmError(null);
@@ -664,7 +789,7 @@ export default function BancniIzpis() {
     // Count only matched transactions for the progress total
     const toProcess = suggestions.filter(item => {
       const d = decisions.get(item.transaction.id);
-      return d && (d.kind === "matched" || d.kind === "reconcile" || d.kind === "standalone");
+      return !importedRef.current[item.transaction.id] && d && (d.kind === "matched" || d.kind === "reconcile" || d.kind === "standalone");
     });
     const total = toProcess.length;
     let processedIndex = 0;
@@ -676,9 +801,16 @@ export default function BancniIzpis() {
     }
     let registered: { statementId: string; lineIds: Record<string, string> };
     try {
-      registered = await registerBankStatement(activeCompany.id, bankAccountId, parsedStatement);
+      // Registration is deliberately not idempotent: the API rejects a repeated
+      // source hash. Keep its acknowledged line IDs just like payment results.
+      registered = draftRef.current?.registered
+        ?? await registerBankStatement(activeCompany.id, bankAccountId, parsedStatement);
+      draftRef.current = { ...draftRef.current!, registered };
+      writeBankImportDraft(draftKey!, draftRef.current);
     } catch (e: any) {
-      setConfirmError(e.message ?? "Izpiska ni bilo mogoče evidentirati");
+      if (!sessionExpired(e)) setConfirmError(draftRef.current?.registered
+        ? "Izpisek je evidentiran, vendar napredka ni mogoče shraniti. Uvoz je ustavljen; pred ponovnim uvozom preverite evidenco izpiskov."
+        : e.message ?? "Izpiska ni bilo mogoče evidentirati");
       setConfirming(false);
       confirmInFlightRef.current = false;
       return;
@@ -686,6 +818,7 @@ export default function BancniIzpis() {
 
     for (const item of suggestions) {
       const tx = item.transaction;
+      if (importedRef.current[tx.id]) continue;
       const decision = decisions.get(tx.id);
       if (!decision || decision.kind === "skip") { skipped++; continue; }
       if (decision.kind === "pending") { skipped++; continue; }
@@ -698,15 +831,22 @@ export default function BancniIzpis() {
           if (!lineId) throw new Error("Vrstica izpiska ni evidentirana");
           const rec = await reconcileBankStatementLine(activeCompany.id, lineId, { paymentId: decision.paymentId });
           created++;
+          if (!checkpointPayment(tx.id, { paymentId: rec.paymentId, posting: rec.status === "posted" ? "posted" : autoPost && rec.requiresExplicitPosting ? "pending" : "draft" })) break;
           // Reconcile never posts; post explicitly only a draft and only if the user chose posting.
           if (autoPost && rec.status === "draft" && rec.requiresExplicitPosting) {
-            try { await postPayment(activeCompany.id, rec.paymentId); posted++; }
-            catch (e: any) { postErrors.push({ paymentId: rec.paymentId, message: `${tx.reference ?? tx.date}: ${e.message ?? "Napaka pri knjiženju"}` }); }
+            try {
+              await postPayment(activeCompany.id, rec.paymentId); posted++;
+              if (!checkpointPayment(tx.id, { paymentId: rec.paymentId, posting: "posted" })) break;
+            } catch (e: any) {
+              postErrors.push({ paymentId: rec.paymentId, message: `${tx.reference ?? tx.date}: ${e.message ?? "Napaka pri knjiženju"}` });
+              if (!checkpointPayment(tx.id, { paymentId: rec.paymentId, posting: "failed", error: e.message }) || sessionExpired(e)) break;
+            }
           }
         } catch (e: any) {
           if (e?.status === 409 && e?.data?.confirmationRequired) {
             // Needs explicit user confirmation; do not retry automatically.
             pendingList.push({
+              transactionId: tx.id,
               lineId: registered.lineIds[tx.id], paymentId: decision.paymentId, label: decision.label,
               txDate: tx.date, txReference: tx.reference ?? null,
               warnings: e.data.warnings ?? [], required: e.data.requiredConfirmations ?? [],
@@ -715,6 +855,7 @@ export default function BancniIzpis() {
           }
           skipped++;
           postErrors.push({ message: `${tx.reference ?? tx.date}: povezava ni uspela - ${e?.data?.error ?? e.message ?? "napaka"}` });
+          if (sessionExpired(e)) break;
         }
         continue;
       }
@@ -769,8 +910,10 @@ export default function BancniIzpis() {
         // Record partial failure but continue
         skipped++;
         postErrors.push({ message: `${txLabel}: ${e.message ?? "Plačila ni bilo mogoče ustvariti"}` });
+        if (sessionExpired(e)) break;
         continue;
       }
+      if (!checkpointPayment(tx.id, { paymentId, posting: autoPost ? "pending" : "draft" })) break;
 
       // Auto-post if requested
       if (autoPost && paymentId) {
@@ -783,24 +926,29 @@ export default function BancniIzpis() {
         try {
           await postPayment(activeCompany.id, paymentId);
           posted++;
+          if (!checkpointPayment(tx.id, { paymentId, posting: "posted" })) break;
         } catch (e: any) {
           const ref = tx.reference ?? tx.date;
           postErrors.push({ paymentId, message: `${ref}: ${e.message ?? "Napaka pri knjiženju"}` });
+          if (!checkpointPayment(tx.id, { paymentId, posting: "failed", error: e.message }) || sessionExpired(e)) break;
         }
       }
     }
 
     queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
-    await loadRegisteredStatements();
+    await loadRegisteredStatements().catch(() => {
+      postErrors.push({ message: "Seznama izpiskov ni bilo mogoče osvežiti. Napredek uvoza je ohranjen." });
+    });
     setPendingConfirms(pendingList);
     setConfirmResult({ userId, companyId: activeCompany.id, created, skipped, posted, postErrors });
     setConfirmProgress(null);
     setConfirming(false);
+    confirmInFlightRef.current = false;
     setStep("confirm");
   };
 
   const confirmReconcile = async (c: PendingReconcileConfirm) => {
-    if (!activeCompany) return;
+    if (!activeCompany || importedRef.current[c.transactionId] || retryBusy) return;
     setRetryBusy(c.lineId);
     try {
       const rec = await reconcileBankStatementLine(activeCompany.id, c.lineId, {
@@ -808,16 +956,25 @@ export default function BancniIzpis() {
         ...(c.required.includes("confirmDateMismatch") ? { confirmDateMismatch: true } : {}),
         ...(c.required.includes("confirmReferenceMismatch") ? { confirmReferenceMismatch: true } : {}),
       });
+      setPendingConfirms(cur => cur.filter(x => x.lineId !== c.lineId));
+      if (!checkpointPayment(c.transactionId, { paymentId: rec.paymentId, posting: rec.status === "posted" ? "posted" : autoPost && rec.requiresExplicitPosting ? "pending" : "draft" })) return;
       let posted = 0;
       const errs: ImportError[] = [];
       if (autoPost && rec.status === "draft" && rec.requiresExplicitPosting) {
-        try { await postPayment(activeCompany.id, rec.paymentId); posted = 1; }
-        catch (e: any) { errs.push({ paymentId: rec.paymentId, message: `${c.txReference ?? formatDatum(c.txDate)}: ${e.message ?? "Napaka pri knjiženju"}` }); }
+        try {
+          await postPayment(activeCompany.id, rec.paymentId); posted = 1;
+          checkpointPayment(c.transactionId, { paymentId: rec.paymentId, posting: "posted" });
+        } catch (e: any) {
+          checkpointPayment(c.transactionId, { paymentId: rec.paymentId, posting: "failed", error: e.message });
+          sessionExpired(e);
+          errs.push({ paymentId: rec.paymentId, message: `${c.txReference ?? formatDatum(c.txDate)}: ${e.message ?? "Napaka pri knjiženju"}` });
+        }
       }
       setPendingConfirms(cur => cur.filter(x => x.lineId !== c.lineId));
       setConfirmResult(cur => cur && { ...cur, created: cur.created + 1, posted: cur.posted + posted, postErrors: [...cur.postErrors, ...errs] });
       queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
     } catch (e: any) {
+      sessionExpired(e);
       const msg = e?.data?.error ?? e.message ?? "Povezava ni uspela";
       setPendingConfirms(cur => cur.map(x => x.lineId === c.lineId ? { ...x, error: msg } : x));
     } finally {
@@ -830,6 +987,15 @@ export default function BancniIzpis() {
   };
 
   const reset = () => {
+    // A company switch must not delete the new company's recoverable draft.
+    if (user?.id && wizardCompanyIdRef.current) {
+      sessionStorage.removeItem(bankImportDraftKey(user.id, wizardCompanyIdRef.current));
+    }
+    wizardCompanyIdRef.current = null;
+    importedRef.current = {};
+    draftRef.current = null;
+    setImported({});
+    setRestored(false);
     setPendingConfirms([]);
     confirmInFlightRef.current = false;
     setStep("upload");
@@ -1166,6 +1332,16 @@ export default function BancniIzpis() {
       {/* ─── STEP 2: Review ──────────────────────────────────────────────────── */}
       {step === "review" && (
         <div className="space-y-4">
+          {(restored || Object.keys(imported).length > 0) && (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>{restored ? "Osnutek uvoza je obnovljen" : "Delni uvoz je shranjen"}</AlertTitle>
+              <AlertDescription>
+                Že ustvarjena plačila: {Object.keys(imported).length}. Te vrstice so izključene iz ponovnega potrjevanja.
+                Knjiženje, ki ni potrjeno, preverite v seznamu plačil.
+              </AlertDescription>
+            </Alert>
+          )}
           {confirmError && (
             <Alert variant="destructive" role="alert">
               <AlertCircle className="h-4 w-4" />
@@ -1251,7 +1427,7 @@ export default function BancniIzpis() {
               </div>
             )}
             <div className="ml-auto flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setStep("upload")} disabled={confirming}>
+              <Button variant="outline" size="sm" onClick={() => setStep("upload")} disabled={confirming || !!draftRef.current?.registered}>
                 <ChevronLeft className="mr-1 h-3 w-3" /> Nazaj
               </Button>
               <Button size="sm" onClick={handleConfirm} disabled={matchedCount === 0 || confirming || hasMissingDimensions}>
@@ -1280,6 +1456,7 @@ export default function BancniIzpis() {
                 key={item.transaction.id}
                 item={item}
                 decision={decisions.get(item.transaction.id) ?? { kind: "pending" }}
+                imported={imported[item.transaction.id]}
                 onDecision={d => setDecision(item.transaction.id, d)}
                 counterparties={counterparties}
                 existingPayments={reconcilablePayments}
@@ -1295,7 +1472,7 @@ export default function BancniIzpis() {
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t">
-            <Button variant="outline" onClick={() => setStep("upload")} disabled={confirming}>
+            <Button variant="outline" onClick={() => setStep("upload")} disabled={confirming || !!draftRef.current?.registered}>
               <ChevronLeft className="mr-2 h-4 w-4" /> Nazaj na uvoz
             </Button>
             <Button onClick={handleConfirm} disabled={matchedCount === 0 || confirming || hasMissingDimensions}>
@@ -1365,8 +1542,12 @@ export default function BancniIzpis() {
             }
           </div>
           <div>
-            <h2 className="text-2xl font-bold">Uvoz zaključen</h2>
+            <h2 className="text-2xl font-bold">
+              {confirmError || confirmResult.postErrors.length > 0 ? "Uvoz je delno zaključen"
+                : pendingConfirms.length > 0 ? "Uvoz čaka na potrditev" : "Uvoz zaključen"}
+            </h2>
             <div className="text-muted-foreground mt-2 space-y-1">
+              <p>Skupaj že ustvarjenih ali povezanih plačil v tem uvozu: {Object.keys(imported).length}.</p>
               <p>
                 Ustvarjenih plačil: <span className="font-semibold text-foreground">{confirmResult.created}</span>
                 {confirmResult.skipped > 0 && (
@@ -1403,7 +1584,16 @@ export default function BancniIzpis() {
               <AlertDescription>{confirmError}</AlertDescription>
             </Alert>
           )}
+          {Object.values(imported).some(payment => payment.posting === "pending" || payment.posting === "failed") && (
+            <p className="text-sm text-amber-700">
+              Pri nekaterih že ustvarjenih plačilih knjiženje ni potrjeno. Preverite jih v seznamu plačil;
+              ponovna potrditev uvoza teh plačil ne bo niti ustvarila niti knjižila znova.
+            </p>
+          )}
           <div className="flex justify-center gap-3">
+            {(matchedCount > 0 || confirmError) && (
+              <Button variant="outline" onClick={() => setStep("review")}>Nazaj na pregled</Button>
+            )}
             <Button variant="outline" onClick={reset}>
               Nov uvoz
             </Button>
@@ -1444,6 +1634,7 @@ export function TransactionReviewRow({
   defaultAccountId,
   invoiceAccountId,
   dimensionWarnings = [],
+  imported,
 }: {
   item: TransactionWithSuggestions;
   decision: MatchDecision;
@@ -1455,12 +1646,29 @@ export function TransactionReviewRow({
   defaultAccountId: string;
   invoiceAccountId: string;
   dimensionWarnings?: string[];
+  imported?: ImportedBankPayment;
 }) {
   const tx = item.transaction;
   const isInbound = tx.amount > 0;
   const [showManual, setShowManual] = useState(false);
   const [manualInvoiceId, setManualInvoiceId] = useState("");
   const [manualAmount, setManualAmount] = useState(Math.abs(tx.amount).toFixed(2));
+
+  if (imported) {
+    return (
+      <div className="border-2 border-green-500 rounded-lg p-4 space-y-2">
+        <Badge>Že ustvarjeno plačilo</Badge>
+        <p>{formatDatum(tx.date)} · {tx.reference ?? tx.counterpartyName} · {tx.amount.toFixed(2)} {tx.currency}</p>
+        <p className="text-sm">Ta vrstica ne bo ponovno poslana.</p>
+        <p className="text-sm">
+          {imported.posting === "posted" ? "Knjiženje potrjeno."
+            : imported.posting === "draft" ? "Plačilo je shranjeno kot osnutek."
+            : "Knjiženje ni potrjeno. Preverite stanje plačila v seznamu plačil."}
+          {imported.error && ` ${imported.error}`}
+        </p>
+      </div>
+    );
+  }
 
   // Duplicate transactions get amber border even when skipped, to stay visually distinct
   const statusColor =

@@ -26,3 +26,15 @@ Bančni izpisek lahko vsebuje izplačila dobaviteljem, plač, DDV in druge vrste
 **Why:** Uporabnik je izrecno opozoril, da izplačila niso vedno na 2200000 ali enem drugem skupnem kontu.
 
 **How to apply:** Pri razširitvi uvoza podpri različne protikonte po vrsticah ter transakcije brez dobaviteljskega računa. Skupna nastavitev je lahko le predlog, ne brezpogojno kontiranje vseh izplačil.
+
+Obnovitev delnega uvoza ne sme ponovno ustvariti ali samodejno knjižiti plačila, katerega ustvarjanje je strežnik že potrdil. Nepotrjeno knjiženje zahteva preverjanje dejanskega stanja plačila.
+
+**Why:** Potek seje med knjiženjem ne pomeni, da ustvarjanje plačila ni uspelo; ponovna izdelava ne sme služiti kot ponovni poskus knjiženja.
+
+**How to apply:** Napredek ustvarjanja ohrani pred začetkom knjiženja. V obnovljenem pregledu jasno loči že ustvarjeno plačilo od potrjenega knjiženja ter nadaljuj samo z neustvarjenimi vrsticami.
+
+Obnovitev mora ohraniti tudi uspešno evidentiranje izpiska, ne le ustvarjenih plačil.
+
+**Why:** Evidentiranje istega datotečnega odtisa je namenoma zavrnjeno. Če nadaljevanje ponovno evidentira datoteko, se ustavi še pred neobdelanimi plačili.
+
+**How to apply:** Identiteto izpiska in njegovih vrstic shrani pred prvim ustvarjanjem plačila ter ju ob nadaljevanju ponovno uporabi.

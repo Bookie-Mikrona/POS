@@ -36,7 +36,7 @@ vi.mock("@/components/ui/select", () => ({
 }));
 import BancniIzpis from "./bancni-izpis";
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 async function openReview(autoPost = false) {
   const transaction = { id: "tx", date: "2026-10-01", amount: -25, reference: "REF",

@@ -2,7 +2,6 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-vi.mock("@clerk/react", () => ({ useUser: () => ({ isLoaded: true, user: { id: "user" } }) }));
 
 const state = vi.hoisted(() => ({
   company: { id: "test-company", role: "owner" },
@@ -14,6 +13,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/contexts/CompanyContext", () => ({
   useCompany: () => ({ activeCompany: state.company }),
 }));
+vi.mock("@clerk/react", () => ({ useUser: () => ({ isLoaded: true, user: { id: "test-user" } }) }));
 vi.mock("@workspace/api-client-react", async () => ({
   ...await vi.importActual("@workspace/api-client-react"),
   useListAccounts: () => ({ data: state.accounts }),

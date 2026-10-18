@@ -1376,7 +1376,7 @@ router.post(
       });
       res.status(201).json(result);
     } catch (error: any) {
-      if (error?.code === "23505") {
+      if ((error?.code ?? error?.cause?.code) === "23505") {
         res.status(409).json({ error: "Ta datoteka bančnega izpiska je bila že evidentirana." });
         return;
       }

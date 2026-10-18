@@ -25,7 +25,7 @@ import {
   db, pool, companiesTable, accountingRolesTable, accountingPeriodsTable,
   accountsTable, counterpartiesTable, invoicesTable, invoiceLinesTable,
   journalEntryLinesTable, bankStatementsTable, bankStatementLinesTable,
-  bankAccountMetadataTable, paymentBatchItemsTable,
+  bankAccountMetadataTable, paymentBatchItemsTable, paymentsTable,
 } from "@workspace/db";
 import router from "./payments";
 import journalsRouter from "./journalEntries";
@@ -221,5 +221,45 @@ describe("bank statement per-transaction accounting", () => {
     const after = await open().expect(200);
     expect(after.body.totalRemaining).toBe("0.00");
     expect(after.body.items.filter((item: any) => sources.some(line => line.id === item.journalLineId))).toHaveLength(0);
+  });
+  it("resumes a partial import using saved registered line IDs instead of registering the same hash twice", async () => {
+    const transactions = [37.13, 38.19].map((amount, index) => ({
+      id: `resume-${index}`, date: "2026-10-07", amount: -amount,
+      reference: `TEST-RESUME-${index}`, counterpartyName: "TEST prejemnik",
+      counterpartyIban: null, description: null, currency: "EUR",
+    }));
+    const registration = {
+      bankAccountId: bankId, sourceFilename: "TEST-resume.csv", sourceSha256: "e".repeat(64),
+      metadata: { currency: "EUR" }, transactions,
+    };
+    const registered = await request(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send(registration).expect(201);
+    // This is the recovery data stored by the browser before creating any payments.
+    const saved = JSON.parse(JSON.stringify(registered.body)) as {
+      statementId: string; lineIds: Record<string, string>;
+    };
+    const create = (index: number) => request(app).post(`/companies/${companyId}/payments`).send({
+      direction: "outbound", counterpartyId: partnerId, periodId,
+      paymentDate: transactions[index].date, amount: Math.abs(transactions[index].amount),
+      reference: transactions[index].reference, bankAccountId: bankId,
+      arApAccountId: feeId, allocations: [], bankStatementLineId: saved.lineIds[transactions[index].id],
+    });
+    const first = await create(0).expect(201);
+
+    // A real duplicate registration is rejected, so recovery must bypass it.
+    await request(app).post(`/companies/${companyId}/bank-statements/register`)
+      .send(registration).expect(409);
+    const second = await create(1).expect(201);
+    expect(second.body.id).not.toBe(first.body.id);
+    const payments = await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId));
+    const resumedPayments = payments.filter(payment => Object.values(saved.lineIds).includes(payment.bankStatementLineId ?? ""));
+    expect(resumedPayments).toHaveLength(2);
+    expect(resumedPayments).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: first.body.id, bankStatementLineId: saved.lineIds["resume-0"] }),
+        expect.objectContaining({ id: second.body.id, bankStatementLineId: saved.lineIds["resume-1"] }),
+      ]));
+    const lines = await db.select().from(bankStatementLinesTable)
+      .where(eq(bankStatementLinesTable.statementId, saved.statementId));
+    expect(lines).toHaveLength(2);
   });
 });
