@@ -23,7 +23,7 @@ import {
   type AccountBreakdownRow,
   useListAccounts,
 } from "@workspace/api-client-react";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useCompany, useSharedCompanyAccess } from "@/contexts/CompanyContext";
 import { useDimensionReportFilters } from "@/hooks/use-dimension-report-filters";
 
 import { Button } from "@/components/ui/button";
@@ -151,11 +151,62 @@ const DIM_OPTIONS: { value: DimensionType; label: string; icon: React.ElementTyp
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function PorocilaAnalitika() {
+  const { activeCompany, setActiveCompany } = useCompany();
+  const { sharedCompanyId } = useDimensionReportFilters();
+  const access = useSharedCompanyAccess(sharedCompanyId);
+
+  // Do not even mount data hooks, controls or exports until the URL's company
+  // is verified and explicitly selected. Disabled queries can still hold data.
+  if (sharedCompanyId !== null) {
+    let message: React.ReactNode;
+    let action: React.ReactNode;
+    let title = "Podjetje deljenega poročila";
+    if (access.checking) {
+      message = "Preverjanje dostopa do podjetja …";
+    } else if (access.failed) {
+      title = "Dostopa ni mogoče preveriti";
+      message = "Poročilo ni naloženo. Poskusite znova.";
+      action = <Button onClick={() => void access.retry()}>Poskusi znova</Button>;
+    } else if (!access.company) {
+      title = "Ni dostopa do poročila";
+      message = "Do podjetja v povezavi nimate računovodskega dostopa ali podjetje ne obstaja. Podatki poročila niso prikazani.";
+    } else if (activeCompany?.id !== access.company.id) {
+      message = (
+        <>
+          Povezava je za podjetje <strong>{access.company.naziv}</strong>.
+          {activeCompany
+            ? <> Trenutno je izbrano podjetje <strong>{activeCompany.naziv}</strong>.</>
+            : " Trenutno ni izbranega podjetja."}
+          {" "}Za prikaz poročila potrdite preklop podjetja. Filtri bodo ostali nespremenjeni.
+        </>
+      );
+      const target = access.company;
+      action = <Button onClick={() => setActiveCompany(target)}>Preklopi na {target.naziv}</Button>;
+    } else {
+      return <DimensionReport key={activeCompany.id} />;
+    }
+    return (
+      <div className="space-y-4 p-6 max-w-5xl mx-auto">
+        <h1 className="text-2xl font-bold">Analitično računovodstvo</h1>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{title}</AlertTitle>
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+        {action}
+      </div>
+    );
+  }
+
+  return <DimensionReport key={activeCompany?.id ?? ""} />;
+}
+
+function DimensionReport() {
   const { activeCompany } = useCompany();
   const companyId = activeCompany?.id ?? "";
 
   // The URL is the source of truth, including on reload and back/forward navigation.
-  const { filters, queried, updateFilters } = useDimensionReportFilters();
+  const { filters, queried, updateFilters } = useDimensionReportFilters(companyId);
   const { dimensionType, dateFrom, dateTo, accountId } = filters;
   const applied = { ...filters, queried };
   const [excelExporting, setExcelExporting] = useState(false);
@@ -259,6 +310,7 @@ export default function PorocilaAnalitika() {
         <p className="text-muted-foreground text-sm">
           Promet in saldo po stroškovnih mestih, projektih ali oddelkih za izbrano obdobje.
         </p>
+        {activeCompany && <p className="text-sm font-medium mt-2">Podjetje: {activeCompany.naziv}</p>}
       </div>
 
       {!companyId && (

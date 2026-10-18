@@ -18,6 +18,7 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 vi.mock("@/contexts/CompanyContext", () => ({
   useCompany: () => ({ activeCompany: { id: "company-1", naziv: "Podjetje d.o.o." } }),
+  useSharedCompanyAccess: () => ({ company: { id: "company-1", naziv: "Podjetje d.o.o." }, checking: false, failed: false }),
 }));
 vi.mock("@/lib/dimensionReportExcel", () => ({ exportDimensionReportExcel: mocks.exportExcel }));
 

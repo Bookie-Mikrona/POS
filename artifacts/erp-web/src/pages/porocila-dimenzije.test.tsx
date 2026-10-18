@@ -6,11 +6,15 @@ import PorocilaAnalitika from "./porocila-dimenzije";
 const mocks = vi.hoisted(() => ({
   report: vi.fn(),
   companyId: "company-1",
+  setCompany: vi.fn(),
+  access: { company: { id: "company-1", naziv: "Podjetje" } as { id: string; naziv: string } | null, checking: false, failed: false, retry: vi.fn() },
 }));
 vi.mock("@/contexts/CompanyContext", () => ({
   useCompany: () => ({
     activeCompany: mocks.companyId ? { id: mocks.companyId, naziv: "Podjetje" } : null,
+    setActiveCompany: mocks.setCompany,
   }),
+  useSharedCompanyAccess: () => mocks.access,
 }));
 vi.mock("@workspace/api-client-react", () => ({
   useListAccounts: () => ({ data: { accounts: [{ id: "acc-1", code: "400", name: "Stroški" }] } }),
@@ -50,6 +54,8 @@ function lastRequest() {
 beforeEach(() => {
   window.history.replaceState(null, "", path);
   mocks.companyId = "company-1";
+  mocks.setCompany.mockReset();
+  mocks.access = { company: { id: "company-1", naziv: "Podjetje" }, checking: false, failed: false, retry: vi.fn() };
   mocks.report.mockReset();
   mocks.report.mockImplementation((_company, _filters, options) => ({
     data: options.query.enabled ? reportData : undefined,
@@ -156,7 +162,7 @@ describe("dimension report URL filters", () => {
     fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "acc-1" } });
     const params = new URLSearchParams(window.location.search);
     expect(Object.fromEntries(params)).toEqual({
-      source: "slack", dimensionType: "department", dateFrom: "2024-02-01", dateTo: "2024-02-29", accountId: "acc-1",
+      source: "slack", companyId: "company-1", dimensionType: "department", dateFrom: "2024-02-01", dateTo: "2024-02-29", accountId: "acc-1",
     });
     expect(lastRequest()[1].accountId).toBe("acc-1");
     fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "_all" } });
@@ -203,6 +209,82 @@ describe("dimension report URL filters", () => {
     page.rerender(<PorocilaAnalitika />);
     expect(lastRequest()[0]).toBe("company-2");
     expect(lastRequest()[2].query.enabled).toBe(true);
+  });
+});
+
+describe("shared report company boundary", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", `${path}?${firstView}&companyId=company-1`);
+  });
+
+  it("blocks all report hooks until an explicit switch, preserving the shared filters", () => {
+    mocks.companyId = "company-2";
+    mocks.access.company = { id: "company-1", naziv: "Ciljno podjetje" };
+    const page = render(<PorocilaAnalitika />);
+    expect(screen.getByText("Ciljno podjetje")).toBeTruthy();
+    expect(screen.getByText(/Trenutno je izbrano podjetje/)).toBeTruthy();
+    expect(mocks.report).not.toHaveBeenCalled();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(mocks.setCompany).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Preklopi na Ciljno podjetje" }));
+    expect(mocks.setCompany).toHaveBeenCalledWith(mocks.access.company);
+    mocks.companyId = "company-1";
+    page.rerender(<PorocilaAnalitika />);
+    expect(lastRequest()[0]).toBe("company-1");
+    expect(lastRequest()[1].accountId).toBe("acc-1");
+    expect(new URLSearchParams(window.location.search).get("dateFrom")).toBe("2025-01-01");
+    // A later global switch must not silently run these filters for a new tenant.
+    mocks.companyId = "company-2";
+    mocks.report.mockClear();
+    page.rerender(<PorocilaAnalitika />);
+    expect(mocks.report).not.toHaveBeenCalled();
+    expect(screen.queryByTitle("Izvozi v CSV")).toBeNull();
+  });
+
+  it("checks access even for the currently selected company and hides cached data", () => {
+    mocks.access.company = null;
+    mocks.report.mockReturnValue({ data: reportData });
+    render(<PorocilaAnalitika />);
+    expect(screen.getByText("Ni dostopa do poročila")).toBeTruthy();
+    expect(mocks.report).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /Preklopi/ })).toBeNull();
+    expect(screen.queryByTitle("Izvozi v CSV")).toBeNull();
+    expect(screen.queryByText(/Debet skupaj/)).toBeNull();
+  });
+
+  it("fails closed during access loading and errors, with a retry action", () => {
+    mocks.access.checking = true;
+    const page = render(<PorocilaAnalitika />);
+    expect(screen.getByText("Preverjanje dostopa do podjetja …")).toBeTruthy();
+    expect(mocks.report).not.toHaveBeenCalled();
+    mocks.access.checking = false;
+    mocks.access.failed = true;
+    page.rerender(<PorocilaAnalitika />);
+    expect(screen.getByText("Dostopa ni mogoče preveriti")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Poskusi znova" }));
+    expect(mocks.access.retry).toHaveBeenCalled();
+    expect(mocks.report).not.toHaveBeenCalled();
+  });
+
+  it("requires a switch when no company is selected", () => {
+    mocks.companyId = "";
+    render(<PorocilaAnalitika />);
+    expect(screen.getByRole("button", { name: "Preklopi na Podjetje" })).toBeTruthy();
+    expect(mocks.report).not.toHaveBeenCalled();
+  });
+
+  it("restores the company boundary on browser Back without querying another company", async () => {
+    const page = render(<PorocilaAnalitika />);
+    expect(lastRequest()[0]).toBe("company-1");
+    act(() => { window.history.pushState(null, "", `${path}?${firstView}&companyId=company-2`); });
+    mocks.access.company = { id: "company-2", naziv: "Drugo podjetje" };
+    mocks.report.mockClear();
+    page.rerender(<PorocilaAnalitika />);
+    expect(mocks.report).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Preklopi na Drugo podjetje" })).toBeTruthy();
+    mocks.access.company = { id: "company-1", naziv: "Podjetje" };
+    await act(async () => { window.history.back(); });
+    await waitFor(() => expect(lastRequest()[0]).toBe("company-1"));
   });
 });
 

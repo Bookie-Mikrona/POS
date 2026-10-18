@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useUser } from "@clerk/react";
-import type { CompanyWithRole } from "@workspace/api-client-react";
+import { useListCompanies, type CompanyWithRole } from "@workspace/api-client-react";
 
 interface CompanyContextValue {
   userId: string | null;
@@ -84,4 +84,28 @@ export function useCompany() {
   const ctx = useContext(CompanyContext);
   if (!ctx) throw new Error("useCompany must be used within CompanyProvider");
   return ctx;
+}
+
+export function useSharedCompanyAccess(companyId: string | null) {
+  const { user, isLoaded } = useUser();
+  const access = useListCompanies({
+    query: {
+      queryKey: ["/api/companies", "shared-report-access", user?.id ?? null, companyId],
+      enabled: isLoaded && !!user && companyId !== null,
+      staleTime: 0,
+      refetchOnMount: "always",
+      retry: false,
+    },
+    request: { cache: "no-store" },
+  });
+  const company = access.data?.companies.find(
+    (candidate) => candidate.id === companyId &&
+      ["owner", "accountant", "viewer"].includes(candidate.role),
+  ) ?? null;
+  return {
+    company,
+    checking: !isLoaded || (!!user && (!access.isFetchedAfterMount || access.isFetching)),
+    failed: access.isError,
+    retry: access.refetch,
+  };
 }
