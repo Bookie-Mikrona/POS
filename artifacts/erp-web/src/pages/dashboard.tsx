@@ -193,7 +193,7 @@ export function BankBalanceCard({ companyId, totalBalance, accounts, loading }: 
                                     <span className="text-muted-foreground">{formatLedgerDate(line.entryDate)}</span>
                                     <div className="min-w-0">
                                       <div className="truncate" title={line.description}>{line.description}</div>
-                                      <LedgerReversalLabel isReversal={line.isReversal} reversalOf={line.reversalOf} />
+                                      <LedgerReversalLabel {...line} />
                                     </div>
                                     <span className={`font-medium tabular-nums ${amount < 0 ? "text-red-600" : "text-emerald-700"}`}>
                                       {fmtEur(amount)}

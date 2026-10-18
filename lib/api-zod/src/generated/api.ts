@@ -16055,6 +16055,8 @@ export const GetLedgerResponse = zod.object({
   "lines": zod.array(zod.object({
   "entryId": zod.string(),
   "isReversal": zod.boolean().describe('True for a reversal entry, not for the reversed original'),
+  "isReversed": zod.boolean().describe('True when this entry has been reversed'),
+  "reversedBy": zod.string().nullable().describe('Same-company reversal journal entry ID, independent of ledger filters; null when unavailable'),
   "reversalOf": zod.string().nullable().describe('Original journal entry ID for a reversal, otherwise null'),
   "entryDate": zod.coerce.date(),
   "description": zod.string(),

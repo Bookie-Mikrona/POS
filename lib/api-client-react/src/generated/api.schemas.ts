@@ -10213,6 +10213,13 @@ export interface LedgerLine {
   entryId: string;
   /** True for a reversal entry, not for the reversed original */
   isReversal: boolean;
+  /** True when this entry has been reversed */
+  isReversed: boolean;
+  /**
+     * Same-company reversal journal entry ID, independent of ledger filters; null when unavailable
+     * @nullable
+     */
+  reversedBy: string | null;
   /**
      * Original journal entry ID for a reversal, otherwise null
      * @nullable

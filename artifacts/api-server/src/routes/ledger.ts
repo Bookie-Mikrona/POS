@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, gte, lte, asc, desc, sql, like, or, isNotNull } from "drizzle-orm";
 import Decimal from "decimal.js";
+import { alias } from "drizzle-orm/pg-core";
 import {
   db,
   journalEntriesTable,
@@ -93,11 +94,20 @@ router.get(
     if (accountId) lineConditions.push(eq(journalEntryLinesTable.accountId, accountId));
 
     // En JOIN query za vse
+    // Scalar lookup does not multiply ledger lines or inherit period/date/account filters.
+    const reversalEntry = alias(journalEntriesTable, "ledger_reversal");
+    const reversedBy = db.select({ id: reversalEntry.id }).from(reversalEntry).where(and(
+      eq(reversalEntry.companyId, companyId),
+      eq(reversalEntry.reversalOf, journalEntriesTable.id),
+      or(eq(reversalEntry.status, "posted"), eq(reversalEntry.status, "reversed")),
+    )).orderBy(asc(reversalEntry.createdAt), asc(reversalEntry.id)).limit(1);
     const query = db
       .select({
         lineId: sql<string>`${journalEntryLinesTable.id}`.as("line_id"),
         createdAt: journalEntriesTable.createdAt,
         entryId: journalEntriesTable.id,
+        entryStatus: journalEntriesTable.status,
+        reversedBy: sql<string | null>`(${reversedBy})`.as("reversed_by"),
         reversalOf: journalEntriesTable.reversalOf,
         entryDate: journalEntriesTable.entryDate,
         description: journalEntriesTable.description,
@@ -132,6 +142,8 @@ router.get(
         lineId: filtered.lineId, createdAt: filtered.createdAt,
         entryId: filtered.entryId, entryDate: filtered.entryDate,
         reversalOf: filtered.reversalOf,
+        entryStatus: filtered.entryStatus,
+        reversedBy: filtered.reversedBy,
         description: filtered.description, reference: filtered.reference,
         accountId: filtered.accountId, accountCode: filtered.accountCode,
         accountName: filtered.accountName, sequence: filtered.sequence,
@@ -153,6 +165,7 @@ router.get(
         lines: recent.reverse().map(row => ({
           entryId: row.entryId, entryDate: row.entryDate,
           isReversal: row.reversalOf !== null, reversalOf: row.reversalOf,
+          isReversed: row.entryStatus === "reversed", reversedBy: row.reversedBy,
           description: row.description, reference: row.reference,
           accountId: row.accountId, accountCode: row.accountCode, accountName: row.accountName,
           debit: money(row.debit), credit: money(row.credit), runningBalance: money(row.runningBalance),
@@ -185,6 +198,8 @@ router.get(
       return {
         entryId: row.entryId,
         isReversal: row.reversalOf !== null,
+        isReversed: row.entryStatus === "reversed",
+        reversedBy: row.reversedBy,
         reversalOf: row.reversalOf,
         entryDate: row.entryDate,
         description: row.description,

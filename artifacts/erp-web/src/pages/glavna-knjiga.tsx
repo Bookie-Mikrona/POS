@@ -214,7 +214,7 @@ export default function GlavnaKnjiga() {
                         <TableCell className="font-medium whitespace-nowrap">{formatDatum(line.entryDate)}</TableCell>
                         <TableCell>
                           <div>{line.description}</div>
-                          <LedgerReversalLabel isReversal={line.isReversal} reversalOf={line.reversalOf} />
+                          <LedgerReversalLabel {...line} />
                         </TableCell>
                         <TableCell className="text-muted-foreground">{line.reference || "-"}</TableCell>
                         <TableCell>

@@ -22755,6 +22755,12 @@ components:
         isReversal:
           type: boolean
           description: True for a reversal entry, not for the reversed original
+        isReversed:
+          type: boolean
+          description: True when this entry has been reversed
+        reversedBy:
+          type: ["string", "null"]
+          description: Same-company reversal journal entry ID, independent of ledger filters; null when unavailable
         reversalOf:
           type: ["string", "null"]
           description: Original journal entry ID for a reversal, otherwise null
@@ -22785,6 +22791,8 @@ components:
       required:
         - entryId
         - isReversal
+        - isReversed
+        - reversedBy
         - reversalOf
         - entryDate
         - description
