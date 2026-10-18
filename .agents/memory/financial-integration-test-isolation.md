@@ -32,3 +32,9 @@ Testi globalnih delavcev potrebujejo ločeno začasno bazo s kopijo sheme, ne sa
 **Why:** Globalni fiskalni delavec lahko obdeluje čakajoče operacije drugih podjetij. Izolacija testnega najemnika sama ne prepreči posega v poslovne podatke; preprosta izključitev testov pa skrije regresije.
 
 **How to apply:** Prekopiraj samo shemo, brez poslovnih vrstic in poverilnic. Ob zaključku odstrani izključno bazo, ki jo je ustvaril isti zaganjalnik, tudi če testi padejo.
+
+Za preverjanje medsebojne vidnosti dveh sočasnih knjiženj je uporabnik odobril ločeno začasno bazo namesto skupnega zunanjega rollbacka.
+
+**Why:** Prvi zahtevek mora resnično potrditi transakcijo, da sprosti transakcijski zaklep in drugi povezavi razkrije nastali osnutek. Skupni zunanji rollback tega ne more dokazati.
+
+**How to apply:** Uporabi samo kopijo sheme brez poslovnih podatkov, preveri ime testne baze pred zapisovanjem in po izvedbi odstrani celotno začasno bazo tudi ob napaki.
