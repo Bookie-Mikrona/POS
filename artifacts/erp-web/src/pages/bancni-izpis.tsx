@@ -561,7 +561,11 @@ export default function BancniIzpis() {
     });
   }, [userId, activeCompany?.id, draftKey]);
   useBankPostingRefresh(userId, activeCompany?.id,
-    confirmResult?.postErrors.flatMap(error => error.paymentId ? [error.paymentId] : []) ?? [],
+    [
+      ...(confirmResult?.postErrors.flatMap(error => error.paymentId ? [error.paymentId] : []) ?? []),
+      ...Object.values(imported).filter(payment => payment.posting === "pending" || payment.posting === "failed")
+        .map(payment => payment.paymentId),
+    ],
     clearPostedWarnings);
 
   // Data fetching

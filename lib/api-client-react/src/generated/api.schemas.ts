@@ -10966,6 +10966,33 @@ export interface VoidInvoiceBody {
   reason?: string;
 }
 
+export interface PaymentStatusInput {
+  /**
+     * @minItems 1
+     * @maxItems 500
+     * @items.pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  paymentIds: string[];
+}
+
+export type PaymentStatusRecordStatus = typeof PaymentStatusRecordStatus[keyof typeof PaymentStatusRecordStatus];
+
+
+export const PaymentStatusRecordStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  void: 'void',
+} as const;
+
+export interface PaymentStatusRecord {
+  id: string;
+  status: PaymentStatusRecordStatus;
+}
+
+export interface PaymentStatusResult {
+  payments: PaymentStatusRecord[];
+}
+
 export interface PaymentAllocationRecord {
   id: string;
   paymentId: string;

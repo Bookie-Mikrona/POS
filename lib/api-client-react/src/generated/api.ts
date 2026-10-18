@@ -387,6 +387,8 @@ import type {
   PaymentBatchLifecycleBody,
   PaymentBatchLifecycleConflict,
   PaymentBatchLifecycleResponse,
+  PaymentStatusInput,
+  PaymentStatusResult,
   PaymentWithAllocations,
   PaytenAndroidConfirmation,
   PaytenAndroidConfirmationResult,
@@ -27546,6 +27548,79 @@ export const useCreatePayment = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreatePaymentMutationOptions(options));
+    }
+
+export const getGetPaymentStatusesUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payments/statuses`
+}
+
+/**
+ * Returns only requested payments belonging to the company. Unknown and foreign IDs are omitted.
+ * @summary Check payment statuses within one company
+ */
+export const getPaymentStatuses = async (companyId: string,
+    paymentStatusInput: PaymentStatusInput, options?: RequestInit): Promise<PaymentStatusResult> => {
+
+  return customFetch<PaymentStatusResult>(getGetPaymentStatusesUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(paymentStatusInput)
+  }
+);}
+
+
+
+
+
+export const getGetPaymentStatusesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getPaymentStatuses>>, TError,{companyId: string;data: BodyType<PaymentStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getPaymentStatuses>>, TError,{companyId: string;data: BodyType<PaymentStatusInput>}, TContext> => {
+
+const mutationKey = ['getPaymentStatuses'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getPaymentStatuses>>, {companyId: string;data: BodyType<PaymentStatusInput>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  getPaymentStatuses(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetPaymentStatusesMutationResult = NonNullable<Awaited<ReturnType<typeof getPaymentStatuses>>>
+    export type GetPaymentStatusesMutationBody = BodyType<PaymentStatusInput>
+    export type GetPaymentStatusesMutationError = ErrorType<void>
+
+    /**
+ * @summary Check payment statuses within one company
+ */
+export const useGetPaymentStatuses = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getPaymentStatuses>>, TError,{companyId: string;data: BodyType<PaymentStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getPaymentStatuses>>,
+        TError,
+        {companyId: string;data: BodyType<PaymentStatusInput>},
+        TContext
+      > => {
+      return useMutation(getGetPaymentStatusesMutationOptions(options));
     }
 
 export const getGetPaymentUrl = (companyId: string,

@@ -1,4 +1,21 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { getPaymentStatuses } from "@workspace/api-client-react";
+
+/** Read only requested, explicitly posted IDs in company-scoped bounded batches. */
+export async function postedPaymentIds(companyId: string, paymentIds: string[], signal?: AbortSignal): Promise<Set<string>> {
+  const ids = [...new Set(paymentIds)];
+  const posted = new Set<string>();
+  for (let offset = 0; offset < ids.length; offset += 500) {
+    signal?.throwIfAborted();
+    const batch = ids.slice(offset, offset + 500);
+    const result = await getPaymentStatuses(companyId, { paymentIds: batch }, { signal, cache: "no-store" });
+    signal?.throwIfAborted();
+    for (const payment of result.payments) {
+      if (payment.status === "posted" && batch.includes(payment.id)) posted.add(payment.id);
+    }
+  }
+  return posted;
+}
 
 /** Check only the unresolved payments, never the full payment history. */
 export function useBankPostingRefresh(
@@ -8,9 +25,13 @@ export function useBankPostingRefresh(
   onPosted: (paymentIds: Set<string>) => void,
 ) {
   const idsKey = JSON.stringify([...new Set(paymentIds)].sort());
+  const checkedRef = useRef<{ userId: string; companyId: string; ids: Set<string> } | null>(null);
   useEffect(() => {
     const ids = JSON.parse(idsKey) as string[];
-    if (!userId || !companyId || !ids.length) return;
+    if (!userId || !companyId || !ids.length) {
+      checkedRef.current = null;
+      return;
+    }
     let disposed = false;
     let controller: AbortController | undefined;
     const refresh = async () => {
@@ -18,27 +39,21 @@ export function useBankPostingRefresh(
       controller?.abort();
       const request = new AbortController();
       controller = request;
-      const posted = new Set<string>();
-      // Sequential requests bound concurrency to one; a later focus supersedes
-      // this pass even if the transport does not honour cancellation.
-      for (const id of ids) {
-        try {
-          const response = await fetch(`/api/companies/${companyId}/payments/${id}`, {
-            signal: request.signal,
-            cache: "no-store",
-          });
-          if (disposed || request.signal.aborted) return;
-          if (!response.ok) continue;
-          const payment = await response.json();
-          if (payment.id === id && payment.status === "posted") posted.add(id);
-        } catch {
-          // An unavailable status is not evidence that posting succeeded.
+      try {
+        const posted = await postedPaymentIds(companyId, ids, request.signal);
+        if (!disposed && !request.signal.aborted) {
+          checkedRef.current = { userId, companyId, ids: new Set(ids) };
+          if (posted.size) onPosted(posted);
         }
-        if (disposed || request.signal.aborted) return;
+      } catch {
+        // An unavailable status is not evidence that posting succeeded.
       }
-      if (!disposed && !request.signal.aborted && posted.size) onPosted(posted);
     };
-    void refresh();
+    const checked = checkedRef.current;
+    // Clearing the confirmed IDs is not a new check: do not immediately send
+    // another batch for the remaining drafts. Focus/visibility still refresh.
+    if (!checked || checked.userId !== userId || checked.companyId !== companyId ||
+        ids.some(id => !checked.ids.has(id))) void refresh();
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {

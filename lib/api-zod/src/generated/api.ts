@@ -14724,6 +14724,31 @@ export const CreatePaymentResponse = zod.object({
 
 
 /**
+ * Returns only requested payments belonging to the company. Unknown and foreign IDs are omitted.
+ * @summary Check payment statuses within one company
+ */
+export const GetPaymentStatusesParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const getPaymentStatusesBodyPaymentIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const getPaymentStatusesBodyPaymentIdsMax = 500;
+
+
+
+export const GetPaymentStatusesBody = zod.object({
+  "paymentIds": zod.array(zod.string().regex(getPaymentStatusesBodyPaymentIdsItemRegExp)).min(1).max(getPaymentStatusesBodyPaymentIdsMax)
+})
+
+export const GetPaymentStatusesResponse = zod.object({
+  "payments": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'void'])
+}))
+})
+
+
+/**
  * @summary Get payment detail with allocations
  */
 export const GetPaymentParams = zod.object({

@@ -29,6 +29,7 @@ import {
 } from "@workspace/db";
 import {
   CreatePaymentBody,
+  GetPaymentStatusesBody,
   VoidPaymentBody,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
@@ -429,6 +430,31 @@ router.get(
       };
     });
 
+    res.json({ payments });
+  },
+);
+
+// Lightweight, read-only reconciliation: never expose foreign or unknown IDs.
+router.post(
+  "/companies/:companyId/payments/statuses",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const companyId = extractParam(req.params.companyId);
+    const access = await resolveAccess((req as AuthenticatedRequest).clerkUserId, companyId, res);
+    if (!access) return;
+    const parsed = GetPaymentStatusesBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Pričakovan je seznam od 1 do 500 ID-jev plačil (UUID)." });
+      return;
+    }
+    const payments = await db
+      .select({ id: paymentsTable.id, status: paymentDisplayStatus })
+      .from(paymentsTable)
+      .where(and(
+        eq(paymentsTable.companyId, companyId),
+        inArray(paymentsTable.id, [...new Set(parsed.data.paymentIds)]),
+      ));
+    res.setHeader("Cache-Control", "no-store");
     res.json({ payments });
   },
 );
