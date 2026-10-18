@@ -1051,6 +1051,229 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(movementsAfterResolution).toHaveLength(1);
   });
 
+  it("requires current approval for every changed package line and records all approvals with confirmation", async () => {
+    const [firstArticle, secondArticle] = await db.insert(artikliTable).values([
+      {
+        enotaId,
+        ime: `Package approval first ${run}`,
+        cena: "5",
+        davek: "22",
+        enotaMere: "KOS",
+        nabavniArtikel: true,
+        prodajniArtikel: false,
+        aktiven: true,
+      },
+      {
+        enotaId,
+        ime: `Package approval second ${run}`,
+        cena: "5",
+        davek: "22",
+        enotaMere: "KOS",
+        nabavniArtikel: true,
+        prodajniArtikel: false,
+        aktiven: true,
+      },
+    ]).returning({ id: artikliTable.id });
+    articleIds.push(firstArticle.id, secondArticle.id);
+
+    const [firstMapping, secondMapping] = await db.insert(artikelDobaviteljTable).values([
+      {
+        enotaId,
+        artikelId: firstArticle.id,
+        dobaviteljId: supplierId,
+        sifraDobavitelja: `APPROVAL-FIRST-${run}`,
+        nazivDobavitelja: `First approval pack ${run}`,
+        enotVPaketu: "6",
+        nazivPaketa: "prvi paket",
+        zadnjaCenaPaket: "18",
+        zadnjaCenaEnota: "3",
+        aktivno: true,
+      },
+      {
+        enotaId,
+        artikelId: secondArticle.id,
+        dobaviteljId: supplierId,
+        sifraDobavitelja: `APPROVAL-SECOND-${run}`,
+        nazivDobavitelja: `Second approval pack ${run}`,
+        enotVPaketu: "4",
+        nazivPaketa: "drugi paket",
+        zadnjaCenaPaket: "12",
+        zadnjaCenaEnota: "3",
+        aktivno: true,
+      },
+    ]).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(firstMapping.id, secondMapping.id);
+    await db.insert(zalogeTable).values([
+      { artikelId: firstArticle.id, kolicina: "0" },
+      { artikelId: secondArticle.id, kolicina: "0" },
+    ]);
+
+    const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
+      supplierId,
+      expectedDeliveryDate: "2026-11-09",
+      lines: [
+        { supplierMappingId: firstMapping.id, packageQuantity: 1, unitPrice: 18 },
+        { supplierMappingId: secondMapping.id, packageQuantity: 1, unitPrice: 12 },
+      ],
+    });
+    expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
+    orderIds.push(createdOrder.body.id);
+    const firstOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === firstArticle.id);
+    const secondOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === secondArticle.id);
+    const sentOrder = await request(app)
+      .post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`)
+      .send({});
+    expect(sentOrder.status, JSON.stringify(sentOrder.body)).toBe(200);
+
+    const receipt = await request(app).post("/prejemnice").send({
+      dobaviteljId: supplierId,
+      datum: "2026-10-17",
+      vrstaCen: "neto",
+      vrstaDokumenta: "DOBAVNICA",
+      brutoSkupaj: 30,
+      postavke: [
+        {
+          artikelId: firstArticle.id,
+          supplierOrderLineId: firstOrderLine.id,
+          kolicina: 6,
+          cenaKos: 3,
+          skupaj: 18,
+          enotVPaketu: 1,
+          izvKolicina: 6,
+          izvCena: 3,
+          izvEnota: "KOS",
+          izvCenaVrsta: "neto",
+          ddvStopnja: 0,
+        },
+        {
+          artikelId: secondArticle.id,
+          supplierOrderLineId: secondOrderLine.id,
+          kolicina: 4,
+          cenaKos: 3,
+          skupaj: 12,
+          enotVPaketu: 1,
+          izvKolicina: 4,
+          izvCena: 3,
+          izvEnota: "KOS",
+          izvCenaVrsta: "neto",
+          ddvStopnja: 0,
+        },
+      ],
+    });
+    expect(receipt.status, JSON.stringify(receipt.body)).toBe(201);
+    receiptIds.push(receipt.body.id);
+
+    await db.update(artikelDobaviteljTable)
+      .set({ enotVPaketu: "8", nazivPaketa: "prvi paket 8" })
+      .where(eq(artikelDobaviteljTable.id, firstMapping.id));
+    await db.update(artikelDobaviteljTable)
+      .set({ enotVPaketu: "5", nazivPaketa: "drugi paket 5" })
+      .where(eq(artikelDobaviteljTable.id, secondMapping.id));
+
+    const initialWarning = await request(app)
+      .post(`/prejemnice/${receipt.body.id}/confirm`)
+      .send({});
+    expect(initialWarning.status, JSON.stringify(initialWarning.body)).toBe(409);
+    expect(initialWarning.body.packageFactorChanges.map((change: any) => change.supplierOrderLineId))
+      .toEqual([firstOrderLine.id, secondOrderLine.id]);
+
+    const incompleteAcknowledgement = await request(app)
+      .post(`/prejemnice/${receipt.body.id}/confirm`)
+      .send({ reviewedPackageFactorChanges: [initialWarning.body.packageFactorChanges[0]] });
+    expect(incompleteAcknowledgement.status, JSON.stringify(incompleteAcknowledgement.body)).toBe(409);
+    expect(incompleteAcknowledgement.body.packageFactorChanges.map((change: any) => change.supplierOrderLineId))
+      .toEqual([firstOrderLine.id, secondOrderLine.id]);
+    const reviewsAfterIncompleteAcknowledgement = await db.select()
+      .from(posSupplierPackageChangeReviewsTable)
+      .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, receipt.body.id));
+    expect(reviewsAfterIncompleteAcknowledgement).toHaveLength(0);
+
+    // One line changes again after review: the old acknowledgement set must be rejected as a whole.
+    await db.update(artikelDobaviteljTable)
+      .set({ enotVPaketu: "7", nazivPaketa: "drugi paket 7" })
+      .where(eq(artikelDobaviteljTable.id, secondMapping.id));
+    const staleAcknowledgement = await request(app)
+      .post(`/prejemnice/${receipt.body.id}/confirm`)
+      .send({ reviewedPackageFactorChanges: initialWarning.body.packageFactorChanges });
+    expect(staleAcknowledgement.status, JSON.stringify(staleAcknowledgement.body)).toBe(409);
+    expect(staleAcknowledgement.body.packageFactorChanges).toMatchObject([
+      { supplierOrderLineId: firstOrderLine.id, currentFactor: 8 },
+      { supplierOrderLineId: secondOrderLine.id, currentFactor: 7 },
+    ]);
+    const stillDraft = await db.select({ status: prejemniceTable.status })
+      .from(prejemniceTable)
+      .where(eq(prejemniceTable.id, receipt.body.id));
+    expect(stillDraft[0]?.status).toBe("draft");
+    const reviewsAfterStaleAcknowledgement = await db.select()
+      .from(posSupplierPackageChangeReviewsTable)
+      .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, receipt.body.id));
+    expect(reviewsAfterStaleAcknowledgement).toHaveLength(0);
+
+    const rollbackFunction = `test_package_approval_rollback_${run}`;
+    const rollbackTrigger = `test_package_approval_rollback_${run}`;
+    await db.execute(sql.raw(`
+      CREATE FUNCTION ${rollbackFunction}() RETURNS trigger
+      LANGUAGE plpgsql AS $$
+      BEGIN
+        IF NEW.id = ${receipt.body.id} AND NEW.status = 'confirmed' THEN
+          RAISE EXCEPTION 'test-only failure after package review insert';
+        END IF;
+        RETURN NEW;
+      END
+      $$
+    `));
+    await db.execute(sql.raw(`
+      CREATE TRIGGER ${rollbackTrigger}
+      BEFORE UPDATE OF status ON prejemnice
+      FOR EACH ROW EXECUTE FUNCTION ${rollbackFunction}()
+    `));
+    try {
+      const failedConfirmation = await request(app)
+        .post(`/prejemnice/${receipt.body.id}/confirm`)
+        .send({ reviewedPackageFactorChanges: staleAcknowledgement.body.packageFactorChanges });
+      expect(failedConfirmation.status).toBe(500);
+    } finally {
+      await db.execute(sql.raw(`DROP TRIGGER ${rollbackTrigger} ON prejemnice`));
+      await db.execute(sql.raw(`DROP FUNCTION ${rollbackFunction}()`));
+    }
+    const statusAfterConfirmationFailure = await db.select({ status: prejemniceTable.status })
+      .from(prejemniceTable)
+      .where(eq(prejemniceTable.id, receipt.body.id));
+    expect(statusAfterConfirmationFailure[0]?.status).toBe("draft");
+    const reviewsAfterConfirmationFailure = await db.select()
+      .from(posSupplierPackageChangeReviewsTable)
+      .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, receipt.body.id));
+    expect(reviewsAfterConfirmationFailure).toHaveLength(0);
+
+    const confirmed = await request(app)
+      .post(`/prejemnice/${receipt.body.id}/confirm`)
+      .send({ reviewedPackageFactorChanges: staleAcknowledgement.body.packageFactorChanges });
+    expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
+    expect(confirmed.body).toMatchObject({ id: receipt.body.id, status: "confirmed" });
+    const reviewsAfterConfirmation = await db.select()
+      .from(posSupplierPackageChangeReviewsTable)
+      .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, receipt.body.id));
+    expect(reviewsAfterConfirmation).toHaveLength(2);
+    expect(reviewsAfterConfirmation.map(review => review.supplierOrderLineId).sort((a, b) => a - b))
+      .toEqual([firstOrderLine.id, secondOrderLine.id].sort((a: number, b: number) => a - b));
+    expect(reviewsAfterConfirmation).toMatchObject([
+      {
+        prejemnicaId: receipt.body.id,
+        supplierOrderLineId: firstOrderLine.id,
+        orderPackageName: "prvi paket",
+        currentPackageName: "prvi paket 8",
+        actorClerkUserId: context.userId,
+      },
+      {
+        prejemnicaId: receipt.body.id,
+        supplierOrderLineId: secondOrderLine.id,
+        orderPackageName: "drugi paket",
+        currentPackageName: "drugi paket 7",
+        actorClerkUserId: context.userId,
+      },
+    ]);
+  });
+
   it("keeps legacy notes internal and preserves supplier instructions for older clients", async () => {
     const created = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
