@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuoteDailyLunch, useListDailyLunchOffers, useAddDailyLunchToOrder, ApiError } from "@workspace/api-client-react";
+import { useQuoteDailyLunch, useListDailyLunchOffers, useAddDailyLunchToOrder, useListArtikli, ApiError } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { dailyLunchPrice, requiredDailyLunchRoles, type DailyLunchMode, type DailyLunchRole } from "@/lib/dailyLunchHelpers";
+
+const ROLE_LABELS: Record<string, string> = { starter: "Predjed", soup: "Juha", main: "Glavna jed", dessert: "Sladica" };
 
 type Props = { narociloId: number; onQuoted?: (quote: unknown) => void; onAdded?: () => void };
 
 /** Quote-first daily lunch selector. The server remains authoritative for price and availability. */
 export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
   const { data } = useListDailyLunchOffers();
+  const { data: articles } = useListArtikli();
+  const articleNames = useMemo(() => new Map((articles ?? []).map((article) => [article.id, article.ime])), [articles]);
   const quote = useQuoteDailyLunch();
   const add = useAddDailyLunchToOrder();
   const idempotencyKey = useRef(crypto.randomUUID());
@@ -46,7 +50,7 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
       <Button variant={mode === "three_course" ? "default" : "outline"} onClick={() => { setMode("three_course"); setSelected({}); }}>3 hodi</Button>
       <Button variant={mode === "four_course" ? "default" : "outline"} onClick={() => { setMode("four_course"); setSelected({}); }}>4 hodi</Button>
     </div>
-    {roles.map((role) => <div key={role}><h3 className="mb-2 font-semibold">{role}</h3><div className="grid gap-2 sm:grid-cols-2">{choices.filter((choice) => choice.role === role).map((choice) => <button key={choice.artikelId} type="button" className={`rounded border p-2 text-left ${selected[role] === choice.artikelId ? "border-primary bg-primary/10" : ""}`} onClick={() => setSelected((current) => ({ ...current, [role]: choice.artikelId }))}>Artikel {choice.artikelId}</button>)}</div></div>)}
+    {roles.map((role) => <div key={role}><h3 className="mb-2 font-semibold">{ROLE_LABELS[role] ?? role}</h3><div className="grid gap-2 sm:grid-cols-2">{choices.filter((choice) => choice.role === role).map((choice) => <button key={choice.artikelId} type="button" className={`rounded border p-2 text-left ${selected[role] === choice.artikelId ? "border-primary bg-primary/10" : ""}`} onClick={() => setSelected((current) => ({ ...current, [role]: choice.artikelId }))}>{articleNames.get(choice.artikelId) ?? `Artikel ${choice.artikelId}`}</button>)}</div></div>)}
     <div className="rounded bg-muted p-3 text-sm">Cena: <strong>{dailyLunchPrice(quote.data?.total)}</strong></div>
     <Button className="w-full" disabled={!complete || !quote.data || quote.isPending || add.isPending} onClick={() => void addLunch()}>
       {add.isPending ? "Dodajanje …" : "Dodaj kosilo"}
