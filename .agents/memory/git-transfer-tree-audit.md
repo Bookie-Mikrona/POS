@@ -11,7 +11,7 @@ Po vsakem prenosu, združevanju oddaljene zgodovine ali obnovi glavne veje prime
 
 To pravilo velja tudi za samodejno združevanje ob zaključevanju dela: uspešni testi in typecheck pred združitvijo ne preverjajo poznejšega združenega drevesa. Pri več podobnih blokih v isti datoteki uporabi izrazit kontekst posamezne poti.
 
-**Why:** Besedilno uspešna združitev ponavljajočih se blokov ni zagotovilo njihove vsebinske pravilnosti; preverjanje mora zajeti tudi končno združeno drevo. To velja za API handlerje, agregacije, PDF in testne bloke: uspešna združitev lahko premakne vsebino v nepovezan blok ali izgubi nov preizkus. Pri testih lahko ostanejo uvozi in lokalne spremenljivke, medtem ko izginejo celotni bloki `it`; preveri tudi prisotnost novih scenarijev, ne samo uspešnosti preostalih testov.
+**Why:** Besedilno uspešna združitev ponavljajočih se blokov ni zagotovilo njihove vsebinske pravilnosti; preverjanje mora zajeti tudi končno združeno drevo. To velja za API handlerje, agregacije, PDF in testne bloke: uspešna združitev lahko premakne vsebino v nepovezan blok ali izgubi nov preizkus. Opažena sta bila tudi zamenjava registracije izpiska z usklajevanjem plačila ter prenos priprave hook testa v test celotnega čarovnika, ponovno po uspešnem lokalnem popravku.
 
 **How to apply:** Če zaključno preverjanje po sinhronizaciji javi nove napake, primerjaj celoten končni diff z osnovno različico oziroma pravilnim staršem, posebej podobne ponovljene bloke. Obnovi samo nenamerne spremembe in poškodovane bloke ter ponovno preveri končno drevo in sosednje poti.
 
@@ -25,7 +25,7 @@ Pri obnovi testne datoteke primerjaj tudi seznam testnih primerov s pravilnim st
 
 **Why:** Samodejna združitev lahko odstrani cele preizkuse in pusti le njihove deklaracije v drugih blokih. Popravek napak prevajalnika zato še ne zagotovi ohranjene regresijske pokritosti.
 
-**How to apply:** Obnovi manjkajoče stare in nove primere ter zaženi celotno prizadeto testno datoteko, ne le izbora novih testov.
+**How to apply:** Obnovi manjkajoče stare in nove primere ter zaženi celotno prizadeto testno datoteko, ne le izbora novih testov. Pri testih lahko ostanejo uvozi in lokalne spremenljivke, medtem ko izginejo celotni bloki `it`; preveri tudi prisotnost novih scenarijev, ne samo uspešnosti preostalih testov.
 
 Preverjanje mora zajeti tudi podedovane napake iz novo prevzetega starša, ne le trenutnega diff-a.
 
