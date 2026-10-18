@@ -11,6 +11,79 @@ afterEach(() => {
 });
 
 describe("saved journal filters", () => {
+  const fields = ["periodFilter", "costCenterFilter", "projectFilter", "departmentFilter"] as const;
+  const saved = {
+    periodFilter: "period", costCenterFilter: "cc", projectFilter: "project",
+    departmentFilter: "department", statusFilter: "posted", entryKindFilter: "monthly-pos",
+  };
+  const validOptions = () => Object.fromEntries(fields.map(field => [
+    field, { items: [{ id: saved[field] }], isSuccess: true, isFetching: false },
+  ]));
+
+  it.each(fields)("clears only deleted %s and persists the correction", field => {
+    localStorage.setItem(key("a"), JSON.stringify(saved));
+    const options = validOptions();
+    options[field]!.items = [];
+    const { result, unmount } = renderHook(() => useJournalFilters("a", "current", options));
+    expect(result.current).toMatchObject({ ...saved, [field]: "all", invalidFilters: [field] });
+    expect(JSON.parse(localStorage.getItem(key("a"))!)).toEqual({ ...saved, [field]: "all" });
+    unmount();
+    const restored = renderHook(() => useJournalFilters("a", "current", options));
+    expect(restored.result.current.invalidFilters).toEqual([]);
+    expect(restored.result.current[field]).toBe("all");
+  });
+
+  it.each(fields)("waits for delayed %s and keeps a selection that eventually loads", field => {
+    localStorage.setItem(key("a"), JSON.stringify(saved));
+    const { result, rerender } = renderHook(({ ready }) => useJournalFilters("a", "current", {
+      ...validOptions(),
+      [field]: { items: ready ? [{ id: saved[field] }] : [], isSuccess: ready, isFetching: !ready },
+    }), { initialProps: { ready: false } });
+    expect(result.current[field]).toBe(saved[field]);
+    expect(result.current.invalidFilters).toEqual([]);
+    expect(JSON.parse(localStorage.getItem(key("a"))!)).toEqual(saved);
+    rerender({ ready: true });
+    expect(result.current[field]).toBe(saved[field]);
+    expect(result.current.invalidFilters).toEqual([]);
+  });
+
+  it.each(fields)("clears missing %s only once its delayed query succeeds", field => {
+    localStorage.setItem(key("a"), JSON.stringify(saved));
+    const { result, rerender } = renderHook(({ ready }) => useJournalFilters("a", "current", {
+      [field]: { items: [], isSuccess: ready, isFetching: !ready },
+    }), { initialProps: { ready: false } });
+    expect(result.current[field]).toBe(saved[field]);
+    rerender({ ready: true });
+    expect(result.current[field]).toBe("all");
+    expect(result.current.invalidFilters).toEqual([field]);
+  });
+
+  it.each([
+    { isSuccess: false, isFetching: false }, // Query error, including a failed background refetch.
+    { isSuccess: true, isFetching: true },
+    { isSuccess: true, isFetching: false, isPlaceholderData: true },
+  ])("does not validate unsuccessful, refreshing or placeholder lists: %j", state => {
+    localStorage.setItem(key("a"), JSON.stringify(saved));
+    const options = Object.fromEntries(fields.map(field => [field, { items: [], ...state }]));
+    const { result } = renderHook(() => useJournalFilters("a", "current", options));
+    expect(result.current).toMatchObject({ ...saved, invalidFilters: [] });
+    expect(JSON.parse(localStorage.getItem(key("a"))!)).toEqual(saved);
+  });
+
+  it("corrects several missing filters together without changing other companies", () => {
+    localStorage.setItem(key("a"), JSON.stringify(saved));
+    localStorage.setItem(key("b"), JSON.stringify(saved));
+    const { result, rerender } = renderHook(({ company }) => useJournalFilters(company, "current", {
+      costCenterFilter: { items: [], isSuccess: company === "a", isFetching: false },
+      projectFilter: { items: [], isSuccess: company === "a", isFetching: false },
+    }), { initialProps: { company: "a" } });
+    expect(result.current.invalidFilters).toEqual(["costCenterFilter", "projectFilter"]);
+    expect(result.current).toMatchObject({ ...saved, costCenterFilter: "all", projectFilter: "all" });
+    rerender({ company: "b" });
+    expect(result.current).toMatchObject({ ...saved, invalidFilters: [] });
+    expect(JSON.parse(localStorage.getItem(key("b"))!)).toEqual(saved);
+  });
+
   it("keeps the automatic period until periods finish loading, without saving defaults", () => {
     const { result, rerender } = renderHook(({ period }) => useJournalFilters("a", period), {
       initialProps: { period: "all" },

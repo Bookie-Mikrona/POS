@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   costCenters: { costCenters: [] as { id: string; name: string }[] } as { costCenters: { id: string; name: string }[] } | undefined,
   projects: { projects: [] as { id: string; name: string }[] } as { projects: { id: string; name: string }[] } | undefined,
   mutate: vi.fn(),
+  listEntries: vi.fn(),
 }));
 vi.mock("@clerk/react", () => ({ useAuth: () => ({ getToken: vi.fn() }) }));
 vi.mock("@/contexts/CompanyContext", () => ({
@@ -15,7 +16,10 @@ vi.mock("@/contexts/CompanyContext", () => ({
 vi.mock("@workspace/api-client-react", async () => {
   const { useQuery } = await import("@tanstack/react-query");
   return ({
-  useListJournalEntries: () => ({ data: { entries: [] } }),
+  useListJournalEntries: (...args: unknown[]) => {
+    state.listEntries(...args);
+    return { data: { entries: [] } };
+  },
   useGetJournalEntry: () => ({}),
   useListPeriods: () => ({ data: { periods: [{ id: "period", name: "2026", status: "open", startDate: "2026-01-01", endDate: "2026-12-31" }] } }),
   useListAccounts: () => ({ data: { accounts: [
@@ -54,10 +58,12 @@ vi.mock("@/components/ui/select", () => ({
 import Temeljnice from "./temeljnice";
 
 beforeEach(() => {
+  localStorage.clear();
   focusManager.setFocused(true);
   state.costCenters = { costCenters: [] };
   state.projects = { projects: [] };
   state.mutate.mockReset();
+  state.listEntries.mockReset();
 });
 afterEach(() => {
   cleanup();
@@ -87,6 +93,39 @@ function fillEntry() {
 }
 
 describe("Manjkajoči šifranti obveznih dimenzij", () => {
+  it("po izbrisu shranjenega stroškovnega mesta pokaže opozorilo in poizveduje brez njega", async () => {
+    localStorage.setItem("bookie:journal-filters:company", JSON.stringify({
+      periodFilter: "all", costCenterFilter: "deleted", statusFilter: "posted",
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><Temeljnice /></QueryClientProvider>);
+    await screen.findByText("Shranjeni filter ni več na voljo");
+    expect(screen.getByText(/Izbrane možnosti ne obstajajo več: stroškovno mesto/)).toBeTruthy();
+    expect(state.listEntries).toHaveBeenCalledWith("company", expect.objectContaining({
+      costCenterId: undefined, status: "posted",
+    }), expect.anything());
+    expect(JSON.parse(localStorage.getItem("bookie:journal-filters:company")!)).toMatchObject({
+      costCenterFilter: "all", statusFilter: "posted",
+    });
+  });
+
+  it("med počasnim nalaganjem ohrani shranjeno dimenzijo in jo preveri šele ob odgovoru", async () => {
+    state.costCenters = undefined;
+    localStorage.setItem("bookie:journal-filters:company", JSON.stringify({
+      periodFilter: "all", costCenterFilter: "delayed", statusFilter: "posted",
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><Temeljnice /></QueryClientProvider>);
+    expect(screen.queryByText("Shranjeni filter ni več na voljo")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("bookie:journal-filters:company")!).costCenterFilter).toBe("delayed");
+    await act(async () => {
+      await client.cancelQueries({ queryKey: ["cost-centers", "company"] });
+      client.setQueryData(["cost-centers", "company"], { costCenters: [] });
+    });
+    await screen.findByText("Shranjeni filter ni več na voljo");
+    expect(JSON.parse(localStorage.getItem("bookie:journal-filters:company")!).costCenterFilter).toBe("all");
+  });
+
   it("takoj razloži prazna seznama in odpre pravilne nastavitve brez zapiranja vnosa", async () => {
     await openEntry();
     chooseAccount(0, "required");

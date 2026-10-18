@@ -118,27 +118,30 @@ export default function Temeljnice() {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
 
-  const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
+  const periodsQuery = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
+  const { data: periodsData } = periodsQuery;
   const periods = periodsData?.periods ?? [];
+  const costCentersQuery = useListCostCenters(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const costCenters = costCentersQuery.data?.costCenters ?? [];
+  const projectsQuery = useListProjects(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const projects = projectsQuery.data?.projects ?? [];
+  const departmentsQuery = useListDepartments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const departments = departmentsQuery.data?.departments ?? [];
   const {
     periodFilter, statusFilter, costCenterFilter, projectFilter, departmentFilter,
-    entryKindFilter, updateFilters, clearFilters,
-  } = useJournalFilters(activeCompany?.id, defaultAccountingPeriod(periods));
+    entryKindFilter, updateFilters, clearFilters, invalidFilters,
+  } = useJournalFilters(activeCompany?.id, defaultAccountingPeriod(periods), {
+    periodFilter: { ...periodsQuery, items: periods },
+    costCenterFilter: { ...costCentersQuery, items: costCenters },
+    projectFilter: { ...projectsQuery, items: projects },
+    departmentFilter: { ...departmentsQuery, items: departments },
+  });
   const setPeriodFilter = (value: string) => updateFilters({ periodFilter: value });
   const setStatusFilter = (value: string) => updateFilters({ statusFilter: value });
   const setCostCenterFilter = (value: string) => updateFilters({ costCenterFilter: value });
   const setProjectFilter = (value: string) => updateFilters({ projectFilter: value });
   const setDepartmentFilter = (value: string) => updateFilters({ departmentFilter: value });
   const setEntryKindFilter = (value: string) => updateFilters({ entryKindFilter: value });
-
-  const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
-  const costCenters = costCentersData?.costCenters ?? [];
-
-  const { data: projectsData } = useListProjects(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
-  const projects = projectsData?.projects ?? [];
-
-  const { data: departmentsData } = useListDepartments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
-  const departments = departmentsData?.departments ?? [];
 
   const { data: entriesData, isLoading, error } = useListJournalEntries(
     activeCompany?.id ?? "",
@@ -293,6 +296,21 @@ export default function Temeljnice() {
           )}
         </div>
       </div>
+
+      {invalidFilters.length > 0 && (
+        <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Shranjeni filter ni več na voljo</AlertTitle>
+          <AlertDescription>
+            Izbrane možnosti ne obstajajo več: {invalidFilters.map(field => ({
+              periodFilter: "obdobje",
+              costCenterFilter: "stroškovno mesto",
+              projectFilter: "projekt",
+              departmentFilter: "oddelek",
+            })[field]).join(", ")}. Ponastavili smo samo te filtre na »Vse«; ostali filtri so ohranjeni.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {pendingMonthlyEntries.length > 0 && (
         <Alert className="border-amber-300 bg-amber-50 text-amber-950">
