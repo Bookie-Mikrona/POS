@@ -2449,27 +2449,28 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
     expect(sentOrder.status, JSON.stringify(sentOrder.body)).toBe(200);
 
+    const linkedReceiptPayload = (quantity: number) => ({
+      dobaviteljId: supplierId,
+      datum: "2026-10-17",
+      vrstaCen: "neto",
+      vrstaDokumenta: "DOBAVNICA",
+      brutoSkupaj: quantity * 5,
+      postavke: [{
+        artikelId: raceArticle.id,
+        supplierOrderLineId: orderLineId,
+        kolicina: quantity,
+        cenaKos: 5,
+        skupaj: quantity * 5,
+        enotVPaketu: 1,
+        izvKolicina: quantity,
+        izvCena: 5,
+        izvEnota: "KOS",
+        izvCenaVrsta: "neto",
+        ddvStopnja: 0,
+      }],
+    });
     const createLinkedReceipt = async (quantity: number) => {
-      const response = await request(app).post("/prejemnice").send({
-        dobaviteljId: supplierId,
-        datum: "2026-10-17",
-        vrstaCen: "neto",
-        vrstaDokumenta: "DOBAVNICA",
-        brutoSkupaj: quantity * 5,
-        postavke: [{
-          artikelId: raceArticle.id,
-          supplierOrderLineId: orderLineId,
-          kolicina: quantity,
-          cenaKos: 5,
-          skupaj: quantity * 5,
-          enotVPaketu: 1,
-          izvKolicina: quantity,
-          izvCena: 5,
-          izvEnota: "KOS",
-          izvCenaVrsta: "neto",
-          ddvStopnja: 0,
-        }],
-      });
+      const response = await request(app).post("/prejemnice").send(linkedReceiptPayload(quantity));
       expect(response.status, JSON.stringify(response.body)).toBe(201);
       receiptIds.push(response.body.id);
       return response.body.id as number;
@@ -2486,7 +2487,33 @@ describe("POS supplier ordering and linked receipt flow", () => {
       lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 2, openBaseQuantity: 10 }],
     });
 
-    const firstRaceReceiptId = await createLinkedReceipt(6);
+    const competingCreations = await Promise.all([
+      request(app).post("/prejemnice").send(linkedReceiptPayload(6)),
+      request(app).post("/prejemnice").send(linkedReceiptPayload(6)),
+    ]);
+    expect(competingCreations.map(response => response.status).sort()).toEqual([201, 409]);
+    const rejectedCreation = competingCreations.find(response => response.status === 409);
+    expect(rejectedCreation?.body).toMatchObject({ code: "SUPPLIER_ORDER_RECEIPT_CONFLICT" });
+    expect(rejectedCreation?.body.error).toContain("že obstaja druga odprta prejemnica");
+    const firstRaceReceiptId = competingCreations.find(response => response.status === 201)!.body.id as number;
+    receiptIds.push(firstRaceReceiptId);
+
+    const orderBeforeConfirmation = await request(app).get(`/narocila-dobaviteljem/${createdOrder.body.id}`);
+    expect(orderBeforeConfirmation.body).toMatchObject({
+      status: "partially_received",
+      lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 2, openBaseQuantity: 10 }],
+    });
+    const [stockBeforeConfirmation] = await db.select().from(zalogeTable)
+      .where(eq(zalogeTable.artikelId, raceArticle.id));
+    expect(Number(stockBeforeConfirmation.kolicina)).toBe(2);
+    const draftMovementsBeforeConfirmation = await db.select({ id: zalogaGibiTable.id })
+      .from(zalogaGibiTable).where(and(
+        eq(zalogaGibiTable.artikelId, raceArticle.id),
+        eq(zalogaGibiTable.tip, "prejemnica"),
+        eq(zalogaGibiTable.referencaId, firstRaceReceiptId),
+      ));
+    expect(draftMovementsBeforeConfirmation).toHaveLength(0);
+
     const [firstDraftHeader] = await db.select().from(prejemniceTable)
       .where(eq(prejemniceTable.id, firstRaceReceiptId));
     const [secondDraft] = await db.insert(prejemniceTable).values({
