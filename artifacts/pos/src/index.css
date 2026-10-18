@@ -338,6 +338,10 @@
     break-inside: avoid-page;
     page-break-inside: avoid;
   }
+  .supplier-order-print__table tbody tr.supplier-order-print__row--fragmentable {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
   .supplier-order-print__table tbody { line-height: 1.2; }
   .supplier-order-print__table td strong { display: block; }
   .supplier-order-print__table td small {

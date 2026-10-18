@@ -322,27 +322,38 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
           </tr>
         </thead>
         <tbody>
-          {order.lines.map(line => (
-            <tr key={line.id} data-testid={`row-supplier-order-print-${line.id}`}>
-              <td>
-                <strong>{line.articleName}</strong>
-                {(line.supplierItemName || line.supplierCode) && (
-                  <small>{[line.supplierItemName, line.supplierCode].filter(Boolean).join(" · ")}</small>
-                )}
-              </td>
-              <td>
-                {line.packageName ?? "pakiranje"}
-                {line.packageFactor > 0 && line.baseUnit
-                  ? <small>1 pak. = {formatQty(line.packageFactor)} {line.baseUnit}</small>
-                  : null}
-              </td>
-              <td className="supplier-order-print__number">{formatQty(line.packageQuantity, 3)}</td>
-              <td className="supplier-order-print__number">{formatMoney(line.unitPrice)}</td>
-              <td className="supplier-order-print__number">
-                {line.unitPrice == null ? "—" : formatMoney(line.unitPrice * line.packageQuantity)}
-              </td>
-            </tr>
-          ))}
+          {order.lines.map(line => {
+            const printDetailsLength = line.articleName.length
+              + (line.supplierItemName?.length ?? 0)
+              + (line.supplierCode?.length ?? 0);
+            const canSplitAcrossPages = printDetailsLength > 2_500;
+
+            return (
+              <tr
+                key={line.id}
+                data-testid={`row-supplier-order-print-${line.id}`}
+                className={canSplitAcrossPages ? "supplier-order-print__row--fragmentable" : undefined}
+              >
+                <td>
+                  <strong>{line.articleName}</strong>
+                  {(line.supplierItemName || line.supplierCode) && (
+                    <small>{[line.supplierItemName, line.supplierCode].filter(Boolean).join(" · ")}</small>
+                  )}
+                </td>
+                <td>
+                  {line.packageName ?? "pakiranje"}
+                  {line.packageFactor > 0 && line.baseUnit
+                    ? <small>1 pak. = {formatQty(line.packageFactor)} {line.baseUnit}</small>
+                    : null}
+                </td>
+                <td className="supplier-order-print__number">{formatQty(line.packageQuantity, 3)}</td>
+                <td className="supplier-order-print__number">{formatMoney(line.unitPrice)}</td>
+                <td className="supplier-order-print__number">
+                  {line.unitPrice == null ? "—" : formatMoney(line.unitPrice * line.packageQuantity)}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
         <tfoot>
           <tr>

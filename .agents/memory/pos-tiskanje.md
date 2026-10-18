@@ -40,3 +40,11 @@ Firefox lahko pri izluščanju PDF-ja zaporedje »fi« predstavi kot Unicode lig
 **Why:** Različni brskalniki in pisave lahko enako besedilo kodirajo z združenimi glifi, zato natančna primerjava navadnega besedila po brskalnikih lahko napačno odpove.
 
 **How to apply:** Pred primerjavo PDF-besedila uporabi Unicode NFKC normalizacijo ali preveri ustrezne besede in geometrijo; ne sklepaj, da je besedilo manjkajoče samo zaradi ligature.
+
+## Vsebina celice, razdeljena med strani
+
+Pri dokazovanju popolnosti zelo dolge tiskane celice primerjaj geometrijske besede po stolpcu in po vrstnem redu strani; izloči ponovljene glave/noge, ne pa besed, ki jih je brskalnik razdelil na mejah strani. Pred primerjavo normaliziraj tipografske ligature, kot sta `ﬁ` in `ﬂ`.
+
+**Why:** Chromium in Firefox lahko prelomita dobaviteljevo šifro med strani, Firefoxov PDF pa lahko vsebuje ligaturne znake namesto zaporedja črk. Preprosto iskanje podniza zato lažno označi vidno besedilo kot manjkajoče.
+
+**How to apply:** Za večstranske celice sestavi besede iz posamezne stolpčne geometrije v vrstnem redu strani in posebej preveri, da se noben besedni okvir ne prekriva z drugim.

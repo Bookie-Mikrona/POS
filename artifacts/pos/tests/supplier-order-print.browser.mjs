@@ -24,6 +24,14 @@ const tallSupplierDetails = Array.from({ length: 6 }, (_, index) =>
   `TALL-SUPPLIER-DETAIL-${String(index + 1).padStart(3, "0")} Supplier reference, packaging, origin, and delivery information for this exceptionally large ordered item.`,
 ).join(" ");
 const tallSupplierCode = `TALL-SUPPLIER-CODE-START-${"R7Q".repeat(36)}-TALL-SUPPLIER-CODE-END`;
+const oversizedArticleDetails = Array.from({ length: 120 }, (_, index) =>
+  `OVERSIZED-ARTICLE-DETAIL-${String(index + 1).padStart(3, "0")} Complete product specification, storage requirements, handling instructions, quality certification, and delivery preparation information.`,
+).join(" ");
+const oversizedSupplierDetails = Array.from({ length: 80 }, (_, index) =>
+  `OVERSIZED-SUPPLIER-DETAIL-${String(index + 1).padStart(3, "0")} Supplier item reference, package description, origin, quality assurance, delivery instructions, and product traceability details.`,
+).join(" ");
+const oversizedSupplierCode =
+  `OVERSIZED-SUPPLIER-CODE-START-${"R7Q".repeat(300)}-OVERSIZED-SUPPLIER-CODE-END`;
 const originalEnv = {
   PORT: process.env.PORT,
   BASE_PATH: process.env.BASE_PATH,
@@ -59,7 +67,19 @@ function run(command, args) {
 }
 
 function normalizeText(value) {
-  return value.normalize("NFC").replace(/[\s\u00a0\u202f]+/g, " ").trim();
+  return value
+    .normalize("NFC")
+    .replace(/[\uFB00-\uFB06]/g, ligature => ({
+      "\uFB00": "ff",
+      "\uFB01": "fi",
+      "\uFB02": "fl",
+      "\uFB03": "ffi",
+      "\uFB04": "ffl",
+      "\uFB05": "st",
+      "\uFB06": "st",
+    })[ligature])
+    .replace(/[\s\u00a0\u202f]+/g, " ")
+    .trim();
 }
 
 function compactText(value) {
@@ -718,9 +738,107 @@ async function main() {
     assert(fullyUnpricedTotalLine?.includes("—"), "The fully unpriced order's subtotal placeholder is missing.");
     assert(!fullyUnpricedPage.includes("EMPTY-ORDER-CASE"), "The fully unpriced order was confused with the empty order.");
 
+    const oversizedOrderPageIndex = pages.findIndex(page => page.includes("OVERSIZED-ROW-ORDER-CASE"));
+    assert(oversizedOrderPageIndex >= 0, "The oversized-row order is missing from the PDF.");
+    assert.equal(
+      oversizedOrderPageIndex,
+      fullyUnpricedPageIndex + 1,
+      "The fully unpriced order produced an unexpected extra page before the oversized-row order.",
+    );
+    const firstOversizedArticlePageIndex = pages.findIndex(page => page.includes("OVERSIZED-ARTICLE-START"));
+    const lastOversizedArticlePageIndex = pages.findIndex(page => page.includes("OVERSIZED-ARTICLE-END"));
+    assert(
+      firstOversizedArticlePageIndex >= 0 && lastOversizedArticlePageIndex > firstOversizedArticlePageIndex,
+      "The oversized article text did not continue onto a later page.",
+    );
+    const oversizedSupplierPageIndexes = pages
+      .map((page, pageIndex) =>
+        compactText(page).includes("OVERSIZED-SUPPLIER-DETAIL-001")
+          || compactText(page).includes("OVERSIZED-SUPPLIER-DETAIL-080")
+          || compactText(page).includes("OVERSIZED-SUPPLIER-CODE-START")
+          || compactText(page).includes("OVERSIZED-SUPPLIER-CODE-END")
+          ? pageIndex
+          : -1)
+      .filter(pageIndex => pageIndex >= 0);
+    assert(
+      oversizedSupplierPageIndexes.length >= 2,
+      "The oversized supplier details and code did not continue across page fragments.",
+    );
     const boundingBoxes = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-bbox-layout", pdfPath, "-"]);
     const pdfPages = [...boundingBoxes.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)];
     assert.equal(pdfPages.length, pageCount, "PDF text geometry page count differs from pdfinfo.");
+    const oversizedRowEndPageIndex = pages.findIndex(page =>
+      compactText(page).includes("OVERSIZED-SUPPLIER-CODE-END"));
+    assert(
+      oversizedRowEndPageIndex > firstOversizedArticlePageIndex,
+      "The oversized supplier details and code did not continue across page fragments.",
+    );
+    const expectedOversizedRowText = compactText(
+      `OVERSIZED-ARTICLE-START ${oversizedArticleDetails} OVERSIZED-ARTICLE-END `
+        + `OVERSIZED-SUPPLIER-START ${oversizedSupplierDetails} OVERSIZED-SUPPLIER-END · ${oversizedSupplierCode}`,
+    );
+    const oversizedRowWords = [];
+    for (let pageIndex = firstOversizedArticlePageIndex; pageIndex <= oversizedRowEndPageIndex; pageIndex += 1) {
+      const pageMarkup = pdfPages[pageIndex];
+      assert(pageMarkup, `Oversized row fragment page ${pageIndex + 1} has no PDF geometry.`);
+      const pageAttributes = readAttributes(pageMarkup[1]);
+      const pageWords = readWords(pageMarkup[2]);
+      const articleStartWord = pageIndex === firstOversizedArticlePageIndex
+        ? pageWords.find(word => word.text === "OVERSIZED-ARTICLE-START")
+        : undefined;
+      const codeEndWord = pageIndex === oversizedRowEndPageIndex
+        ? pageWords.find(word => word.text.includes("CODE-END"))
+        : undefined;
+      if (pageIndex === firstOversizedArticlePageIndex) {
+        assert(articleStartWord, "The oversized article's first fragment has no PDF geometry.");
+      }
+      if (pageIndex === oversizedRowEndPageIndex) {
+        assert(codeEndWord, "The oversized supplier-code ending has no PDF geometry.");
+      }
+
+      const tableHeaderTokens = new Set(["ARTIKEL", "PAKIRANJE", "KOLIČINA", "PAKETOV", "CENA", "ZNESEK"]);
+      const tableHeaderWords = pageWords.filter(word =>
+        tableHeaderTokens.has(word.text.toLocaleUpperCase("sl")));
+      const packageHeader = tableHeaderWords.find(word =>
+        word.text.toLocaleUpperCase("sl") === "PAKIRANJE");
+      assert(packageHeader, `Oversized row fragment page ${pageIndex + 1} is missing its package column header.`);
+      const tableHeaderBottom = Math.max(...tableHeaderWords.map(word => Number(word.yMax)));
+      const firstColumnRightEdge = Number(packageHeader.xMin) - 1;
+      const firstVisibleY = articleStartWord
+        ? Number(articleStartWord.yMin) - 0.5
+        : tableHeaderBottom;
+      const lastVisibleY = codeEndWord ? Number(codeEndWord.yMax) + 0.5 : Number.POSITIVE_INFINITY;
+      oversizedRowWords.push(...pageWords.filter(word =>
+        Number(word.xMin) < firstColumnRightEdge
+          && Number(word.yMin) >= firstVisibleY
+          && Number(word.yMax) <= lastVisibleY)
+        .sort((left, right) =>
+          Number(left.yMin) - Number(right.yMin) || Number(left.xMin) - Number(right.xMin)));
+    }
+    const actualOversizedRowText = compactText(
+      oversizedRowWords.map(word => word.text).join(" "),
+    );
+    assert.equal(
+      actualOversizedRowText,
+      expectedOversizedRowText,
+      "The oversized article text, supplier details, or supplier code are clipped or missing between page fragments.",
+    );
+    const oversizedFirstFragmentWords = readWords(pdfPages[firstOversizedArticlePageIndex][2]);
+    const firstOversizedArticleWord = oversizedFirstFragmentWords.find(
+      word => word.text === "OVERSIZED-ARTICLE-START",
+    );
+    assert(firstOversizedArticleWord, "The oversized article's first fragment has no PDF geometry.");
+    const oversizedRowTopWords = oversizedFirstFragmentWords.filter(word =>
+      Math.abs(Number(word.yMin) - Number(firstOversizedArticleWord.yMin)) < 2);
+    assert(oversizedRowTopWords.some(word => word.text === "7"), "The oversized row is missing its quantity.");
+    assert(
+      oversizedRowTopWords.some(word => word.text === decimalToken(4.25)),
+      "The oversized row is missing its unit price.",
+    );
+    assert(
+      oversizedRowTopWords.some(word => word.text === decimalToken(29.75)),
+      "The oversized row is missing its amount.",
+    );
 
     for (const [pageIndex, page] of pages.entries()) {
       const pageMarkup = pdfPages[pageIndex];

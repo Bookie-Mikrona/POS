@@ -14,6 +14,15 @@ const tallSupplierDetails = Array.from({ length: 6 }, (_, index) =>
   `TALL-SUPPLIER-DETAIL-${String(index + 1).padStart(3, "0")} Supplier reference, packaging, origin, and delivery information for this exceptionally large ordered item.`,
 ).join(" ");
 const tallSupplierCode = `TALL-SUPPLIER-CODE-START-${"R7Q".repeat(36)}-TALL-SUPPLIER-CODE-END`;
+
+const oversizedArticleDetails = Array.from({ length: 120 }, (_, index) =>
+  `OVERSIZED-ARTICLE-DETAIL-${String(index + 1).padStart(3, "0")} Complete product specification, storage requirements, handling instructions, quality certification, and delivery preparation information.`,
+).join(" ");
+const oversizedSupplierDetails = Array.from({ length: 80 }, (_, index) =>
+  `OVERSIZED-SUPPLIER-DETAIL-${String(index + 1).padStart(3, "0")} Supplier item reference, package description, origin, quality assurance, delivery instructions, and product traceability details.`,
+).join(" ");
+const oversizedSupplierCode =
+  `OVERSIZED-SUPPLIER-CODE-START-${"R7Q".repeat(300)}-OVERSIZED-SUPPLIER-CODE-END`;
 const lines: SupplierOrderDetail["lines"] = Array.from({ length: lineCount }, (_, index) => {
   const number = index + 1;
   const paddedNumber = String(number).padStart(3, "0");
@@ -99,20 +108,34 @@ const noInstructionsLine: SupplierOrderDetail["lines"][number] = {
   openBaseQuantity: 3,
   unitPrice: 1.2,
 };
-const mixedPricedLine: SupplierOrderDetail["lines"][number] = {
-  ...oneRowLine,
+
+const oversizedRowLine: SupplierOrderDetail["lines"][number] = {
+  ...lines[0],
   id: 90_003,
   supplierMappingId: 90_003,
   articleId: 90_003,
+  articleName: `OVERSIZED-ARTICLE-START ${oversizedArticleDetails} OVERSIZED-ARTICLE-END`,
+  supplierItemName: `OVERSIZED-SUPPLIER-START ${oversizedSupplierDetails} OVERSIZED-SUPPLIER-END`,
+  supplierCode: oversizedSupplierCode,
+  packageQuantity: 7,
+  orderedBaseQuantity: 7,
+  openBaseQuantity: 7,
+  unitPrice: 4.25,
+};
+const mixedPricedLine: SupplierOrderDetail["lines"][number] = {
+  ...oneRowLine,
+  id: 90_004,
+  supplierMappingId: 90_004,
+  articleId: 90_004,
   articleName: "MIXED-PRICED-ARTICLE",
   supplierItemName: "MIXED-PRICED-SUPPLIER-ITEM",
   supplierCode: "MIXED-PRICED-SUPPLIER-CODE",
 };
 const mixedUnpricedLine: SupplierOrderDetail["lines"][number] = {
   ...oneRowLine,
-  id: 90_004,
-  supplierMappingId: 90_004,
-  articleId: 90_004,
+  id: 90_005,
+  supplierMappingId: 90_005,
+  articleId: 90_005,
   articleName: "MIXED-UNPRICED-ARTICLE",
   supplierItemName: "MIXED-UNPRICED-SUPPLIER-ITEM",
   supplierCode: "MIXED-UNPRICED-SUPPLIER-CODE",
@@ -123,9 +146,9 @@ const mixedUnpricedLine: SupplierOrderDetail["lines"][number] = {
 };
 const fullyUnpricedLine: SupplierOrderDetail["lines"][number] = {
   ...mixedUnpricedLine,
-  id: 90_005,
-  supplierMappingId: 90_005,
-  articleId: 90_005,
+  id: 90_006,
+  supplierMappingId: 90_006,
+  articleId: 90_006,
   articleName: "FULLY-UNPRICED-ARTICLE",
   supplierItemName: "FULLY-UNPRICED-SUPPLIER-ITEM",
   supplierCode: "FULLY-UNPRICED-SUPPLIER-CODE",
@@ -190,6 +213,18 @@ const shortOrders: SupplierOrderDetail[] = [
     internalNotes: null,
     supplierNotes: null,
     lines: [fullyUnpricedLine],
+  },
+  {
+    ...order,
+    id: 954,
+    number: "OVERSIZED-ROW-ORDER-CASE",
+    supplierId: "supplier-oversized-row-test",
+    supplierName: "Dobavitelj postavke višje od tiskalne strani",
+    lineCount: 1,
+    openQuantity: 7,
+    internalNotes: null,
+    supplierNotes: null,
+    lines: [oversizedRowLine],
   },
 ];
 
