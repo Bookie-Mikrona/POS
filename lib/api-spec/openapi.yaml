@@ -20590,6 +20590,7 @@ components:
         supplierName: { type: string }
         supplierItemName: { type: [string, "null"] }
         supplierCode: { type: [string, "null"] }
+        supplierGtin: { type: [string, "null"] }
         packageName: { type: [string, "null"] }
         packageFactor: { type: number }
         lastPackagePrice: { type: [number, "null"] }
@@ -20825,6 +20826,7 @@ components:
         articleName: { type: string }
         supplierItemName: { type: [string, "null"] }
         supplierCode: { type: [string, "null"] }
+        supplierGtin: { type: [string, "null"] }
         packageQuantity: { type: number }
         packageFactor: { type: number }
         currentPackageFactor: { type: [number, "null"] }

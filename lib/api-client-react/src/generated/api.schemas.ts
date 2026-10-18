@@ -8469,6 +8469,8 @@ export interface SupplierItemMapping {
   /** @nullable */
   supplierCode?: string | null;
   /** @nullable */
+  supplierGtin?: string | null;
+  /** @nullable */
   packageName?: string | null;
   packageFactor: number;
   /** @nullable */
@@ -8734,6 +8736,8 @@ export interface SupplierOrderLine {
   supplierItemName: string | null;
   /** @nullable */
   supplierCode?: string | null;
+  /** @nullable */
+  supplierGtin?: string | null;
   packageQuantity: number;
   packageFactor: number;
   /** @nullable */

@@ -417,7 +417,8 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
           {order.lines.map(line => {
             const printDetailsLength = line.articleName.length
               + (line.supplierItemName?.length ?? 0)
-              + (line.supplierCode?.length ?? 0);
+              + (line.supplierCode?.length ?? 0)
+              + (line.supplierGtin?.length ?? 0);
             const canSplitAcrossPages = printDetailsLength > 2_500;
 
             return (
@@ -428,8 +429,8 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
               >
                 <td>
                   <strong>{line.articleName}</strong>
-                  {(line.supplierItemName || line.supplierCode) && (
-                    <small>{[line.supplierItemName, line.supplierCode].filter(Boolean).join(" · ")}</small>
+                  {(line.supplierItemName || line.supplierCode || line.supplierGtin) && (
+                    <small>{[line.supplierItemName, line.supplierCode, line.supplierGtin ? `EAN ${line.supplierGtin}` : null].filter(Boolean).join(" · ")}</small>
                   )}
                 </td>
                 <td>
@@ -1851,7 +1852,7 @@ export default function NarocilaDobaviteljem() {
                 return <tr key={`${row.supplierMappingId}-${index}`}>
                   <td className="px-3 py-3">
                     <div className="font-semibold text-[#344d45]">{article?.articleName ?? "Artikel"}</div>
-                    <div className="text-xs text-[#7b867f]">{mapping?.supplierItemName ?? article?.purchaseName ?? mapping?.packageName ?? "Dobaviteljska postavka"} · faktor {formatQty(mapping?.packageFactor)}</div>
+                    <div className="text-xs text-[#7b867f]">{[mapping?.supplierItemName ?? article?.purchaseName ?? mapping?.packageName ?? "Dobaviteljska postavka", mapping?.supplierCode ? `šifra ${mapping.supplierCode}` : null, mapping?.supplierGtin ? `EAN ${mapping.supplierGtin}` : null].filter(Boolean).join(" · ")} · faktor {formatQty(mapping?.packageFactor)}</div>
                     {savingsLine && article?.baseUnit?.trim() && (
                       <div
                         data-testid={`supplier-draft-savings-${row.supplierMappingId}`}
@@ -1938,7 +1939,7 @@ export default function NarocilaDobaviteljem() {
                 setOrderEditor({ ...orderEditor, rows: [...orderEditor.rows, { supplierMappingId: mappingId, packageQuantity: article?.suggestedPackageQuantity && mappingId === article.preferredMappingId ? article.suggestedPackageQuantity : 1, unitPrice: mapping.lastPackagePrice ?? undefined }] });
               }} disabled={!orderEditor.supplierId} className="mt-1.5 h-10 w-full rounded-lg border border-[#dcd4c6] bg-white px-3 text-sm font-normal text-[#344b43]">
                 <option value="">Izberi aktivno pakiranje…</option>
-                {articles.flatMap(article => article.mappings.filter(mapping => mapping.active && mapping.supplierId === orderEditor.supplierId).map(mapping => <option key={mapping.id} value={mapping.id}>{article.articleName} · {mapping.packageName ?? mapping.supplierItemName ?? "pakiranje"}</option>))}
+                {articles.flatMap(article => article.mappings.filter(mapping => mapping.active && mapping.supplierId === orderEditor.supplierId).map(mapping => <option key={mapping.id} value={mapping.id}>{mapping.supplierItemName?.trim() ? `${mapping.supplierItemName.trim()}${mapping.supplierCode ? ` [${mapping.supplierCode}]` : ""} · ${mapping.packageName ?? "pakiranje"} (${article.articleName})` : `${article.articleName} · ${mapping.packageName ?? "pakiranje"}`}</option>))}
               </select>
             </label>
           </div>
@@ -2086,7 +2087,7 @@ export default function NarocilaDobaviteljem() {
               <table className="w-full min-w-[680px] text-left text-sm">
                 <thead className="bg-[#f7f4ec] text-[10px] font-bold uppercase tracking-[.12em] text-[#748078]"><tr><th className="px-3 py-2.5">Artikel</th><th className="px-3 py-2.5">Pakiranje</th><th className="px-3 py-2.5 text-right">Naročeno</th><th className="px-3 py-2.5 text-right">Prejeto</th><th className="px-3 py-2.5 text-right">Odprto</th></tr></thead>
                 <tbody className="divide-y divide-[#eee8dc]">{orderDetail.lines.map(line => <tr key={line.id} data-testid={`row-order-line-${line.id}`}>
-                  <td className="px-3 py-3"><div className="font-semibold text-[#344d45]">{line.articleName}</div><div className="text-xs text-[#818a83]">{line.supplierItemName ?? line.supplierCode ?? ""}</div></td>
+                  <td className="px-3 py-3"><div className="font-semibold text-[#344d45]">{line.articleName}</div><div className="text-xs text-[#818a83]">{[line.supplierItemName, line.supplierCode, line.supplierGtin ? `EAN ${line.supplierGtin}` : null].filter(Boolean).join(" · ")}</div></td>
                   <td className="px-3 py-3 text-xs text-[#69766e]">{formatQty(line.packageQuantity)} × {line.packageName ?? "pak."} <span className="text-[#9aa19b]">({formatQty(line.packageFactor)} {line.baseUnit})</span></td>
                   <td className="data-mono px-3 py-3 text-right">{formatQty(line.orderedBaseQuantity)} {line.baseUnit}</td>
                    <td className="data-mono px-3 py-3 text-right text-[#46705e]">
