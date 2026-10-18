@@ -1082,6 +1082,26 @@ describe("POS supplier ordering and linked receipt flow", () => {
     }).returning({ id: artikelDobaviteljTable.id });
     mappingIds.push(mappingA.id);
 
+    const [supplierASecond] = await db.insert(counterpartiesTable).values({
+      companyId,
+      type: "supplier",
+      name: `Second supplier for shared article ${run}`,
+    }).returning({ id: counterpartiesTable.id });
+    extraSupplierIds.push(supplierASecond.id);
+    const [mappingASecondSupplier] = await db.insert(artikelDobaviteljTable).values({
+      enotaId,
+      artikelId: articleA.id,
+      dobaviteljId: supplierASecond.id,
+      sifraDobavitelja: `SUP-A-SECOND-${run}`,
+      nazivDobavitelja: "Second supplier pack",
+      enotVPaketu: "6",
+      nazivPaketa: "paket drugega dobavitelja",
+      zadnjaCenaPaket: "6",
+      zadnjaCenaEnota: "1",
+      aktivno: true,
+    }).returning({ id: artikelDobaviteljTable.id });
+    mappingIds.push(mappingASecondSupplier.id);
+
     const [articleAOther] = await db.insert(artikliTable).values({
       enotaId,
       ime: `Unit A other mapping article ${run}`,
@@ -1256,6 +1276,14 @@ describe("POS supplier ordering and linked receipt flow", () => {
         unitPrice: 2,
         date: "2026-10-19",
       });
+      const sourceASecondSupplier = await createConfirmedSource({
+        unitId: enotaId,
+        articleId: articleA.id,
+        supplierMappingId: mappingASecondSupplier.id,
+        supplierId: supplierASecond.id,
+        unitPrice: 99.9,
+        date: "2026-10-23",
+      });
       const sameDateHigherIdSourceA = await createConfirmedSource({
         unitId: enotaId,
         articleId: articleA.id,
@@ -1417,6 +1445,16 @@ describe("POS supplier ordering and linked receipt flow", () => {
         date: sourceAOther.date,
         receiptNumber: sourceAOther.receiptNumber,
       });
+      const sourcesIncludingSecondSupplier = await getLatestSupplierPriceReceipts(
+        db,
+        enotaId,
+        [mappingA.id, mappingASecondSupplier.id],
+      );
+      expect(sourcesIncludingSecondSupplier.get(mappingASecondSupplier.id)).toEqual({
+        receiptId: sourceASecondSupplier.receiptId,
+        date: sourceASecondSupplier.date,
+        receiptNumber: sourceASecondSupplier.receiptNumber,
+      });
       expect(sourcesForA.has(mappingB.id)).toBe(false);
 
       const sourcesForB = await getLatestSupplierPriceReceipts(db, unitB.id, [mappingA.id, mappingB.id]);
@@ -1514,6 +1552,30 @@ describe("POS supplier ordering and linked receipt flow", () => {
       expect(mappingInA.priceHistory.map((entry: any) => entry.receiptId)).not.toContain(manualReceiptId);
       expect(mappingInA.priceHistory.map((entry: any) => entry.receiptId))
         .not.toContain(olderHistorySourcesA[2]!.receiptId);
+      expect(mappingInA.priceHistory.map((entry: any) => entry.receiptId))
+        .not.toContain(sourceASecondSupplier.receiptId);
+      expect(mappingInA.lastPriceReceipt.receiptId).not.toBe(sourceASecondSupplier.receiptId);
+
+      const mappingASecondSupplierInDashboard = dashboardA.body.articles
+        .find((row: any) => row.articleId === articleA.id).mappings
+        .find((mapping: any) => mapping.id === mappingASecondSupplier.id);
+      expect(mappingASecondSupplierInDashboard.lastPackagePrice)
+        .toBeCloseTo(sourceASecondSupplier.packagePrice, 6);
+      expect(mappingASecondSupplierInDashboard).toMatchObject({
+        lastPriceReceipt: {
+          receiptId: sourceASecondSupplier.receiptId,
+          date: sourceASecondSupplier.date,
+          receiptNumber: sourceASecondSupplier.receiptNumber,
+        },
+        priceHistory: [{
+          receiptId: sourceASecondSupplier.receiptId,
+          date: sourceASecondSupplier.date,
+          receiptNumber: sourceASecondSupplier.receiptNumber,
+          unitPrice: sourceASecondSupplier.unitPrice,
+        }],
+      });
+      expect(mappingASecondSupplierInDashboard.priceHistory.map((entry: any) => entry.receiptId))
+        .not.toContain(sourceA.receiptId);
 
       const mappingAOtherInDashboard = dashboardA.body.articles
         .find((row: any) => row.articleId === articleAOther.id).mappings
