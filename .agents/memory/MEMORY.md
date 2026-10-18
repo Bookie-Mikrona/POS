@@ -11,7 +11,7 @@
 - [POS kartične reference](pos-karticne-reference.md) — SumUp/Viva referenco je treba atomsko globalno rezervirati pred FURS klicem v vseh računskih tokovih
 - [Prikaz cene To Go embalaže](pos-embalaza-cenovni-prikaz.md) — cena je le prikazno pri staršu, računovodska/DDV vrstica ostane ločena; drugi dodatki ostanejo plačljivi.
 - [CTI žeton po enoti](cti-zeton-po-enoti.md) — dohodni MacroDroid klic se enolično veže na aktivno enoto prek lastnega žetona, nikoli prek telesa ali skupne skrivnosti
-- [POS interakcije obrazcev in zgodovine](pos-ui-interactions.md) — preveri posebna pravila tipk, dialogov, izbirnikov datotek in Back/Forward.
+- [POS interakcije in navigacija](pos-ui-interactions.md) — [forme](form-navigation.md), [Escape](escape-dropdown-dialog.md), [izbirnik](native-file-picker-dialog.md): preveri tipke, fokus in zapiranje modalov.
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
 - [Nabavna vs. prodajna DDV](nabavna-prodajna-ddv.md) — razlika je sistemska in zakonita; nikoli ne primerjaj davek z taxCategory
 - [Samodejni normativi pijač](automatic-drink-normatives.md) — novi samo prodajni alkohol/hladna pijača s prostornino dobi normativ; neznana nabavna prostornina pomeni 1 l.
@@ -140,6 +140,7 @@
 - [Receptne pretvorbe žličk](recipe-spoon-gram-conversions.md) — bogat ščepec soli 1 g; ½ žličke pecilnega praška 2,5 g; poravnana žlička cimeta 4 g.
 - [Obseg razvojnega okolja](development-environment-scope.md) — uporabnik dela izključno v dev; neskladje z naslovom na posnetku najprej razjasni, ne diagnosticiraj drugega okolja.
 - [Razvojna orodja in okolje](development-tooling-guides.md) — zaganjalniki, TypeScript, OpenAPI, paketi, razvojni 502, preizkusi in poti prenosov.
+- [Orval privzete vrednosti query](orval-query-defaults.md) — OpenAPI query privzeto vrednost obdrži v strežniku, če jo generirani Zod uporabi pred deklaracijo.
 - [Vite browser test mocks](vite-browser-test-mocks.md) — alias resolution and prebundling can bypass bare-import test hooks; isolate mocks from normal authentication.
 - [Shared SMTP identity](shared-smtp-identity.md) — the central Mikrona relay serves multiple companies; recipients must see the document owner's business identity.
 - [Avtomatizacija brez ročnih vnosov](avtomatizacija-brez-rocnih-vnosov.md) — privzeto samodejno, ročni vnos le za popravek; sprašuj le pri nepovratnem ali dvoumnem
@@ -150,3 +151,10 @@
 - [CSV in preglednice](csv-spreadsheet-safety.md) — varnost prvotnega izvoza ne zagotavlja varnosti po ponovnem shranjevanju v Excelu.
 - [Odzivnost izvozov poročil](report-export-responsiveness.md) — meri tudi prehode stanja in klike; ločena nit ne odpravi blokade zaradi ponovnega izrisa tabele.
 - [Validacija ob vzporednih združitvah](parallel-merge-validation.md) — pred popravljanjem napake v drugem paketu preveri trenutno vsebino in zadnje združitve; napaka je lahko sveže vnesena.
+- [Hrana, recepti, meni in QR](food-menu-recipes-index.md) — kazalo pravil za recepte, alergene, meni, sestavljene jedi, pice, QR goste in povratne informacije.
+- [Kartično plačilo darilnega bona](gift-voucher-card-payment.md) — gift intent preživi reload; provider se preveri pred FURS, attempt pa se lahko porabi le enkrat.
+- [Stripe boni po gostincu](stripe-boni-po-gostincu.md) — spletni bon uporablja neposredno plačilo povezanega računa podjetja; brez povezave ni platformskega nadomestnega plačila.
+- [Stripe operativna e-pošta](stripe-operational-email.md) — SMTP ne sme zadrževati odgovora webhooka; sprejem sporočila še ni dokaz dostave v predal.
+- [POS unovčenje spletnega bona](pos-spletni-bon-unovcenje.md) — bon se rezervira skupaj z računom pred FURS; neznan izid zadrži rezervacijo, kartica in bon pa nista dovoljena skupaj.
+- [Stripe operativna obvestila](stripe-operational-notifications.md) — rezervni kanal ne sme obiti skupnega cooldowna; dostava je namenoma best-effort.
+- [Pregled testov po rebazu](test-file-merge-checks.md) — čist samodejni merge ne zagotavlja, da so testi ostali v pravem obsegu; preveri celoten diff in meje testov.

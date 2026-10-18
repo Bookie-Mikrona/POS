@@ -5805,6 +5805,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SupplierOrderDashboard"
+  /narocila-dobaviteljem/povezave/{mappingId}/cene:
+    get:
+      operationId: getSupplierPriceHistoryPage
+      tags: [nabava]
+      summary: Naloži starejše potrjene cene za dobaviteljsko povezavo
+      parameters:
+        - name: mappingId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: beforeDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: beforeReceiptId
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 20 }
+      responses:
+        "200":
+          description: Stran starejših potrjenih cen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierPriceHistoryPage"
+        "400":
+          description: Neveljaven kazalec strani
+        "404":
+          description: Dobaviteljska povezava ni najdena v aktivni enoti
   /narocila-dobaviteljem/artikli/{artikelId}/nastavitve:
     put:
       operationId: saveSupplierReorderSettings
@@ -20429,9 +20462,27 @@ components:
         date: { type: string, format: date }
         receiptNumber: { type: string }
         unitPrice: { type: number }
+    SupplierPriceHistoryCursor:
+      type: object
+      required: [date, receiptId]
+      properties:
+        date: { type: string, format: date }
+        receiptId: { type: integer }
+    SupplierPriceHistoryPage:
+      type: object
+      required: [entries, hasMore, nextCursor]
+      properties:
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierPriceHistoryEntry" }
+        hasMore: { type: boolean }
+        nextCursor:
+          oneOf:
+            - $ref: "#/components/schemas/SupplierPriceHistoryCursor"
+            - type: "null"
     SupplierItemMapping:
       type: object
-      required: [id, supplierId, supplierName, packageFactor, lastUnitPrice, lastPriceReceipt, priceHistory, active]
+      required: [id, supplierId, supplierName, packageFactor, lastUnitPrice, lastPriceReceipt, priceHistory, hasOlderPriceHistory, active]
       properties:
         id: { type: integer }
         supplierId: { type: string }
@@ -20453,6 +20504,7 @@ components:
           type: array
           description: Do pet najnovejših potrjenih prejemnic, razvrščenih po datumu padajoče.
           items: { $ref: "#/components/schemas/SupplierPriceHistoryEntry" }
+        hasOlderPriceHistory: { type: boolean }
         active: { type: boolean }
     SupplierReorderArticle:
       type: object

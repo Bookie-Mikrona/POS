@@ -11091,6 +11091,7 @@ export const GetSupplierOrderDashboardResponse = zod.object({
   "receiptNumber": zod.string(),
   "unitPrice": zod.number()
 }).describe('Potrjena cena iz prejemnice, izražena na osnovno enoto artikla.')).describe('Do pet najnovejših potrjenih prejemnic, razvrščenih po datumu padajoče.'),
+  "hasOlderPriceHistory": zod.boolean(),
   "active": zod.boolean()
 }))
 })),
@@ -11107,6 +11108,42 @@ export const GetSupplierOrderDashboardResponse = zod.object({
   "internalNotes": zod.string().nullable().describe('Interna opomba; ne natisne se.'),
   "supplierNotes": zod.string().nullable().describe('Navodilo za dobavitelja; natisne se na naročilu.')
 }))
+})
+
+
+/**
+ * @summary Naloži starejše potrjene cene za dobaviteljsko povezavo
+ */
+
+
+
+export const GetSupplierPriceHistoryPageParams = zod.object({
+  "mappingId": zod.coerce.number().min(1)
+})
+
+
+export const getSupplierPriceHistoryPageQueryLimitMax = 20;
+
+
+
+export const GetSupplierPriceHistoryPageQueryParams = zod.object({
+  "beforeDate": zod.date(),
+  "beforeReceiptId": zod.coerce.number().min(1),
+  "limit": zod.coerce.number().min(1).max(getSupplierPriceHistoryPageQueryLimitMax).optional()
+})
+
+export const GetSupplierPriceHistoryPageResponse = zod.object({
+  "entries": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "date": zod.coerce.date(),
+  "receiptNumber": zod.string(),
+  "unitPrice": zod.number()
+}).describe('Potrjena cena iz prejemnice, izražena na osnovno enoto artikla.')),
+  "hasMore": zod.boolean(),
+  "nextCursor": zod.union([zod.object({
+  "date": zod.coerce.date(),
+  "receiptId": zod.number()
+}),zod.null()])
 })
 
 

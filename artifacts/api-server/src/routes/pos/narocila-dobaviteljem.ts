@@ -3,6 +3,10 @@ import { Router, type IRouter, type NextFunction, type Request, type Response } 
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
+  GetSupplierPriceHistoryPageParams,
+  GetSupplierPriceHistoryPageResponse,
+} from "@workspace/api-zod";
+import {
   artikelDobaviteljTable,
   artikliTable,
   counterpartiesTable,
@@ -69,6 +73,17 @@ const reorderSettingsInput = z.object({
   preferredMappingId: z.number().int().positive().nullable(),
 }).refine(value => value.targetStock > value.reorderPoint, {
   message: "Ciljna zaloga mora biti višja od praga ponovnega naročila.",
+});
+
+const supplierPriceHistoryPageQuery = z.object({
+  beforeDate: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(value => {
+      const date = new Date(`${value}T00:00:00.000Z`);
+      return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+    }),
+  beforeReceiptId: z.coerce.number().int().positive(),
+  limit: z.coerce.number().int().min(1).max(20).default(5),
 });
 
 function requirePurchasingManager(req: Request, res: Response, next: NextFunction): void {
@@ -540,6 +555,7 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
     db,
     enotaId,
     mappingRows.map(mapping => mapping.id),
+    6,
   );
   const mappingsByArticle = new Map<number, typeof mappingRows>();
   for (const mapping of mappingRows) {
@@ -578,7 +594,8 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
       preferredMappingId,
       hasSuggestion: needsOrder,
       mappings: mappings.map(mapping => {
-        const priceHistory = priceHistories.get(mapping.id) ?? [];
+        const availablePrices = priceHistories.get(mapping.id) ?? [];
+        const priceHistory = availablePrices.slice(0, 5);
         const latestPriceReceipt = priceHistory[0];
         return {
           id: mapping.id,
@@ -602,6 +619,7 @@ router.get("/narocila-dobaviteljem/pregled", async (req, res): Promise<void> => 
               }
             : null,
           priceHistory: priceHistory.map(({ unitPriceDecimal: _unitPriceDecimal, ...entry }) => entry),
+          hasOlderPriceHistory: availablePrices.length > 5,
           active: mapping.active,
         };
       }),
@@ -662,6 +680,71 @@ router.get("/narocila-dobaviteljem/preslikave/:mappingId/zgodovina.csv", async (
     `attachment; filename="dobaviteljske-cene-${mappingId}.csv"`,
   );
   res.send(`\uFEFF${rows.map(row => row.map(csvCell).join(";")).join("\r\n")}\r\n`);
+});
+
+router.get("/narocila-dobaviteljem/povezave/:mappingId/cene", async (req, res): Promise<void> => {
+  const { enotaId, companyId } = requestScope(req);
+  const parsedParams = GetSupplierPriceHistoryPageParams.safeParse(req.params);
+  const parsedQuery = supplierPriceHistoryPageQuery.safeParse(req.query);
+  if (!parsedParams.success || !parsedQuery.success) {
+    res.status(400).json({ error: "Neveljaven kazalec zgodovine cen." });
+    return;
+  }
+
+  const mappingId = parsedParams.data.mappingId;
+  const [mapping] = await db.select({ id: artikelDobaviteljTable.id })
+    .from(artikelDobaviteljTable)
+    .innerJoin(artikliTable, eq(artikliTable.id, artikelDobaviteljTable.artikelId))
+    .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, artikelDobaviteljTable.dobaviteljId))
+    .where(and(
+      eq(artikelDobaviteljTable.id, mappingId),
+      eq(artikelDobaviteljTable.enotaId, enotaId),
+      eq(artikelDobaviteljTable.aktivno, true),
+      eq(artikliTable.enotaId, enotaId),
+      eq(artikliTable.nabavniArtikel, true),
+      eq(artikliTable.aktiven, true),
+      eq(artikliTable.povratnaEmbalaza, false),
+      eq(counterpartiesTable.companyId, companyId),
+    ))
+    .limit(1);
+  if (!mapping) {
+    res.status(404).json({ error: "Dobaviteljska povezava ni najdena." });
+    return;
+  }
+
+  const { beforeDate, beforeReceiptId, limit } = parsedQuery.data;
+  const history = await getSupplierPriceHistory(
+    db,
+    enotaId,
+    [mappingId],
+    limit + 1,
+    { date: beforeDate, receiptId: beforeReceiptId },
+  );
+  const availableEntries = history.get(mappingId) ?? [];
+  const entries = availableEntries.slice(0, limit);
+  const hasMore = availableEntries.length > limit;
+  const nextCursor = hasMore && entries.length > 0
+    ? { date: entries[entries.length - 1]!.date, receiptId: entries[entries.length - 1]!.receiptId }
+    : null;
+  const parsedResponse = GetSupplierPriceHistoryPageResponse.parse({
+    entries,
+    hasMore,
+    nextCursor,
+  });
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    ...parsedResponse,
+    entries: parsedResponse.entries.map(entry => ({
+      ...entry,
+      date: entry.date.toISOString().slice(0, 10),
+    })),
+    nextCursor: parsedResponse.nextCursor
+      ? {
+          ...parsedResponse.nextCursor,
+          date: parsedResponse.nextCursor.date.toISOString().slice(0, 10),
+        }
+      : null,
+  });
 });
 
 router.put("/narocila-dobaviteljem/artikli/:artikelId/nastavitve", async (req, res): Promise<void> => {

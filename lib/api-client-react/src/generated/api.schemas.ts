@@ -8436,6 +8436,17 @@ export interface SupplierPriceHistoryEntry {
   unitPrice: number;
 }
 
+export interface SupplierPriceHistoryCursor {
+  date: string;
+  receiptId: number;
+}
+
+export interface SupplierPriceHistoryPage {
+  entries: SupplierPriceHistoryEntry[];
+  hasMore: boolean;
+  nextCursor: SupplierPriceHistoryCursor | null;
+}
+
 /**
  * @nullable
  */
@@ -8464,6 +8475,7 @@ export interface SupplierItemMapping {
   lastPriceReceipt: SupplierItemMappingLastPriceReceipt;
   /** Do pet najnovejših potrjenih prejemnic, razvrščenih po datumu padajoče. */
   priceHistory: SupplierPriceHistoryEntry[];
+  hasOlderPriceHistory: boolean;
   active: boolean;
 }
 
@@ -14711,6 +14723,19 @@ datumDo?: string;
 
 export type ListZalogaGibiParams = {
 artikelId?: number;
+};
+
+export type GetSupplierPriceHistoryPageParams = {
+beforeDate: string;
+/**
+ * @minimum 1
+ */
+beforeReceiptId: number;
+/**
+ * @minimum 1
+ * @maximum 20
+ */
+limit?: number;
 };
 
 export type ListSupplierOrdersMissingInstructionsParams = {

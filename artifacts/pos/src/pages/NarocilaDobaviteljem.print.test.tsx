@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   createOrder: vi.fn(),
   updateOrder: vi.fn(),
   navigate: vi.fn(),
+  supplierPriceHistoryPage: vi.fn(),
   aroundNavigation: null as any,
   supplierOrderSummaries: null as any[] | null,
   supplierOrderListFetches: [] as Array<{ status?: string; missingSupplierInstructionsOnly?: boolean }>,
@@ -87,6 +88,7 @@ const mocks = vi.hoisted(() => ({
           { receiptId: 7044, date: "2026-10-17", receiptNumber: "26100001", unitPrice: 3.75 },
           { receiptId: 7032, date: "2026-10-10", receiptNumber: "26000099", unitPrice: 3.25 },
         ],
+        hasOlderPriceHistory: false,
         active: true,
       }],
     }],
@@ -138,6 +140,11 @@ vi.mock("@workspace/api-client-react", async () => {
         refetch: vi.fn(),
       };
     },
+    useGetSupplierPriceHistoryPage: (mappingId: number, params: any, options: any) => useQuery({
+      queryKey: actual.getGetSupplierPriceHistoryPageQueryKey(mappingId, params),
+      queryFn: () => mocks.supplierPriceHistoryPage(mappingId, params),
+      enabled: options?.query?.enabled ?? true,
+    }),
     useListSupplierOrders: (params?: { status?: string; missingSupplierInstructionsOnly?: boolean }) => {
       const getSummaries = () => {
         const summaries = mocks.supplierOrderSummaries ?? [{
@@ -346,6 +353,7 @@ describe("supplier order print view", () => {
     mocks.createOrder.mockImplementation((...args: any[]) => mocks.mutation(...args));
     mocks.updateOrder.mockReset();
     mocks.updateOrder.mockImplementation((...args: any[]) => mocks.mutation(...args));
+    mocks.supplierPriceHistoryPage.mockReset();
     mocks.navigate.mockReset();
     mocks.aroundNavigation = aroundPosNavigation;
     mocks.supplierOrderSummaries = null;
@@ -1364,6 +1372,37 @@ describe("supplier order print view", () => {
     } finally {
       mapping.priceHistory = originalPriceHistory;
     }
+  });
+
+  it("loads older supplier prices only when requested and appends the page", async () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    mapping.hasOlderPriceHistory = true;
+    mocks.supplierPriceHistoryPage.mockResolvedValue({
+      entries: [{
+        receiptId: 7021,
+        date: "2026-10-01",
+        receiptNumber: "26000098",
+        unitPrice: 3,
+      }],
+      hasMore: false,
+      nextCursor: null,
+    });
+    renderSupplierOrderPage();
+
+    const history = screen.getByTestId("price-history-7042");
+    fireEvent.click(within(history).getByText(/Zgodovina potrjenih cen/));
+    const loadOlder = within(history).getByTestId("price-history-load-older-7042");
+    expect(mocks.supplierPriceHistoryPage).not.toHaveBeenCalled();
+
+    fireEvent.click(loadOlder);
+    await waitFor(() => expect(mocks.supplierPriceHistoryPage).toHaveBeenCalledOnce());
+    expect(mocks.supplierPriceHistoryPage).toHaveBeenCalledWith(7042, {
+      beforeDate: "2026-10-10",
+      beforeReceiptId: 7032,
+      limit: 5,
+    });
+    expect(await within(history).findByText("Prejemnica št. 26000098")).toBeTruthy();
+    expect(within(history).queryByTestId("price-history-load-older-7042")).toBeNull();
   });
 
   it("highlights price increases, decreases, unchanged prices, and zero-price comparisons", () => {

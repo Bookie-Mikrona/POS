@@ -10,6 +10,7 @@ import {
 import {
   getGetSupplierOrderDashboardQueryKey,
   getGetSupplierOrderQueryKey,
+  getGetSupplierPriceHistoryPageQueryKey,
   getListSupplierOrdersQueryKey,
   getListSupplierOrdersMissingInstructionsQueryKey,
   useCancelSupplierOrder,
@@ -18,6 +19,7 @@ import {
   useCreateSupplierOrder,
   useGetSupplierOrder,
   useGetSupplierOrderDashboard,
+  useGetSupplierPriceHistoryPage,
   useListSupplierOrders,
   useListSupplierOrdersMissingInstructions,
   useMarkSupplierOrderSent,
@@ -442,6 +444,160 @@ function Metric({ label, value, caption, tone = "normal" }: { label: string; val
   </div>;
 }
 
+function SupplierPriceHistory({
+  mappingId,
+  initialEntries,
+  hasOlderInitially,
+  baseUnit,
+  onOpenReceipt,
+}: {
+  mappingId: number;
+  initialEntries: SupplierPriceHistoryEntry[];
+  hasOlderInitially: boolean;
+  baseUnit: string;
+  onOpenReceipt: (receiptId: number, receiptNumber: string) => void;
+}) {
+  const [entries, setEntries] = useState(initialEntries);
+  const [hasOlder, setHasOlder] = useState(hasOlderInitially);
+  const [requestCursor, setRequestCursor] = useState<{ date: string; receiptId: number } | null>(null);
+  const oldestEntry = entries[entries.length - 1];
+  const pageParams = {
+    beforeDate: requestCursor?.date ?? oldestEntry?.date ?? "1970-01-01",
+    beforeReceiptId: requestCursor?.receiptId ?? oldestEntry?.receiptId ?? 1,
+    limit: 5,
+  };
+  const { data: olderPage, isFetching, isError, refetch } = useGetSupplierPriceHistoryPage(
+    mappingId,
+    pageParams,
+    {
+      query: {
+        queryKey: getGetSupplierPriceHistoryPageQueryKey(mappingId, pageParams),
+        enabled: requestCursor !== null,
+      },
+    },
+  );
+
+  // Dashboard polling returns new array instances; reset loaded pages only when the
+  // newest-entries snapshot actually changes.
+  const initialSignature = initialEntries.map(entry => `${entry.receiptId}:${entry.date}:${entry.unitPrice}`).join("|");
+  useEffect(() => {
+    setEntries(initialEntries);
+    setHasOlder(hasOlderInitially);
+    setRequestCursor(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSignature, hasOlderInitially]);
+
+  useEffect(() => {
+    if (!olderPage || !requestCursor) return;
+    setEntries(current => {
+      const knownIds = new Set(current.map(entry => entry.receiptId));
+      return [...current, ...olderPage.entries.filter(entry => !knownIds.has(entry.receiptId))]
+        .sort((left, right) => (right.date ?? "").localeCompare(left.date ?? "") || right.receiptId - left.receiptId);
+    });
+    setHasOlder(olderPage.hasMore);
+  }, [olderPage, requestCursor]);
+
+  const loadOlder = () => {
+    if (requestCursor && isError) {
+      void refetch();
+      return;
+    }
+    if (oldestEntry?.date) {
+      setRequestCursor({ date: oldestEntry.date.slice(0, 10), receiptId: oldestEntry.receiptId });
+    }
+  };
+  const overallPriceChange = summarizePriceHistory(entries);
+
+  return initialEntries.length > 0
+    ? <details className="mt-1 text-xs text-[#68756e]" data-testid={`price-history-${mappingId}`}>
+      <summary className="cursor-pointer select-none font-medium text-[#40574f] hover:text-[#285d50]">
+        Zgodovina potrjenih cen ({entries.length}{hasOlder ? "+" : ""})
+      </summary>
+      {overallPriceChange && (
+        <div
+          className="mb-2 mt-2 rounded-md border border-[#d8dfd4] bg-[#f4f6f0] px-2.5 py-2"
+          data-testid={`price-history-overall-change-${mappingId}`}
+        >
+          <div className="font-semibold text-[#40574f]">
+            Skupna sprememba od najstarejše do najnovejše prikazane cene:
+          </div>
+          <div className={`mt-0.5 font-semibold ${overallPriceChange.className}`}>
+            {overallPriceChange.label} / {baseUnit}
+          </div>
+          <div className="mt-0.5 text-[11px] text-[#758078]">
+            Povzetek zajema samo prikazane prejemnice, ne celotne zgodovine dobavitelja.
+          </div>
+        </div>
+      )}
+      <ol className="mt-1 space-y-1 border-l border-[#dce4dd] pl-2">
+        {entries.map((entry, index) => {
+          const previousEntry = entries[index + 1];
+          const priceChange = previousEntry
+            ? comparePriceHistoryEntries(entry.unitPrice, previousEntry.unitPrice)
+            : null;
+          const historyPriceFreshness = supplierPriceFreshness(entry.date);
+          return (
+            <li key={`${entry.receiptId}-${entry.receiptNumber}`} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+              <div className="min-w-0">
+                <div>{formatReceiptDate(entry.date)} · {formatUnitMoney(entry.unitPrice)} / {baseUnit}</div>
+                {historyPriceFreshness === "stale" && (
+                  <div
+                    className="font-semibold text-amber-800"
+                    data-testid={`price-history-freshness-${mappingId}-${entry.receiptId}`}
+                  >
+                    Stara cena · {SUPPLIER_PRICE_STALE_AFTER_DAYS} dni ali več
+                  </div>
+                )}
+                {historyPriceFreshness === "unknown" && (
+                  <div
+                    className="font-medium text-stone-700"
+                    data-testid={`price-history-freshness-${mappingId}-${entry.receiptId}`}
+                  >
+                    Starost cene ni znana
+                  </div>
+                )}
+                {priceChange && (
+                  <div
+                    className={`font-medium ${priceChange.className}`}
+                    data-testid={`price-history-change-${mappingId}-${entry.receiptId}`}
+                    title="Sprememba glede na naslednjo starejšo potrjeno ceno"
+                  >
+                    Glede na prejšnjo potrjeno ceno: {priceChange.label}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                data-testid={`price-history-receipt-${mappingId}-${entry.receiptId}`}
+                aria-label={`Odpri prejemnico št. ${entry.receiptNumber}`}
+                onClick={() => onOpenReceipt(entry.receiptId, entry.receiptNumber)}
+                className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
+              >
+                Prejemnica št. {entry.receiptNumber}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      {hasOlder && (
+        <div className="mt-2">
+          <button
+            type="button"
+            data-testid={`price-history-load-older-${mappingId}`}
+            onClick={loadOlder}
+            disabled={isFetching}
+            className="rounded px-1 py-1 font-medium text-[#315247] underline decoration-dotted underline-offset-2 hover:text-[#183b32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50] disabled:cursor-wait disabled:opacity-60"
+          >
+            {isFetching ? "Nalaganje starejših cen …" : isError ? "Poskusi znova" : "Naloži starejše cene"}
+          </button>
+          {isError && <p role="alert" className="mt-1 text-rose-700">Starejših cen ni bilo mogoče naložiti.</p>}
+        </div>
+      )}
+    </details>
+    : <div className="mt-1 text-xs text-[#858d87]" data-testid={`price-history-empty-${mappingId}`}>
+      Ni potrjenih cen s povezano prejemnico.
+    </div>;
+}
 export default function NarocilaDobaviteljem() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -1349,82 +1505,14 @@ export default function NarocilaDobaviteljem() {
                           </div>}
                           {supplierMapping.priceHistory.length > 0
                             ? <div className="mt-1 flex flex-wrap items-start gap-x-3 gap-y-1 text-xs text-[#68756e]">
-                              <details data-testid={`price-history-${supplierMapping.id}`}>
-                              <summary className="cursor-pointer select-none font-medium text-[#40574f] hover:text-[#285d50]">
-                                Zgodovina potrjenih cen ({supplierMapping.priceHistory.length})
-                              </summary>
-                              {(() => {
-                                const overallPriceChange = summarizePriceHistory(supplierMapping.priceHistory);
-                                return overallPriceChange && (
-                                  <div
-                                    className="mb-2 mt-2 rounded-md border border-[#d8dfd4] bg-[#f4f6f0] px-2.5 py-2"
-                                    data-testid={`price-history-overall-change-${supplierMapping.id}`}
-                                  >
-                                    <div className="font-semibold text-[#40574f]">
-                                      Skupna sprememba od najstarejše do najnovejše prikazane cene:
-                                    </div>
-                                    <div className={`mt-0.5 font-semibold ${overallPriceChange.className}`}>
-                                      {overallPriceChange.label} / {article.baseUnit?.trim() || "enoto (ni določena)"}
-                                    </div>
-                                    <div className="mt-0.5 text-[11px] text-[#758078]">
-                                      Povzetek zajema samo prikazane prejemnice, ne celotne zgodovine dobavitelja.
-                                    </div>
-                                  </div>
-                                );
-                              })()}
-                              <ol className="mt-1 space-y-1 border-l border-[#dce4dd] pl-2">
-                                {supplierMapping.priceHistory.map((entry, historyIndex) => {
-                                  const previousEntry = supplierMapping.priceHistory[historyIndex + 1];
-                                  const priceChange = previousEntry
-                                    ? comparePriceHistoryEntries(entry.unitPrice, previousEntry.unitPrice)
-                                    : null;
-                                  const historyPriceFreshness = supplierPriceFreshness(entry.date);
-                                  return (
-                                    <li key={`${entry.receiptId}-${entry.receiptNumber}`} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-                                      <div className="min-w-0">
-                                        <div>
-                                          {formatReceiptDate(entry.date)} · {formatUnitMoney(entry.unitPrice)} / {article.baseUnit?.trim() || "enoto (ni določena)"}
-                                        </div>
-                                        {historyPriceFreshness === "stale" && (
-                                          <div
-                                            className="font-semibold text-amber-800"
-                                            data-testid={`price-history-freshness-${supplierMapping.id}-${entry.receiptId}`}
-                                          >
-                                            Stara cena · {SUPPLIER_PRICE_STALE_AFTER_DAYS} dni ali več
-                                          </div>
-                                        )}
-                                        {historyPriceFreshness === "unknown" && (
-                                          <div
-                                            className="font-medium text-stone-700"
-                                            data-testid={`price-history-freshness-${supplierMapping.id}-${entry.receiptId}`}
-                                          >
-                                            Starost cene ni znana
-                                          </div>
-                                        )}
-                                        {priceChange && (
-                                          <div
-                                            className={`font-medium ${priceChange.className}`}
-                                            data-testid={`price-history-change-${supplierMapping.id}-${entry.receiptId}`}
-                                            title="Sprememba glede na naslednjo starejšo potrjeno ceno"
-                                          >
-                                            Glede na prejšnjo potrjeno ceno: {priceChange.label}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <button
-                                        type="button"
-                                        data-testid={`price-history-receipt-${supplierMapping.id}-${entry.receiptId}`}
-                                        aria-label={`Odpri prejemnico št. ${entry.receiptNumber}`}
-                                        onClick={() => navigate(`/zaloge?prejemnica=${entry.receiptId}&nacin=ogled`)}
-                                        className="text-left underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
-                                      >
-                                        Prejemnica št. {entry.receiptNumber}
-                                      </button>
-                                    </li>
-                                  );
-                                })}
-                              </ol>
-                              </details>
+                              <SupplierPriceHistory
+                                key={supplierMapping.id}
+                                mappingId={supplierMapping.id}
+                                initialEntries={supplierMapping.priceHistory}
+                                hasOlderInitially={supplierMapping.hasOlderPriceHistory}
+                                baseUnit={article.baseUnit?.trim() || "enoto (ni določena)"}
+                                onOpenReceipt={receiptId => navigate(`/zaloge?prejemnica=${receiptId}&nacin=ogled`)}
+                              />
                               <button
                                 type="button"
                                 data-testid={`download-price-history-${supplierMapping.id}`}

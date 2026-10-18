@@ -226,9 +226,10 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const created = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      internalNotes: note,
-      supplierNotes: note,
-      lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
+      expectedDeliveryDate: "2026-11-05",
+      internalNotes: "Prvo naročilo",
+      supplierNotes: null,
+      lines: [{ supplierMappingId: mappingId, packageQuantity: 2, unitPrice: 20 }],
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     orderIds.push(created.body.id);
@@ -288,35 +289,38 @@ describe("POS supplier ordering and linked receipt flow", () => {
       unitPrice: 20,
     });
 
-    const createReceipt = async (lines: Array<{ articleId: number; orderLineId: number; quantity: number }>) => {
+    const createReceipt = async (
+      pricePerBaseUnit = 3,
+      linkedSupplierOrderLineId: number | null = lineId,
+    ) => {
+      const lineAmount = pricePerBaseUnit * 6;
       const response = await request(app).post("/prejemnice").send({
         dobaviteljId: supplierId,
         datum: "2026-10-17",
         vrstaCen: "neto",
         vrstaDokumenta: "DOBAVNICA",
-        brutoSkupaj: lines.reduce((total, line) => total + line.quantity * 5, 0),
-        postavke: lines.map(line => ({
-          artikelId: line.articleId,
-          supplierOrderLineId: line.orderLineId,
-          kolicina: line.quantity,
-          cenaKos: 5,
-          skupaj: line.quantity * 5,
+        brutoSkupaj: lineAmount,
+        postavke: [{
+          artikelId: articleId,
+          ...(linkedSupplierOrderLineId == null ? {} : { supplierOrderLineId: linkedSupplierOrderLineId }),
+          kolicina: 6,
+          cenaKos: pricePerBaseUnit,
+          skupaj: lineAmount,
           enotVPaketu: 1,
-          izvKolicina: line.quantity,
-          izvCena: 5,
+          izvKolicina: 6,
+          izvCena: pricePerBaseUnit,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
-        })),
+        }],
       });
       expect(response.status, JSON.stringify(response.body)).toBe(201);
       receiptIds.push(response.body.id);
+      expect(response.body.postavke[0].supplierOrderLineId)
+        .toBe(linkedSupplierOrderLineId);
       return response.body.id as number;
     };
 
-    const initialReceiptId = await createReceipt([
-      { articleId: fitsArticle.id, orderLineId: fitsOrderLine.id, quantity: 5 },
-    ]);
     const firstReceiptId = await createReceipt(3.5);
     await db.update(artikelDobaviteljTable)
       .set({ enotVPaketu: "10", nazivPaketa: "zaboj 10" })
@@ -737,11 +741,13 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       expectedDeliveryDate: "2026-11-07",
-      lines: mappings.map(mapping => ({ supplierMappingId: mapping.id, packageQuantity: 6, unitPrice: 5 })),
+      lines: [
+        { supplierMappingId: fullMapping.id, packageQuantity: 1, unitPrice: 18 },
+        { supplierMappingId: openMapping.id, packageQuantity: 1, unitPrice: 12 },
+      ],
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
-    const fitsOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === fitsArticle.id);
     const fullOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === fullArticle.id);
     const openOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === openArticle.id);
     expect(fullOrderLine).toMatchObject({ packageFactor: 6, orderedBaseQuantity: 6 });
@@ -1061,6 +1067,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
         ddvStopnja: 0,
       }],
     });
+
     expect(unitChangeReceipt.status, JSON.stringify(unitChangeReceipt.body)).toBe(201);
     receiptIds.push(unitChangeReceipt.body.id);
     const [unitChangeOrderSnapshot] = await db.select({
@@ -1221,12 +1228,14 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      expectedDeliveryDate: "2026-11-07",
-      lines: mappings.map(mapping => ({ supplierMappingId: mapping.id, packageQuantity: 6, unitPrice: 5 })),
+      expectedDeliveryDate: "2026-11-09",
+      lines: [
+        { supplierMappingId: firstMapping.id, packageQuantity: 1, unitPrice: 18 },
+        { supplierMappingId: secondMapping.id, packageQuantity: 1, unitPrice: 12 },
+      ],
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
-    const fitsOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === fitsArticle.id);
     const firstOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === firstArticle.id);
     const secondOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === secondArticle.id);
     const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
@@ -1237,30 +1246,30 @@ describe("POS supplier ordering and linked receipt flow", () => {
       datum: "2026-10-30",
       vrstaCen: "neto",
       vrstaDokumenta: "DOBAVNICA",
-      brutoSkupaj: 20,
+      brutoSkupaj: 30,
       postavke: [
         {
-          artikelId: articleId,
-          supplierOrderLineId: lowerPriceLineId,
-          kolicina: 2,
-          cenaKos: 2,
-          skupaj: 4,
+          artikelId: firstArticle.id,
+          supplierOrderLineId: firstOrderLine.id,
+          kolicina: 6,
+          cenaKos: 3,
+          skupaj: 18,
           enotVPaketu: 1,
-          izvKolicina: 2,
-          izvCena: 2,
+          izvKolicina: 6,
+          izvCena: 3,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
         },
         {
-          artikelId: articleId,
-          supplierOrderLineId: higherPriceLineId,
+          artikelId: secondArticle.id,
+          supplierOrderLineId: secondOrderLine.id,
           kolicina: 4,
-          cenaKos: 4,
-          skupaj: 16,
+          cenaKos: 3,
+          skupaj: 12,
           enotVPaketu: 1,
           izvKolicina: 4,
-          izvCena: 4,
+          izvCena: 3,
           izvEnota: "KOS",
           izvCenaVrsta: "neto",
           ddvStopnja: 0,
@@ -1352,7 +1361,9 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .where(eq(posSupplierPackageChangeReviewsTable.prejemnicaId, receipt.body.id));
     expect(reviewsAfterConfirmationFailure).toHaveLength(0);
 
-    const confirmed = await request(app).post(`/prejemnice/${eligibleReceipt.id}/confirm`).send({});
+    const confirmed = await request(app)
+      .post(`/prejemnice/${receipt.body.id}/confirm`)
+      .send({ reviewedPackageFactorChanges: staleAcknowledgement.body.packageFactorChanges });
     expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
     expect(confirmed.body).toMatchObject({ id: receipt.body.id, status: "confirmed" });
     const reviewsAfterConfirmation = await db.select()
@@ -1382,8 +1393,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
   it("keeps legacy notes internal and preserves supplier instructions for older clients", async () => {
     const created = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
-      internalNotes: note,
-      supplierNotes: note,
+      notes: "Stara opomba, shranjena pred ločitvijo.",
       lines: [{ supplierMappingId: mappingId, packageQuantity: 1, unitPrice: 18 }],
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
@@ -1582,7 +1592,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const [otherCompany] = await db.insert(companiesTable).values({
       naziv: `Supplier order other company ${run}`,
-      podjetjeDavcna: `SI${run}79`,
+      podjetjeDavcna: `SI${run}76`,
     }).returning({ id: companiesTable.id });
     extraCompanyIds.push(otherCompany.id);
     const [otherCompanyUnit] = await db.insert(enoteTable).values({
@@ -1736,7 +1746,13 @@ describe("POS supplier ordering and linked receipt flow", () => {
           date,
         }));
       }
-
+      const sameDateOlderHistorySourceA = await createConfirmedSource({
+        unitId: enotaId,
+        articleId: articleA.id,
+        supplierMappingId: mappingA.id,
+        unitPrice: 0.9,
+        date: "2026-10-16",
+      });
       const sourceB = await createConfirmedSource({
         unitId: unitB.id,
         articleId: articleB.id,
@@ -1935,6 +1951,60 @@ describe("POS supplier ordering and linked receipt flow", () => {
         .find((row: any) => row.articleId === articleA.id).mappings
         .find((mapping: any) => mapping.id === mappingA.id);
 
+      const olderPageA = await request(app)
+        .get(`/narocila-dobaviteljem/povezave/${mappingA.id}/cene`)
+        .query({
+          beforeDate: mappingInA.priceHistory[4].date,
+          beforeReceiptId: mappingInA.priceHistory[4].receiptId,
+          limit: 5,
+        });
+      expect(olderPageA.status, JSON.stringify(olderPageA.body)).toBe(200);
+      expect(olderPageA.body).toMatchObject({ hasMore: false, nextCursor: null });
+      expect(olderPageA.body.entries.map((entry: any) => entry.receiptId)).toEqual([
+        olderHistorySourcesA[1]!.receiptId,
+        olderHistorySourcesA[2]!.receiptId,
+      ]);
+      expect(olderPageA.body.entries.map((entry: any) => entry.receiptId))
+        .not.toContain(manualReceiptId);
+      expect(olderPageA.body.entries.map((entry: any) => entry.receiptId))
+        .not.toContain(sourceASecondSupplier.receiptId);
+      expect(olderPageA.body.entries.map((entry: any) => entry.receiptId))
+        .not.toContain(sourceAOther.receiptId);
+
+      const firstOlderSlice = await request(app)
+        .get(`/narocila-dobaviteljem/povezave/${mappingA.id}/cene`)
+        .query({
+          beforeDate: mappingInA.priceHistory[4].date,
+          beforeReceiptId: mappingInA.priceHistory[4].receiptId,
+          limit: 1,
+        });
+      expect(firstOlderSlice.status, JSON.stringify(firstOlderSlice.body)).toBe(200);
+      expect(firstOlderSlice.body.entries.map((entry: any) => entry.receiptId))
+        .toEqual([olderHistorySourcesA[1]!.receiptId]);
+      expect(firstOlderSlice.body).toMatchObject({
+        hasMore: true,
+        nextCursor: {
+          date: olderHistorySourcesA[1]!.date,
+          receiptId: olderHistorySourcesA[1]!.receiptId,
+        },
+      });
+      const continuedOlderPage = await request(app)
+        .get(`/narocila-dobaviteljem/povezave/${mappingA.id}/cene`)
+        .query({
+          beforeDate: firstOlderSlice.body.nextCursor.date,
+          beforeReceiptId: firstOlderSlice.body.nextCursor.receiptId,
+          limit: 5,
+        });
+      expect(continuedOlderPage.status, JSON.stringify(continuedOlderPage.body)).toBe(200);
+      expect(continuedOlderPage.body.entries.map((entry: any) => entry.receiptId))
+        .toEqual([olderHistorySourcesA[2]!.receiptId]);
+      expect(continuedOlderPage.body).toMatchObject({ hasMore: false, nextCursor: null });
+
+      const invalidHistoryCursor = await request(app)
+        .get(`/narocila-dobaviteljem/povezave/${mappingA.id}/cene`)
+        .query({ beforeDate: "2026-02-30", beforeReceiptId: sourceA.receiptId });
+      expect(invalidHistoryCursor.status).toBe(400);
+
       const priceHistoryExportA = await request(app)
         .get(`/narocila-dobaviteljem/preslikave/${mappingA.id}/zgodovina.csv`);
       expect(priceHistoryExportA.status, JSON.stringify(priceHistoryExportA.body)).toBe(200);
@@ -1943,12 +2013,13 @@ describe("POS supplier ordering and linked receipt flow", () => {
         .toContain(`dobaviteljske-cene-${mappingA.id}.csv`);
       const exportedHistory = priceHistoryExportA.text.replace(/^\uFEFF/, "").trim();
       const exportedRows = exportedHistory.split("\r\n");
-      expect(exportedRows).toHaveLength(7);
+      expect(exportedRows).toHaveLength(8);
       expect(exportedRows[0]).toBe('"Številka prejemnice";"Datum";"Cena na osnovno enoto (KOS)"');
       for (const source of [
         sourceA,
         sameDateHigherIdSourceA,
         laterInsertedOlderSourceA,
+        sameDateOlderHistorySourceA,
         ...olderHistorySourcesA,
       ]) {
         const price = source.unitPrice.toFixed(6).replace(".", ",");
@@ -1996,14 +2067,17 @@ describe("POS supplier ordering and linked receipt flow", () => {
           unitPrice: olderHistorySourcesA[0]!.unitPrice,
         },
         {
-          receiptId: olderHistorySourcesA[1]!.receiptId,
-          date: olderHistorySourcesA[1]!.date,
-          receiptNumber: olderHistorySourcesA[1]!.receiptNumber,
-          unitPrice: olderHistorySourcesA[1]!.unitPrice,
+          receiptId: sameDateOlderHistorySourceA.receiptId,
+          date: sameDateOlderHistorySourceA.date,
+          receiptNumber: sameDateOlderHistorySourceA.receiptNumber,
+          unitPrice: sameDateOlderHistorySourceA.unitPrice,
         },
       ]);
       expect(mappingInA.priceHistory).toHaveLength(5);
+      expect(mappingInA.hasOlderPriceHistory).toBe(true);
       expect(mappingInA.priceHistory.map((entry: any) => entry.receiptId)).not.toContain(manualReceiptId);
+      expect(mappingInA.priceHistory.map((entry: any) => entry.receiptId))
+        .not.toContain(olderHistorySourcesA[1]!.receiptId);
       expect(mappingInA.priceHistory.map((entry: any) => entry.receiptId))
         .not.toContain(olderHistorySourcesA[2]!.receiptId);
       expect(mappingInA.priceHistory.map((entry: any) => entry.receiptId))
@@ -2048,6 +2122,17 @@ describe("POS supplier ordering and linked receipt flow", () => {
           unitPrice: sourceAOther.unitPrice,
         }],
       });
+
+      const mappingBFromUnitA = await request(app)
+        .get(`/narocila-dobaviteljem/povezave/${mappingB.id}/cene`)
+        .query({ beforeDate: sourceB.date, beforeReceiptId: sourceB.receiptId });
+      expect(mappingBFromUnitA.status).toBe(404);
+
+      context.enotaId = unitB.id;
+      const mappingAFromUnitB = await request(app)
+        .get(`/narocila-dobaviteljem/povezave/${mappingA.id}/cene`)
+        .query({ beforeDate: sourceA.date, beforeReceiptId: sourceA.receiptId });
+      expect(mappingAFromUnitB.status).toBe(404);
     } finally {
       context.enotaId = enotaId;
     }
@@ -2362,54 +2447,51 @@ describe("POS supplier ordering and linked receipt flow", () => {
       expect(response.status, JSON.stringify(response.body)).toBe(200);
       const article = response.body.articles.find((row: any) => row.articleId === comparisonArticle.id);
       expect(article.baseUnit).toBe("L");
-    const mappings = await db.insert(artikelDobaviteljTable).values([
-      {
-        enotaId,
-        artikelId: fitsArticle.id,
-        dobaviteljId: supplierId,
-        sifraDobavitelja: `ATOMIC-FITS-${run}`,
-        nazivDobavitelja: `Atomic fits ${run}`,
-        enotVPaketu: "1",
-        nazivPaketa: "kos",
-        zadnjaCenaPaket: "5",
-        zadnjaCenaEnota: "5",
-        aktivno: true,
-      },
-      {
-        enotaId,
-        artikelId: exceedsArticle.id,
-        dobaviteljId: supplierId,
-        sifraDobavitelja: `ATOMIC-EXCEEDS-${run}`,
-        nazivDobavitelja: `Atomic exceeds ${run}`,
-        enotVPaketu: "1",
-        nazivPaketa: "kos",
-        zadnjaCenaPaket: "5",
-        zadnjaCenaEnota: "5",
-        aktivno: true,
-      },
-    ]).returning({ id: artikelDobaviteljTable.id });
-    const [fitsArticle, exceedsArticle] = await db.insert(artikliTable).values([
-      {
-        enotaId,
-        ime: `Atomic receipt fits ${run}`,
-        cena: "5",
-        davek: "22",
-        enotaMere: "KOS",
-        nabavniArtikel: true,
-        prodajniArtikel: false,
-        aktiven: true,
-      },
-      {
-        enotaId,
-        ime: `Atomic receipt exceeds ${run}`,
-        cena: "5",
-        davek: "22",
-        enotaMere: "KOS",
-        nabavniArtikel: true,
-        prodajniArtikel: false,
-        aktiven: true,
-      },
-    ]).returning({ id: artikliTable.id });
+      const mappings = new Map(article.mappings.map((mapping: any) => [mapping.id, mapping]));
+      expect(mappings.get(sixUnitMappingId)).toMatchObject({
+        packageFactor: 6,
+        lastPackagePrice: 24,
+        lastUnitPrice: 4,
+      });
+      expect(mappings.get(eightUnitMappingId)).toMatchObject({
+        packageFactor: 8,
+        lastPackagePrice: 20,
+        lastUnitPrice: 2.5,
+      });
+      expect(mappings.get(zeroPriceMappingId)).toMatchObject({
+        packageFactor: 6,
+        lastPackagePrice: 0,
+        lastUnitPrice: 0,
+      });
+      expect(mappings.get(invalidFactorMappingId)).toMatchObject({
+        packageFactor: 0,
+        lastPackagePrice: 10,
+        lastUnitPrice: null,
+      });
+      expect(mappings.get(missingPriceMappingId)).toMatchObject({
+        packageFactor: 4,
+        lastPackagePrice: null,
+        lastUnitPrice: null,
+      });
+      expect(mappings.get(nonFinitePackagePriceMappingId)).toMatchObject({
+        packageFactor: 6,
+        lastPackagePrice: null,
+        lastUnitPrice: null,
+      });
+      expect(mappings.get(nonFiniteUnitPriceMappingId)).toMatchObject({
+        packageFactor: 6,
+        lastPackagePrice: 24,
+        lastUnitPrice: null,
+      });
+    } finally {
+      if (localMappingIds.length) {
+        await db.delete(artikelDobaviteljTable).where(inArray(artikelDobaviteljTable.id, localMappingIds));
+      }
+      await db.delete(counterpartiesTable).where(eq(counterpartiesTable.id, comparisonSupplier.id));
+    }
+  });
+
+  it("serializes simultaneous receipt confirmations against the order's remaining quantity", async () => {
     const [raceArticle] = await db.insert(artikliTable).values({
       enotaId,
       ime: `Concurrent receipt ${run}`,
@@ -2440,11 +2522,10 @@ describe("POS supplier ordering and linked receipt flow", () => {
     const createdOrder = await request(app).post("/narocila-dobaviteljem").send({
       supplierId,
       expectedDeliveryDate: "2026-11-07",
-      lines: mappings.map(mapping => ({ supplierMappingId: mapping.id, packageQuantity: 6, unitPrice: 5 })),
+      lines: [{ supplierMappingId: raceMapping.id, packageQuantity: 2, unitPrice: 18 }],
     });
     expect(createdOrder.status, JSON.stringify(createdOrder.body)).toBe(201);
     orderIds.push(createdOrder.body.id);
-    const fitsOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === fitsArticle.id);
     const orderLineId = createdOrder.body.lines[0].id as number;
     const sentOrder = await request(app).post(`/narocila-dobaviteljem/${createdOrder.body.id}/send`).send({});
     expect(sentOrder.status, JSON.stringify(sentOrder.body)).toBe(200);
@@ -2583,6 +2664,13 @@ describe("POS supplier ordering and linked receipt flow", () => {
       .where(eq(zalogeTable.artikelId, raceArticle.id));
     expect(Number(stockAfterRace.kolicina)).toBe(8);
     const orderAfterRace = await request(app).get(`/narocila-dobaviteljem/${createdOrder.body.id}`);
+    expect(orderAfterRace.body).toMatchObject({
+      status: "partially_received",
+      lines: [{ orderedBaseQuantity: 12, receivedBaseQuantity: 8, openBaseQuantity: 4 }],
+    });
+  });
+
+  it("includes older orders in the server-side missing-instructions review and stays unit-scoped", async () => {
     const recentCreatedAt = new Date();
     const recentOrders = Array.from({ length: 201 }, (_, index) => ({
       enotaId,
@@ -2651,7 +2739,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
 
     const [otherCompany] = await db.insert(companiesTable).values({
       naziv: `Supplier order other company ${run}`,
-      podjetjeDavcna: `SI${run}79`,
+      podjetjeDavcna: `SI${run}77`,
     }).returning({ id: companiesTable.id });
     extraCompanyIds.push(otherCompany.id);
     const [otherCompanyUnit] = await db.insert(enoteTable).values({
@@ -2840,7 +2928,7 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(receipt.status, JSON.stringify(receipt.body)).toBe(201);
     receiptIds.push(receipt.body.id);
 
-    const confirmed = await request(app).post(`/prejemnice/${eligibleReceipt.id}/confirm`).send({});
+    const confirmed = await request(app).post(`/prejemnice/${receipt.body.id}/confirm`).send({});
     expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
     const receiptDetails = await request(app).get(`/prejemnice/${receipt.body.id}`);
     expect(receiptDetails.status, JSON.stringify(receiptDetails.body)).toBe(200);
@@ -3063,6 +3151,10 @@ describe("POS supplier ordering and linked receipt flow", () => {
     expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
     expect((await getLatestSupplierPriceReceipts(db, enotaId, [linkedMapping.id])).has(linkedMapping.id)).toBe(false);
 
+    // Ordinary POS-entered stock lines may have no recorded source quantity.
+    await db.update(prejemnicePostavkeTable)
+      .set({ izvKolicina: null })
+      .where(eq(prejemnicePostavkeTable.id, eligibleReceipt.lineId));
     const linked = await request(app)
       .post(`/prejemnice/${eligibleReceipt.id}/postavke/${eligibleReceipt.lineId}/supplier-order-link`)
       .send({ supplierOrderLineId: correctOrderLineId });
@@ -3076,28 +3168,3 @@ describe("POS supplier ordering and linked receipt flow", () => {
     });
   });
 });
-
-    const orderAfterRejection = await request(app).get(`/narocila-dobaviteljem/${createdOrder.body.id}`);
-    const [receiptAfterRejection] = await db.select({
-      status: prejemniceTable.status,
-    }).from(prejemniceTable).where(eq(prejemniceTable.id, overLimitReceiptId));
-    const stockAfterRejection = await db.select({
-      articleId: zalogeTable.artikelId,
-      quantity: zalogeTable.kolicina,
-    }).from(zalogeTable).where(inArray(zalogeTable.artikelId, [fitsArticle.id, exceedsArticle.id]));
-    const initialConfirmation = await request(app).post(`/prejemnice/${initialReceiptId}/confirm`).send({});
-    expect(initialConfirmation.status, JSON.stringify(initialConfirmation.body)).toBe(200);
-
-    const overLimitReceiptId = await createReceipt([
-      { articleId: fitsArticle.id, orderLineId: fitsOrderLine.id, quantity: 1 },
-      { articleId: exceedsArticle.id, orderLineId: exceedsOrderLine.id, quantity: 7 },
-    ]);
-    const exceedsOrderLine = createdOrder.body.lines.find((line: any) => line.articleId === exceedsArticle.id);
-    const confirmation = await request(app).post(`/prejemnice/${overLimitReceiptId}/confirm`).send({});
-    const partialReceiptMovements = await db.select({
-      articleId: zalogaGibiTable.artikelId,
-    }).from(zalogaGibiTable).where(and(
-      eq(zalogaGibiTable.referencaId, overLimitReceiptId),
-      eq(zalogaGibiTable.tip, "prejemnica"),
-      inArray(zalogaGibiTable.artikelId, [fitsArticle.id, exceedsArticle.id]),
-    ));

@@ -67,7 +67,7 @@ router.get("/prejemnice/:id/booking-preview", requireEnota, async (req, res): Pr
     res.status(400).json({ error: "Neveljaven ID prejemnice" });
     return;
   }
-    const preview = await savePosReceiptBookingDraft(companyId, enotaId, id, previewHash);
+  const preview = await getPosReceiptBookingPreview(companyId, enotaId, id);
   if (!preview) {
     res.status(404).json({ error: "Prejemnica ni najdena" });
     return;
@@ -899,7 +899,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Prejemnica mora imeti vsaj eno postavko" }); return;
   }
 
-  const artikelIds = postavke.map((p: any) => p.artikelId).filter((aid: any) => aid != null) as number[];
+  const artikelIds = postavke.map((p: any) => p.artikelId);
     const artikliRows = await db.select({
       id: artikliTable.id,
       ime: artikliTable.ime,
@@ -951,11 +951,11 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
   }> | undefined;
   artikelMap = new Map(artikliRows.map(a => [a.id, a]));
   for (const p of postavke as any[]) {
-        const art = artikelMap?.get(p.artikelId);
+    const art = artikelMap.get(p.artikelId);
     if (!art?.jeSkupinskiNabavniArtikel) continue;
     // Pri ročnem vnosu enote ciljnega artikla ni dokaz dobaviteljeve enote.
     // Sprejmemo samo izrecno podano izvorno/enotno vrednost postavke.
-        const sourceUnit = old?.izvEnota ?? suppliedUnit;
+    const sourceUnit = typeof p.izvEnota === "string" ? p.izvEnota : null;
     if (!genericArticleUnitMatches(sourceUnit, art.enotaMere)) {
       res.status(400).json({
         error: "Generičnega nabavnega artikla ni mogoče uporabiti brez podprte izvorne enote, ki se ujema z enoto artikla.",
@@ -971,14 +971,10 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
 
   const docDatum = datum ? new Date(datum) : new Date();
   const year = docDatum.getFullYear();
-      const vatCodeNapaka = await preveriVhodneDdvKode(
-        parsed.data.postavke,
-        datumAliNull(parsed.data.datumDokumenta)
-          ?? (parsed.data.datum
-            ? new Date(parsed.data.datum).toISOString().slice(0, 10)
-            : existing.datum.toISOString().slice(0, 10)),
-        tx,
-      );
+  const vatCodeNapaka = await preveriVhodneDdvKode(
+    postavke,
+    datumAliNull(datumDokumenta) ?? docDatum.toISOString().slice(0, 10),
+  );
   if (vatCodeNapaka) { res.status(400).json({ error: vatCodeNapaka }); return; }
   const stevilka = await nextStevilkaPrejemnica(year, "", tenotaId);
   const [company] = await db.select({
@@ -1003,7 +999,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     }
     throw error;
   }
-      let skupajVrednost = 0;
+  const skupajVrednost = preparedLines.reduce((sum, line) => sum + Number(line.skupaj), 0);
   const [supplier] = dobaviteljId
     ? await db.select({
       naziv: counterpartiesTable.name, davcna: counterpartiesTable.taxId, idZaDdv: counterpartiesTable.idZaDdv,
@@ -1056,67 +1052,66 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${sourceDocumentId}))`);
       const existingErpReceipt = await tx.select({ id: goodsReceiptsTable.id })
         .from(goodsReceiptsTable)
-        .where(eq(goodsReceiptsTable.sourceDocumentId, effectiveSourceDocumentId))
+        .where(eq(goodsReceiptsTable.sourceDocumentId, sourceDocumentId))
         .limit(1);
       if (existingErpReceipt.length > 0) throw new Error("PURCHASE_SOURCE_ALREADY_IN_ERP");
       const existingFinalInvoice = await tx.select({ id: invoicesTable.id })
         .from(invoicesTable)
         .where(and(
-           eq(invoicesTable.sourceDocumentId, effectiveSourceDocumentId),
+          eq(invoicesTable.sourceDocumentId, sourceDocumentId),
           ne(invoicesTable.status, "draft"),
         ))
         .limit(1);
       if (existingFinalInvoice.length > 0) throw new Error("PURCHASE_SOURCE_ALREADY_IN_ERP");
     }
-  const [prejemnica] = await db
-    .select({
-      id: prejemniceTable.id,
-      stevilka: prejemniceTable.stevilka,
-      datum: prejemniceTable.datum,
-      datumDokumenta: prejemniceTable.datumDokumenta,
-      stDokumenta: prejemniceTable.stDokumenta,
-      valuta: prejemniceTable.valuta,
-      datumZapadlosti: prejemniceTable.datumZapadlosti,
-      ddvOsnova: prejemniceTable.ddvOsnova,
-      ddvZnesek: prejemniceTable.ddvZnesek,
-      opomba: prejemniceTable.opomba,
-      vrstaCen: prejemniceTable.vrstaCen,
-      skupajVrednost: prejemniceTable.skupajVrednost,
-      ustvarjeno: prejemniceTable.ustvarjeno,
-      dobaviteljId: prejemniceTable.dobaviteljId,
-      dobaviteljNaziv: counterpartiesTable.name,
-      prejemnoPodjetjeNaziv: companiesTable.naziv,
-      status: prejemniceTable.status,
-      placanoZGotovino: prejemniceTable.placanoZGotovino,
-    })
-    .from(prejemniceTable)
-    .innerJoin(enoteTable, and(
-      eq(enoteTable.id, prejemniceTable.enotaId),
-      eq(enoteTable.companyId, companyId),
-    ))
-    .innerJoin(companiesTable, and(
-      eq(companiesTable.id, enoteTable.companyId),
-      eq(companiesTable.id, companyId),
-    ))
-    .leftJoin(counterpartiesTable, and(
-      eq(counterpartiesTable.id, prejemniceTable.dobaviteljId),
-      eq(counterpartiesTable.companyId, companyId),
-    ))
-    .where(and(eq(prejemniceTable.id, id), eq(prejemniceTable.enotaId, tenotaId)));
+    const [prejemnica] = await tx.insert(prejemniceTable).values({
+      enotaId: tenotaId,
+      dobaviteljId: dobaviteljId ?? null,
+      stevilka,
+      datum: docDatum,
+      opomba: opomba ?? null,
+      vrstaCen: (vrstaCen === "bruto" ? "bruto" : "neto") as "neto" | "bruto",
+      skupajVrednost: String(skupajVrednost.toFixed(2)),
+      stDokumenta: stDokumenta ?? null,
+      datumDokumenta: datumAliNull(datumDokumenta),
+      valuta: valutaAliEur(valuta),
+      datumZapadlosti: datumAliNull(datumZapadlosti),
+      ddvOsnova: inputDdvOsnova,
+      ddvZnesek: inputDdvZnesek,
+      vrstaDokumenta: documentType,
+      datumDobave: datumAliNull(datumDobave),
+      datumOpravljeneStoritve: datumAliNull(datumOpravljeneStoritve),
+      brutoSkupaj: denarAliNull(brutoSkupaj) ?? calculatedGross,
+      placilniNacin: typeof placilniNacin === "string" ? placilniNacin : null,
+      placanoZGotovino: placanoZGotovino === true
+        || (placanoZGotovino == null
+          && normalizeIncomingPaymentMethod(typeof placilniNacin === "string" ? placilniNacin : null) === "cash"),
+      placilniSklic: typeof placilniSklic === "string" ? placilniSklic : null,
+      dobaviteljNaziv: supplier?.naziv ?? null,
+      dobaviteljDavcna: supplier?.davcna ?? null,
+      dobaviteljIdDdv: supplier?.idZaDdv ?? null,
+      dobaviteljMaticna: supplier?.maticna ?? null,
+      dobaviteljUlica: supplier?.ulica ?? supplier?.naslov ?? null,
+      dobaviteljPosta: supplier?.posta ?? null,
+      dobaviteljKraj: supplier?.kraj ?? null,
+      dobaviteljDrzava: supplier?.drzava ?? null,
+      dobaviteljIban: supplier?.iban ?? trr?.iban ?? null,
+      dobaviteljBic: trr?.bic ?? null,
+      prejemnikNaziv: company.naziv,
+      prejemnikDavcna: company.davcna,
+      prejemnikIdDdv: company.idZaDdv,
+      prejemnikNaslov: company.naslov ?? company.ulica ?? null,
+      prejemnikDrzava: company.drzava ?? null,
+      snapshotZajet: new Date(),
+      sourceDocumentId,
+    }).returning();
 
     const postavkeResult = [];
     for (const [lineIndex, p] of postavke.entries()) {
-        const enotVPaketu = p.enotVPaketu && Number(p.enotVPaketu) > 1 ? Number(p.enotVPaketu) : 1;
-        const art = artikelMap?.get(p.artikelId);
-        const preparedLine = preparedDrainedLine(
-          p,
-          art,
-          old,
-          parsed.data.vrstaCen ?? existing.vrstaCen,
-          !existing.prejemnikIdDdv?.trim(),
-          existing.vrstaCen,
-        );
-        const rabat1Odst = preparedLine.rabat1Odst ?? "0";
+      const enotVPaketu = p.enotVPaketu && Number(p.enotVPaketu) > 1 ? Number(p.enotVPaketu) : 1;
+      const art = artikelMap.get(p.artikelId);
+      const preparedLine = preparedLines[lineIndex]!;
+      const rabat1Odst = preparedLine.rabat1Odst ?? "0";
       const stockQuantity = preparedLine.kolicina;
       const stockUnitCost = preparedLine.cenaKos;
       const lineValue = preparedLine.skupaj;
@@ -1126,7 +1121,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
             ? alergenskiSnapshotBrezAlergenov(actorSnapshot)
             : art?.povratnaEmbalaza
               ? alergenskiSnapshotZaPovratnoEmbalazo(actorSnapshot)
-              : alergenskiSnapshotZaUrejanje(p, old?.artikelId);
+              : zahtevajPotrjenAlergenskiSnapshot(p);
         } catch (error) {
           const naziv = art?.imeZaNabavo ?? art?.ime ?? `Artikel ${p.artikelId}`;
         throw new Error(`RECEIPT_ALLERGEN_INVALID:${naziv}: ${(error as Error).message}`);
@@ -1305,7 +1300,23 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     .where(and(eq(prejemniceTable.id, id), eq(prejemniceTable.enotaId, tenotaId)));
   if (!prejemnica) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
 
-  const postavke = await db.select().from(prejemnicePostavkeTable).where(eq(prejemnicePostavkeTable.prejemnicaId, id));
+  const postavke = await db.select({
+    postavka: prejemnicePostavkeTable,
+    artikelIme: artikliTable.ime,
+    imeZaNabavo: artikliTable.imeZaNabavo,
+    enotaMere: artikliTable.enotaMere,
+  })
+    .from(prejemnicePostavkeTable)
+    .leftJoin(artikliTable, and(
+      eq(prejemnicePostavkeTable.artikelId, artikliTable.id),
+      eq(artikliTable.enotaId, tenotaId),
+    ))
+    .where(eq(prejemnicePostavkeTable.prejemnicaId, id))
+    .orderBy(
+      sql`CASE WHEN COALESCE(${artikliTable.povratnaEmbalaza}, false) THEN 1 ELSE 0 END`,
+      prejemnicePostavkeTable.id,
+    )
+    .then((rows) => rows.map(({ postavka, ...article }) => ({ ...postavka, ...article })));
   const odvisniStroski = await db.select().from(prejemniceOdvisniStroskiTable)
     .where(eq(prejemniceOdvisniStroskiTable.prejemnicaId, id));
   const packageChangeReviews = await db
@@ -1440,7 +1451,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       const novaPostavke = parsed.data.postavke;
     if (!novaPostavke.length) { res.status(400).json({ error: "Prejemnica mora imeti vsaj eno postavko" }); return; }
 
-  const artikelIds = postavke.map((p: any) => p.artikelId).filter((aid: any) => aid != null) as number[];
+    const artikelIds = novaPostavke.map((p: any) => p.artikelId);
     const artikliRows = await db.select({
       id: artikliTable.id,
       ime: artikliTable.ime,
@@ -1475,7 +1486,6 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
           ?? (parsed.data.datum
             ? new Date(parsed.data.datum).toISOString().slice(0, 10)
             : existing.datum.toISOString().slice(0, 10)),
-        tx,
       );
     if (vatCodeNapaka) { res.status(400).json({ error: vatCodeNapaka }); return; }
     artikelMap = new Map(artikliRows.map(a => [a.id, a]));
@@ -1505,7 +1515,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
           SELECT 1
           FROM pos_credit_note_allocations
           WHERE company_id = ${companyId}
-            AND source_document_id = ${existing.prejemnice.sourceDocumentId}
+            AND source_document_id = ${existing.sourceDocumentId}
           LIMIT 1
         `);
       if (allocationHistory.rows.length > 0) {

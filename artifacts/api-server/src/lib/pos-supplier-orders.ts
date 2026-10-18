@@ -146,7 +146,9 @@ export async function validateSupplierOrderReceiptLines(
       throw new SupplierOrderReceiptConflict("Prevzem je mogoč samo iz naročila, ki je bilo poslano in še ni zaprto.");
     }
 
-    const sourceQuantity = Number(line.izvKolicina);
+    // Pri povezovanju obstoječe ročne prejemnice izvorna količina ni vedno zapisana;
+    // preverimo zalogovno količino, zgodovinski posnetek postavke pa ostane nespremenjen.
+    const sourceQuantity = Number(input.forLinking && line.izvKolicina == null ? line.kolicina : line.izvKolicina);
     const packageFactor = Number(line.enotVPaketu ?? 1);
     if (!Number.isFinite(sourceQuantity) || sourceQuantity <= 0
       || !Number.isFinite(packageFactor) || packageFactor <= 0) {
@@ -601,13 +603,14 @@ export async function getSupplierPriceHistory(
   enotaId: number,
   mappingIds: number[],
   limit: number | null = 5,
+  before?: { date: string; receiptId: number },
 ): Promise<Map<number, SupplierPriceHistoryEntry[]>> {
   const scopedMappingIds = [...new Set(mappingIds)]
     .filter(id => Number.isInteger(id) && id > 0);
   if (scopedMappingIds.length === 0) return new Map();
   const historyLimit = limit === null
     ? null
-    : Math.min(20, Math.max(1, Math.trunc(limit) || 5));
+    : Math.min(21, Math.max(1, Math.trunc(limit) || 5));
   const historyFilter = historyLimit === null
     ? sql`TRUE`
     : sql`"historyPosition" <= ${historyLimit}`;
@@ -669,6 +672,13 @@ export async function getSupplierPriceHistory(
           ORDER BY receipt_prices."date" DESC, receipt_prices."receiptId" DESC
         ) AS "historyPosition"
       FROM receipt_prices
+      ${before
+        ? sql`WHERE receipt_prices."date" < ${before.date}
+          OR (
+            receipt_prices."date" = ${before.date}
+            AND receipt_prices."receiptId" < ${before.receiptId}
+          )`
+        : sql``}
     )
     SELECT "mappingId", "receiptId", "date", "receiptNumber", "unitPrice", "unitPriceDecimal"
     FROM ranked_receipts

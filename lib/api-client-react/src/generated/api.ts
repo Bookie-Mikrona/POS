@@ -194,6 +194,7 @@ import type {
   GetPublicMenuDeviceHistoryParams,
   GetPublicMenuParams,
   GetQrOrderCompletionParams,
+  GetSupplierPriceHistoryPageParams,
   GetTrialBalanceParams,
   GetVatFormPreviewParams,
   GetVatRegisterParams,
@@ -527,6 +528,7 @@ import type {
   SupplierOrderInput,
   SupplierOrderSummary,
   SupplierOrderSummaryPage,
+  SupplierPriceHistoryPage,
   SupplierReorderSettings,
   SupplierReorderSettingsInput,
   TerminalPlaciloOdgovor,
@@ -21227,6 +21229,95 @@ export function useGetSupplierOrderDashboard<TData = Awaited<ReturnType<typeof g
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSupplierOrderDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSupplierPriceHistoryPageUrl = (mappingId: number,
+    params: GetSupplierPriceHistoryPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/narocila-dobaviteljem/povezave/${mappingId}/cene?${stringifiedParams}` : `/api/narocila-dobaviteljem/povezave/${mappingId}/cene`
+}
+
+/**
+ * @summary Naloži starejše potrjene cene za dobaviteljsko povezavo
+ */
+export const getSupplierPriceHistoryPage = async (mappingId: number,
+    params: GetSupplierPriceHistoryPageParams, options?: RequestInit): Promise<SupplierPriceHistoryPage> => {
+
+  return customFetch<SupplierPriceHistoryPage>(getGetSupplierPriceHistoryPageUrl(mappingId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierPriceHistoryPageQueryKey = (mappingId: number,
+    params?: GetSupplierPriceHistoryPageParams,) => {
+    return [
+    `/api/narocila-dobaviteljem/povezave/${mappingId}/cene`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSupplierPriceHistoryPageQueryOptions = <TData = Awaited<ReturnType<typeof getSupplierPriceHistoryPage>>, TError = ErrorType<void>>(mappingId: number,
+    params: GetSupplierPriceHistoryPageParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierPriceHistoryPage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierPriceHistoryPageQueryKey(mappingId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplierPriceHistoryPage>>> = ({ signal }) => getSupplierPriceHistoryPage(mappingId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: mappingId !== null && mappingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplierPriceHistoryPage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSupplierPriceHistoryPageQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplierPriceHistoryPage>>>
+export type GetSupplierPriceHistoryPageQueryError = ErrorType<void>
+
+
+/**
+ * @summary Naloži starejše potrjene cene za dobaviteljsko povezavo
+ */
+
+export function useGetSupplierPriceHistoryPage<TData = Awaited<ReturnType<typeof getSupplierPriceHistoryPage>>, TError = ErrorType<void>>(
+ mappingId: number,
+    params: GetSupplierPriceHistoryPageParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierPriceHistoryPage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSupplierPriceHistoryPageQueryOptions(mappingId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
