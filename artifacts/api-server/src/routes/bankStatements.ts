@@ -822,14 +822,18 @@ export async function buildMatchSuggestions(
 router.post(
   "/companies/:companyId/bank-statements/parse",
   requireAuth,
-  upload.single("file"),
-  async (req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response, next): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
     const companyId = extractParam(req.params.companyId);
 
     const access = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!access) return;
 
+    // Reject foreign-company requests before buffering or parsing their upload.
+    next();
+  },
+  upload.single("file"),
+  async (req: Request, res: Response): Promise<void> => {
     if (!req.file) {
       res.status(400).json({ error: "Datoteka ni priložena" });
       return;
