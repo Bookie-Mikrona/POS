@@ -102,6 +102,7 @@ export const posSupplierOrderLinesTable = pgTable(
     artikelNaziv: text("artikel_naziv").notNull(),
     dobaviteljevNaziv: text("dobaviteljev_naziv"),
     dobaviteljevaSifra: text("dobaviteljeva_sifra"),
+    dobaviteljevEan: text("dobaviteljev_ean"),
     kolicinaPakiranj: numeric("kolicina_pakiranj", { precision: 18, scale: 6 }).notNull(),
     faktorPakiranja: numeric("faktor_pakiranja", { precision: 18, scale: 6 }).notNull(),
     nazivPakiranja: text("naziv_pakiranja"),
