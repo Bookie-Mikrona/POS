@@ -45,6 +45,12 @@ Pri ponavljajočih se poškodbah podobnih anonimnih obravnavalnikov poti ali tes
 
 **How to apply:** Ohrani avtorizacijo na poti, poslovni zapis pa izloči brez spremembe pogodbe; na dejanski bazi preveri uspešen dovoljen zapis in zavrnjen nedovoljen zapis, ne samo zavrnitve. Ponovno preveri obe poti v končnem drevesu, ne odpravljaj zgolj napak manjkajočih spremenljivk.
 
+Če se ista preverjena sprememba po več zaključnih uskladitvah izgubi, ustavi ponavljanje in najprej uskladi izhodišče.
+
+**Why:** Tudi poimenovani testni callbacki so po prevzemu novega starša znova dobili napačno telo, čeprav je celoten lokalni testni nabor pred uskladitvijo uspel.
+
+**How to apply:** Loči lokalno napako od ponovnega vnosa napake med usklajevanjem. Poročaj zadnji dejanski rezultat in zahtevaj stabilno izhodišče za naslednji popravek, namesto ponavljanja istega preverjanja nad spreminjajočo se vejo.
+
 Generirane API sheme po združitvi regeneriraj iz trenutne specifikacije, namesto da ročno združuješ posamezne deklaracije.
 
 **Why:** Ročno združene deklaracije lahko ostanejo nepopolne ali napačno razvrščene; uspešen typecheck ne zagotavlja pravilnega vrstnega reda inicializacije ob uvozu.

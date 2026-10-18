@@ -19,17 +19,22 @@ const alertVariants = cva(
   }
 )
 
-const Alert = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
-  <div
-    ref={ref}
-    role="alert"
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
-  />
-))
+type AlertProps = Omit<React.HTMLAttributes<HTMLDivElement>, "role"> &
+  VariantProps<typeof alertVariants> & {
+    /** Use alert for urgent errors, status for polite updates, and note for static content. */
+    role: "alert" | "status" | "note"
+  }
+
+const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
+  ({ className, variant, role, ...props }, ref) => (
+    <div
+      ref={ref}
+      role={role}
+      className={cn(alertVariants({ variant }), className)}
+      {...props}
+    />
+  )
+)
 Alert.displayName = "Alert"
 
 const AlertTitle = React.forwardRef<
