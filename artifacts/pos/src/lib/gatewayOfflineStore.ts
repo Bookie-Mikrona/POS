@@ -208,7 +208,16 @@ async function poll(scope: GatewayScope, generation = scopeGeneration): Promise<
 export function GatewayOfflineProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const scope = scopeFor(user);
-  useLayoutEffect(() => { configureScope(scope); }, [scope?.companyId, scope?.enotaId]);
+  useLayoutEffect(() => {
+    configureScope(scope);
+    return () => {
+      // This is a module-global store: unmounting the operational tree must
+      // invalidate in-flight work as well as remove the previous unit's data.
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = undefined;
+      configureScope(null);
+    };
+  }, [scope?.companyId, scope?.enotaId]);
   useEffect(() => {
     if (!scope) return;
     void poll(scope, scopeGeneration);
