@@ -25,6 +25,8 @@ export const reportExportsTable = pgTable("report_exports", {
   filename: text("filename").notNull(),
   /** Clerk user ID izvoznika */
   exportedBy: text("exported_by").notNull(),
+  /** Prikazna identiteta ob izvozu; null samo pri starejših zapisih. */
+  exportedByName: text("exported_by_name"),
   exportedAt: timestamp("exported_at", { withTimezone: true }).notNull().defaultNow(),
   /** Nastavljen samo pri pošiljanju po e-pošti */
   emailSentTo: text("email_sent_to"),

@@ -1,6 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
+vi.mock("@clerk/express", () => ({
+  clerkClient: { users: { getUser: vi.fn(async () => ({
+    firstName: "Test", lastName: "Exporter", emailAddresses: [],
+  })) } },
+}));
+
 // Roll back all fixtures and export audit records, including the route's writes.
 const isolation = vi.hoisted(() => ({ tx: null as any }));
 vi.mock("@workspace/db", async importOriginal => {

@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({
   getUserList: vi.fn(),
   select: vi.fn(),
   authorized: true,
-  rows: [] as { id: string; exportedBy: string }[],
+  rows: [] as { id: string; exportedBy: string; exportedByName?: string | null }[],
 }));
 
 vi.mock("@clerk/express", () => ({ clerkClient: { users: { getUserList: state.getUserList } } }));
@@ -50,6 +50,33 @@ beforeEach(() => {
 });
 
 describe("report export history identities", () => {
+  it("keeps snapshots after a rename or deletion without querying Clerk", async () => {
+    state.rows = [
+      { id: "1", exportedBy: "renamed", exportedByName: "Izvorno ime" },
+      { id: "2", exportedBy: "deleted", exportedByName: "old@example.test" },
+    ];
+    state.getUserList.mockRejectedValue(new Error("directory unavailable"));
+    const res = await request(app).get(path).set("x-test-user", "viewer");
+    expect(res.status).toBe(200);
+    expect(res.body.exports).toEqual(state.rows);
+    expect(state.getUserList).not.toHaveBeenCalled();
+  });
+
+  it("resolves only legacy records, even when the same user also has a snapshot", async () => {
+    state.rows = [
+      { id: "1", exportedBy: "user", exportedByName: "Staro ime" },
+      { id: "2", exportedBy: "user", exportedByName: null },
+      { id: "3", exportedBy: "other", exportedByName: " " },
+    ];
+    state.getUserList.mockResolvedValue({ data: [
+      { id: "user", firstName: "Novo ime", emailAddresses: [] },
+    ] });
+    const res = await request(app).get(path).set("x-test-user", "viewer");
+    expect(res.body.exports.map((row: { exportedByName: string }) => row.exportedByName))
+      .toEqual(["Staro ime", "Novo ime", "Neznan uporabnik"]);
+    expect(state.getUserList).toHaveBeenCalledExactlyOnceWith({ userId: ["user", "other"], limit: 100 });
+  });
+
   it("resolves each unique exporter, prefers full name then primary email, and retains audit IDs", async () => {
     state.rows = ["named", "email", "deleted", "named", "blank", "partial", "secondary"]
       .map((exportedBy, index) => ({ id: String(index), exportedBy }));

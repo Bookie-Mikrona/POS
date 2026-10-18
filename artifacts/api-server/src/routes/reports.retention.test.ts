@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
   incomePdf: vi.fn(),
   trialPdf: vi.fn(),
 }));
+vi.mock("@clerk/express", () => ({
+  clerkClient: { users: { getUser: vi.fn(async () => ({
+    firstName: "Test", lastName: "Exporter", emailAddresses: [],
+  })) } },
+}));
 vi.mock("@workspace/db", async (importOriginal) => {
   const original = await importOriginal<typeof import("@workspace/db")>();
   return { ...original, db: { select: mocks.select, insert: mocks.insert } };

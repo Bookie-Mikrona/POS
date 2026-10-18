@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AddressInfo } from "node:net";
 
 const mocks = vi.hoisted(() => ({
+  getUser: vi.fn(),
   select: vi.fn(),
   insert: vi.fn(),
   values: vi.fn(),
@@ -11,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   aggregates: [] as Record<string, unknown>[],
   error: vi.fn(),
 }));
+
+vi.mock("@clerk/express", () => ({ clerkClient: { users: { getUser: mocks.getUser } } }));
 
 vi.mock("@workspace/db", () => ({
   db: { select: mocks.select, insert: mocks.insert },
@@ -51,6 +54,7 @@ describe("report email export audit trail", () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    mocks.getUser.mockResolvedValue({ firstName: " Ana ", lastName: " Novak ", emailAddresses: [] });
     saved.length = 0;
     mocks.aggregates.length = 0;
     // Access, company and empty aggregate queries require no real tenant data.
@@ -107,6 +111,7 @@ describe("report email export audit trail", () => {
     expect(saved).toEqual([expect.objectContaining({
       companyId: "company-a",
       exportedBy: "exporter",
+      exportedByName: "Ana Novak",
       emailSentTo: "recipient@example.com",
       pdfData: pdf,
       params: { dateFrom: "2026-01-01", dateTo: "2026-12-31" },
@@ -123,7 +128,7 @@ describe("report email export audit trail", () => {
       });
       const res = await exportReport("recipient@example.com", { reportType, asOf: "2026-12-31" });
       expect(res.status).toBe(200);
-      expect(saved).toEqual([expect.objectContaining({ reportType, emailSentTo: "recipient@example.com" })]);
+      expect(saved).toEqual([expect.objectContaining({ reportType, emailSentTo: "recipient@example.com", exportedByName: "Ana Novak" })]);
       const generated = mocks.pdf.mock.calls[0]?.[0];
       if (reportType === "balance-sheet") {
         expect(generated.current).toMatchObject({ aktiva: { total: "0.00" }, pasiva: { total: "0.00" } });
@@ -134,6 +139,27 @@ describe("report email export audit trail", () => {
       }
     },
   );
+
+  it("stores the primary email for downloads when there is no display name", async () => {
+    mocks.getUser.mockResolvedValue({
+      firstName: " ", lastName: null, primaryEmailAddressId: "primary",
+      emailAddresses: [
+        { id: "secondary", emailAddress: "other@example.test" },
+        { id: "primary", emailAddress: " primary@example.test " },
+      ],
+    });
+    expect((await exportReport()).status).toBe(200);
+    expect(saved[0]).toMatchObject({ exportedBy: "exporter", exportedByName: "primary@example.test" });
+    expect(mocks.getUser).toHaveBeenCalledExactlyOnceWith("exporter");
+  });
+
+  it.each(["unavailable", "missing identity"])("does not send or save an export with %s", async (reason) => {
+    if (reason === "unavailable") mocks.getUser.mockRejectedValue(new Error("unavailable"));
+    else mocks.getUser.mockResolvedValue({ firstName: null, lastName: null, emailAddresses: [] });
+    expect((await exportReport("recipient@example.test")).status).toBe(502);
+    expect(mocks.send).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
 
   it("uses filtered account rows and totals for a trial-balance attachment", async () => {
     mocks.aggregates.push(

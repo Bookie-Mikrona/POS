@@ -29,6 +29,17 @@ import { REPORT_EXPORT_RETENTION_DAYS, reportExportCutoff } from "../lib/reportE
 const router: IRouter = Router();
 router.use(erpSmtpRouter);
 
+function exporterDisplayName(user: {
+  firstName: string | null;
+  lastName: string | null;
+  primaryEmailAddressId: string | null;
+  emailAddresses: { id: string; emailAddress: string }[];
+}): string | undefined {
+  const name = [user.firstName?.trim(), user.lastName?.trim()].filter(Boolean).join(" ");
+  const email = user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)
+    ?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
+  return name || email?.trim() || undefined;
+}
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
 }
@@ -1188,6 +1199,18 @@ router.post(
       if (searchTerm) exportParams.searchTerm = searchTerm;
     }
 
+    // Resolve before sending: never deliver a new export without its audit identity.
+    let exportedByName: string;
+    try {
+      const user = await clerkClient.users.getUser(authReq.clerkUserId);
+      const displayName = exporterDisplayName(user);
+      if (!displayName) throw new Error("Exporter has no display name or email");
+      exportedByName = displayName;
+    } catch {
+      res.status(502).json({ error: "Podatkov o izvozniku ni mogoče pridobiti. Poskusite znova." });
+      return;
+    }
+
     // Neuspelega pošiljanja ne beleži kot uspešno poslan izvoz.
     if (email) {
       try {
@@ -1218,6 +1241,7 @@ router.post(
         params: exportParams,
         filename,
         exportedBy: authReq.clerkUserId,
+        exportedByName,
         pdfData: pdfBuffer,
         emailSentTo: email || null,
       });
@@ -1260,6 +1284,7 @@ router.get(
         params: reportExportsTable.params,
         filename: reportExportsTable.filename,
         exportedBy: reportExportsTable.exportedBy,
+        exportedByName: reportExportsTable.exportedByName,
         exportedAt: reportExportsTable.exportedAt,
         emailSentTo: reportExportsTable.emailSentTo,
       })
@@ -1271,7 +1296,8 @@ router.get(
       .orderBy(desc(reportExportsTable.exportedAt))
       .limit(200);
 
-    const userIds = [...new Set(rows.map((row) => row.exportedBy).filter(Boolean))];
+    const userIds = [...new Set(rows.filter((row) => !row.exportedByName?.trim())
+      .map((row) => row.exportedBy).filter(Boolean))];
     const displayNames = new Map<string, string>();
     // Deduplicate and batch only this company's exporters (Clerk's page size is 100).
     try {
@@ -1281,10 +1307,7 @@ router.get(
           limit: 100,
         });
         for (const user of users) {
-          const name = [user.firstName?.trim(), user.lastName?.trim()].filter(Boolean).join(" ");
-          const email = user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)
-            ?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
-          displayNames.set(user.id, name || email?.trim() || "Neznan uporabnik");
+          displayNames.set(user.id, exporterDisplayName(user) ?? "Neznan uporabnik");
         }
       }
     } catch {
@@ -1296,7 +1319,7 @@ router.get(
       retentionDays: REPORT_EXPORT_RETENTION_DAYS,
       exports: rows.map((row) => ({
         ...row,
-        exportedByName: displayNames.get(row.exportedBy) ?? "Neznan uporabnik",
+        exportedByName: row.exportedByName?.trim() || displayNames.get(row.exportedBy) || "Neznan uporabnik",
       })),
     });
   },

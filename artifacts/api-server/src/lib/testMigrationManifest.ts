@@ -586,6 +586,7 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["174-viva-refund-manual-resolution.sql"],
   },
+  { file: "266-report-export-identity-snapshot.sql", classification: "audit" },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;
