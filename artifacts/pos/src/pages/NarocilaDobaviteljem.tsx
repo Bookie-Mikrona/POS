@@ -1643,8 +1643,50 @@ export default function NarocilaDobaviteljem() {
               <tbody className="divide-y divide-[#eee8dc]">{orderEditor.rows.map((row, index) => {
                 const mapping = articles.flatMap(article => article.mappings).find(item => item.id === row.supplierMappingId);
                 const article = articles.find(item => item.mappings.some(mappingItem => mappingItem.id === row.supplierMappingId));
+                const usesLastSupplierPrice = mapping?.lastPackagePrice != null
+                  && Number.isFinite(mapping.lastPackagePrice)
+                  && mapping.lastPackagePrice >= 0
+                  && row.unitPrice != null
+                  && Number.isFinite(row.unitPrice)
+                  && row.unitPrice >= 0
+                  && Math.abs(row.unitPrice - mapping.lastPackagePrice) <= 1e-9;
+                const priceFreshness = mapping
+                  ? supplierPriceFreshness(mapping.lastPriceReceipt?.date)
+                  : null;
                 return <tr key={`${row.supplierMappingId}-${index}`}>
-                  <td className="px-3 py-3"><div className="font-semibold text-[#344d45]">{article?.articleName ?? "Artikel"}</div><div className="text-xs text-[#7b867f]">{mapping?.supplierItemName ?? article?.purchaseName ?? mapping?.packageName ?? "Dobaviteljska postavka"} · faktor {formatQty(mapping?.packageFactor)}</div></td>
+                  <td className="px-3 py-3">
+                    <div className="font-semibold text-[#344d45]">{article?.articleName ?? "Artikel"}</div>
+                    <div className="text-xs text-[#7b867f]">{mapping?.supplierItemName ?? article?.purchaseName ?? mapping?.packageName ?? "Dobaviteljska postavka"} · faktor {formatQty(mapping?.packageFactor)}</div>
+                    {mapping && <div className="mt-1 space-y-1 text-xs" data-testid={`supplier-order-price-source-${mapping.id}-${index}`}>
+                      {mapping.lastPriceReceipt
+                        ? <button
+                          type="button"
+                          data-testid={`supplier-order-price-receipt-${mapping.id}-${index}`}
+                          aria-label={`Vir zadnje cene: odpri prejemnico št. ${mapping.lastPriceReceipt.receiptNumber}`}
+                          onClick={() => {
+                            const sourceReceipt = mapping.lastPriceReceipt;
+                            if (sourceReceipt) navigate(`/zaloge?prejemnica=${sourceReceipt.receiptId}&nacin=ogled`);
+                          }}
+                          className="text-left text-[#52685f] underline decoration-dotted underline-offset-2 hover:text-[#285d50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d50]"
+                        >
+                          Vir cene: prejemnica št. {mapping.lastPriceReceipt.receiptNumber} · {formatReceiptDate(mapping.lastPriceReceipt.date)}
+                        </button>
+                        : <div className="text-[#68756e]">Vir prejemnice ni zabeležen.</div>}
+                      {usesLastSupplierPrice && priceFreshness === "stale" && <div
+                        role="status"
+                        data-testid={`supplier-order-price-stale-${mapping.id}-${index}`}
+                        className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-950"
+                      >
+                        Opozorilo: uporabljena cena je stara 90 dni ali več. Pred shranjevanjem preverite ceno.
+                      </div>}
+                      {priceFreshness === "unknown" && <div
+                        data-testid={`supplier-order-price-age-unknown-${mapping.id}-${index}`}
+                        className="text-amber-900"
+                      >
+                        Starost cene ni znana.
+                      </div>}
+                    </div>}
+                  </td>
                   <td className="px-3 py-3"><Input type="number" min="0.001" step="0.001" value={row.packageQuantity} onChange={event => setOrderEditor({ ...orderEditor, rows: orderEditor.rows.map((line, i) => i === index ? { ...line, packageQuantity: Number(event.target.value) } : line) })} className="h-9 border-[#ded6c7] text-right data-mono" aria-label={`Količina pakiranj ${article?.articleName ?? ""}`} /></td>
                   <td className="px-3 py-3"><Input type="number" min="0" step="0.01" value={row.unitPrice ?? ""} onChange={event => setOrderEditor({ ...orderEditor, rows: orderEditor.rows.map((line, i) => i === index ? { ...line, unitPrice: event.target.value === "" ? undefined : Number(event.target.value) } : line) })} className="h-9 border-[#ded6c7] text-right data-mono" placeholder="—" aria-label={`Cena pakiranja ${article?.articleName ?? ""}`} /></td>
                   <td className="px-2 py-3"><button type="button" onClick={() => setOrderEditor({ ...orderEditor, rows: orderEditor.rows.filter((_, i) => i !== index) })} className="rounded p-1.5 text-[#9a6256] hover:bg-rose-50" aria-label="Odstrani postavko"><X className="h-4 w-4" /></button></td>

@@ -1888,6 +1888,79 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("warns about a 90-day-old draft price, shows its source, and still allows saving", async () => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalSource = mapping.lastPriceReceipt;
+    const staleDate = receiptDateDaysAgo(90);
+    mapping.lastPriceReceipt = {
+      receiptId: 7190,
+      date: staleDate,
+      receiptNumber: "STALE-7190",
+    };
+    mocks.mutation.mockResolvedValue(mocks.order);
+
+    try {
+      renderSupplierOrderPage();
+
+      fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
+
+      const warning = screen.getByTestId("supplier-order-price-stale-7042-0");
+      expect(warning.textContent).toContain("90 dni ali več");
+      expect(warning.textContent).toContain("Pred shranjevanjem preverite ceno");
+      const source = screen.getByTestId("supplier-order-price-receipt-7042-0");
+      expect(source.textContent).toContain("STALE-7190");
+      expect(source.textContent).toContain(expectedReceiptDate(staleDate));
+      expect((screen.getByRole("button", { name: "Shrani osnutek" }) as HTMLButtonElement).disabled)
+        .toBe(false);
+
+      fireEvent.click(screen.getByRole("button", { name: "Shrani osnutek" }));
+      await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith({
+        data: {
+          supplierId: "supplier-704",
+          expectedDeliveryDate: null,
+          internalNotes: null,
+          supplierNotes: null,
+          lines: [{ supplierMappingId: 7042, packageQuantity: 3, unitPrice: 22.5 }],
+        },
+      }));
+    } finally {
+      mapping.lastPriceReceipt = originalSource;
+    }
+  });
+
+  it.each([
+    ["neveljaven datum", "not-a-date", true],
+    ["manjkajoč datum", null, true],
+    ["manjkajoč vir prejemnice", null, false],
+  ])("označi %s kot neznano v osnutku", (_description, date, hasReceipt) => {
+    const mapping = mocks.dashboard.articles[0].mappings[0];
+    const originalSource = mapping.lastPriceReceipt;
+    (mapping as any).lastPriceReceipt = hasReceipt
+      ? { receiptId: 7191, date, receiptNumber: "UNKNOWN-7191" }
+      : null;
+
+    try {
+      renderSupplierOrderPage();
+      fireEvent.click(screen.getByRole("button", { name: /Osnutek · Mlekarna Planika/ }));
+
+      expect(screen.getByTestId("supplier-order-price-age-unknown-7042-0").textContent)
+        .toContain("Starost cene ni znana");
+      expect(screen.queryByTestId("supplier-order-price-stale-7042-0")).toBeNull();
+      if (hasReceipt) {
+        const source = screen.getByTestId("supplier-order-price-receipt-7042-0");
+        expect(source.textContent).toContain("UNKNOWN-7191");
+        expect(source.textContent).toContain("Datum ni znan");
+      } else {
+        expect(screen.getByTestId("supplier-order-price-source-7042-0").textContent)
+          .toContain("Vir prejemnice ni zabeležen");
+      }
+      expect((screen.getByRole("button", { name: "Shrani osnutek" }) as HTMLButtonElement).disabled)
+        .toBe(false);
+    } finally {
+      mapping.lastPriceReceipt = originalSource;
+    }
+  });
+
   it("sends internal notes and supplier instructions in separate fields", async () => {
     mocks.mutation.mockResolvedValue(mocks.order);
     const queryClient = new QueryClient({
