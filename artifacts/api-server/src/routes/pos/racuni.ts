@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
-import { and, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull, like, ne, or, sql, sum } from "drizzle-orm";
 import { artikliTable, blagajneTable, darilniBonGibiTable, darilniBonIzdajeTable, db, enoteTable, fursAttemptsTable, fursPayloadSnapshotsTable, izmeneTable, mizeTable, modifikatorjiTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, odmoriTable, partnerCenikiTable, posKarticnaPlacilaAttemptTable, posKarticnaPlacilaReferenceTable, postavkeTable, posBookingSettingsTable, racunFinalizationPlansTable, racunIzdajaZahteveTable, racuniTable, tiskalneNalogeTable, tipDistributionProfileEntriesTable, tipDistributionProfilesTable, vivaVracilaTable, vivaVraciloStatusPrehodiTable, zalogaGibiTable } from "@workspace/db";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { faktorNormativaModifikatorja, faktorNormativaPodModifikatorja } from "../../lib/pica-poraba";
@@ -46,12 +46,16 @@ const router: IRouter = Router();
 /** New internal multicourse components are operationally billed but never
  * customer or fiscal receipt lines. The zero price is part of the marker so
  * legacy receipts whose paired wines were charged remain legally immutable. */
+/** Daily lunch courses are customer-visible receipt lines (price 0, flat price sits on the main dish). */
+const DAILY_LUNCH_PAIRING_PREFIX = "daily-lunch:";
+
 export function isInternalMulticourseMenuComponent(line: {
   pairingGroupId: string | null;
   courseNumber: number | null;
   cenaKos: string | number | null;
 }): boolean {
   return line.pairingGroupId !== null
+    && !line.pairingGroupId.startsWith(DAILY_LUNCH_PAIRING_PREFIX)
     && line.courseNumber !== null
     && Number(line.cenaKos) === 0;
 }
@@ -59,6 +63,7 @@ export function isInternalMulticourseMenuComponent(line: {
 function receiptVisiblePostavkaClause() {
   return or(
     isNull(postavkeTable.pairingGroupId),
+    like(postavkeTable.pairingGroupId, `${DAILY_LUNCH_PAIRING_PREFIX}%`),
     isNull(postavkeTable.courseNumber),
     ne(postavkeTable.cenaKos, "0"),
   );
