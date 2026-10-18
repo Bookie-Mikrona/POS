@@ -158,6 +158,41 @@ vi.mock("@workspace/api-client-react", async () => {
         refetch: query.refetch,
       };
     },
+    useListSupplierOrdersMissingInstructions: (params: { status?: string; search?: string; page: number; pageSize: number }) => {
+      const getPage = () => {
+        const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("sl");
+        const search = normalize(params.search?.trim() ?? "");
+        const filtered = (mocks.supplierOrderSummaries ?? [mocks.order]).filter(order =>
+          (!params.status || order.status === params.status)
+          && Boolean(order.internalNotes?.trim())
+          && !order.supplierNotes?.trim()
+          && (!search || normalize(`${order.number} ${order.supplierName}`).includes(search)),
+        );
+        const offset = (params.page - 1) * params.pageSize;
+        return {
+          orders: filtered.slice(offset, offset + params.pageSize),
+          total: filtered.length,
+          page: params.page,
+          pageSize: params.pageSize,
+        };
+      };
+      const query = mocks.querySupplierOrderLists
+        ? useQuery({
+          queryKey: actual.getListSupplierOrdersMissingInstructionsQueryKey(params),
+          queryFn: () => {
+            mocks.supplierOrderListFetches.push({ ...params, missingSupplierInstructionsOnly: true });
+            return getPage();
+          },
+          initialData: getPage,
+        })
+        : null;
+      return query ?? {
+        data: getPage(),
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      };
+    },
     useGetSupplierOrder: () => ({
       data: mocks.order,
       isLoading: false,
@@ -511,7 +546,7 @@ describe("supplier order print view", () => {
     await waitFor(() => {
       expect(mocks.supplierOrderListFetches).toEqual(expect.arrayContaining([
         {},
-        { missingSupplierInstructionsOnly: true },
+        expect.objectContaining({ missingSupplierInstructionsOnly: true, page: 1, pageSize: 50 }),
       ]));
     });
     const regularFetchesBeforeSave = mocks.supplierOrderListFetches.filter(params => !params.missingSupplierInstructionsOnly).length;
@@ -571,11 +606,13 @@ describe("supplier order print view", () => {
     expect(screen.getByTestId("row-supplier-order-704")).toBeTruthy();
     expect(screen.queryByTestId("row-supplier-order-705")).toBeNull();
 
-    fireEvent.change(search, { target: { value: "domače" } });
-    expect(screen.getByTestId("row-supplier-order-705")).toBeTruthy();
-    expect(screen.queryByTestId("row-supplier-order-704")).toBeNull();
-    expect(screen.getByTestId("row-supplier-order-705").textContent).toContain("Kmetija Domače");
-    expect(screen.getByTestId("row-supplier-order-705").textContent).toContain("N-2026-0705");
+    for (const value of ["domace", "domače", "  DOMAČE  ", "domac\u030ce"]) {
+      fireEvent.change(search, { target: { value } });
+      expect(screen.getByTestId("row-supplier-order-705")).toBeTruthy();
+      expect(screen.queryByTestId("row-supplier-order-704")).toBeNull();
+      expect(screen.getByTestId("row-supplier-order-705").textContent).toContain("Kmetija Domače");
+      expect(screen.getByTestId("row-supplier-order-705").textContent).toContain("N-2026-0705");
+    }
 
     fireEvent.change(search, { target: { value: "Kmetija" } });
     expect(screen.getByTestId("row-supplier-order-705")).toBeTruthy();

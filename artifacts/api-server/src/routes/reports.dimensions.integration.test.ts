@@ -151,6 +151,85 @@ describe("dimension report line-level attribution", () => {
     ["costCenter", costCentersTable, "costCenterId"],
     ["project", projectsTable, "projectId"],
     ["department", departmentsTable, "departmentId"],
+  ] as const)("preserves posted %s amounts in both views after deactivation", async (dimensionType, table, fk) => {
+    const rollback = new Error("rollback inactive dimension report fixtures");
+    let companyId = "";
+    try {
+      await db.transaction(async tx => {
+        isolation.tx = tx;
+        const [company] = await db.insert(companiesTable).values({
+          podjetjeDavcna: `TEST_DIM_INACTIVE_${dimensionType}_${Date.now()}`, naziv: "TEST inactive dimensions",
+        }).returning();
+        companyId = company.id;
+        await db.insert(accountingRolesTable).values({
+          companyId, clerkUserId: "TEST-dimension-report", role: "viewer",
+        });
+        const [period] = await db.insert(accountingPeriodsTable).values({
+          companyId, name: "2026", startDate: "2026-01-01", endDate: "2026-12-31", status: "open",
+        }).returning();
+        const [expense, bank] = await db.insert(accountsTable).values([
+          { companyId, code: "4000", name: "Expense", type: "expense" },
+          { companyId, code: "1100", name: "Bank", type: "asset" },
+        ]).returning();
+        const [historical, active] = await db.insert(table).values([
+          { companyId, code: "A", name: "Historical dimension", isActive: true },
+          { companyId, code: "B", name: "Active dimension", isActive: true },
+        ]).returning();
+        const [entry] = await db.insert(journalEntriesTable).values({
+          companyId, periodId: period.id, entryDate: "2026-06-15", status: "posted",
+          description: "TEST historical dimension amounts", createdBy: "TEST-dimension-report",
+        }).returning();
+        await db.insert(journalEntryLinesTable).values([
+          { entryId: entry.id, accountId: expense.id, side: "debit", amount: "12.34", sequence: 0, [fk]: historical.id },
+          { entryId: entry.id, accountId: bank.id, side: "credit", amount: "2.10", sequence: 1, [fk]: historical.id },
+          { entryId: entry.id, accountId: expense.id, side: "debit", amount: "3.21", sequence: 2, [fk]: active.id },
+          { entryId: entry.id, accountId: bank.id, side: "credit", amount: "13.45", sequence: 3, [fk]: active.id },
+        ]);
+
+        const url = `/companies/${companyId}/reports/dimensions`;
+        const query = { dimensionType, dateFrom: "2026-06-01", dateTo: "2026-06-30" };
+        const plainBefore = (await request(app).get(url).query(query).expect(200)).body;
+        const detailedBefore = (await request(app).get(url).query({ ...query, groupBy: "account" }).expect(200)).body;
+        expect(plainBefore.rows).toEqual([
+          { id: historical.id, code: "A", name: "Historical dimension", totalDebit: "12.34", totalCredit: "2.10", balance: "10.24" },
+          { id: active.id, code: "B", name: "Active dimension", totalDebit: "3.21", totalCredit: "13.45", balance: "-10.24" },
+        ]);
+        expect(plainBefore).toMatchObject({
+          grandTotalDebit: "15.55", grandTotalCredit: "15.55", grandTotalBalance: "0.00",
+        });
+        expect(detailedBefore.rows[0].accounts).toEqual([
+          { accountId: bank.id, code: "1100", name: "Bank", totalDebit: "0.00", totalCredit: "2.10", balance: "-2.10" },
+          { accountId: expense.id, code: "4000", name: "Expense", totalDebit: "12.34", totalCredit: "0.00", balance: "12.34" },
+        ]);
+
+        // Change the live dimension only after its historical amounts exist.
+        const deactivated = await db.update(table).set({ isActive: false })
+          .where(eq(table.id, historical.id)).returning({ id: table.id, isActive: table.isActive });
+        expect(deactivated).toEqual([{ id: historical.id, isActive: false }]);
+
+        const plainAfter = (await request(app).get(url).query(query).expect(200)).body;
+        const detailedAfter = (await request(app).get(url).query({ ...query, groupBy: "account" }).expect(200)).body;
+        expect(plainAfter).toEqual(plainBefore);
+        expect(detailedAfter).toEqual(detailedBefore);
+        expectReconciled(detailedAfter);
+        expect(detailedAfter.rows.map(({ accounts: _accounts, ...row }: DimensionRow) => row)).toEqual(plainAfter.rows);
+        for (const field of ["grandTotalDebit", "grandTotalCredit", "grandTotalBalance"]) {
+          expect(detailedAfter[field]).toBe(plainAfter[field]);
+        }
+        throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
+    } finally {
+      isolation.tx = null;
+    }
+    expect(await db.select().from(companiesTable).where(eq(companiesTable.id, companyId))).toHaveLength(0);
+  });
+
+  it.each([
+    ["costCenter", costCentersTable, "costCenterId"],
+    ["project", projectsTable, "projectId"],
+    ["department", departmentsTable, "departmentId"],
   ] as const)("reconciles %s totals with account subrows for a split journal", async (dimensionType, table, fk) => {
     const rollback = new Error("rollback dimension report fixtures");
     let companyId = "";

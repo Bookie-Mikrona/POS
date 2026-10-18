@@ -225,6 +225,10 @@ function comparableUnitPrice(
   return mapping.lastUnitPrice;
 }
 
+function normalizeSupplierOrderSearch(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("sl");
+}
+
 function appendInternalNoteToSupplierNotes(internalNote: string, supplierNotes: string): string {
   const normalizedNote = internalNote.trim();
   if (!normalizedNote || supplierNotes.includes(normalizedNote)) return supplierNotes;
@@ -616,7 +620,7 @@ export default function NarocilaDobaviteljem() {
     ? ordersMissingSupplierInstructions
     : orderList ?? [];
   const activeOrderSearch = orderSearch.trim();
-  const normalizedOrderSearch = activeOrderSearch.toLocaleLowerCase("sl");
+  const normalizedOrderSearch = normalizeSupplierOrderSearch(activeOrderSearch);
   const hasActiveOrderFilters = Boolean(activeOrderSearch)
     || statusFilter !== "all"
     || missingSupplierInstructionsOnly;
@@ -624,7 +628,7 @@ export default function NarocilaDobaviteljem() {
     ? ordersWithInstructionFilter
     : ordersWithInstructionFilter.filter(order =>
       !normalizedOrderSearch
-      || `${order.number} ${order.supplierName}`.toLocaleLowerCase("sl").includes(normalizedOrderSearch),
+      || normalizeSupplierOrderSearch(`${order.number} ${order.supplierName}`).includes(normalizedOrderSearch),
     );
   const supplierNotesAfterCopy = orderEditor
     ? appendInternalNoteToSupplierNotes(orderEditor.internalNotes, orderEditor.supplierNotes)

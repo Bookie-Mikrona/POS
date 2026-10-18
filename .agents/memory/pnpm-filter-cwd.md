@@ -14,3 +14,9 @@ Za ciljni Vitest zagon uporabi `pnpm --filter @workspace/api-server exec vitest 
 **Why:** Oblika `pnpm --filter @workspace/api-server test -- <testne-poti>` je v tem okolju z Vitest 4 prezrla ciljni izbor in pognala celoten nabor, tudi teste odvisnosti.
 
 **How to apply:** Če želiš preveriti samo izbrane datoteke, uporabi neposredni `exec`; potrebni migracijski predkorak izvedi posebej.
+
+Po združitvi sprememb lahko deklarirane odvisnosti in lockfile že vsebujejo paket, lokalni `node_modules` pa še ne.
+
+**Why:** Združitev kode ne zagotovi osvežitve nameščenih povezav paketov; napaka »Cannot find module« zato ni nujno manjkajoča deklaracija odvisnosti.
+
+**How to apply:** Pred spremembo različic ali dodajanjem odvisnosti primerjaj deklaracijo, lockfile in nameščeni paket. Če se razlikuje samo namestitev, jo uskladi z obstoječim lockfile brez spreminjanja različic.
