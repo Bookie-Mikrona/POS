@@ -183,6 +183,17 @@
   margin: 14mm;
 }
 
+@page supplier-order-multipage {
+  size: A4 portrait;
+  margin: 14mm;
+
+  @bottom-center {
+    content: "Stran " counter(page) " / " counter(pages);
+    color: #59645e;
+    font: 8pt Arial, Helvetica, sans-serif;
+  }
+}
+
 @page receipt-review {
   size: A4 portrait;
   margin: 14mm;
@@ -210,6 +221,9 @@
     line-height: 1.4;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  body > .supplier-order-print.supplier-order-print--multipage {
+    page: supplier-order-multipage;
   }
   .supplier-order-print__header {
     display: grid;

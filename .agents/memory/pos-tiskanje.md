@@ -21,6 +21,12 @@ V tem Replitovem Linux okolju Safari ni na voljo. WebKitGTK WebDriver lahko ustv
 
 **How to apply:** Safari/WebKit tiskanje potrdi na macOS z resničnim Safarijem ali drugim WebKit runnerjem, ki zna izpisati PDF, in preveri dejanski PDF. Pri WebKit diagnostiki uporabi allowlist okolja in ne izpisuj surovih dnevnikov procesa, saj lahko vsebujejo podedovane spremenljivke okolja.
 
+Chromiumovi robni bloki `@page` za glavo/nogo so v preverjenem PDF-ju delovali; Firefox 140 jih v WebDriver PDF-ju ni izrisal. Številčenje strani zato preveri v PDF-ju ciljnega brskalnika, ne le v DOM-u ali CSS-ju.
+
+**Why:** CSS `@page` robne vsebine nimajo enake podpore v vseh brskalnikih, različica Firefox 140 pa v testu ni ustvarila vsebine robnega bloka.
+
+**How to apply:** Pri številkah strani ali drugih glavi/nogi uporabi dejanski brskalniški PDF; Chromiumov uspeh ne dokazuje enakega izpisa v Firefoxu ali Safariju.
+
 ## Besedilno preverjanje PDF-jev z ovitimi celicami
 
 `pdftotext -layout` lahko besedilo iz ovite celice tabele razporedi med besedilo sosednjih stolpcev. Odsotnost ene strnjene podnizne vrednosti zato sama po sebi ne dokazuje, da je tiskani PDF vsebino odrezal.

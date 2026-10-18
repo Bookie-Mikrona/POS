@@ -239,6 +239,7 @@ function StatusPill({ status }: { status: SupplierOrderStatus }) {
 }
 
 export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }) {
+  const printArticleRef = useRef<HTMLElement | null>(null);
   const pricedLines = order.lines.filter(line => line.unitPrice != null);
   const total = pricedLines.reduce((sum, line) => sum + (line.unitPrice ?? 0) * line.packageQuantity, 0);
   const hasUnpricedLines = pricedLines.length !== order.lines.length;
@@ -246,8 +247,31 @@ export function SupplierOrderPrintView({ order }: { order: SupplierOrderDetail }
     ? `${order.supplierName.slice(0, 41).trimEnd()}…`
     : order.supplierName;
 
+  useEffect(() => {
+    const article = printArticleRef.current;
+    if (!article) return;
+
+    const updatePageNumbering = () => {
+      const printablePageHeight = ((297 - 28) / 25.4) * 96;
+      article.classList.toggle(
+        "supplier-order-print--multipage",
+        article.getBoundingClientRect().height > printablePageHeight,
+      );
+    };
+    const clearPageNumbering = () => {
+      article.classList.remove("supplier-order-print--multipage");
+    };
+
+    window.addEventListener("beforeprint", updatePageNumbering);
+    window.addEventListener("afterprint", clearPageNumbering);
+    return () => {
+      window.removeEventListener("beforeprint", updatePageNumbering);
+      window.removeEventListener("afterprint", clearPageNumbering);
+    };
+  }, []);
+
   return createPortal(
-    <article className="supplier-order-print" data-testid="supplier-order-print">
+    <article ref={printArticleRef} className="supplier-order-print" data-testid="supplier-order-print">
       <header className="supplier-order-print__header">
         <div>
           <p className="supplier-order-print__eyebrow">Naročilo dobavitelju</p>

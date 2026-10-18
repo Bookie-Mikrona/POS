@@ -443,6 +443,23 @@ async function main() {
     const normalizedPdfText = normalizeText(extracted);
     const pages = extracted.split("\f").map(normalizeText).filter(Boolean);
     assert.equal(pages.length, pageCount, "Extracted PDF page count differs from pdfinfo.");
+    const lastOrderPageIndex = pages.findIndex(page => page.includes("ONE-ROW-ORDER-CASE")) - 1;
+    assert(lastOrderPageIndex > 0, "Could not determine the final page of the multi-page supplier order.");
+    if (selectedBrowser === "chromium") {
+      const pageNumberPattern = /STRAN\s+(\d+)\s*\/\s*(\d+)/i;
+      for (let pageIndex = 0; pageIndex <= lastOrderPageIndex; pageIndex += 1) {
+        const pageNumber = pages[pageIndex].match(pageNumberPattern);
+        assert(pageNumber, `Multi-page supplier order page ${pageIndex + 1} has no printed page number.`);
+        assert.equal(Number(pageNumber[1]), pageIndex + 1, `Page ${pageIndex + 1} has an incorrect page number.`);
+        assert.equal(Number(pageNumber[2]), pageCount, `Page ${pageIndex + 1} has an incorrect total page count.`);
+      }
+      for (const pageIndex of [lastOrderPageIndex + 1, lastOrderPageIndex + 2, lastOrderPageIndex + 3]) {
+        assert(
+          !pageNumberPattern.test(pages[pageIndex] ?? ""),
+          `Single-page supplier order ${pageIndex - lastOrderPageIndex} is cluttered with a page number.`,
+        );
+      }
+    }
     const tablePages = pages.filter(page => /POSTAVKA-\d{3}/.test(page));
     const notePages = pages.filter(page => /NAVODILO-\d{3}/.test(page));
     assert(
@@ -588,9 +605,30 @@ async function main() {
     assert.equal(pdfPages.length, pageCount, "PDF text geometry page count differs from pdfinfo.");
 
     for (const [pageIndex, page] of pages.entries()) {
-      if (!/POSTAVKA-\d{3}/.test(page)) continue;
       const pageMarkup = pdfPages[pageIndex];
-      assert(pageMarkup, `Table page ${pageIndex + 1} has no PDF text geometry.`);
+      assert(pageMarkup, `Supplier order page ${pageIndex + 1} has no PDF text geometry.`);
+      if (selectedBrowser === "chromium" && pageIndex <= lastOrderPageIndex) {
+        const pageAttributes = readAttributes(pageMarkup[1]);
+        const pageHeight = Number(pageAttributes.height);
+        const pageWords = readWords(pageMarkup[2]);
+        const pageNumberWord = pageWords.find(word => word.text.toLocaleLowerCase("sl") === "stran");
+        assert(pageNumberWord, `Supplier order page ${pageIndex + 1} has no page-number geometry.`);
+        const pageNumberWords = pageWords.filter(word =>
+          Number(word.yMin) < Number(pageNumberWord.yMax)
+          && Number(word.yMax) > Number(pageNumberWord.yMin));
+        assert(
+          Number(pageNumberWord.yMin) >= pageHeight - (14 / 25.4) * 72,
+          `Page number on supplier order page ${pageIndex + 1} overlaps the printable page content.`,
+        );
+        const pageContentWords = pageWords.filter(word => !pageNumberWords.includes(word));
+        const pageContentBottom = Math.max(...pageContentWords.map(word => Number(word.yMax)));
+        assert(
+          pageContentBottom < Number(pageNumberWord.yMin),
+          `Page number overlaps the table or supplier instructions on page ${pageIndex + 1}.`,
+        );
+      }
+
+      if (!/POSTAVKA-\d{3}/.test(page)) continue;
       const blocks = readBlocks(pageMarkup[2]);
       const compactOrderNumber = compactText(longOrderNumber);
       const compactSupplierName = compactText(continuationSupplierName);
