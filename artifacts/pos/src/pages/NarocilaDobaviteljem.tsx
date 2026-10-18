@@ -1299,6 +1299,14 @@ export default function NarocilaDobaviteljem() {
               >
                 {orderEditor.internalNotes.length} / {MAX_ORDER_NOTE_LENGTH} znakov · preostalo {MAX_ORDER_NOTE_LENGTH - orderEditor.internalNotes.length}
               </p>
+              <p
+                role="status"
+                aria-live="polite"
+                data-testid="supplier-note-copy-preview"
+                className={`mt-1 text-[11px] text-right ${supplierNoteCopyOverLimit ? "text-rose-800" : "text-[#77817b]"}`}
+              >
+                Po kopiranju: {supplierNotesAfterCopy.length} / {MAX_ORDER_NOTE_LENGTH} znakov · preostalo {MAX_ORDER_NOTE_LENGTH - supplierNotesAfterCopy.length}
+              </p>
               <Button
                 type="button"
                 variant="outline"

@@ -1379,23 +1379,27 @@ describe("supplier order print view", () => {
     openNewOrderEditor();
     const supplierCounter = screen.getByTestId("supplier-note-character-count");
     const internalCounter = screen.getByTestId("internal-note-character-count");
+    const copyPreview = screen.getByTestId("supplier-note-copy-preview");
     const supplierNotes = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
     const internalNote = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
     const typedInstructions = "Dostavite pred 10. uro.";
 
     expect(supplierCounter.textContent).toBe("0 / 2000 znakov · preostalo 2000");
     expect(internalCounter.textContent).toBe("0 / 2000 znakov · preostalo 2000");
+    expect(copyPreview.textContent).toBe("Po kopiranju: 0 / 2000 znakov · preostalo 2000");
     fireEvent.change(supplierNotes, { target: { value: typedInstructions } });
     expect(supplierCounter.textContent).toBe(`${typedInstructions.length} / 2000 znakov · preostalo ${2000 - typedInstructions.length}`);
     expect(internalCounter.textContent).toBe("0 / 2000 znakov · preostalo 2000");
+    expect(copyPreview.textContent).toBe(`Po kopiranju: ${typedInstructions.length} / 2000 znakov · preostalo ${2000 - typedInstructions.length}`);
 
     const noteToCopy = "Pokličite ob prihodu.";
     fireEvent.change(internalNote, { target: { value: noteToCopy } });
     expect(internalCounter.textContent).toBe(`${noteToCopy.length} / 2000 znakov · preostalo ${2000 - noteToCopy.length}`);
     expect(supplierCounter.textContent).toBe(`${typedInstructions.length} / 2000 znakov · preostalo ${2000 - typedInstructions.length}`);
+    const combinedInstructions = `${typedInstructions}\n\n${noteToCopy}`;
+    expect(copyPreview.textContent).toBe(`Po kopiranju: ${combinedInstructions.length} / 2000 znakov · preostalo ${2000 - combinedInstructions.length}`);
 
     fireEvent.click(screen.getByTestId("button-copy-internal-to-supplier"));
-    const combinedInstructions = `${typedInstructions}\n\n${noteToCopy}`;
     expect(supplierNotes.value).toBe(combinedInstructions);
     expect(supplierCounter.textContent).toBe(`${combinedInstructions.length} / 2000 znakov · preostalo ${2000 - combinedInstructions.length}`);
     expect(internalCounter.textContent).toBe(`${noteToCopy.length} / 2000 znakov · preostalo ${2000 - noteToCopy.length}`);
@@ -1454,6 +1458,8 @@ describe("supplier order print view", () => {
     fireEvent.change(supplierField, { target: { value: existingInstruction } });
     const characterCount = screen.getByTestId("supplier-note-character-count");
     expect(characterCount.textContent).toBe("1990 / 2000 znakov · preostalo 10");
+    expect(screen.getByTestId("supplier-note-copy-preview").textContent)
+      .toBe("Po kopiranju: 2022 / 2000 znakov · preostalo -22");
 
     const copyButton = screen.getByTestId("button-copy-internal-to-supplier");
     expect(copyButton.hasAttribute("disabled")).toBe(true);
@@ -1464,6 +1470,27 @@ describe("supplier order print view", () => {
     expect(supplierField.value).toBe(existingInstruction);
     expect(characterCount.textContent).toBe("1990 / 2000 znakov · preostalo 10");
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("allows copying when the predicted supplier instructions reach the character limit exactly", () => {
+    const internalNote = "i".repeat(30);
+    const existingInstruction = "s".repeat(1968);
+    renderSupplierOrderPage();
+    openNewOrderEditor();
+
+    const internalField = screen.getByLabelText(/Interna opomba/) as HTMLTextAreaElement;
+    const supplierField = screen.getByLabelText(/Navodilo dobavitelju/) as HTMLTextAreaElement;
+    fireEvent.change(internalField, { target: { value: internalNote } });
+    fireEvent.change(supplierField, { target: { value: existingInstruction } });
+
+    expect(screen.getByTestId("supplier-note-copy-preview").textContent)
+      .toBe("Po kopiranju: 2000 / 2000 znakov · preostalo 0");
+    const copyButton = screen.getByTestId("button-copy-internal-to-supplier");
+    expect(copyButton.hasAttribute("disabled")).toBe(false);
+
+    fireEvent.click(copyButton);
+    expect(supplierField.value).toBe(`${existingInstruction}\n\n${internalNote}`);
+    expect(supplierField.value.length).toBe(2000);
   });
 
   it.each([
