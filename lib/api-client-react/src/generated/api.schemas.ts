@@ -11499,6 +11499,7 @@ export interface PaymentDimensionsInput {
      */
   counterProjectId?: string | null;
 }
+
 export type CreatePaymentBodyDirection = typeof CreatePaymentBodyDirection[keyof typeof CreatePaymentBodyDirection];
 
 
@@ -15357,3 +15358,4 @@ export type PreviewPosMonthlyInvoiceParams = {
 month: string;
 counterpartyId: string;
 };
+
