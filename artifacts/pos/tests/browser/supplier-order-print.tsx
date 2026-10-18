@@ -1,6 +1,8 @@
 import { createRoot } from "react-dom/client";
+import { createPortal } from "react-dom";
 import type { SupplierOrderDetail } from "@workspace/api-client-react";
 import { SupplierOrderPrintView } from "../../src/pages/NarocilaDobaviteljem";
+import { ReceiptPrintDocument } from "../../src/pages/Zaloge";
 import "../../src/index.css";
 
 const lineCount = 60;
@@ -228,13 +230,73 @@ const shortOrders: SupplierOrderDetail[] = [
   },
 ];
 
+const receiptItemCount = 42;
+const receiptCostCount = 28;
+
+const receiptSummaryFields = [
+  { id: "supplier", label: "Dobavitelj", value: "Mlekarna s slovenskimi ekološkimi izdelki" },
+  { id: "receipt-date", label: "Datum prejema", value: "18. oktober 2026" },
+  { id: "document-number", label: "Številka dokumenta", value: "DOB-2026-1007" },
+];
+
+const receiptLines = Array.from({ length: receiptItemCount }, (_, index) => {
+  const number = index + 1;
+  const marker = `PREJEMNICA-POSTAVKA-${String(number).padStart(3, "0")}`;
+  const unitPrice = 2.35 + number / 10;
+  const amount = unitPrice * 2;
+  const vatRate = number % 2 === 0 ? 9.5 : 22;
+  const vatAmount = amount * vatRate / 100;
+  return {
+    id: 70_000 + number,
+    artikelIme: `${marker} Ekološko polnomastno slovensko mleko za profesionalne kuhinje, z natančno navedbo porekla, načina pridelave in ustreznega gostinskega pakiranja`,
+    izvNaziv: `Dobaviteljev naziv: mleko izbrane kakovosti za gostinstvo ${String(number).padStart(3, "0")}`,
+    enotaMere: "L",
+    kolicina: "2",
+    cenaKos: unitPrice.toFixed(2),
+    skupaj: amount.toFixed(2),
+    ddvStopnja: String(vatRate),
+    ddvZnesek: vatAmount.toFixed(2),
+  };
+});
+
+const receiptCosts = Array.from({ length: receiptCostCount }, (_, index) => {
+  const number = index + 1;
+  return {
+    id: 80_000 + number,
+    naziv: `PREJEMNICA-STROSEK-${String(number).padStart(3, "0")} Dostava in odvisni stroški manipulacije ter hlajenja`,
+    ddvStopnja: "22",
+    obravnava: number % 2 === 0 ? "zaloga" : "strosek",
+    znesek: (3.41 + number / 10).toFixed(2),
+  };
+});
+
+const confirmedReceipt = {
+  id: 10_007,
+  stevilka: "PREJEMNICA-DOLGA-2026-1007",
+  valuta: "EUR",
+  prejemnoPodjetjeNaziv: "Gostilna Pri Mostu d.o.o.",
+  postavke: receiptLines,
+  odvisniStroski: receiptCosts,
+};
+
 const root = document.getElementById("test-root");
 if (!root) throw new Error("Print test root is missing.");
 
+const shortOnly = new URLSearchParams(window.location.search).get("shortOnly") === "true";
 createRoot(root).render(
-  (new URLSearchParams(window.location.search).get("shortOnly") === "true"
-    ? shortOrders
-    : [order, ...shortOrders]).map(printOrder =>
-    <SupplierOrderPrintView key={printOrder.id} order={printOrder} />,
-  ),
+  <>
+    {(shortOnly ? shortOrders.slice(0, 3) : [order, ...shortOrders]).map(printOrder =>
+      <SupplierOrderPrintView key={printOrder.id} order={printOrder} />,
+    )}
+    {!shortOnly && createPortal(
+      <ReceiptPrintDocument
+        receipt={confirmedReceipt}
+        summaryFields={receiptSummaryFields}
+        postavke={receiptLines}
+        odvisniStroski={receiptCosts}
+        currency="EUR"
+      />,
+      document.body,
+    )}
+  </>,
 );

@@ -41,6 +41,11 @@ Firefox lahko pri izluščanju PDF-ja zaporedje »fi« predstavi kot Unicode lig
 
 **How to apply:** Pred primerjavo PDF-besedila uporabi Unicode NFKC normalizacijo ali preveri ustrezne besede in geometrijo; ne sklepaj, da je besedilo manjkajoče samo zaradi ligature.
 
+`pdftotext -layout` lahko prelomi tudi dolg identifikator v glavi med več vrstic, ne da bi bil v PDF-ju odrezan.
+
+**Why:** Večstranski PDF lahko pravilno izriše številko prejemnice, razdeljeno na dve vrstici; navaden `includes` nad izluščenim besedilom jo zato zgreši.
+
+**How to apply:** Za identifikatorje in nazive, ki se lahko ovijejo, najprej primerjaj besedilo brez presledkov; za celovitost postavk preverjaj besede znotraj geometrije njihove vrstice.
 ## Vsebina celice, razdeljena med strani
 
 Pri dokazovanju popolnosti zelo dolge tiskane celice primerjaj geometrijske besede po stolpcu in po vrstnem redu strani; izloči ponovljene glave/noge, ne pa besed, ki jih je brskalnik razdelil na mejah strani. Pred primerjavo normaliziraj tipografske ligature, kot sta `ﬁ` in `ﬂ`.

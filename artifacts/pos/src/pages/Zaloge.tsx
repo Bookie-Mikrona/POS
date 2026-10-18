@@ -1935,7 +1935,7 @@ function ReceiptLineAllergens({
   );
 }
 
-function ReceiptPrintDocument({
+export function ReceiptPrintDocument({
   receipt,
   summaryFields,
   postavke,

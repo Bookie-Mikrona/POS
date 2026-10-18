@@ -489,7 +489,7 @@ async function main() {
         const result = await devTools.send("Runtime.evaluate", {
           expression: selectedBrowser === "firefox"
             ? `Boolean(document.body.textContent?.includes("ONE-ROW-ORDER-CASE"))`
-            : `Boolean(document.querySelector('[data-testid="text-supplier-order-print-instructions"]')?.textContent?.includes("KONEC-NAVODILA-100"))`,
+            : `Boolean(document.querySelector('[data-testid="text-supplier-order-print-instructions"]')?.textContent?.includes("KONEC-NAVODILA-100") && document.querySelector('[data-testid="receipt-print-document"]')?.textContent?.includes("PREJEMNICA-DOLGA-2026-1007"))`,
           returnByValue: true,
         });
         if (result.result?.value === true) {
@@ -539,6 +539,9 @@ async function main() {
       return;
     }
 
+    const boundingBoxes = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-bbox-layout", pdfPath, "-"]);
+    const pdfPages = [...boundingBoxes.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)];
+    assert.equal(pdfPages.length, pageCount, "PDF text geometry page count differs from pdfinfo.");
     const lastOrderPageIndex = pages.findIndex(page => page.includes("ONE-ROW-ORDER-CASE")) - 1;
     assert(lastOrderPageIndex > 0, "Could not determine the final page of the multi-page supplier order.");
     if (selectedBrowser === "chromium") {
@@ -556,7 +559,7 @@ async function main() {
         );
       }
     }
-    const tablePages = pages.filter(page => /POSTAVKA-\d{3}/.test(page));
+    const tablePages = pages.filter(page => /(?:^|\s)POSTAVKA-\d{3}/.test(page));
     const notePages = pages.filter(page => /NAVODILO-\d{3}/.test(page));
     assert(
       tablePages.length >= 2,
@@ -655,6 +658,118 @@ async function main() {
     assert.equal(noInstructionsPageIndex, emptyOrderPageIndex + 1, "The empty order produced an unexpected extra page.");
     assert.equal(mixedPricedPageIndex, noInstructionsPageIndex + 1, "The order without instructions produced an unexpected extra page.");
     assert.equal(fullyUnpricedPageIndex, mixedPricedPageIndex + 1, "The mixed priced/unpriced order produced an unexpected extra page.");
+    const receiptPageIndex = pages.findIndex(page =>
+      compactText(page).includes(compactText("PREJEMNICA-DOLGA-2026-1007")));
+    assert(receiptPageIndex >= 0, "The confirmed multi-page receipt is missing from the PDF.");
+    const receiptPages = pages.slice(receiptPageIndex);
+    const receiptText = normalizeText(receiptPages.join(" "));
+    assert(!receiptText.includes("POS-DIALOG-MUST-NOT-PRINT"), "The POS dialog leaked into the printed receipt.");
+    assert(!receiptText.includes("POS-BUTTON-MUST-NOT-PRINT"), "A POS button leaked into the printed receipt.");
+    assert(!receiptText.includes("Tiskaj / shrani PDF"), "The print control leaked into the printed receipt.");
+    assert(!receiptText.includes("Zapri"), "A dialog close control leaked into the printed receipt.");
+
+    const receiptItemPages = receiptPages.filter(page => /PREJEMNICA-POSTAVKA-\d{3}/.test(page));
+    const receiptCostPages = receiptPages.filter(page => /PREJEMNICA-STROSEK-\d{3}/.test(page));
+    assert(receiptItemPages.length >= 2, "Expected receipt item rows to continue across multiple pages.");
+    assert(receiptCostPages.length >= 2, "Expected dependent costs to continue across multiple pages.");
+    for (const [pageIndex, page] of receiptPages.entries()) {
+      const normalizedPage = page.toLocaleLowerCase("sl");
+      if (/PREJEMNICA-POSTAVKA-\d{3}/.test(page)) {
+        for (const label of ["artikel", "količina", "cena", "kos", "ddv", "znesek"]) {
+          assert(
+            normalizedPage.includes(label),
+            `Receipt item page ${pageIndex + 1} is missing repeated table heading "${label}".`,
+          );
+        }
+      }
+      if (/PREJEMNICA-STROSEK-\d{3}/.test(page)) {
+        for (const label of ["strošek", "ddv", "obravnava", "znesek"]) {
+          assert(
+            normalizedPage.includes(label),
+            `Receipt cost page ${pageIndex + 1} is missing repeated table heading "${label}".`,
+          );
+        }
+      }
+    }
+
+    const receiptGeometry = pdfPages;
+    const receiptLineCount = 42;
+    const receiptCostCount = 28;
+    for (let number = 1; number <= receiptLineCount; number += 1) {
+      const padded = String(number).padStart(3, "0");
+      const marker = `PREJEMNICA-POSTAVKA-${padded}`;
+      const itemPageIndex = pages.findIndex(page => page.includes(marker));
+      assert(itemPageIndex >= receiptPageIndex, `Confirmed receipt is missing ${marker}.`);
+      const pageMarkup = receiptGeometry[itemPageIndex];
+      assert(pageMarkup, `${marker} has no PDF geometry page.`);
+      const words = readWords(pageMarkup[2]);
+      const markerWord = words.find(word => word.text === marker);
+      assert(markerWord, `${marker} has no PDF text geometry.`);
+      const itemStarts = words
+        .filter(word => /^PREJEMNICA-POSTAVKA-\d{3}$/.test(word.text))
+        .sort((left, right) => Number(left.yMin) - Number(right.yMin));
+      const thisItemIndex = itemStarts.indexOf(markerWord);
+      const nextItem = itemStarts[thisItemIndex + 1];
+      const itemWords = words.filter(word =>
+        Number(word.yMin) >= Number(markerWord.yMin) - 0.5
+        && (!nextItem || Number(word.yMin) < Number(nextItem.yMin) - 0.5));
+      const itemText = compactText(itemWords.map(word => word.text).join(" "));
+      const unitPrice = 2.35 + number / 10;
+      const amount = unitPrice * 2;
+      const vatRate = number % 2 === 0 ? 9.5 : 22;
+      const vatAmount = amount * vatRate / 100;
+      const vatRateToken = new Intl.NumberFormat("sl-SI", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+        useGrouping: false,
+      }).format(vatRate);
+      const expectedArticleName =
+        `${marker} Ekološko polnomastno slovensko mleko za profesionalne kuhinje, z natančno navedbo porekla, načina pridelave in ustreznega gostinskega pakiranja`;
+      const expectedSupplierName = `Dobaviteljev naziv: mleko izbrane kakovosti za gostinstvo ${padded}`;
+      for (const [label, expected] of [
+        ["complete Slovene article name", expectedArticleName],
+        ["supplier item name", expectedSupplierName],
+        ["quantity", "2L"],
+        ["unit price", `${decimalToken(unitPrice)}EUR`],
+        ["VAT rate", `${vatRateToken}%`],
+        ["VAT amount", `${decimalToken(vatAmount)}EUR`],
+        ["line amount", `${decimalToken(amount)}EUR`],
+      ]) {
+        assert(
+          itemText.includes(compactText(expected)),
+          `${marker} is missing or clipped ${label}.`,
+        );
+      }
+    }
+
+    for (let number = 1; number <= receiptCostCount; number += 1) {
+      const padded = String(number).padStart(3, "0");
+      const marker = `PREJEMNICA-STROSEK-${padded}`;
+      const costPageIndex = pages.findIndex(page => page.includes(marker));
+      assert(costPageIndex >= receiptPageIndex, `Confirmed receipt is missing ${marker}.`);
+      const pageMarkup = receiptGeometry[costPageIndex];
+      assert(pageMarkup, `${marker} has no PDF geometry page.`);
+      const words = readWords(pageMarkup[2]);
+      const markerWord = words.find(word => word.text === marker);
+      assert(markerWord, `${marker} has no PDF text geometry.`);
+      const costStarts = words
+        .filter(word => /^PREJEMNICA-STROSEK-\d{3}$/.test(word.text))
+        .sort((left, right) => Number(left.yMin) - Number(right.yMin));
+      const thisCostIndex = costStarts.indexOf(markerWord);
+      const nextCost = costStarts[thisCostIndex + 1];
+      const costWords = words.filter(word =>
+        Number(word.yMin) >= Number(markerWord.yMin) - 0.5
+        && (!nextCost || Number(word.yMin) < Number(nextCost.yMin) - 0.5));
+      const costText = compactText(costWords.map(word => word.text).join(" "));
+      const amount = (3.41 + number / 10).toFixed(2);
+      const handling = number % 2 === 0 ? "Vrednost zaloge" : "Ločen strošek";
+      assert(costText.includes(compactText(`Dostava in odvisni stroški manipulacije ter hlajenja`)),
+        `${marker} is missing or clipped its long Slovenian name.`);
+      assert(costText.includes("22,0%"), `${marker} is missing or clipping its VAT rate.`);
+      assert(costText.includes(compactText(handling)), `${marker} is missing its handling type.`);
+      assert(costText.includes(compactText(`${decimalToken(Number(amount))}EUR`)),
+        `${marker} is missing or clipping its amount.`);
+    }
 
     const oneRowPage = pages[oneRowPageIndex];
     assert(oneRowPage.includes("Enovrstični preizkusni dobavitelj"), "The one-row order supplier is missing.");
@@ -764,14 +879,16 @@ async function main() {
       oversizedSupplierPageIndexes.length >= 2,
       "The oversized supplier details and code did not continue across page fragments.",
     );
-    const boundingBoxes = run(process.env.PDFTOTEXT_BIN ?? "pdftotext", ["-bbox-layout", pdfPath, "-"]);
-    const pdfPages = [...boundingBoxes.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)];
-    assert.equal(pdfPages.length, pageCount, "PDF text geometry page count differs from pdfinfo.");
     const oversizedRowEndPageIndex = pages.findIndex(page =>
       compactText(page).includes("OVERSIZED-SUPPLIER-CODE-END"));
     assert(
       oversizedRowEndPageIndex > firstOversizedArticlePageIndex,
       "The oversized supplier details and code did not continue across page fragments.",
+    );
+    assert.equal(
+      receiptPageIndex,
+      oversizedRowEndPageIndex + 1,
+      "A blank page appeared before the confirmed receipt.",
     );
     const expectedOversizedRowText = compactText(
       `OVERSIZED-ARTICLE-START ${oversizedArticleDetails} OVERSIZED-ARTICLE-END `
@@ -864,7 +981,7 @@ async function main() {
         );
       }
 
-      if (!/POSTAVKA-\d{3}/.test(page)) continue;
+      if (!/(?:^|\s)POSTAVKA-\d{3}/.test(page)) continue;
       const blocks = readBlocks(pageMarkup[2]);
       const compactOrderNumber = compactText(longOrderNumber);
       const compactSupplierName = compactText(continuationSupplierName);
@@ -1049,7 +1166,7 @@ async function main() {
     const finalArticleName = `POSTAVKA-${finalArticleNumber}`;
     const finalArticlePageIndex = pages.findIndex(page => page.includes(finalArticleName));
     const lastTablePageIndex = pages.reduce(
-      (lastIndex, page, pageIndex) => /POSTAVKA-\d{3}/.test(page) ? pageIndex : lastIndex,
+      (lastIndex, page, pageIndex) => /(?:^|\s)POSTAVKA-\d{3}/.test(page) ? pageIndex : lastIndex,
       -1,
     );
     assert.equal(
@@ -1146,7 +1263,7 @@ async function main() {
       }
     }
 
-    console.log(`Supplier-order print ${selectedBrowser} regression passed: ${pageCount} PDF pages, ${tablePages.length} table pages, ${notePages.length} note pages, ${lineCount} rows, and 100 note paragraphs.`);
+    console.log(`Supplier-order and confirmed-receipt print ${selectedBrowser} regression passed: ${pageCount} PDF pages, ${tablePages.length} order table pages, ${receiptItemPages.length} receipt item pages, ${receiptCostPages.length} receipt cost pages, ${lineCount} order rows, ${receiptLineCount} receipt items, ${receiptCostCount} dependent costs, and 100 note paragraphs.`);
   } finally {
     devTools?.close();
     await stopProcessGroup(browserProcess);

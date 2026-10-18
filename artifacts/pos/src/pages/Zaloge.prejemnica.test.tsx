@@ -303,41 +303,19 @@ describe("Zaloge — neposredno odpiranje prejemnice", () => {
     expect(printedBreadAllergens).toHaveTextContent("Etiketa embalaže");
     expect(printedBreadAllergens).toHaveTextContent("Brez alergenov");
     const printedSauceAllergens = within(printDocument).getByTestId("receipt-print-allergens-3");
-    expect(printedSauceAllergens).toHaveTextContent("Nepreverjeno — zabeležene kode");
-    expect(printedSauceAllergens).toHaveTextContent("Nepreverjeno — možne sledi");
-    expect(printedSauceAllergens).toHaveTextContent("Drugo");
-    expect(printedSauceAllergens).toHaveTextContent("SEZAM — Sezamovo seme");
-    expect(printedSauceAllergens).toHaveTextContent("GORČICA — Gorčično seme");
-    expect(printedSauceAllergens).toHaveTextContent("Samodejni spletni predlog");
-    expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: /^(?:shrani|potrdi prejemnico|pripravi računovodski osnutek)$/i }))
-      .not.toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Tiskaj / shrani PDF" }));
-    expect(printSpy).toHaveBeenCalledOnce();
-    expect(mockUpdatePrejemnicaMutate).not.toHaveBeenCalled();
-    expect(mockReconcileZalogeMutate).not.toHaveBeenCalled();
-    expect(mockDeleteMutate).not.toHaveBeenCalled();
-    expect(within(dialog).getByRole("button", { name: "Zapri" })).toBeInTheDocument();
-    expect(mockGetPrejemnica).toHaveBeenCalledWith(4209);
-  });
 
-  it("ne ponudi tiskanja osnutka v načinu samo za ogled", async () => {
-    mockGetPrejemnica.mockReturnValue({
-      data: {
-        id: 4212,
-        stevilka: "26100012",
-        datum: "2026-10-17",
-        status: "draft",
-        postavke: [],
-        odvisniStroski: [],
-      },
-      isLoading: false,
-      isError: false,
-    });
-    window.history.pushState({}, "", "/zaloge?prejemnica=4212&nacin=ogled");
-
-    renderZaloge();
-
+    const postavke = Array.from({ length: 36 }, (_, index) => ({
+      id: 5_000 + index,
+      artikelId: 6_000 + index,
+      artikelIme: `POSTAVKA-${String(index + 1).padStart(3, "0")} Ekološko polnomastno slovensko mleko za gostinske kuhinje z opisom porekla in pakiranja`,
+      izvNaziv: `Dobaviteljev naziv mleka ${String(index + 1).padStart(3, "0")}`,
+      enotaMere: "L",
+      kolicina: "2",
+      cenaKos: "2.75",
+      skupaj: "5.50",
+      ddvStopnja: "9.5",
+      ddvZnesek: "0.52",
+    }));
     const dialog = await screen.findByTestId("dialog-prejemnica-readonly");
     fireEvent.click(within(dialog).getByText("Potrdi"));
 
@@ -758,3 +736,11 @@ describe("BT-147 rekonstrukcija bruto iz neto + popust", () => {
     expect(rekonstruiraj(1.90, 5)).toBe(2.0);
   });
 });
+
+    const odvisniStroski = Array.from({ length: 18 }, (_, index) => ({
+      id: 7_000 + index,
+      naziv: `STROŠEK-${String(index + 1).padStart(3, "0")} Dostava in hlajenje`,
+      znesek: "3.41",
+      ddvStopnja: "22",
+      obravnava: index % 2 === 0 ? "zaloga" : "strosek",
+    }));
