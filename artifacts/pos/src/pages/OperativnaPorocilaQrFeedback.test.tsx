@@ -17,13 +17,12 @@ const { mockUseFeedback, mockUseComments, mockExportFeedback } = vi.hoisted(() =
   mockUseComments: vi.fn(),
   mockExportFeedback: vi.fn(),
 }));
-
-vi.mock("@workspace/api-client-react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@workspace/api-client-react")>();
+vi.mock("@workspace/api-client-react", () => {
   return {
-    ...actual as object,
     useGetOperativnaPorocilaQrFeedback: mockUseFeedback,
     useGetOperativnaPorocilaQrFeedbackComments: mockUseComments,
+    getGetOperativnaPorocilaQrFeedbackQueryKey: (params: unknown) => ["qr-feedback", params],
+    getGetOperativnaPorocilaQrFeedbackCommentsQueryKey: (params: unknown) => ["qr-feedback-comments", params],
     exportOperativnaPorocilaQrFeedback: mockExportFeedback,
   };
 });
@@ -32,6 +31,7 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
 // jsdom cannot measure container sizes or SVG path lengths.
 vi.mock("recharts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("recharts")>();
+  // Import once; all chart components below share the same module.
   return {
     ...actual,
     ResponsiveContainer: ({ children }: { children: ReactElement<ComponentProps<typeof actual.LineChart>> }) => (
@@ -207,7 +207,7 @@ describe("OperativnaPorocilaQrFeedback", () => {
   });
 
   it("ločeno pripravi zanesljive in nezanesljive točke brez povezovanja majhnega vzorca", () => {
-    const chartData = buildTrendChartData(feedbackReport.trends);
+    const chartData = buildTrendChartData(trends);
     expect(chartData[0]).toMatchObject({
       foodReliable: 4.5,
       ambienceReliable: 3,
@@ -221,7 +221,11 @@ describe("OperativnaPorocilaQrFeedback", () => {
       ambienceSmallSample: 4,
     });
 
-    const { rerender } = render(<svg><SmallSampleDot cx={20} cy={30} /></svg>);
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
+      </QueryClientProvider>
+    );
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("stroke")).toBe("#f59e0b");
     rerender(<svg><SmallSampleDot cx={20} cy={30} active /></svg>);
     expect(screen.getByTestId("trend-dot-small-sample").getAttribute("r")).toBe("7");
@@ -229,7 +233,11 @@ describe("OperativnaPorocilaQrFeedback", () => {
 
   it("tooltip pokaže odzive in opozori samo pri nezanesljivi točki", () => {
     const [reliable, unreliable] = buildTrendChartData(feedbackReport.trends);
-    const { rerender } = render(<TrendTooltip active payload={[{ payload: reliable }]} />);
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <OperativnaPorocilaQrFeedback queryParams={{ od: "2026-09-01", do: "2026-09-03" }} />
+      </QueryClientProvider>
+    );
     expect(screen.getByTestId("trend-tooltip").textContent).toContain("6 odzivov");
     expect(screen.queryByTestId("trend-tooltip-small-sample")).toBeNull();
 

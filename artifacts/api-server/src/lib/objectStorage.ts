@@ -110,6 +110,21 @@ function normalizePublicObjectSearchPaths(
   return Array.from(new Set(paths));
 }
 
+function validatePublicObjectPath(relativePath: string): string {
+  // Validate the literal storage key: decoding or removing separators could
+  // make writes and public URL lookups refer to different objects.
+  if (
+    !relativePath ||
+    /[\\%?#\u0000-\u001f\u007f]/.test(relativePath) ||
+    relativePath.split('/').some(
+      (part) => !part || part === '.' || part === '..',
+    )
+  ) {
+    throw new Error('Invalid public object path');
+  }
+  return relativePath;
+}
+
 export type ObjectStorageReadiness =
   | {
       enabled: false;
@@ -162,8 +177,9 @@ export class ObjectStorageService {
   }
 
   async searchPublicObject(filePath: string): Promise<File | null> {
+    const validatedPath = validatePublicObjectPath(filePath);
     for (const searchPath of this.getPublicObjectSearchPaths()) {
-      const fullPath = `${searchPath}/${filePath}`;
+      const fullPath = `${searchPath}/${validatedPath}`;
 
       const { bucketName, objectName } = parseObjectPath(fullPath);
       const bucket = objectStorageClient.bucket(bucketName);
@@ -188,13 +204,7 @@ export class ObjectStorageService {
     contents: Buffer,
     contentType: string,
   ): Promise<void> {
-    const normalizedPath = relativePath.replace(/^\/+/, "");
-    if (
-      !normalizedPath ||
-      normalizedPath.split("/").some((part) => !part || part === "." || part === "..")
-    ) {
-      throw new Error("Invalid public object path");
-    }
+    const validatedPath = validatePublicObjectPath(relativePath);
 
     const [publicPath] = this.getPublicObjectSearchPaths();
     if (!publicPath) {
@@ -202,7 +212,7 @@ export class ObjectStorageService {
     }
 
     const { bucketName, objectName } = parseObjectPath(
-      `${publicPath.replace(/\/+$/, "")}/${normalizedPath}`,
+      `${publicPath}/${validatedPath}`,
     );
     await objectStorageClient
       .bucket(bucketName)
