@@ -1881,6 +1881,92 @@ describe("supplier order print view", () => {
     }
   });
 
+  it("closes reorder settings with Escape and restores focus without saving", () => {
+    renderSupplierOrderPage();
+    const opener = screen.getByRole("button", { name: "Nastavi Mleko 3,5 %" });
+    fireEvent.click(opener);
+
+    const settings = screen.getByRole("dialog", { name: "Mleko 3,5 %" });
+    expect(document.activeElement).toBe(settings);
+    fireEvent.keyDown(settings, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Mleko 3,5 %" })).toBeNull();
+    expect(document.activeElement).toBe(opener);
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("returns focus to the page heading if a reorder-settings opener disappears", () => {
+    renderSupplierOrderPage();
+    const opener = screen.getByRole("button", { name: "Nastavi Mleko 3,5 %" });
+    fireEvent.click(opener);
+
+    const settings = screen.getByRole("dialog", { name: "Mleko 3,5 %" });
+    fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+    fireEvent.keyDown(settings, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Mleko 3,5 %" })).toBeNull();
+    expect(opener.isConnected).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Naročila dobaviteljem" }));
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("closes the package review with Escape without preparing a receipt or closing order details", async () => {
+    const originalStatus = mocks.order.status;
+    const originalCurrentPackageFactor = mocks.order.lines[0].currentPackageFactor;
+    mocks.order.status = "sent";
+    mocks.order.lines[0].currentPackageFactor = 8;
+    try {
+      renderSupplierOrderPage();
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      const opener = screen.getByRole("button", { name: "Pripravi prejemnico" });
+      fireEvent.click(opener);
+
+      const review = await screen.findByRole("alertdialog");
+      expect(document.activeElement).toBe(review);
+      fireEvent.keyDown(review, { key: "Escape" });
+
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(screen.getByRole("dialog", { name: "N-2026-0704" })).toBeTruthy();
+      expect(document.activeElement).toBe(opener);
+      expect(mocks.mutation).not.toHaveBeenCalled();
+      expect(mocks.navigate).not.toHaveBeenCalled();
+    } finally {
+      mocks.order.status = originalStatus;
+      mocks.order.lines[0].currentPackageFactor = originalCurrentPackageFactor;
+    }
+  });
+
+  it("returns focus to order details if the package-review opener disappears", async () => {
+    const originalStatus = mocks.order.status;
+    const originalCurrentPackageFactor = mocks.order.lines[0].currentPackageFactor;
+    mocks.order.status = "sent";
+    mocks.order.lines[0].currentPackageFactor = 8;
+    try {
+      renderSupplierOrderPage();
+      fireEvent.click(screen.getByTestId("tab-supplier-orders"));
+      fireEvent.click(screen.getByTestId("button-open-supplier-order-704"));
+      const opener = screen.getByRole("button", { name: "Pripravi prejemnico" });
+      fireEvent.click(opener);
+
+      const review = await screen.findByRole("alertdialog");
+      const orderDetails = screen.getByRole("dialog", { name: "N-2026-0704" });
+      mocks.order.status = "draft";
+      fireEvent.click(screen.getByRole("checkbox", { name: /Preveril\/-a sem dejansko količino/ }));
+      expect(opener.isConnected).toBe(false);
+
+      fireEvent.keyDown(review, { key: "Escape" });
+
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(screen.getByRole("dialog", { name: "N-2026-0704" })).toBe(orderDetails);
+      expect(document.activeElement).toBe(orderDetails);
+      expect(mocks.mutation).not.toHaveBeenCalled();
+    } finally {
+      mocks.order.status = originalStatus;
+      mocks.order.lines[0].currentPackageFactor = originalCurrentPackageFactor;
+    }
+  });
+
   it("warns about changed saved-draft instructions and keeps them when continuing", () => {
     renderSupplierOrderPage();
     openSavedDraftEditor();

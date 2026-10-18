@@ -420,6 +420,13 @@ export default function NarocilaDobaviteljem() {
   const printButtonRef = useRef<HTMLButtonElement | null>(null);
   const printWarningRef = useRef<HTMLElement | null>(null);
   const printWarningWasOpenRef = useRef(false);
+  const settingsTriggerRef = useRef<HTMLElement | null>(null);
+  const settingsDialogRef = useRef<HTMLElement | null>(null);
+  const settingsWasOpenRef = useRef(false);
+  const packageReviewTriggerRef = useRef<HTMLElement | null>(null);
+  const packageReviewDialogRef = useRef<HTMLElement | null>(null);
+  const packageReviewWasOpenRef = useRef(false);
+  const pageHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
   useEffect(() => {
     if (printWarningOpen) {
@@ -533,6 +540,30 @@ export default function NarocilaDobaviteljem() {
       focusIfAvailable(target, orderDetailsDialogRef.current);
     }
   }, [closeDialog]);
+
+  useEffect(() => {
+    if (settingsArticle) {
+      settingsWasOpenRef.current = true;
+      settingsDialogRef.current?.focus();
+      return;
+    }
+    if (settingsWasOpenRef.current) {
+      settingsWasOpenRef.current = false;
+      focusIfAvailable(settingsTriggerRef.current, pageHeadingRef.current);
+    }
+  }, [settingsArticle]);
+
+  useEffect(() => {
+    if (packageReview) {
+      packageReviewWasOpenRef.current = true;
+      packageReviewDialogRef.current?.focus();
+      return;
+    }
+    if (packageReviewWasOpenRef.current) {
+      packageReviewWasOpenRef.current = false;
+      focusIfAvailable(packageReviewTriggerRef.current, orderDetailsDialogRef.current);
+    }
+  }, [packageReview]);
 
   const openOrderEditor = (
     editor: SupplierOrderEditorState,
@@ -662,7 +693,10 @@ export default function NarocilaDobaviteljem() {
     text: error instanceof Error ? error.message : fallback,
     error: true,
   });
-  const openSettings = (article: SupplierReorderArticle) => {
+  const openSettings = (article: SupplierReorderArticle, trigger?: HTMLElement | null) => {
+    const activeElement = document.activeElement;
+    settingsTriggerRef.current = trigger
+      ?? (activeElement instanceof HTMLElement ? activeElement : null);
     setSettingsArticle(article);
     setSettingPoint(article.reorderPoint == null ? "" : String(article.reorderPoint));
     setSettingTarget(article.targetStock == null ? "" : String(article.targetStock));
@@ -846,7 +880,7 @@ export default function NarocilaDobaviteljem() {
       navigate(`/zaloge?prejemnica=${receipt.id}`);
     } catch (error) { showError(error, "Prejemnice ni bilo mogoče pripraviti."); }
   };
-  const prepareReceipt = async () => {
+  const prepareReceipt = async (trigger?: HTMLElement | null) => {
     if (!orderDetail) return;
     const refreshed = await refetchDetail();
     if (refreshed.isError || !refreshed.data) {
@@ -864,6 +898,8 @@ export default function NarocilaDobaviteljem() {
       && Math.abs(line.currentPackageFactor - line.packageFactor) > 1e-9,
     );
     if (changedPackages.length) {
+      packageReviewTriggerRef.current = trigger
+        ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
       setPackageReview({ order: latestOrder, lines: changedPackages });
       setPackageReviewAcknowledged(false);
       return;
@@ -908,7 +944,7 @@ export default function NarocilaDobaviteljem() {
           <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.2em] text-[#52746d]">
             <span className="h-[1px] w-7 bg-[#52746d]" /> Operativa / Zaloge
           </div>
-          <h1 className="text-[26px] font-extrabold leading-tight tracking-[-.04em] text-[#203d39] sm:text-[32px]">Naročila dobaviteljem</h1>
+          <h1 ref={pageHeadingRef} tabIndex={-1} className="text-[26px] font-extrabold leading-tight tracking-[-.04em] text-[#203d39] focus:outline-none sm:text-[32px]">Naročila dobaviteljem</h1>
           <p className="mt-1 max-w-2xl text-sm text-[#68736e]">Priprava nabave iz dejanskega stanja zalog. Naročilo je evidenca — zalogo posodobi šele potrjena prejemnica.</p>
         </div>
         <div className="orders-no-print flex flex-wrap gap-2">
@@ -1165,7 +1201,7 @@ export default function NarocilaDobaviteljem() {
                   <td className="px-3 py-3 text-right">
                     {article.hasSuggestion && article.suggestedBaseQuantity != null ? <><strong className="data-mono text-[#285d50]">{formatQty(article.suggestedBaseQuantity)} {article.baseUnit}</strong><div className="mt-0.5 text-xs text-[#77817b]">{article.suggestedPackageQuantity != null ? `${formatQty(article.suggestedPackageQuantity)} ${mapping?.packageName ?? "pak."}` : "osnovna enota"}</div></> : <span className="text-xs text-[#969d97]">Nastavite cilj</span>}
                   </td>
-                  <td className="orders-no-print px-4 py-3 text-right"><Button variant="ghost" size="sm" onClick={() => openSettings(article)} className="h-8 text-[#49665d]" aria-label={`Nastavi ${article.articleName}`}><Settings2 className="mr-1 h-3.5 w-3.5" /> Nastavi</Button></td>
+                  <td className="orders-no-print px-4 py-3 text-right"><Button variant="ghost" size="sm" onClick={event => openSettings(article, event.currentTarget)} className="h-8 text-[#49665d]" aria-label={`Nastavi ${article.articleName}`}><Settings2 className="mr-1 h-3.5 w-3.5" /> Nastavi</Button></td>
                 </tr>;
               })}
             </tbody>
@@ -1306,7 +1342,20 @@ export default function NarocilaDobaviteljem() {
     </div>
 
     {settingsArticle && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#172a25]/45 p-3" onMouseDown={event => { if (event.target === event.currentTarget) setSettingsArticle(null); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="reorder-settings-title" className="w-full max-w-lg rounded-2xl border border-[#ddd4c4] bg-[#fffefa] p-5 shadow-2xl sm:p-6">
+      <section
+        ref={settingsDialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reorder-settings-title"
+        onKeyDownCapture={event => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          setSettingsArticle(null);
+        }}
+        className="w-full max-w-lg rounded-2xl border border-[#ddd4c4] bg-[#fffefa] p-5 shadow-2xl focus:outline-none sm:p-6"
+      >
         <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#628174]">Nastavitve dopolnjevanja</p><h2 id="reorder-settings-title" className="mt-1 text-xl font-bold text-[#203d39]">{settingsArticle.articleName}</h2></div><button type="button" onClick={() => setSettingsArticle(null)} className="rounded-lg p-2 text-[#718078] hover:bg-[#f2efe8]" aria-label="Zapri"><X className="h-4 w-4" /></button></div>
         <p className="mt-2 text-sm text-[#758078]">Vnesite osnovno enoto artikla{settingsArticle.baseUnit ? ` (${settingsArticle.baseUnit})` : ""}. Cilj določa količino, do katere dopolnjujemo zalogo.</p>
         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -1601,7 +1650,7 @@ export default function NarocilaDobaviteljem() {
             </div>
             <div className="flex flex-wrap gap-2">
               {orderDetail.status === "draft" && <Button disabled={busy} onClick={() => void performOrderAction("send")} className="bg-[#285d50] text-white hover:bg-[#204b41]"><Send className="mr-2 h-4 w-4" /> Označi kot poslano</Button>}
-              {["sent", "partially_received"].includes(orderDetail.status) && orderDetail.openQuantity > 0 && <Button disabled={busy} onClick={() => void prepareReceipt()} className="bg-[#285d50] text-white hover:bg-[#204b41]"><ArrowDownToLine className="mr-2 h-4 w-4" /> Pripravi prejemnico</Button>}
+              {["sent", "partially_received"].includes(orderDetail.status) && orderDetail.openQuantity > 0 && <Button disabled={busy} onClick={event => void prepareReceipt(event.currentTarget)} className="bg-[#285d50] text-white hover:bg-[#204b41]"><ArrowDownToLine className="mr-2 h-4 w-4" /> Pripravi prejemnico</Button>}
               <Button variant="outline" onClick={() => { setSelectedOrderId(null); navigate("/zaloge"); }}>Odpri Zaloge <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Button>
             </div>
           </div>
@@ -1689,7 +1738,21 @@ export default function NarocilaDobaviteljem() {
       </section>
     </div>}
     {packageReview && <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#172a25]/60 p-3">
-      <section role="alertdialog" aria-modal="true" aria-labelledby="package-change-title" className="w-full max-w-xl rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl">
+      <section
+        ref={packageReviewDialogRef}
+        tabIndex={-1}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="package-change-title"
+        onKeyDownCapture={event => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          setPackageReview(null);
+          setPackageReviewAcknowledged(false);
+        }}
+        className="w-full max-w-xl rounded-2xl border border-amber-300 bg-[#fffefa] p-5 shadow-2xl focus:outline-none"
+      >
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
           <div>
