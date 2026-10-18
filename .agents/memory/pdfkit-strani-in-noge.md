@@ -3,6 +3,12 @@ name: PDFKit strani in noge poročil
 description: Samodejni prelomi pri absolutno postavljenih nogah in preverjanje dejanskih strani PDF.
 ---
 
+Pri preverjanju vsebine PDF upoštevaj prelome znotraj dolgih imen in identifikatorjev dokazil, tudi pri negativnih preverjanjih zasebnosti.
+
+**Why:** Izluščevalnik besedila lahko UUID razdeli na dve vrstici. Dobesedno iskanje celotnega UUID zato lahko spregleda razkritje, čeprav ga dokument vsebuje.
+
+**How to apply:** Za preverjanje prisotnosti ali odsotnosti dolgih označevalcev primerjaj tudi besedilo brez presledkov in prelomov; dejanske PDF bajte preveri ločeno od izluščenega besedila.
+
 Pri poročilih PDFKit ne zaupaj vnaprej izračunanemu številu strani. Tudi absolutno postavljeno besedilo blizu spodnjega roba lahko med dodajanjem nog na že sestavljene strani sproži samodejen prelom in ustvari prazne strani; široka imena v fiksnih vrsticah lahko preidejo v naslednjo vrstico, če niso omejena po višini.
 
 **Why:** Izvoz bruto bilance s 65 konti je imel devet strani namesto dveh: nekaj strani je vsebovalo samo glavo ali nogo, oznaka strani je bila napačna, daljši naziv pa se je prelil čez sosednjo vrstico. Šele preverjanje dejanskega PDF, ne izračuna po številu vrstic, je pokazalo obe težavi.

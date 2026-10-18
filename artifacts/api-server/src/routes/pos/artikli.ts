@@ -2298,7 +2298,8 @@ router.get("/artikli/:id/alergeni-normativ.pdf", async (req, res): Promise<void>
   if (!artikel || !izracun) { res.status(404).json({ error: "Artikel ni najden." }); return; }
   const sestavine = await db.select({ ime: artikliTable.ime, kolicina: normativiTable.kolicina })
     .from(normativiTable).innerJoin(artikliTable, eq(artikliTable.id, normativiTable.vhodniArtikelId))
-    .where(eq(normativiTable.artikelId, id));
+    // Match the allergen resolver: never print cross-unit recipe references.
+    .where(and(eq(normativiTable.artikelId, id), eq(artikliTable.enotaId, tenotaId)));
   const pdf = await generateAllergenNormativePdf({
     enotaId: tenotaId, artikel, izracun, sestavine,
   });
