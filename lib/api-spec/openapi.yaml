@@ -14811,6 +14811,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PublicMenuModifierGroup"
+    PublicDailyLunchDish:
+      type: object
+      required: [ime, cena]
+      properties:
+        ime: { type: string }
+        cena: { type: number, description: Cena kosila z glavno jedjo (samo pri glavnih jedeh), sicer 0. }
     PublicMenu:
       type: object
       required:
@@ -14869,6 +14875,20 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PublicMenuArticle"
+        dnevnaKosila:
+          description: Današnja objavljena ponudba dnevnih kosil (samo prikaz), ali null.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [businessDate, baseFlatAmount, starterFlatAmount, starter, soup, main, dessert]
+              properties:
+                businessDate: { type: string }
+                baseFlatAmount: { type: number }
+                starterFlatAmount: { type: number }
+                starter: { type: array, items: { $ref: "#/components/schemas/PublicDailyLunchDish" } }
+                soup: { type: array, items: { $ref: "#/components/schemas/PublicDailyLunchDish" } }
+                main: { type: array, items: { $ref: "#/components/schemas/PublicDailyLunchDish" } }
+                dessert: { type: array, items: { $ref: "#/components/schemas/PublicDailyLunchDish" } }
         multicourseMenus:
           type: array
           description: Active configured multicourse menus and their server-owned component allowlists.

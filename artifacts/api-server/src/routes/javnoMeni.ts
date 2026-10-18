@@ -6,6 +6,8 @@ import {
   artModSkupineTable,
   artikliTable,
   companiesTable,
+  dailyLunchOfferChoicesTable,
+  dailyLunchOffersTable,
   companyPosPlansTable,
   db,
   enoteTable,
@@ -1607,8 +1609,35 @@ router.get(
     const publicMenus = configuredMenus.filter(menu => visibleMenuArticleIds.has(menu.menuArtikelId));
     const publicCourses = configuredCourses.filter(course => publicMenus.some(menu => menu.id === course.menuId));
 
+    const [lunchOffer] = await db.select().from(dailyLunchOffersTable).where(and(
+      eq(dailyLunchOffersTable.enotaId, context.enotaId),
+      eq(dailyLunchOffersTable.businessDate, businessDate),
+      eq(dailyLunchOffersTable.status, "published"),
+    ));
+    let dnevnaKosila: unknown = null;
+    if (lunchOffer) {
+      const lunchChoices = await db.select().from(dailyLunchOfferChoicesTable)
+        .where(eq(dailyLunchOfferChoicesTable.offerId, lunchOffer.id)).orderBy(asc(dailyLunchOfferChoicesTable.sortOrder));
+      const lunchArticles = lunchChoices.length ? await db.select({ id: artikliTable.id, ime: artikliTable.ime, cena: artikliTable.cena })
+        .from(artikliTable).where(and(
+          eq(artikliTable.enotaId, context.enotaId), eq(artikliTable.aktiven, true),
+          inArray(artikliTable.id, lunchChoices.map((choice) => choice.artikelId)),
+        )) : [];
+      const lunchById = new Map(lunchArticles.map((article) => [article.id, article]));
+      const base = Number(lunchOffer.baseFlatAmount);
+      const dishes = (role: string) => lunchChoices.filter((choice) => choice.role === role)
+        .map((choice) => lunchById.get(choice.artikelId)).filter((article): article is NonNullable<typeof article> => !!article)
+        .map((article) => ({ ime: article.ime, cena: role === "main" ? Number(article.cena) + base : 0 }))
+        .sort((a, b) => a.ime.localeCompare(b.ime, "sl"));
+      dnevnaKosila = {
+        businessDate: lunchOffer.businessDate, baseFlatAmount: base, starterFlatAmount: Number(lunchOffer.starterFlatAmount),
+        starter: dishes("starter"), soup: dishes("soup"), main: dishes("main"), dessert: dishes("dessert"),
+      };
+    }
+
     res.json(GetPublicMenuResponse.parse({
       qrAiAsistentAktiven: await jeQrAiAsistentAktiven(context.enotaId),
+      dnevnaKosila,
       lokal: {
         podjetjeNaziv: context.podjetjeNaziv,
         enotaNaziv: context.enotaNaziv,

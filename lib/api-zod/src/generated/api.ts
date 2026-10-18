@@ -4379,6 +4379,27 @@ export const GetPublicMenuResponse = zod.object({
 }))
 }))
 })),
+  "dnevnaKosila": zod.union([zod.null(),zod.object({
+  "businessDate": zod.string(),
+  "baseFlatAmount": zod.number(),
+  "starterFlatAmount": zod.number(),
+  "starter": zod.array(zod.object({
+  "ime": zod.string(),
+  "cena": zod.number().describe('Cena kosila z glavno jedjo (samo pri glavnih jedeh)')
+})),
+  "soup": zod.array(zod.object({
+  "ime": zod.string(),
+  "cena": zod.number().describe('Cena kosila z glavno jedjo (samo pri glavnih jedeh)')
+})),
+  "main": zod.array(zod.object({
+  "ime": zod.string(),
+  "cena": zod.number().describe('Cena kosila z glavno jedjo (samo pri glavnih jedeh)')
+})),
+  "dessert": zod.array(zod.object({
+  "ime": zod.string(),
+  "cena": zod.number().describe('Cena kosila z glavno jedjo (samo pri glavnih jedeh)')
+}))
+})]).optional().describe('Današnja objavljena ponudba dnevnih kosil (samo prikaz), ali null.'),
   "multicourseMenus": zod.array(zod.object({
   "menuArtikelId": zod.number(),
   "izbor": zod.enum(['fixed_four', 'choose_three']),

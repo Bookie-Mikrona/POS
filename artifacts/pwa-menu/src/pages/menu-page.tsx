@@ -359,6 +359,40 @@ export default function MenuPage() {
       {/* Menu Content */}
       <main className="px-3 py-3 sm:px-5 sm:py-6 space-y-6 sm:space-y-12">
         <ExistingOrder narocilo={data.obstojeceNarocilo} token={token} qrNapravaId={qrNapravaId} />
+        {data.dnevnaKosila && (data.dnevnaKosila.soup.length + data.dnevnaKosila.main.length + data.dnevnaKosila.dessert.length > 0) && (() => {
+          const lunch = data.dnevnaKosila;
+          const groups = [
+            { key: 'starter', title: 'Predjed', dishes: lunch.starter },
+            { key: 'soup', title: 'Juha', dishes: lunch.soup },
+            { key: 'main', title: 'Glavna jed', dishes: lunch.main },
+            { key: 'dessert', title: 'Sladica', dishes: lunch.dessert },
+          ].filter((group) => group.dishes.length > 0);
+          return (
+            <section className="rounded-2xl border border-orange-200 bg-orange-50 p-4 sm:p-6" data-testid="section-daily-lunch">
+              <h2 className="text-xl sm:text-2xl font-display font-bold text-orange-800">Dnevna kosila</h2>
+              <p className="mt-1 text-sm text-orange-900/80">
+                3-hodni meni: juha + glavna jed + sladica (cena ob glavni jedi).
+                {lunch.starter.length > 0 && <> 4-hodni meni: dodatno predjed, doplačilo {formatEur(lunch.starterFlatAmount)}.</>}
+                {' '}Kosilo naročite pri natakarju.
+              </p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {groups.map((group) => (
+                  <div key={group.key}>
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-orange-700">{group.title}</h3>
+                    <ul className="mt-1 space-y-1">
+                      {group.dishes.map((dish) => (
+                        <li key={dish.ime} className="flex justify-between gap-3 text-sm">
+                          <span>{dish.ime}</span>
+                          {dish.cena > 0 && <span className="font-semibold text-orange-800">{formatEur(dish.cena)}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })()}
         {kategorije.map(kat => {
           const items = kat.artikli;
           if (items.length === 0) return null;

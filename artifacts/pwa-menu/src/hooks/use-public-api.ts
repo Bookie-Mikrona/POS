@@ -135,7 +135,20 @@ export type PublicExistingOrder = {
   postavke: PublicExistingOrderLine[];
 };
 
+export type PublicDailyLunchDish = { ime: string; cena: number };
+export type PublicDailyLunch = {
+  businessDate: string;
+  baseFlatAmount: number;
+  starterFlatAmount: number;
+  starter: PublicDailyLunchDish[];
+  soup: PublicDailyLunchDish[];
+  main: PublicDailyLunchDish[];
+  dessert: PublicDailyLunchDish[];
+};
+
 export type MeniJavnoResponse = {
+  /** Današnja objavljena ponudba kosil (samo prikaz). */
+  dnevnaKosila?: PublicDailyLunch | null;
   qrAiAsistentAktiven: boolean;
   lokal: {
     podjetjeNaziv: string;

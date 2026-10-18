@@ -2986,6 +2986,12 @@ export interface PublicMenuArticle {
   modifikatorji: PublicMenuModifierGroup[];
 }
 
+export interface PublicDailyLunchDish {
+  ime: string;
+  /** Cena kosila z glavno jedjo (samo pri glavnih jedeh) */
+  cena: number;
+}
+
 export type PublicMenuLokal = {
   podjetjeNaziv: string;
   enotaNaziv: string;
@@ -3003,6 +3009,19 @@ export type PublicMenuKategorijeItem = {
   naziv: string;
   artikli: PublicMenuArticle[];
 };
+
+/**
+ * Današnja objavljena ponudba dnevnih kosil (samo prikaz), ali null.
+ */
+export type PublicMenuDnevnaKosila = {
+  businessDate: string;
+  baseFlatAmount: number;
+  starterFlatAmount: number;
+  starter: PublicDailyLunchDish[];
+  soup: PublicDailyLunchDish[];
+  main: PublicDailyLunchDish[];
+  dessert: PublicDailyLunchDish[];
+} | null;
 
 export type PublicMenuMulticourseMenusItemIzbor = typeof PublicMenuMulticourseMenusItemIzbor[keyof typeof PublicMenuMulticourseMenusItemIzbor];
 
@@ -3113,6 +3132,8 @@ export interface PublicMenu {
   miza: PublicMenuMiza;
   kategorije: PublicMenuKategorijeItem[];
   artikli: PublicMenuArticle[];
+  /** Današnja objavljena ponudba dnevnih kosil (samo prikaz), ali null. */
+  dnevnaKosila?: PublicMenuDnevnaKosila;
   /** Active configured multicourse menus and their server-owned component allowlists. */
   multicourseMenus?: PublicMenuMulticourseMenusItem[];
   /**
