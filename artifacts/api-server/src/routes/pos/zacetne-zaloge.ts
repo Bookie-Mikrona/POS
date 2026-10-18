@@ -147,6 +147,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
     ustvarjeno: zacetnaZaloga.ustvarjeno,
     postavke: postavkeResult,
     bookingRef: bookingResult?.created ?? null,
+    bookingWarnings: bookingResult?.warnings ?? [],
     bookingSkipped: bookingResult?.skipped?.reason ?? null});
 });
 
@@ -219,7 +220,7 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
     res.status(409).json({ error: "Začetne zaloge lahko prenesete šele po začetni uri poslovnega dne novega leta." }); return;
   }
 
-  let putBookingResult: { created: string | null; skipped: { reason: string } | null } | null = null;
+  let putBookingResult: Awaited<ReturnType<typeof bookZacetnaZaloga>> | null = null;
 
   if (parsed.data.postavke !== undefined) {
     const novaPostavke = parsed.data.postavke;
@@ -383,6 +384,7 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       cenaKos: Number(p.cenaKos),
       steviloPrejsnje: Number(p.steviloPrejsnje)})),
     bookingRef: putBookingResult?.created ?? null,
+    bookingWarnings: putBookingResult?.warnings ?? [],
     bookingSkipped: putBookingResult?.skipped?.reason ?? null});
 });
 
@@ -428,7 +430,7 @@ router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Prom
     return;
   }
 
-  res.json({ ref: result.created ?? null });
+  res.json({ ref: result.created ?? null, warnings: result.warnings ?? [] });
 });
 
 router.delete("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> => {

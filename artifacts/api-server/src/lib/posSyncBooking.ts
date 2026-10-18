@@ -2080,6 +2080,9 @@ async function syncPosBookingForDayUnlocked(
 
       if (zzResult?.created) {
         created.push(zzResult.created);
+        for (const reason of zzResult.warnings ?? []) {
+          skipped.push({ ref: zzResult.created, reason });
+        }
       } else if (zzResult?.skipped) {
         skipped.push({ ref: `POS:ZZ:${zz.leto}:E${zz.enotaId}`, reason: zzResult.skipped.reason });
       }
@@ -2686,7 +2689,7 @@ async function bookZacetnaZaloga(
   leto: number,
   datum: string, // YYYY-MM-DD
   postavke: ZZPostavka[],
-): Promise<{ created: string | null; skipped: { reason: string } | null }> {
+): Promise<{ created: string | null; skipped: { reason: string } | null; warnings?: string[] }> {
   const vrednotljivePostavke = postavke.filter((postavka) => !postavka.drobniInventar);
   if (vrednotljivePostavke.length === 0) {
     await deleteExistingOpeningStockDrafts(companyId, leto, enotaId);
@@ -2817,9 +2820,10 @@ async function bookZacetnaZaloga(
   }
 
   await deleteExistingOpeningStockDrafts(companyId, leto, enota.id);
-  await insertEntry(companyId, period.id, datum, `POS začetne zaloge ${leto}`, ref, merged);
+  const warnings: SyncResult["skipped"] = [];
+  await insertEntry(companyId, period.id, datum, `POS začetne zaloge ${leto}`, ref, merged, undefined, warnings);
 
-  return { created: ref, skipped: null };
+  return { created: ref, skipped: null, warnings: warnings.map(warning => warning.reason) };
 }
 
 return { pushSignedLine, getEffectiveBookingFrequency, getRevenueAccount,

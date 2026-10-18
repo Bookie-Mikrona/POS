@@ -8764,6 +8764,12 @@ export interface ZacetnaZalogaFull {
   /** @nullable */
   opomba?: string | null;
   ustvarjeno: string;
+  /** @nullable */
+  bookingRef?: string | null;
+  /** @nullable */
+  bookingSkipped?: string | null;
+  /** Opozorila o manjkajočih dimenzijah ustvarjenega osnutka. */
+  bookingWarnings?: string[];
   postavke: ZacetnaZalogaPostavkaPogled[];
 }
 
@@ -15442,4 +15448,3 @@ export type PreviewPosMonthlyInvoiceParams = {
 month: string;
 counterpartyId: string;
 };
-

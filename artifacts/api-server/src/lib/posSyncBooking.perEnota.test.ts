@@ -793,6 +793,59 @@ describe("POS temeljnice po enoti", () => {
     expect(salesRefs).toContain(`POS:PRODAJA:${DATE}:E${enotaIds[5]}`);
   });
 
+  it("otvoritev ohrani osnutek in opozori le za dejansko manjkajoče dimenzije", async () => {
+    const [settings] = await db.select().from(posBookingSettingsTable)
+      .where(eq(posBookingSettingsTable.companyId, companyId));
+    const accountId = settings.inventoryMaterialAccountId!;
+    const [account] = await db.select().from(accountsTable).where(eq(accountsTable.id, accountId));
+    try {
+      await db.update(accountsTable).set({
+        requiresPartner: true, requiresCostCenter: true, requiresProject: true,
+      }).where(eq(accountsTable.id, accountId));
+
+      const withSm = await bookZacetnaZaloga(companyId, enotaIds[0], 2026, DATE, [
+        { vrstaArtikla: "material", kolicina: 10, cenaKos: 2 },
+      ]);
+      expect(withSm).toMatchObject({ created: `POS:ZZ:2026:E${enotaIds[0]}`, skipped: null });
+      expect(withSm.warnings).toHaveLength(1);
+      expect(withSm.warnings![0]).toContain(`Konto ${account.code} zahteva partnerja, projekt`);
+      expect(withSm.warnings![0]).not.toContain("stroškovno mesto");
+      const [entry] = await db.select().from(journalEntriesTable).where(and(
+        eq(journalEntriesTable.companyId, companyId),
+        eq(journalEntriesTable.reference, withSm.created!),
+      ));
+      expect(entry.status).toBe("draft");
+      const lines = await db.select().from(journalEntryLinesTable)
+        .where(eq(journalEntryLinesTable.entryId, entry.id));
+      expect(lines).toHaveLength(2);
+      expect(lines.every(line => line.costCenterId === costCenters[0].id)).toBe(true);
+
+      const withoutSm = await bookZacetnaZaloga(companyId, enotaIds[3], 2026, DATE, [
+        { vrstaArtikla: "material", kolicina: 3, cenaKos: 3 },
+      ]);
+      expect(withoutSm.warnings).toHaveLength(1);
+      expect(withoutSm.warnings![0]).toContain("partnerja, stroškovno mesto, projekt");
+
+      const sync = await syncPosBookingForDay(companyId, DATE);
+      expect(sync.created).toContain(withSm.created);
+      expect(sync.skipped).toContainEqual({ ref: withSm.created, reason: withSm.warnings![0] });
+
+      await db.update(accountsTable).set({
+        requiresPartner: false, requiresCostCenter: true, requiresProject: false,
+      }).where(eq(accountsTable.id, accountId));
+      const complete = await bookZacetnaZaloga(companyId, enotaIds[0], 2026, DATE, [
+        { vrstaArtikla: "material", kolicina: 10, cenaKos: 2 },
+      ]);
+      expect(complete).toMatchObject({ created: withSm.created, skipped: null, warnings: [] });
+    } finally {
+      await db.update(accountsTable).set({
+        requiresPartner: account.requiresPartner,
+        requiresCostCenter: account.requiresCostCenter,
+        requiresProject: account.requiresProject,
+      }).where(eq(accountsTable.id, accountId));
+    }
+  });
+
   it("ustvari ločene otvoritvene temeljnice tudi brez SM in ne prepisuje drugih enot", async () => {
     const result = await syncPosBookingForDay(companyId, DATE);
     const expectedRefs = [

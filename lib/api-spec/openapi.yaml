@@ -21017,6 +21017,15 @@ components:
             - "null"
         ustvarjeno:
           type: string
+        bookingRef:
+          type: [string, "null"]
+        bookingSkipped:
+          type: [string, "null"]
+        bookingWarnings:
+          type: array
+          items:
+            type: string
+          description: Opozorila o manjkajočih dimenzijah ustvarjenega osnutka.
         postavke:
           type: array
           items:

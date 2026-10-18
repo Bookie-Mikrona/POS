@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment, forwardRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useF2Save } from "@/hooks/useF2Save";
+import { openingStockBookingNotice } from "@/lib/openingStockBookingNotice";
 import {
   useListZaloge,
   useListPrejemnice,
@@ -3852,14 +3853,12 @@ function EditZacetnaZalogaDialog({
         })),
       },
     }, {
-      onSuccess: (data: any) => {
-        if (data?.bookingRef) {
-          toast({ title: "Začetne zaloge posodobljene", description: `Poknjiženo v ERP (${data.bookingRef})` });
-        } else if (data?.bookingSkipped) {
-          toast({ title: "Začetne zaloge posodobljene", description: `⚠️ ERP knjiženje preskočeno: ${data.bookingSkipped}` });
-        } else {
-          toast({ title: "Začetne zaloge posodobljene" });
-        }
+      onSuccess: (data) => {
+        toast({
+          title: "Začetne zaloge posodobljene",
+          description: openingStockBookingNotice(data),
+          ...(data.bookingWarnings?.length ? { duration: 15000 } : {}),
+        });
         onSaved();
       },
       onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
@@ -4790,17 +4789,15 @@ export default function Zaloge() {
         })),
       },
     }, {
-      onSuccess: (data: any) => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListZacetneZalogeQueryKey() });
         setZzDialogOpen(false);
-        if (data?.bookingRef) {
-          toast({ title: `Začetne zaloge za leto ${zzLeto} shranjene`, description: `Poknjiženo v ERP (${data.bookingRef})` });
-        } else if (data?.bookingSkipped) {
-          toast({ title: `Začetne zaloge za leto ${zzLeto} shranjene`, description: `⚠️ ERP knjiženje preskočeno: ${data.bookingSkipped}`, variant: "default" });
-        } else {
-          toast({ title: `Začetne zaloge za leto ${zzLeto} shranjene` });
-        }
+        toast({
+          title: `Začetne zaloge za leto ${zzLeto} shranjene`,
+          description: openingStockBookingNotice(data),
+          ...(data.bookingWarnings?.length ? { duration: 15000 } : {}),
+        });
       },
       onError: (e: unknown) => {
         const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
