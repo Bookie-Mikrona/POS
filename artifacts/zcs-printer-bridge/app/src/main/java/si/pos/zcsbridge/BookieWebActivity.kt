@@ -9,7 +9,13 @@ import android.view.WindowManager
 import android.Manifest
 import android.content.pm.PackageManager
 import android.webkit.CookieManager
+import android.content.Context
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.webkit.JavascriptInterface
 import android.webkit.GeolocationPermissions
+import org.json.JSONObject
 import android.webkit.PermissionRequest
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -26,7 +32,7 @@ import androidx.appcompat.app.AppCompatActivity
  *
  * Varnost: WebView sme naložiti samo https://bookie-erp.replit.app. Vsak drug
  * naslov se v WebView-u ne naloži (https se odpre v sistemskem brskalniku).
- * Brez JavaScript vmesnika, brez dostopa do datotek. Stran lahko zahteva kamero,
+ * Edini JavaScript vmesnik je BookieSpeech (glasovni vnos), samo za dovoljeni naslov; brez dostopa do datotek. Stran lahko zahteva kamero,
  * mikrofon in lokacijo; NFC se pošlje kot dogodek "bookie-nfc".
  */
 class BookieWebActivity : AppCompatActivity() {
@@ -35,6 +41,8 @@ class BookieWebActivity : AppCompatActivity() {
     private var pendingWebRequest: PermissionRequest? = null
     private var pendingGeo: Pair<String, GeolocationPermissions.Callback>? = null
     private var pendingPermissions: Array<String> = emptyArray()
+    private var recognizer: SpeechRecognizer? = null
+    private var speechAfterPermission = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,6 +76,18 @@ class BookieWebActivity : AppCompatActivity() {
             setAcceptCookie(true)
             setAcceptThirdPartyCookies(web, false)
         }
+
+        // Edini JS vmesnik: glasovni vnos prek Androidovega prepoznavanja govora. Deluje samo za dovoljeni naslov.
+        web.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun available(): Boolean = allowedNow() && SpeechRecognizer.isRecognitionAvailable(this@BookieWebActivity)
+
+            @JavascriptInterface
+            fun start() { if (allowedNow()) runOnUiThread { startSpeech() } }
+
+            @JavascriptInterface
+            fun stop() { runOnUiThread { recognizer?.stopListening() } }
+        }, "BookieSpeech")
 
         web.webChromeClient = object : WebChromeClient() {
             // Kamera, mikrofon in lokacija samo za dovoljeni origin; vse drugo ostane zavrnjeno.
@@ -114,6 +134,58 @@ class BookieWebActivity : AppCompatActivity() {
         if (savedInstanceState != null) web.restoreState(savedInstanceState) else web.loadUrl(startUrl)
     }
 
+    private fun allowedNow(): Boolean {
+        val current = runCatching { web.url }.getOrNull() ?: return false
+        return isAllowedOrigin(Uri.parse(current))
+    }
+
+    private fun speechEvent(type: String, text: String? = null) {
+        val json = JSONObject().put("type", type).apply { if (text != null) put("text", text) }
+        runOnUiThread {
+            if (allowedNow()) web.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('bookie-speech',{detail:$json}))", null,
+            )
+        }
+    }
+
+    private fun startSpeech() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            speechAfterPermission = true
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), SPEECH_PERMISSION_REQUEST_CODE)
+            return
+        }
+        recognizer?.destroy()
+        val r = SpeechRecognizer.createSpeechRecognizer(this)
+        recognizer = r
+        r.setRecognitionListener(object : RecognitionListener {
+            override fun onBeginningOfSpeech() = speechEvent("activity")
+            override fun onResults(results: android.os.Bundle) {
+                val text = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                if (!text.isNullOrBlank()) speechEvent("result", text)
+                speechEvent("end")
+            }
+            override fun onError(error: Int) {
+                // 7 = ni govora, 6 = časovna omejitev: ni napaka za uporabnika
+                if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                    speechEvent("error", error.toString())
+                }
+                speechEvent("end")
+            }
+            override fun onReadyForSpeech(params: android.os.Bundle?) {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onPartialResults(partialResults: android.os.Bundle?) {}
+            override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
+        })
+        r.startListening(
+            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "sl-SI")
+                .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false),
+        )
+    }
+
     private fun askAndroid(
         perms: Array<String>,
         request: PermissionRequest?,
@@ -153,6 +225,12 @@ class BookieWebActivity : AppCompatActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == SPEECH_PERMISSION_REQUEST_CODE) {
+            val ok = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
+            if (ok && speechAfterPermission) startSpeech() else { speechEvent("error", "not-allowed"); speechEvent("end") }
+            speechAfterPermission = false
+            return
+        }
         if (requestCode != WEB_PERMISSION_REQUEST_CODE) return
         val request = pendingWebRequest
         val geo = pendingGeo
@@ -203,6 +281,7 @@ class BookieWebActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        recognizer?.destroy()
         if (::web.isInitialized) {
             (web.parent as? android.view.ViewGroup)?.removeView(web)
             web.destroy()
@@ -224,6 +303,7 @@ class BookieWebActivity : AppCompatActivity() {
 
     companion object {
         private const val WEB_PERMISSION_REQUEST_CODE = 4101
+        private const val SPEECH_PERMISSION_REQUEST_CODE = 4102
         const val ALLOWED_HOST = "bookie-erp.replit.app"
         const val EXTRA_TARGET = "target"
         const val TARGET_POS = "pos"

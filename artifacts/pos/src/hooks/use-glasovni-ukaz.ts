@@ -29,8 +29,14 @@ function getSR(): SRC | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+type NativniGovor = { available: () => boolean; start: () => void; stop: () => void };
+function getNativniGovor(): NativniGovor | null {
+  const n = (window as unknown as { BookieSpeech?: NativniGovor }).BookieSpeech;
+  try { return n && n.available() ? n : null; } catch { return null; }
+}
+
 export function jePodprtGlasovniVnos(): boolean {
-  return getSR() !== null || jePodprtoSnemanje();
+  return getNativniGovor() !== null || getSR() !== null || jePodprtoSnemanje();
 }
 
 export type GlasovniCallbacks = {
@@ -68,12 +74,37 @@ export function useGlasovniUkaz() {
   };
 
   const zacni = (callbacks: GlasovniCallbacks, pragZaupanja?: number, moznosti?: GlasovniMoznosti): boolean => {
+    const nativni = getNativniGovor();
     const SR = getSR();
-    if (!SR && !jePodprtoSnemanje()) return false;
+    if (!nativni && !SR && !jePodprtoSnemanje()) return false;
 
     if (ref.current) {
       ref.current.stop();
       ref.current = null;
+    }
+
+    if (nativni) {
+      // Aplikacija Bookie (ZCS): Androidovo prepoznavanje govora, enako hitro kot v Chromu.
+      const neprekinjeno = moznosti?.continuous ?? false;
+      let ustavljeno = false;
+      const poslusalec = (e: Event) => {
+        const d = (e as CustomEvent<{ type: string; text?: string }>).detail;
+        if (d.type === "activity") callbacks.onActivity?.();
+        else if (d.type === "result" && d.text) callbacks.onResult(d.text);
+        else if (d.type === "error") { ustavljeno = true; callbacks.onError?.(d.text); }
+        else if (d.type === "end") {
+          if (neprekinjeno && !ustavljeno) { nativni.start(); return; }
+          window.removeEventListener("bookie-speech", poslusalec);
+          ref.current = null;
+          setPoslusam(false);
+          callbacks.onEnd?.();
+        }
+      };
+      window.addEventListener("bookie-speech", poslusalec);
+      ref.current = { stop: () => { ustavljeno = true; nativni.stop(); } };
+      setPoslusam(true);
+      nativni.start();
+      return true;
     }
 
     if (!SR) {

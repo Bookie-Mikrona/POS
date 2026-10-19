@@ -4485,8 +4485,8 @@ export default function Settings() {
               <a className="w-full sm:w-auto" href={`${base}/api/downloads/BookieERP.apk`} download="BookieERP.apk">
                 <Button type="button" size="sm" variant="outline" className="w-full sm:w-auto gap-2"><Download className="w-4 h-4 shrink-0" />BookieERP.apk</Button>
               </a>
-              <a className="w-full sm:w-auto" href={`${base}/api/downloads/ZcsPrinterBridge-1.2.2.apk`} download="ZcsPrinterBridge-1.2.2.apk">
-                <Button type="button" size="sm" variant="outline" className="w-full sm:w-auto gap-2"><Download className="w-4 h-4 shrink-0" />ZcsPrinterBridge-1.2.2.apk <span className="text-xs opacity-70 font-normal">ZCS Z92 + Bookie</span></Button>
+              <a className="w-full sm:w-auto" href={`${base}/api/downloads/ZcsPrinterBridge-1.3.0.apk`} download="ZcsPrinterBridge-1.3.0.apk">
+                <Button type="button" size="sm" variant="outline" className="w-full sm:w-auto gap-2"><Download className="w-4 h-4 shrink-0" />ZcsPrinterBridge-1.3.0.apk <span className="text-xs opacity-70 font-normal">ZCS Z92 + Bookie</span></Button>
               </a>
             </div>
           </div>
