@@ -1,0 +1,297 @@
+<migration_failure>
+   Failed to run database migration statement
+ALTER TABLE "malica_daily_main_items" ADD CONSTRAINT "malica_daily_main_items_pizza_size_check" CHECK ((velikost_pice IS NULL) OR (velikost_pice = ANY (ARRAY['mala'::text, 'normalna'::text, 'druzinska'::text])))) NOT VALID);
+syntax error at or near ")"
+   </migration_failure>
+
+   <generated_migration_diff>
+   CREATE TABLE "erp_smtp_settings" (
+"company_id" uuid PRIMARY KEY NOT NULL,
+"host" text NOT NULL,
+"port" integer NOT NULL,
+"smtp_user" text NOT NULL,
+"password_encrypted" text NOT NULL,
+"smtp_from" text NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "erp_smtp_settings_port_check" CHECK (port = ANY (ARRAY[465, 587]))
+);
+
+
+CREATE TABLE "pos_supplier_package_change_reviews" (
+"id" serial PRIMARY KEY NOT NULL,
+"enota_id" integer NOT NULL,
+"prejemnica_id" integer NOT NULL,
+"supplier_order_line_id" integer NOT NULL,
+"article_name" text NOT NULL,
+"order_package_name" text,
+"order_factor" numeric(18, 6),
+"order_base_unit" text,
+"current_package_name" text,
+"current_factor" numeric(18, 6),
+"current_base_unit" text,
+"actor_clerk_user_id" text NOT NULL,
+"actor_natakar_id" integer,
+"reviewed_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "pos_supplier_package_change_reviews_receipt_line_uq" UNIQUE("prejemnica_id","supplier_order_line_id")
+);
+
+
+CREATE TABLE "viva_refund_alert_settings" (
+"company_id" uuid PRIMARY KEY NOT NULL,
+"overdue_hours" integer DEFAULT 24 NOT NULL,
+"critical_hours" integer DEFAULT 72 NOT NULL,
+CONSTRAINT "viva_refund_alert_thresholds" CHECK ((overdue_hours >= 1) AND (critical_hours > overdue_hours) AND (critical_hours <= 8760))
+);
+
+
+CREATE TABLE "viva_vracilo_dokazila" (
+"id" text PRIMARY KEY NOT NULL,
+"viva_vracilo_id" integer NOT NULL,
+"enota_id" integer NOT NULL,
+"priponka" jsonb NOT NULL,
+"actor_clerk_user_id" text NOT NULL,
+"ustvarjeno" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE "pos_supplier_order_lines" (
+"id" serial PRIMARY KEY NOT NULL,
+"enota_id" integer NOT NULL,
+"narocilo_id" integer NOT NULL,
+"supplier_mapping_id" integer NOT NULL,
+"artikel_id" integer NOT NULL,
+"artikel_naziv" text NOT NULL,
+"dobaviteljev_naziv" text,
+"dobaviteljeva_sifra" text,
+"kolicina_pakiranj" numeric(18, 6) NOT NULL,
+"faktor_pakiranja" numeric(18, 6) NOT NULL,
+"naziv_pakiranja" text,
+"osnovna_enota" text,
+"cena_pakiranja" numeric(15, 6),
+"dobaviteljev_ean" text,
+CONSTRAINT "pos_supplier_order_lines_package_factor_check" CHECK (faktor_pakiranja > (0)::numeric),
+CONSTRAINT "pos_supplier_order_lines_package_price_check" CHECK ((cena_pakiranja IS NULL) OR (cena_pakiranja >= (0)::numeric)),
+CONSTRAINT "pos_supplier_order_lines_package_qty_check" CHECK (kolicina_pakiranj > (0)::numeric)
+);
+
+
+CREATE TABLE "viva_refund_alerts" (
+"id" serial PRIMARY KEY NOT NULL,
+"refund_id" integer NOT NULL,
+"threshold" text NOT NULL,
+"threshold_hours" integer NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"closed_at" timestamp with time zone,
+CONSTRAINT "viva_refund_alert_once_per_threshold" UNIQUE("refund_id","threshold"),
+CONSTRAINT "viva_refund_alert_threshold" CHECK (threshold = ANY (ARRAY['overdue'::text, 'critical'::text]))
+);
+
+
+CREATE TABLE "pos_supplier_reorder_settings" (
+"id" serial PRIMARY KEY NOT NULL,
+"enota_id" integer NOT NULL,
+"artikel_id" integer NOT NULL,
+"reorder_point" numeric(18, 6) NOT NULL,
+"target_stock" numeric(18, 6) NOT NULL,
+"preferred_mapping_id" integer,
+"updated_by" text,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "pos_supplier_reorder_settings_unit_article_uq" UNIQUE("enota_id","artikel_id"),
+CONSTRAINT "pos_supplier_reorder_settings_nonnegative_check" CHECK (reorder_point >= (0)::numeric),
+CONSTRAINT "pos_supplier_reorder_settings_target_check" CHECK (target_stock > reorder_point)
+);
+
+
+CREATE TABLE "account_type_confirmations" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"company_id" uuid NOT NULL,
+"account_id" uuid NOT NULL,
+"actor_id" text NOT NULL,
+"confirmed_at" timestamp with time zone DEFAULT now() NOT NULL,
+"code" text NOT NULL,
+"selected_type" "account_type" NOT NULL,
+"expected_type" "account_type" NOT NULL,
+"source" text NOT NULL,
+CONSTRAINT "account_type_confirmations_check" CHECK (selected_type <> expected_type),
+CONSTRAINT "account_type_confirmations_source_check" CHECK (source = ANY (ARRAY['create'::text, 'update'::text, 'import'::text]))
+);
+
+
+CREATE TABLE "pos_supplier_orders" (
+"id" serial PRIMARY KEY NOT NULL,
+"enota_id" integer NOT NULL,
+"dobavitelj_id" uuid NOT NULL,
+"dobavitelj_naziv" text NOT NULL,
+"stevilka" text NOT NULL,
+"status" text DEFAULT 'draft' NOT NULL,
+"datum_dobave" date,
+"opomba" text,
+"razlog_zaprtja" text,
+"ustvaril" text,
+"ustvarjeno" timestamp with time zone DEFAULT now() NOT NULL,
+"posodobljeno" timestamp with time zone DEFAULT now() NOT NULL,
+"poslano_dne" timestamp with time zone,
+"zaprto_dne" timestamp with time zone,
+"navodilo_dobavitelju" text,
+CONSTRAINT "pos_supplier_orders_id_unit_uq" UNIQUE("id","enota_id"),
+CONSTRAINT "pos_supplier_orders_status_check" CHECK (status = ANY (ARRAY['draft'::text, 'sent'::text, 'partially_received'::text, 'received'::text, 'closed'::text, 'cancelled'::text]))
+);
+
+
+CREATE TABLE "report_email_requests" (
+"company_id" uuid NOT NULL,
+"request_key" uuid NOT NULL,
+"payload_hash" text NOT NULL,
+"exported_by" text NOT NULL,
+"status" text DEFAULT 'pending' NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "report_email_requests_pkey" PRIMARY KEY("company_id","request_key")
+);
+
+
+CREATE TABLE "pos_supplier_terms" (
+"id" serial PRIMARY KEY NOT NULL,
+"enota_id" integer NOT NULL,
+"dobavitelj_id" uuid NOT NULL,
+"min_znesek_narocila" numeric(15, 2),
+"rok_dobave_dni" integer,
+"updated_by" text,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "pos_supplier_terms_unit_supplier_uq" UNIQUE("enota_id","dobavitelj_id"),
+CONSTRAINT "pos_supplier_terms_min_znesek_check" CHECK ((min_znesek_narocila IS NULL) OR (min_znesek_narocila >= (0)::numeric)),
+CONSTRAINT "pos_supplier_terms_rok_check" CHECK ((rok_dobave_dni IS NULL) OR ((rok_dobave_dni >= 0) AND (rok_dobave_dni <= 365)))
+);
+
+
+ALTER TABLE "malica_daily_main_items" DROP CONSTRAINT "malica_daily_main_items_offer_article_uq";
+
+ALTER TABLE "malica_article_assignments" DROP CONSTRAINT "malica_article_assignments_unit_article_uq";
+
+ALTER TABLE "artikel_dobavitelj" ADD COLUMN "min_kolicina_pakiranj" numeric(18, 6);
+
+ALTER TABLE "enote" ADD COLUMN "viva_refund_approval_threshold" numeric(10, 2) DEFAULT '100' NOT NULL;
+
+ALTER TABLE "malica_daily_main_items" ADD COLUMN "velikost_pice" text;
+
+ALTER TABLE "malica_article_assignments" ADD COLUMN "velikost_pice" text;
+
+ALTER TABLE "prejemnice_postavke" ADD COLUMN "supplier_order_line_id" integer;
+
+ALTER TABLE "modifikatorji" ADD COLUMN "privzet" boolean DEFAULT false NOT NULL;
+
+ALTER TABLE "pizza_dough_settings" ADD COLUMN "family_dough_article_id" integer NOT NULL;
+
+ALTER TABLE "os_amortizacija_obracun" ADD COLUMN "company_snapshot" jsonb;
+
+ALTER TABLE "os_amortizacija_obracun_sredstvo" ADD COLUMN "inventarna_st_snapshot" text;
+
+ALTER TABLE "os_amortizacija_obracun_sredstvo" ADD COLUMN "naziv_snapshot" text;
+
+ALTER TABLE "payments" ADD COLUMN "bank_cost_center_id" uuid;
+
+ALTER TABLE "payments" ADD COLUMN "bank_project_id" uuid;
+
+ALTER TABLE "payments" ADD COLUMN "counter_cost_center_id" uuid;
+
+ALTER TABLE "payments" ADD COLUMN "counter_project_id" uuid;
+
+ALTER TABLE "report_exports" ADD COLUMN "exported_by_name" text;
+
+ALTER TABLE "viva_vracila" ADD COLUMN "predlagani_status" text;
+
+ALTER TABLE "viva_vracila" ADD COLUMN "prvi_odobritelj_clerk_user_id" text;
+
+ALTER TABLE "viva_vracilo_status_prehodi" ADD COLUMN "predlagani_status" text;
+
+ALTER TABLE "viva_vracilo_status_prehodi" ADD COLUMN "dokaz_priponka" jsonb;
+
+ALTER TABLE "erp_smtp_settings" ADD CONSTRAINT "erp_smtp_settings_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_package_change_reviews" ADD CONSTRAINT "pos_supplier_package_change_reviews_enota_id_fkey" FOREIGN KEY ("enota_id") REFERENCES "public"."enote"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_package_change_reviews" ADD CONSTRAINT "pos_supplier_package_change_reviews_prejemnica_id_fkey" FOREIGN KEY ("prejemnica_id") REFERENCES "public"."prejemnice"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_package_change_reviews" ADD CONSTRAINT "pos_supplier_package_change_reviews_supplier_order_line_id_fkey" FOREIGN KEY ("supplier_order_line_id") REFERENCES "public"."pos_supplier_order_lines"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "viva_refund_alert_settings" ADD CONSTRAINT "viva_refund_alert_settings_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "viva_vracilo_dokazila" ADD CONSTRAINT "viva_vracilo_dokazila_viva_vracilo_id_fkey" FOREIGN KEY ("viva_vracilo_id") REFERENCES "public"."viva_vracila"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_order_lines" ADD CONSTRAINT "pos_supplier_order_lines_article_unit_fk" FOREIGN KEY ("artikel_id","enota_id") REFERENCES "public"."artikli"("id","enota_id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_order_lines" ADD CONSTRAINT "pos_supplier_order_lines_order_unit_fk" FOREIGN KEY ("narocilo_id","enota_id") REFERENCES "public"."pos_supplier_orders"("id","enota_id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "viva_refund_alerts" ADD CONSTRAINT "viva_refund_alerts_refund_id_fkey" FOREIGN KEY ("refund_id") REFERENCES "public"."viva_vracila"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_reorder_settings" ADD CONSTRAINT "pos_supplier_reorder_settings_article_unit_fk" FOREIGN KEY ("artikel_id","enota_id") REFERENCES "public"."artikli"("id","enota_id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_reorder_settings" ADD CONSTRAINT "pos_supplier_reorder_settings_enota_id_fkey" FOREIGN KEY ("enota_id") REFERENCES "public"."enote"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "account_type_confirmations" ADD CONSTRAINT "account_type_confirmations_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "account_type_confirmations" ADD CONSTRAINT "account_type_confirmations_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_orders" ADD CONSTRAINT "pos_supplier_orders_dobavitelj_id_fkey" FOREIGN KEY ("dobavitelj_id") REFERENCES "public"."counterparties"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_orders" ADD CONSTRAINT "pos_supplier_orders_enota_id_fkey" FOREIGN KEY ("enota_id") REFERENCES "public"."enote"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_terms" ADD CONSTRAINT "pos_supplier_terms_dobavitelj_id_fkey" FOREIGN KEY ("dobavitelj_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;
+
+ALTER TABLE "pos_supplier_terms" ADD CONSTRAINT "pos_supplier_terms_enota_id_fkey" FOREIGN KEY ("enota_id") REFERENCES "public"."enote"("id") ON DELETE cascade ON UPDATE no action;
+
+CREATE INDEX "pos_supplier_package_change_reviews_unit_receipt_time_idx" ON "pos_supplier_package_change_reviews" USING btree ("enota_id","prejemnica_id","reviewed_at");
+
+CREATE INDEX "ix_pos_supplier_order_lines_unit_article" ON "pos_supplier_order_lines" USING btree ("enota_id","artikel_id");
+
+CREATE UNIQUE INDEX "pos_supplier_order_lines_order_mapping_uq" ON "pos_supplier_order_lines" USING btree ("narocilo_id","supplier_mapping_id");
+
+CREATE INDEX "viva_refund_alerts_active_idx" ON "viva_refund_alerts" USING btree ("refund_id") WHERE (closed_at IS NULL);
+
+CREATE INDEX "ix_pos_supplier_reorder_settings_unit" ON "pos_supplier_reorder_settings" USING btree ("enota_id");
+
+CREATE INDEX "account_type_confirmations_lookup" ON "account_type_confirmations" USING btree ("company_id","account_id","confirmed_at");
+
+CREATE INDEX "ix_pos_supplier_orders_unit_status_date" ON "pos_supplier_orders" USING btree ("enota_id","status","ustvarjeno");
+
+CREATE UNIQUE INDEX "pos_supplier_orders_unit_number_uq" ON "pos_supplier_orders" USING btree ("enota_id","stevilka");
+
+ALTER TABLE "prejemnice_postavke" ADD CONSTRAINT "prejemnice_postavke_supplier_order_line_fk" FOREIGN KEY ("supplier_order_line_id") REFERENCES "public"."pos_supplier_order_lines"("id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "pizza_dough_settings" ADD CONSTRAINT "pizza_dough_settings_family_article_unit_fk" FOREIGN KEY ("family_dough_article_id","enota_id") REFERENCES "public"."artikli"("id","enota_id") ON DELETE restrict ON UPDATE no action;
+
+ALTER TABLE "payments" ADD CONSTRAINT "payments_bank_cost_center_id_fkey" FOREIGN KEY ("bank_cost_center_id") REFERENCES "public"."cost_centers"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "payments" ADD CONSTRAINT "payments_bank_project_id_fkey" FOREIGN KEY ("bank_project_id") REFERENCES "public"."projects"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "payments" ADD CONSTRAINT "payments_counter_cost_center_id_fkey" FOREIGN KEY ("counter_cost_center_id") REFERENCES "public"."cost_centers"("id") ON DELETE no action ON UPDATE no action;
+
+ALTER TABLE "payments" ADD CONSTRAINT "payments_counter_project_id_fkey" FOREIGN KEY ("counter_project_id") REFERENCES "public"."projects"("id") ON DELETE no action ON UPDATE no action;
+
+CREATE UNIQUE INDEX "malica_daily_main_items_offer_article_size_uq" ON "malica_daily_main_items" USING btree ("offer_id","artikel_id","velikost_pice") WHERE (velikost_pice IS NOT NULL);
+
+CREATE UNIQUE INDEX "malica_daily_main_items_offer_article_without_size_uq" ON "malica_daily_main_items" USING btree ("offer_id","artikel_id") WHERE (velikost_pice IS NULL);
+
+CREATE UNIQUE INDEX "malica_article_assignments_unit_article_size_uq" ON "malica_article_assignments" USING btree ("enota_id","artikel_id","velikost_pice") WHERE (velikost_pice IS NOT NULL);
+
+CREATE UNIQUE INDEX "malica_article_assignments_unit_article_without_size_uq" ON "malica_article_assignments" USING btree ("enota_id","artikel_id") WHERE (velikost_pice IS NULL);
+
+CREATE UNIQUE INDEX "idx_journal_entries_amortizacija_unique" ON "journal_entries" USING btree ("company_id","reference") WHERE ((source_type = 'amortizacija'::text) AND (status = ANY (ARRAY['draft'::journal_entry_status, 'posted'::journal_entry_status])));
+
+CREATE INDEX "ix_prejemnice_postavke_supplier_order_line" ON "prejemnice_postavke" USING btree ("supplier_order_line_id") WHERE (supplier_order_line_id IS NOT NULL);
+
+CREATE UNIQUE INDEX "prejemnice_postavke_supplier_order_line_receipt_uq" ON "prejemnice_postavke" USING btree ("prejemnica_id","supplier_order_line_id") WHERE (supplier_order_line_id IS NOT NULL);
+
+CREATE INDEX "report_exports_company_history_idx" ON "report_exports" USING btree ("company_id","exported_at");
+
+CREATE INDEX "report_exports_retention_idx" ON "report_exports" USING btree ("exported_at","id");
+
+ALTER TABLE "artikel_dobavitelj" ADD CONSTRAINT "artikel_dobavitelj_min_kolicina_check" CHECK ((min_kolicina_pakiranj IS NULL) OR (min_kolicina_pakiranj > (0)::numeric));
+
+ALTER TABLE "malica_daily_main_items" ADD CONSTRAINT "malica_daily_main_items_pizza_size_check" CHECK ((velikost_pice IS NULL) OR (velikost_pice = ANY (ARRAY['mala'::text, 'normalna'::text, 'druzinska'::text])))) NOT VALID);
+
+ALTER TABLE "malica_article_assignments" ADD CONSTRAINT "malica_article_assignments_pizza_size_check" CHECK ((velikost_pice IS NULL) OR (velikost_pice = ANY (ARRAY['mala'::text, 'normalna'::text, 'druzinska'::text])))) NOT VALID);
+   </generated_migration_diff>
+
+   <migration_warnings>
+   No additional migration warnings were generated.
+   </migration_warnings>
