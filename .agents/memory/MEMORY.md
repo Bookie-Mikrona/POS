@@ -154,3 +154,4 @@
 - [Validacija ob vzporednih združitvah](parallel-merge-validation.md) — pred popravljanjem napake v drugem paketu preveri trenutno vsebino in zadnje združitve; napaka je lahko sveže vnesena.
 - [Hrana, recepti, meni in QR](food-menu-recipes-index.md) — kazalo pravil za recepte, alergene, meni, sestavljene jedi, pice, QR goste in povratne informacije.
 - [Pregled testov po rebazu](test-file-merge-checks.md) — čist samodejni merge ne zagotavlja, da so testi ostali v pravem obsegu; preveri celoten diff in meje testov.
+- [ZCS most brez izdajnih ključev](zcs-bridge-razvojna-razlicica.md) — offline fiskalnih ključev ne bo; most se dostavlja kot debug gradnja, release ne predlagaj
