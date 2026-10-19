@@ -21,6 +21,15 @@ public final class ActivityMainBinding implements ViewBinding {
   private final LinearLayout rootView;
 
   @NonNull
+  public final Button btnAdmin;
+
+  @NonNull
+  public final Button btnBookieErp;
+
+  @NonNull
+  public final Button btnBookiePos;
+
+  @NonNull
   public final Button btnStop;
 
   @NonNull
@@ -29,9 +38,13 @@ public final class ActivityMainBinding implements ViewBinding {
   @NonNull
   public final TextView tvUrl;
 
-  private ActivityMainBinding(@NonNull LinearLayout rootView, @NonNull Button btnStop,
+  private ActivityMainBinding(@NonNull LinearLayout rootView, @NonNull Button btnAdmin,
+      @NonNull Button btnBookieErp, @NonNull Button btnBookiePos, @NonNull Button btnStop,
       @NonNull TextView tvStatus, @NonNull TextView tvUrl) {
     this.rootView = rootView;
+    this.btnAdmin = btnAdmin;
+    this.btnBookieErp = btnBookieErp;
+    this.btnBookiePos = btnBookiePos;
     this.btnStop = btnStop;
     this.tvStatus = tvStatus;
     this.tvUrl = tvUrl;
@@ -64,6 +77,24 @@ public final class ActivityMainBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.btnAdmin;
+      Button btnAdmin = ViewBindings.findChildViewById(rootView, id);
+      if (btnAdmin == null) {
+        break missingId;
+      }
+
+      id = R.id.btnBookieErp;
+      Button btnBookieErp = ViewBindings.findChildViewById(rootView, id);
+      if (btnBookieErp == null) {
+        break missingId;
+      }
+
+      id = R.id.btnBookiePos;
+      Button btnBookiePos = ViewBindings.findChildViewById(rootView, id);
+      if (btnBookiePos == null) {
+        break missingId;
+      }
+
       id = R.id.btnStop;
       Button btnStop = ViewBindings.findChildViewById(rootView, id);
       if (btnStop == null) {
@@ -82,7 +113,8 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityMainBinding((LinearLayout) rootView, btnStop, tvStatus, tvUrl);
+      return new ActivityMainBinding((LinearLayout) rootView, btnAdmin, btnBookieErp, btnBookiePos,
+          btnStop, tvStatus, tvUrl);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

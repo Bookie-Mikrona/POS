@@ -1621,3 +1621,17 @@ mtime_ms = 1792415587411
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/66fc7ed3-9fe7-47be-995a-3744e5d5eecb/ce5db20e-ce5f-4b2a-8b22-cfbc579fd700"
 storage_version_token = "1792415591649646"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "LQ-4CKNh8_tCzwOr8xwsK"
+uri = "file://generated-artifacts/ZcsPrinterBridge-1.2.0.apk"
+type = "unspecified"
+title = "ZcsPrinterBridge 1.2.0 (z Bookie WebView)"
+description = "Nova različica mostu z gumboma Odpri Bookie POS / ERP. WebView naloži samo https://bookie-erp.replit.app."
+logical_id = "3894ca23-787e-48d8-aefd-97bed9625eff"
+content_hash = "sha256:6b6bd87ef99d24be0620269a71d421b6a45857f302ed66814142519883d7ce0e"
+size = 4657262
+mtime_ms = 1792416338272
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/3894ca23-787e-48d8-aefd-97bed9625eff/4896b879-a8ca-4df4-ae35-1e55d27628c3"
+storage_version_token = "1792416343757598"
+content_type = "application/octet-stream"

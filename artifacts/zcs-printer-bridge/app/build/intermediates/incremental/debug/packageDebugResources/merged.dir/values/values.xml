@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ZCS Tiskalni Most</string>
+    <string name="bookie_offline_authority_key_id" translatable="false"/>
+    <string name="bookie_offline_authority_public_key_pem_base64" translatable="false"/>
 </resources>

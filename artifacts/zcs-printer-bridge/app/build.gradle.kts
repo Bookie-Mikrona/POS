@@ -17,8 +17,8 @@ android {
         applicationId = "si.pos.zcsbridge"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.1.1"
+        versionCode = 4
+        versionName = "1.2.0"
         resValue("string", "bookie_offline_authority_key_id", offlineAuthorityKeyId.orNull ?: "")
         resValue("string", "bookie_offline_authority_public_key_pem_base64", offlineAuthorityPemBase64.orNull ?: "")
 

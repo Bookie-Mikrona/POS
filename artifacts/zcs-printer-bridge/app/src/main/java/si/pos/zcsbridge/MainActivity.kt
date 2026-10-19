@@ -34,6 +34,8 @@ class MainActivity : AppCompatActivity() {
 
         // Zaženi foreground servis
         startForegroundService(Intent(this, PrintServerService::class.java))
+        findViewById<Button>(R.id.btnBookiePos).setOnClickListener { openBookie(BookieWebActivity.TARGET_POS) }
+        findViewById<Button>(R.id.btnBookieErp).setOnClickListener { openBookie(BookieWebActivity.TARGET_ERP) }
         findViewById<Button>(R.id.btnAdmin).setOnClickListener {
             val keyguard = getSystemService(KeyguardManager::class.java)
             val confirmation = keyguard?.createConfirmDeviceCredentialIntent(
@@ -97,6 +99,10 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvUrl).text =
             "Fiskalni API: http://127.0.0.1:17831/v1\nKoda za seznanitev: ${fiscalInfo.pairingCode()}\n" +
                 "Koda poteče in je uporabna samo enkrat."
+    }
+
+    private fun openBookie(target: String) {
+        startActivity(Intent(this, BookieWebActivity::class.java).putExtra(BookieWebActivity.EXTRA_TARGET, target))
     }
 
     private fun openAdmin() {

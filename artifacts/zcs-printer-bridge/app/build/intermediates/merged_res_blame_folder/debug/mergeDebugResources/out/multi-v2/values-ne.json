@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "si.pos.zcsbridge.app-mergeDebugResources-21:/values-ne/values-ne.xml",
+            "outputFile": "si.pos.zcsbridge.app-mergeDebugResources-28:/values-ne/values-ne.xml",
             "map": [
                 {
-                    "source": "/home/runner/.gradle/caches/transforms-4/938e6d815249aa5349a85ed4e08b1799/transformed/appcompat-1.7.0/res/values-ne/values-ne.xml",
+                    "source": "/home/runner/.gradle/caches/8.14.2/transforms/06aa10e4dfa173e8b3eb7cb796ca8eb9/transformed/appcompat-1.7.0/res/values-ne/values-ne.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,7 +21,7 @@
                     }
                 },
                 {
-                    "source": "/home/runner/.gradle/caches/transforms-4/694710c2083f3230e0bf62f2407de875/transformed/core-1.13.1/res/values-ne/values-ne.xml",
+                    "source": "/home/runner/.gradle/caches/8.14.2/transforms/80fdad1f1d6fbf230ed0ca26cf119d6b/transformed/core-1.13.1/res/values-ne/values-ne.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

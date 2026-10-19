@@ -54,6 +54,20 @@
         android:layout_marginBottom="32dp"/>
 
     <Button
+        android:id="@+id/btnBookiePos"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Odpri Bookie POS"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btnBookieErp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Odpri Bookie ERP"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
         android:id="@+id/btnAdmin"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

@@ -30,6 +30,11 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".BookieWebActivity"
+            android:exported="false"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|smallestScreenSize"
+            android:launchMode="singleTask" />
+        <activity
             android:name="si.bookie.fiscal.LocalCertificateAdminActivity"
             android:exported="false"
             android:excludeFromRecents="true" />
