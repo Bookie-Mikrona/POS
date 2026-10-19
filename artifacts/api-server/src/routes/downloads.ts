@@ -66,6 +66,10 @@ const ALLOWED_FILES: Record<string, { mime: string; disposition: string }> = {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="BookiePOS.apk"',
   },
+  "ZcsPrinterBridge-1.2.0.apk": {
+    mime: "application/vnd.android.package-archive",
+    disposition: 'attachment; filename="ZcsPrinterBridge-1.2.0.apk"',
+  },
 };
 
 router.get("/downloads/:filename", (req, res) => {
