@@ -6,7 +6,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import android.Manifest
+import android.content.pm.PackageManager
 import android.webkit.CookieManager
+import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -20,12 +23,13 @@ import androidx.appcompat.app.AppCompatActivity
  *
  * Varnost: WebView sme naložiti samo https://bookie-erp.replit.app. Vsak drug
  * naslov se v WebView-u ne naloži (https se odpre v sistemskem brskalniku).
- * Brez JavaScript vmesnika, brez dostopa do datotek, brez dovoljenj strani
- * (kamera, lokacija, mikrofon).
+ * Brez JavaScript vmesnika, brez dostopa do datotek. Stran lahko zahteva samo kamero
+ * (branje kod); lokacija in mikrofon sta zavrnjena.
  */
 class BookieWebActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
+    private var pendingCameraRequest: PermissionRequest? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,7 +64,29 @@ class BookieWebActivity : AppCompatActivity() {
             setAcceptThirdPartyCookies(web, false)
         }
 
-        web.webChromeClient = WebChromeClient()
+        web.webChromeClient = object : WebChromeClient() {
+            // Kamera (branje QR/črtnih kod) samo za dovoljeni origin; mikrofon in vse drugo ostane zavrnjeno.
+            override fun onPermissionRequest(request: PermissionRequest) {
+                val onlyCamera = request.resources.all { it == PermissionRequest.RESOURCE_VIDEO_CAPTURE }
+                if (!onlyCamera || !isAllowedOrigin(request.origin)) {
+                    request.deny()
+                    return
+                }
+                runOnUiThread {
+                    if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+                    } else {
+                        pendingCameraRequest?.deny()
+                        pendingCameraRequest = request
+                        requestPermissions(arrayOf(Manifest.permission.CAMERA), CAMERA_REQUEST_CODE)
+                    }
+                }
+            }
+
+            override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                if (pendingCameraRequest === request) pendingCameraRequest = null
+            }
+        }
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val uri = request.url
@@ -75,6 +101,18 @@ class BookieWebActivity : AppCompatActivity() {
         }
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState) else web.loadUrl(startUrl)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != CAMERA_REQUEST_CODE) return
+        val request = pendingCameraRequest ?: return
+        pendingCameraRequest = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+        } else {
+            request.deny()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -113,6 +151,7 @@ class BookieWebActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val CAMERA_REQUEST_CODE = 4101
         const val ALLOWED_HOST = "bookie-erp.replit.app"
         const val EXTRA_TARGET = "target"
         const val TARGET_POS = "pos"

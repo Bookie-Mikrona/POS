@@ -3,6 +3,7 @@ import { AlertCircle, Camera, CameraOff, Loader2, ScanLine } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { posFetch } from "@/lib/pos-auth-headers";
+import { ZxingBarcodeDetector } from "@/lib/zxing-barcode-detector";
 
 export interface IndividualVoucherPreview {
   id: string;
@@ -106,11 +107,9 @@ export function IndividualVoucherScanner({
 
   const startCamera = async () => {
     setCameraError(null);
-    const Detector = (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
-    if (!Detector) {
-      setCameraError("Ta brskalnik ne podpira branja QR-kod s kamero. Uporabite 2D čitalnik ali ročni vnos.");
-      return;
-    }
+    // Android WebView nima BarcodeDetector → uporabimo JS dekoder.
+    const Detector: BarcodeDetectorConstructor = (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector
+      ?? (ZxingBarcodeDetector as unknown as BarcodeDetectorConstructor);
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError("Dostop do kamere ni podprt. Uporabite 2D čitalnik ali ročni vnos.");
       return;

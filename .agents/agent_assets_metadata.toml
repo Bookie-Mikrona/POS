@@ -1635,3 +1635,17 @@ mtime_ms = 1792416338272
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/3894ca23-787e-48d8-aefd-97bed9625eff/4896b879-a8ca-4df4-ae35-1e55d27628c3"
 storage_version_token = "1792416343757598"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "j0ozzDMnhN5Jj7gxotbKb"
+uri = "file://generated-artifacts/ZcsPrinterBridge-1.2.1.apk"
+type = "unspecified"
+title = "ZcsPrinterBridge 1.2.1 (kamera v WebView-u)"
+description = "Most z Bookie WebView-om in kamero za branje kod."
+logical_id = "57da75a4-af21-46eb-b578-795a809374b2"
+content_hash = "sha256:57b724d58b5b7527ebe9b4389511aeaef1d0c083dd05e5a638c72dd59105dc45"
+size = 4657386
+mtime_ms = 1792418888280
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/57da75a4-af21-46eb-b578-795a809374b2/96ad3423-f76a-4357-a9ad-f7bedd998b88"
+storage_version_token = "1792418930697021"
+content_type = "application/octet-stream"
