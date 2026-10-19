@@ -1607,3 +1607,17 @@ mtime_ms = 1792412985758
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/274edf1d-9ea3-4e12-a9ea-9941397ddddf/eeccd296-c290-4c2f-abd7-8a214e09ba4d"
 storage_version_token = "1792412991501919"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "xyEF_r510OlJaqH-oxc3A"
+uri = "file://generated-artifacts/zcs-printer-bridge.zip"
+type = "unspecified"
+title = "zcs-printer-bridge (izvorna koda)"
+description = "Izvorna koda ZcsPrinterBridge, različica 1.1.1 (versionCode 3). Brez map build, .gradle in dist."
+logical_id = "66fc7ed3-9fe7-47be-995a-3744e5d5eecb"
+content_hash = "sha256:31fd0b9fce5af5b4440de3e709f3986f98040923d66c181183eb1d4bb4559545"
+size = 966091
+mtime_ms = 1792415587411
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/66fc7ed3-9fe7-47be-995a-3744e5d5eecb/ce5db20e-ce5f-4b2a-8b22-cfbc579fd700"
+storage_version_token = "1792415591649646"
+content_type = "application/octet-stream"
