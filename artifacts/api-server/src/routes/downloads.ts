@@ -58,6 +58,14 @@ const ALLOWED_FILES: Record<string, { mime: string; disposition: string }> = {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="BookieVivaBridge.apk"',
   },
+  "BookieERP.apk": {
+    mime: "application/vnd.android.package-archive",
+    disposition: 'attachment; filename="BookieERP.apk"',
+  },
+  "BookiePOS.apk": {
+    mime: "application/vnd.android.package-archive",
+    disposition: 'attachment; filename="BookiePOS.apk"',
+  },
 };
 
 router.get("/downloads/:filename", (req, res) => {

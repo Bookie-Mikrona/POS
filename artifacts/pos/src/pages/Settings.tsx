@@ -5305,6 +5305,18 @@ export default function Settings() {
                     </Button>
                   </a>
                 )}
+                <a className="w-full sm:w-auto" href={`${base}/api/downloads/BookieERP.apk`} download="BookieERP.apk">
+                  <Button type="button" size="sm" variant="outline" className="w-full sm:w-auto h-auto min-h-9 justify-start !whitespace-normal text-left gap-2">
+                    <Download className="w-4 h-4 shrink-0" />
+                    <span className="min-w-0 break-words">BookieERP.apk <span className="text-xs opacity-70 font-normal">celozaslonski zagon</span></span>
+                  </Button>
+                </a>
+                <a className="w-full sm:w-auto" href={`${base}/api/downloads/BookiePOS.apk`} download="BookiePOS.apk">
+                  <Button type="button" size="sm" variant="outline" className="w-full sm:w-auto h-auto min-h-9 justify-start !whitespace-normal text-left gap-2">
+                    <Download className="w-4 h-4 shrink-0" />
+                    <span className="min-w-0 break-words">BookiePOS.apk <span className="text-xs opacity-70 font-normal">celozaslonski zagon</span></span>
+                  </Button>
+                </a>
               </div>
 
               {/* Navodila za namestitev */}
