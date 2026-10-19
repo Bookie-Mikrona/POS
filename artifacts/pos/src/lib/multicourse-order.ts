@@ -84,6 +84,19 @@ export function groupMulticourseOrderRows<T extends MulticourseDisplayRow>(
       isMulticourseBundle: true,
     };
   }
+  // Dnevno kosilo: vrstice iste skupine ostanejo na istih mestih, a po hodih
+  // (predjed, juha, glavna jed, sladica).
+  const lunchSlots = new Map<string, number[]>();
+  result.forEach((row, index) => {
+    if (isDailyLunchRow(row) && row.pairingGroupId) {
+      lunchSlots.set(row.pairingGroupId, [...(lunchSlots.get(row.pairingGroupId) ?? []), index]);
+    }
+  });
+  for (const slots of lunchSlots.values()) {
+    const ordered = slots.map(index => result[index]).sort((a, b) =>
+      (a.courseNumber ?? Number.MAX_SAFE_INTEGER) - (b.courseNumber ?? Number.MAX_SAFE_INTEGER) || a.id - b.id);
+    slots.forEach((slot, i) => { result[slot] = ordered[i]; });
+  }
   return result;
 }
 
