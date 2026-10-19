@@ -9,7 +9,10 @@ import android.view.WindowManager
 import android.Manifest
 import android.content.pm.PackageManager
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.nfc.NfcAdapter
+import android.nfc.Tag
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -23,13 +26,15 @@ import androidx.appcompat.app.AppCompatActivity
  *
  * Varnost: WebView sme naložiti samo https://bookie-erp.replit.app. Vsak drug
  * naslov se v WebView-u ne naloži (https se odpre v sistemskem brskalniku).
- * Brez JavaScript vmesnika, brez dostopa do datotek. Stran lahko zahteva samo kamero
- * (branje kod); lokacija in mikrofon sta zavrnjena.
+ * Brez JavaScript vmesnika, brez dostopa do datotek. Stran lahko zahteva kamero,
+ * mikrofon in lokacijo; NFC se pošlje kot dogodek "bookie-nfc".
  */
 class BookieWebActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
-    private var pendingCameraRequest: PermissionRequest? = null
+    private var pendingWebRequest: PermissionRequest? = null
+    private var pendingGeo: Pair<String, GeolocationPermissions.Callback>? = null
+    private var pendingPermissions: Array<String> = emptyArray()
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +59,7 @@ class BookieWebActivity : AppCompatActivity() {
             allowContentAccess = false
             @Suppress("DEPRECATION") allowFileAccessFromFileURLs = false
             @Suppress("DEPRECATION") allowUniversalAccessFromFileURLs = false
-            setGeolocationEnabled(false)
+            setGeolocationEnabled(true)
             // Stran je https, lokalni most (http://localhost) pa mora biti dosegljiv.
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             mediaPlaybackRequiresUserGesture = true
@@ -65,26 +70,32 @@ class BookieWebActivity : AppCompatActivity() {
         }
 
         web.webChromeClient = object : WebChromeClient() {
-            // Kamera (branje QR/črtnih kod) samo za dovoljeni origin; mikrofon in vse drugo ostane zavrnjeno.
+            // Kamera, mikrofon in lokacija samo za dovoljeni origin; vse drugo ostane zavrnjeno.
             override fun onPermissionRequest(request: PermissionRequest) {
-                val onlyCamera = request.resources.all { it == PermissionRequest.RESOURCE_VIDEO_CAPTURE }
-                if (!onlyCamera || !isAllowedOrigin(request.origin)) {
+                val needed = request.resources.map {
+                    when (it) {
+                        PermissionRequest.RESOURCE_VIDEO_CAPTURE -> Manifest.permission.CAMERA
+                        PermissionRequest.RESOURCE_AUDIO_CAPTURE -> Manifest.permission.RECORD_AUDIO
+                        else -> null
+                    }
+                }
+                if (needed.any { it == null } || !isAllowedOrigin(request.origin)) {
                     request.deny()
                     return
                 }
-                runOnUiThread {
-                    if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                        request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
-                    } else {
-                        pendingCameraRequest?.deny()
-                        pendingCameraRequest = request
-                        requestPermissions(arrayOf(Manifest.permission.CAMERA), CAMERA_REQUEST_CODE)
-                    }
-                }
+                runOnUiThread { askAndroid(needed.filterNotNull().toTypedArray(), request, null) }
             }
 
             override fun onPermissionRequestCanceled(request: PermissionRequest) {
-                if (pendingCameraRequest === request) pendingCameraRequest = null
+                if (pendingWebRequest === request) pendingWebRequest = null
+            }
+
+            override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) {
+                if (!isAllowedOrigin(Uri.parse(origin))) {
+                    callback.invoke(origin, false, false)
+                    return
+                }
+                runOnUiThread { askAndroid(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), null, Pair(origin, callback)) }
             }
         }
         web.webViewClient = object : WebViewClient() {
@@ -103,16 +114,76 @@ class BookieWebActivity : AppCompatActivity() {
         if (savedInstanceState != null) web.restoreState(savedInstanceState) else web.loadUrl(startUrl)
     }
 
+    private fun askAndroid(
+        perms: Array<String>,
+        request: PermissionRequest?,
+        geo: Pair<String, GeolocationPermissions.Callback>?,
+    ) {
+        if (perms.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
+            resolve(perms, request, geo, true)
+            return
+        }
+        pendingWebRequest?.deny()
+        pendingGeo?.let { it.second.invoke(it.first, false, false) }
+        pendingWebRequest = request
+        pendingGeo = geo
+        pendingPermissions = perms
+        requestPermissions(perms, WEB_PERMISSION_REQUEST_CODE)
+    }
+
+    private fun resolve(
+        perms: Array<String>,
+        request: PermissionRequest?,
+        geo: Pair<String, GeolocationPermissions.Callback>?,
+        granted: Boolean,
+    ) {
+        if (request != null) {
+            if (granted) {
+                request.grant(perms.mapNotNull {
+                    when (it) {
+                        Manifest.permission.CAMERA -> PermissionRequest.RESOURCE_VIDEO_CAPTURE
+                        Manifest.permission.RECORD_AUDIO -> PermissionRequest.RESOURCE_AUDIO_CAPTURE
+                        else -> null
+                    }
+                }.toTypedArray())
+            } else request.deny()
+        }
+        geo?.second?.invoke(geo.first, granted, false)
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != CAMERA_REQUEST_CODE) return
-        val request = pendingCameraRequest ?: return
-        pendingCameraRequest = null
-        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-            request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
-        } else {
-            request.deny()
-        }
+        if (requestCode != WEB_PERMISSION_REQUEST_CODE) return
+        val request = pendingWebRequest
+        val geo = pendingGeo
+        val perms = pendingPermissions
+        pendingWebRequest = null
+        pendingGeo = null
+        resolve(perms, request, geo, grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED })
+    }
+
+    // NFC: ob dotiku kartice/oznake stran dobi dogodek "bookie-nfc" z detail.uid (šestnajstiško).
+    // Samo native → stran, brez JavaScript vmesnika; dogodek se pošlje samo dovoljenemu naslovu.
+    override fun onResume() {
+        super.onResume()
+        NfcAdapter.getDefaultAdapter(this)?.enableReaderMode(
+            this,
+            { tag: Tag ->
+                val uid = tag.id.joinToString("") { "%02X".format(it) }
+                runOnUiThread {
+                    val current = web.url ?: return@runOnUiThread
+                    if (isAllowedOrigin(Uri.parse(current))) {
+                        web.evaluateJavascript(
+                            "window.dispatchEvent(new CustomEvent('bookie-nfc',{detail:{uid:'$uid'}}))", null,
+                        )
+                    }
+                }
+            },
+            NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_NFC_B or
+                NfcAdapter.FLAG_READER_NFC_F or NfcAdapter.FLAG_READER_NFC_V or
+                NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS,
+            null,
+        )
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -127,6 +198,7 @@ class BookieWebActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        NfcAdapter.getDefaultAdapter(this)?.disableReaderMode(this)
         CookieManager.getInstance().flush()
     }
 
@@ -151,7 +223,7 @@ class BookieWebActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val CAMERA_REQUEST_CODE = 4101
+        private const val WEB_PERMISSION_REQUEST_CODE = 4101
         const val ALLOWED_HOST = "bookie-erp.replit.app"
         const val EXTRA_TARGET = "target"
         const val TARGET_POS = "pos"

@@ -66,9 +66,9 @@ const ALLOWED_FILES: Record<string, { mime: string; disposition: string }> = {
     mime: "application/vnd.android.package-archive",
     disposition: 'attachment; filename="BookiePOS.apk"',
   },
-  "ZcsPrinterBridge-1.2.1.apk": {
+  "ZcsPrinterBridge-1.2.2.apk": {
     mime: "application/vnd.android.package-archive",
-    disposition: 'attachment; filename="ZcsPrinterBridge-1.2.1.apk"',
+    disposition: 'attachment; filename="ZcsPrinterBridge-1.2.2.apk"',
   },
 };
 
