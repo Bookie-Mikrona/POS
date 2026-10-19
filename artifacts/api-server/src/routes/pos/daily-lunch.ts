@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt } from "drizzle-orm";
 import {
   artModSkupineTable, artikliTable, dailyLunchOfferChoicesTable, dailyLunchOffersTable, dailyLunchSaleSnapshotsTable,
-  db, modSkupineTable, modifikatorjiTable, narocilaTable, postavkeTable,
+  db, modSkupineTable, modifikatorjiTable, narocilaTable, postavkeTable, preparedFoodDailyLedgersTable,
 } from "@workspace/db";
 import {
   assertPreparedFoodAvailability, buildModifierAvailabilityRequests, currentBusinessDate,
@@ -11,6 +11,8 @@ import {
 } from "../../lib/prepared-food-availability";
 import { assertOpenOrderCanChange } from "../../lib/rezervacijeMiz";
 import { assertKdsOrderNotDispatched, lockKdsOrder } from "../../lib/kds-dispatch";
+import { checkPreviousBusinessDayClosed, isPosBusinessDayClosed, lockPosBusinessDay } from "../../lib/pos-z-helpers";
+import { slovenskiDatumZaSporocilo } from "../../lib/slovenian-date-message";
 import { materializirajKdsNaloge } from "./kds";
 import { resolveNestedModifierChoices, updateSkupaj } from "./narocila";
 
@@ -107,6 +109,28 @@ async function resolveLunchModifiers(
     result.set(role, withNested);
   }
   return result;
+}
+
+/** Kosila ni mogoče naročiti, dokler prejšnji poslovni dan ni zaključen (Z-poročilo in evidenca pripravljene hrane). */
+async function assertLunchBusinessDayReady(tx: any, enotaId: number, businessDate: string): Promise<void> {
+  await lockPosBusinessDay(tx, enotaId);
+  if (await isPosBusinessDayClosed(tx, enotaId, businessDate)) {
+    throw new Error(`Poslovni dan ${slovenskiDatumZaSporocilo(businessDate)} je že zaključen z Z-poročilom.`);
+  }
+  const gate = await checkPreviousBusinessDayClosed(tx, enotaId, businessDate);
+  if (!gate.allowed) {
+    const names = gate.missingRegisters?.map((register: { name: string }) => register.name).join(", ");
+    throw new Error(`Pred naročanjem kosila zaključite prejšnji poslovni dan (${gate.previousBusinessDate ? slovenskiDatumZaSporocilo(gate.previousBusinessDate) : "neznan datum"}) z Z-poročilom${names ? ` za blagajno: ${names}` : ""}.`);
+  }
+  const [open] = await tx.select({ businessDate: preparedFoodDailyLedgersTable.businessDate }).from(preparedFoodDailyLedgersTable)
+    .where(and(
+      eq(preparedFoodDailyLedgersTable.enotaId, enotaId),
+      lt(preparedFoodDailyLedgersTable.businessDate, businessDate),
+      isNull(preparedFoodDailyLedgersTable.closedAt),
+    )).orderBy(asc(preparedFoodDailyLedgersTable.businessDate)).limit(1);
+  if (open) {
+    throw new Error(`Evidenca pripravljene hrane za ${slovenskiDatumZaSporocilo(String(open.businessDate))} še ni zaključena. Najprej jo zaključite in odprite današnji dan.`);
+  }
 }
 
 router.get("/daily-lunch-offers", async (req, res): Promise<void> => {
@@ -259,6 +283,7 @@ router.post("/narocila/:id/daily-lunch", async (req, res): Promise<void> => {
         eq(dailyLunchOffersTable.status, "published"),
       )).for("update");
       if (!offer) throw new Error("Objavljena ponudba kosila ne obstaja.");
+      await assertLunchBusinessDayReady(tx, enotaId, offer.businessDate);
       const choices = await tx.select().from(dailyLunchOfferChoicesTable).where(eq(dailyLunchOfferChoicesTable.offerId, offer.id));
       if (required.some((role) => !choices.some((choice) => choice.role === role && choice.artikelId === selected[role]))) {
         throw new Error("Izbrana jed ni v ponudbi.");
