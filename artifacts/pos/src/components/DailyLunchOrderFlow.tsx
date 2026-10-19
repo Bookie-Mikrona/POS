@@ -38,7 +38,9 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
   const [podIzbire, setPodIzbire] = useState<Record<string, number[]>>({});
   const [quantity, setQuantity] = useState(1);
   const [addError, setAddError] = useState<string | null>(null);
-  const offer = data?.offers?.find((row) => row.status === "published");
+  const today = availability?.businessDate;
+  // Samo ponudba za današnji poslovni datum; starejša objavljena ponudba ne sme ostati prikazana.
+  const offer = data?.offers?.find((row) => row.status === "published" && (!today || String(row.businessDate).slice(0, 10) === today));
   const roles = requiredDailyLunchRoles(mode);
   const choices = useMemo(() => offer?.choices ?? [], [offer]);
 
