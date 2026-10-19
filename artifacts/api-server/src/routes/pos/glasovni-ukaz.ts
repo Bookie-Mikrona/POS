@@ -1358,6 +1358,38 @@ export function preveriAiGlasovnePostavke(
   };
 }
 
+const GlasovniPrepisBodySchema = z.object({
+  audio: z.string().min(100).max(8_000_000),
+  mimeType: z.string().regex(/^audio\/(webm|ogg|mp4|mpeg|wav|aac|x-m4a)(;.*)?$/u),
+});
+
+/** Prepis posnetega govora (za WebView brez prepoznavanja govora). Samo besedilo, zvok se ne shranjuje. */
+router.post("/ai/glasovni-prepis", async (req: Request, res: Response): Promise<void> => {
+  const parsed = GlasovniPrepisBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ napaka: "Posnetek ni veljaven." });
+    return;
+  }
+  try {
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const odgovor = await withAiTimeout(ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: parsed.data.mimeType.split(";")[0], data: parsed.data.audio } },
+          { text: "Dobesedno prepiši slovenski govor v tem posnetku. Kontekst: natakar naroča hrano in pijačo v restavraciji. Vrni samo prepisano besedilo, brez razlage. Če ni razumljivega govora, vrni prazen niz." },
+        ],
+      }],
+      config: { temperature: 0, maxOutputTokens: 400, thinkingConfig: { thinkingBudget: 0 } },
+    }), 12_000);
+    res.json({ tekst: (odgovor.text ?? "").trim() });
+  } catch (cause) {
+    const timeout = cause instanceof Error && cause.message === "AI_TIMEOUT";
+    res.status(timeout ? 504 : 502).json({ napaka: "Govora ni bilo mogoče prepisati. Poskusite znova." });
+  }
+});
+
 router.post("/ai/glasovni-ukaz", async (req: Request, res: Response): Promise<void> => {
   const parsed = GlasovniUkazBodySchema.safeParse(req.body);
   if (!parsed.success) {

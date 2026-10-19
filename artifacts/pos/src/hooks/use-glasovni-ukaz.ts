@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { jePodprtoSnemanje, posnemiStavek } from "@/lib/glasovni-posnetek";
 
 /** Enotno mesto za nastavitev jezika prepoznavanja govora v celotni aplikaciji. */
 export const GOVOR_JEZIK = "sl-SI";
@@ -29,7 +30,7 @@ function getSR(): SRC | null {
 }
 
 export function jePodprtGlasovniVnos(): boolean {
-  return getSR() !== null;
+  return getSR() !== null || jePodprtoSnemanje();
 }
 
 export type GlasovniCallbacks = {
@@ -68,11 +69,35 @@ export function useGlasovniUkaz() {
 
   const zacni = (callbacks: GlasovniCallbacks, pragZaupanja?: number, moznosti?: GlasovniMoznosti): boolean => {
     const SR = getSR();
-    if (!SR) return false;
+    if (!SR && !jePodprtoSnemanje()) return false;
 
     if (ref.current) {
       ref.current.stop();
       ref.current = null;
+    }
+
+    if (!SR) {
+      // Android WebView: snemanje stavka + prepis na strežniku. continuous = nov stavek po vsakem prepisu.
+      const neprekinjeno = moznosti?.continuous ?? false;
+      let ustavljeno = false;
+      let trenutni: { stop: () => void } | null = null;
+      const konec = () => {
+        ref.current = null;
+        setPoslusam(false);
+        callbacks.onEnd?.();
+      };
+      const naslednji = () => {
+        trenutni = posnemiStavek({
+          onResult: callbacks.onResult,
+          onActivity: () => callbacks.onActivity?.(),
+          onError: (napaka) => { ustavljeno = true; callbacks.onError?.(napaka); },
+          onEnd: () => (neprekinjeno && !ustavljeno ? naslednji() : konec()),
+        });
+      };
+      ref.current = { stop: () => { ustavljeno = true; trenutni?.stop(); } };
+      setPoslusam(true);
+      naslednji();
+      return true;
     }
 
     const r = new SR();
