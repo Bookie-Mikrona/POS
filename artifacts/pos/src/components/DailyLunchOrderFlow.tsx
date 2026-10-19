@@ -28,6 +28,11 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
     () => new Map((availability?.modifierItems ?? []).map((item) => [item.modifierId, item.availableQuantity] as const)),
     [availability],
   );
+  const dishStock = useMemo(
+    () => new Map((availability?.items ?? []).map((item) => [item.articleId, item.availableQuantity] as const)),
+    [availability],
+  );
+  const dishSoldOut = (articleId: number) => { const q = dishStock.get(articleId); return q != null && q <= 0; };
   const soldOut = (modId: number) => { const q = modifierStock.get(modId); return q != null && q <= 0; };
   const quote = useQuoteDailyLunch();
   const add = useAddDailyLunchToOrder();
@@ -148,7 +153,7 @@ export function DailyLunchOrderFlow({ narociloId, onQuoted, onAdded }: Props) {
       <Button variant={mode === "three_course" ? "default" : "outline"} onClick={() => { setMode("three_course"); setSelected({}); setModifiers({}); setPodIzbire({}); }}>3 hodi</Button>
       <Button variant={mode === "four_course" ? "default" : "outline"} onClick={() => { setMode("four_course"); setSelected({}); setModifiers({}); setPodIzbire({}); }}>4 hodi</Button>
     </div>
-    {roles.map((role) => <div key={role}><h3 className="mb-2 font-semibold">{ROLE_LABELS[role] ?? role}</h3><div className="grid gap-2 sm:grid-cols-2">{choices.filter((choice) => choice.role === role).map((choice) => <button key={choice.artikelId} type="button" className={`rounded border p-2 text-left ${selected[role] === choice.artikelId ? "border-primary bg-primary/10" : ""}`} onClick={() => selectDish(role, choice.artikelId)}>{articleNames.get(choice.artikelId) ?? `Artikel ${choice.artikelId}`}</button>)}</div>
+    {roles.map((role) => <div key={role}><h3 className="mb-2 font-semibold">{ROLE_LABELS[role] ?? role}</h3><div className="grid gap-2 sm:grid-cols-2">{choices.filter((choice) => choice.role === role).map((choice) => <button key={choice.artikelId} type="button" disabled={dishSoldOut(choice.artikelId)} className={`rounded border p-2 text-left disabled:cursor-not-allowed disabled:opacity-50 ${selected[role] === choice.artikelId ? "border-primary bg-primary/10" : ""}`} onClick={() => selectDish(role, choice.artikelId)}>{articleNames.get(choice.artikelId) ?? `Artikel ${choice.artikelId}`}{dishSoldOut(choice.artikelId) ? " (razprodano)" : ""}</button>)}</div>
       {activeGroups(articlesById.get(selected[role] ?? -1)).map((group) => <div key={group.id} className="mt-2 rounded border bg-muted/30 p-2">
         <div className="mb-1 text-sm font-medium">{group.ime}{minRequired(group) > 0 && <span className="ml-1 text-xs text-destructive">(obvezno)</span>}</div>
         <div className="flex flex-wrap gap-2">{group.modifikatorji.map((mod) => {
