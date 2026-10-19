@@ -1579,3 +1579,31 @@ mtime_ms = 1792201961119
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7e600854-9e1d-4669-a4f5-1009f2abec0e/82c2e869-caa7-44ab-9c31-6802d190a3fb"
 storage_version_token = "1792202263608260"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "3MGDvYZJiRbTcFwm5AclC"
+uri = "file://artifacts/bookie-viva-bridge/dist/BookieERP.apk"
+type = "unspecified"
+title = "Bookie ERP (APK)"
+description = "Zažene https://Bookie-ERP.replit.app/ na celem zaslonu."
+logical_id = "1eae608c-1f60-4830-824b-86a884b5f4be"
+content_hash = "sha256:65e0cc6a051e5eded188279a5e87715f5a3ec9bb6cb9595767b35f12da545ca4"
+size = 20990
+mtime_ms = 1792412984526
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/1eae608c-1f60-4830-824b-86a884b5f4be/3eb54cbe-c54a-47be-b623-d308e993510f"
+storage_version_token = "1792412990712983"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "UwEsesYSt_pMgAZ54vi7Q"
+uri = "file://artifacts/bookie-viva-bridge/dist/BookiePOS.apk"
+type = "unspecified"
+title = "Bookie POS (APK)"
+description = "Zažene https://Bookie-ERP.replit.app/pos/ na celem zaslonu."
+logical_id = "274edf1d-9ea3-4e12-a9ea-9941397ddddf"
+content_hash = "sha256:79061ef64a5ad5f402c7c1bfe40b3759aed149f246b66c7f8c86e9e6b1383782"
+size = 20990
+mtime_ms = 1792412985758
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/274edf1d-9ea3-4e12-a9ea-9941397ddddf/eeccd296-c290-4c2f-abd7-8a214e09ba4d"
+storage_version_token = "1792412991501919"
+content_type = "application/octet-stream"
