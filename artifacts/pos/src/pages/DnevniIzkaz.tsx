@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { getEnotaId } from "@workspace/api-client-react";
+import { posFetch } from "@/lib/pos-auth-headers";
 import {
   Download, Search, Banknote, CreditCard, Gift, Smartphone,
   Landmark, Users, Package, Receipt, TrendingUp, FileText,
@@ -159,12 +159,9 @@ export default function DnevniIzkaz() {
     setData(null);
     try {
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const enotaId = getEnotaId();
-      const headers: Record<string, string> = { "Cache-Control": "no-store" };
-      if (enotaId) headers["X-Enota-Id"] = String(enotaId);
-      const r = await fetch(`${base}/api/statistike/promet-obdobja?od=${d}&do=${d}`, {
+      const r = await posFetch(`${base}/api/statistike/promet-obdobja?od=${d}&do=${d}`, {
         credentials: "include",
-        headers,
+        headers: { "Cache-Control": "no-store" },
       });
       if (!r.ok) throw new Error(`Napaka ${r.status}`);
       const json = (await r.json()) as PrometObdobjaData;
