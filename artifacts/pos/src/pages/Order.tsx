@@ -2473,7 +2473,7 @@ export default function Order() {
         queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
         settle();
       },
-      onError: () => { toast({ title: "Napaka", description: "Ni bilo mogoče odstraniti artikla", variant: "destructive" }); settle(); },
+      onError: (err) => { toast({ title: "Napaka", description: orderAddErrorMessage(err, "Ni bilo mogoče odstraniti artikla"), variant: "destructive" }); settle(); },
     });
   };
 
@@ -2485,7 +2485,7 @@ export default function Order() {
     if (novaKolicina <= 0) {
       removePostavka.mutate({ id, postavkaId }, {
         onSuccess: (u) => { queryClient.setQueryData(getGetNarociloQueryKey(id), u); queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() }); settle(); },
-        onError: () => { toast({ title: "Napaka", description: "Ni bilo mogoče odstraniti artikla", variant: "destructive" }); settle(); },
+        onError: (err) => { toast({ title: "Napaka", description: orderAddErrorMessage(err, "Ni bilo mogoče odstraniti artikla"), variant: "destructive" }); settle(); },
       });
     } else {
       updateKolicina.mutate({ id, postavkaId, data: { kolicina: novaKolicina } }, {
@@ -2503,7 +2503,7 @@ export default function Order() {
     if (kolicina <= 1) {
       removePostavka.mutate({ id, postavkaId }, {
         onSuccess: (u) => { queryClient.setQueryData(getGetNarociloQueryKey(id), u); queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() }); settle(); },
-        onError: () => { toast({ title: "Napaka", description: "Ni bilo mogoče odstraniti artikla", variant: "destructive" }); settle(); },
+        onError: (err) => { toast({ title: "Napaka", description: orderAddErrorMessage(err, "Ni bilo mogoče odstraniti artikla"), variant: "destructive" }); settle(); },
       });
     } else {
       updateKolicina.mutate({ id, postavkaId, data: { kolicina: kolicina - 1 } }, {
