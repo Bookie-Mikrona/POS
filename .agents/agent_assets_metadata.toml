@@ -1677,3 +1677,17 @@ mtime_ms = 1792430767206
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/e279499f-6c55-42d2-b213-eb6f31ab3b4f/0c660c20-28e4-4189-9c8f-a575ffbce0a8"
 storage_version_token = "1792430781325489"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "kgTV9DdAccZnqytJKNmHd"
+uri = "file://generated-artifacts/ZcsPrinterBridge-1.3.1.apk"
+type = "unspecified"
+title = "ZcsPrinterBridge 1.3.1 (nova ikona)"
+description = "Ikona z vašim znakom."
+logical_id = "b8cf117a-8f63-4322-9840-4afe9f61f2b4"
+content_hash = "sha256:0fa15d37ccb370e47276f6b57eef1e04f794f55109d859a0470ec5e2e3b0e06a"
+size = 4694728
+mtime_ms = 1792464527986
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/b8cf117a-8f63-4322-9840-4afe9f61f2b4/201f3da5-ed7f-4afb-9d1b-f74ebdd3b845"
+storage_version_token = "1792464540432886"
+content_type = "application/octet-stream"

@@ -22,7 +22,7 @@ build_one() { # pkg label url file
   local pkg="$1" label="$2" url="$3" file="$4" dir="$OUT/$4"
   mkdir -p "$dir"
   cat > "$dir/AndroidManifest.xml" <<M
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="$pkg" android:versionCode="1" android:versionName="1.0.0">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="$pkg" android:versionCode="2" android:versionName="1.0.1">
   <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="35" />
   <uses-permission android:name="android.permission.INTERNET" />
   <application android:allowBackup="false" android:label="$label" android:icon="@mipmap/ic_launcher"
