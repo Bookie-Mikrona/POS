@@ -189,7 +189,7 @@ export default function DnevniIzkaz() {
   const osnova = data ? data.skupajPromet - data.skupajDDV : 0;
 
   return (
-    <div className="p-6 md:p-8 space-y-6 flex-1 overflow-auto">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 flex-1 overflow-auto">
       {/* Glava */}
       <div className="flex flex-wrap items-end gap-4">
         <div>
@@ -204,7 +204,7 @@ export default function DnevniIzkaz() {
             </div>
           )}
         </div>
-        <div className="flex items-end gap-2 ml-auto">
+        <div className="flex flex-wrap items-end gap-2 ml-auto">
           <div>
             <Label htmlFor="datum-izkaz" className="text-xs text-muted-foreground mb-1 block">Datum</Label>
             <Input
@@ -214,7 +214,7 @@ export default function DnevniIzkaz() {
               max={danes()}
               onChange={e => setDatum(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") void poisci(datum); }}
-              className="w-44"
+              className="w-40 sm:w-44"
             />
           </div>
           <Button onClick={() => void poisci(datum)} disabled={loading}>
