@@ -9,7 +9,7 @@ import { z } from "zod";
 import type { PosRequest } from "../../middlewares/pos";
 import { getSimDatumOrNow } from "../../lib/sim-datum";
 import { getCurrentPosBusinessDate } from "../../lib/pos-business-day";
-import { checkPreviousBusinessDayClosed, isPosBusinessDayClosed, lockPosBusinessDay } from "../../lib/pos-z-helpers";
+import { checkPreviousBusinessDayClosed, getZCloseBlockers, isPosBusinessDayClosed, lockPosBusinessDay } from "../../lib/pos-z-helpers";
 import { getPosActorSessionSecret } from "../../lib/posActorSessionSecret";
 import { writePosActorAudit } from "../../lib/posActorAudit";
 import { broadcastToUnit } from "../../lib/pos-sse";
@@ -1104,7 +1104,19 @@ router.post("/izmene", async (req, res): Promise<void> => {
       return { status: "current-day-closed" as const, businessDate };
     }
     const previousDayGate = await checkPreviousBusinessDayClosed(tx, enotaId, businessDate);
-    if (!previousDayGate.allowed) {
+    // Prejšnji dan ostane odprt samo zaradi neplačanih naročil (ali neveljavne evidence hrane):
+    // izmena mora biti mogoča, sicer računa za ta naročila ni mogoče izdati (račun zahteva natakarja
+    // z odprto izmeno) in Z-poročila ni mogoče zaključiti. Nova naročila ostanejo blokirana do Z-poročila.
+    const settleOnlyBlockers = new Set(["OPEN_ORDERS", "OCCUPIED_TABLES", "OPEN_PREPARED_FOOD"]);
+    let onlySettlableBlockers = false;
+    if (!previousDayGate.allowed && previousDayGate.previousBusinessDate) {
+      const blockerLists = await Promise.all(previousDayGate.missingRegisters.map(
+        (register) => getZCloseBlockers(tx, enotaId, previousDayGate.previousBusinessDate!, register.id),
+      ));
+      const blockers = blockerLists.flat();
+      onlySettlableBlockers = blockers.length > 0 && blockers.every((blocker) => settleOnlyBlockers.has(blocker.type));
+    }
+    if (!previousDayGate.allowed && !onlySettlableBlockers) {
       return { status: "previous-day-open" as const, ...previousDayGate };
     }
     // Snapshot mora nastati v isti transakciji kot nova izmena, da kasnejša
