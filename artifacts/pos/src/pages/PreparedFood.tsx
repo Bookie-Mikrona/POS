@@ -455,7 +455,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                      <TableRow key={row.id} className={`mb-3 block overflow-hidden rounded-md ring-1 ring-border last:mb-0 lg:mb-0 lg:table-row lg:overflow-visible lg:rounded-none lg:ring-0 ${row.isClosed ? "bg-muted/30" : ""}`}>
                        <TableCell className={`${mobileCell} break-words font-medium ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                           {isMalicaFeatured && <Star className="mr-1 inline h-3.5 w-3.5 fill-amber-400 text-amber-500" aria-label="Objavljeno v malicah" />}
-                          <span>{row.articleName || `Artikel #${row.artikelId}`}</span>
+                          <span className={[row.thawedQuantity, row.preparedQuantity, row.correctionQuantity, row.soldQuantity, row.frozenAtEndQuantity].some(v => Number(v || 0) !== 0) ? "font-semibold text-blue-700 dark:text-blue-400" : ""}>{row.articleName || `Artikel #${row.artikelId}`}</span>
                          <span className="ml-1 whitespace-nowrap text-xs font-normal text-muted-foreground">({preparedFoodUnitLabel(row.unitOfMeasure)})</span>
                           {doughSizes.length > 0 && <span className="block text-xs font-normal text-muted-foreground">Hlebček za pico: {doughSizeNames}</span>}
                           {!isMalicaFeatured && doughSizes.length === 0 && (
