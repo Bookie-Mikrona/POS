@@ -21,7 +21,8 @@ import {
   type MalicaDailyMainItemInput,
   type MalicaDailyCourseInput,
   type MalicaArticleAssignmentRole,
-  type MalicaPizzaSize
+  type MalicaPizzaSize,
+  useListPreparedFoodStocks,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -531,6 +532,8 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
   const groups: MalicaGroup[] = bootstrap?.groups ?? [];
   const assignments: MalicaArticleAssignment[] = bootstrap?.assignments ?? [];
   const { data: artikli } = useListArtikli();
+  const { toast: opozori } = useToast();
+  const { data: zaloge } = useListPreparedFoodStocks(new Date().getFullYear());
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -628,6 +631,11 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
   };
 
   const toggleMainItem = (groupId: number, artikelId: number, velikostPice: MalicaPizzaSize | null) => {
+    const zaloga = zaloge?.find(z => z.artikelId === artikelId);
+    const ze = formData?.mainItems.some(m => m.groupId === groupId && m.artikelId === artikelId && (m.velikostPice ?? null) === velikostPice);
+    if (!ze && zaloga && Number(zaloga.frozenQuantity ?? 0) <= 0) {
+      opozori({ title: "Ni zaloge v zamrzovalniku", description: "Jed je pripravljena hrana brez zamrznjene zaloge. Pred objavo jo odmrznite ali pripravite v evidenci Pripravljena hrana." });
+    }
     setFormData(prev => {
       if (!prev) return prev;
       const exists = prev.mainItems.some(m =>
