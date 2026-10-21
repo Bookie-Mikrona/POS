@@ -2577,6 +2577,8 @@ export interface Artikel {
   slikaUrl?: string | null;
   /** Vrstni red prikaza v meniju */
   vrstniRed: number;
+  /** Samo prikaz; novi prikaz menija kaže zalogo in opozorila za artikel. Ne vpliva na strežniško preverjanje. */
+  spremljajPorcije?: boolean;
   /** Operativni način priprave hrane; ločeno od računovodske vrste artikla */
   mealType?: ArtikelMealType;
   /**

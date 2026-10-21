@@ -71,6 +71,8 @@ import { DdvNeskladjeAlert } from "@/components/DdvNeskladjeAlert";
 import { useToast } from "@/hooks/use-toast";
 import { useNaprava } from "@/contexts/NapravaContext";
 import { MenuNav } from "@/components/order/MenuNav";
+import { jeVodja, razpolozljivePorcije, stanjeZaloge } from "@/lib/zaloga-prikaz";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePogosto } from "@/hooks/use-pogosto";
 import { useSirokZaslon } from "@/hooks/use-siroki-zaslon";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -88,7 +90,7 @@ import OpombaDialog from "@/components/OpombaDialog";
 import { razcleniKolicinoInPlu } from "@/lib/plu-skupine";
 import { KlavijaturaInput } from "@/components/KlavijaturaInput";
 import { casZaPosDatetimeLocal, formatPosCas, poslovniDatumZaCas, posDatetimeLocalToIso } from "@/lib/posCas";
-import { isOrderArticleVisible } from "@/lib/order-article-visibility";
+import { isOrderArticleVisible, isOrderArticleShownWithStock } from "@/lib/order-article-visibility";
 import { orderAddErrorMessage } from "@/lib/order-add-error";
 import { DostavaStatusPanel } from "@/components/DostavaStatusPanel";
 import { KdsCountdown } from "@/lib/kdsNarocilo";
@@ -231,6 +233,7 @@ interface ArtikelItem {
   taxCategory?: string;
   mealType?: "ala_carte" | "prepared" | "composite";
   availableQuantity?: number | null;
+  spremljajPorcije?: boolean;
   availableBySize?: Partial<Record<VelikostPice, number | null>>;
   modifierAvailability?: Map<number, number>;
 }
@@ -288,6 +291,8 @@ interface SortableCardProps {
   isHappyHourActive?: boolean;
   happyHourVelikostiPice?: Set<"mala" | "normalna" | "druzinska">;
   gostota?: "privzeto" | "kompaktno" | "seznam" | "velika";
+  /** Novi prikaz zaloge (samo videz): značka ob 5 ali manj porcijah, siva kartica z »Ni«. */
+  zalogaNovo?: boolean;
 }
 
 // ── Slovensko korenjenje za glasovne ukaze ────────────────────────────────────
@@ -441,7 +446,7 @@ const GOSTOTA_MIN_VISINA: Record<string, [string, string]> = {
   velika: ["6rem", "7rem"],
 };
 
-function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, isHappyHourActive, happyHourVelikostiPice, gostota = "privzeto" }: SortableCardProps) {
+function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, isHappyHourActive, happyHourVelikostiPice, gostota = "privzeto", zalogaNovo = false }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: artikel.id });
 
@@ -467,6 +472,25 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
     sk.modifikatorji.filter(m => m.aktiven && artikel.modifierAvailability?.has(m.id))
       .map(m => `${m.ime}: ${artikel.modifierAvailability!.get(m.id)} porcij`),
   );
+  const stanje = zalogaNovo ? stanjeZaloge(artikel) : "brez";
+  const razpolozljivo = zalogaNovo ? razpolozljivePorcije(artikel) : null;
+  const zalogaBadge = (stanje === "ni" || stanje === "na_izteku") ? (
+    <span
+      className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+      style={{
+        backgroundColor: stanje === "ni" ? "rgba(0,0,0,0.55)" : "rgba(251,191,36,0.95)",
+        color: stanje === "ni" ? "#fff" : "#000",
+      }}
+      data-testid={`available-portions-${artikel.id}`}
+    >
+      {stanje === "ni" ? "Ni" : `${razpolozljivo} porcij`}
+    </span>
+  ) : null;
+  // Priloge/dodatki: v novem prikazu samo tisti z 5 ali manj porcijami (0 = »Ni«).
+  const modifierIzteka = artModSkupineArr.flatMap(sk =>
+    sk.modifikatorji.filter(m => m.aktiven && artikel.modifierAvailability?.has(m.id) && artikel.modifierAvailability.get(m.id)! <= 5)
+      .map(m => `${m.ime}: ${artikel.modifierAvailability!.get(m.id)! <= 0 ? "Ni" : `${artikel.modifierAvailability!.get(m.id)} porcij`}`),
+  );
   // Strežnik izpusti neaktivne velikosti; odsotna velikost ni neomejena zaloga.
   const availablePizzaSizes = ([
     ["mala", "Mala"],
@@ -483,6 +507,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
           color: hasColor ? "#fff" : undefined,
           borderColor: hasColor ? "transparent" : undefined,
           animation: flashing ? "pos-flash 0.28s ease-out" : undefined,
+          ...(stanje === "ni" ? { opacity: 0.55, filter: "grayscale(0.85)" } : {}),
           minHeight: (GOSTOTA_MIN_VISINA[gostota] ?? GOSTOTA_MIN_VISINA.privzeto)[privzetiImena ? 1 : 0],
         }}
         onClick={() => onAdd(artikel.id)}
@@ -545,7 +570,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
           );
         })()}
 
-        {artikel.jePica && availablePizzaSizes.length > 0 ? (
+        {zalogaNovo ? zalogaBadge : artikel.jePica && availablePizzaSizes.length > 0 ? (
           <span
             className="inline-flex flex-col items-start rounded px-1.5 py-0.5 text-[10px] font-bold leading-tight"
             style={{
@@ -572,7 +597,18 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
             {artikel.availableQuantity} porcij
           </span>
         )}
-        {modifierPortions.length > 0 && (
+        {zalogaNovo && modifierIzteka.length > 0 && (
+          <span
+            className="w-full text-[10px] leading-tight font-semibold"
+            style={{ color: hasColor ? "rgba(255,255,255,0.95)" : "hsl(var(--destructive))" }}
+            title={modifierPortions.join(" · ")}
+            data-testid={`modifier-portions-${artikel.id}`}
+          >
+            Dodatki: {modifierIzteka.slice(0, 2).join(" · ")}
+            {modifierIzteka.length > 2 ? ` · +${modifierIzteka.length - 2}` : ""}
+          </span>
+        )}
+        {!zalogaNovo && modifierPortions.length > 0 && (
           <span
             className="w-full text-[10px] leading-tight"
             style={{ color: hasColor ? "rgba(255,255,255,0.85)" : "hsl(var(--muted-foreground))" }}
@@ -1742,6 +1778,10 @@ export default function Order() {
     nastavljenPrikazMenija === "C" && jeUzekZaslon ? "B" : nastavljenPrikazMenija;
   const { data: pogosto } = usePogosto(prikazMenija !== "trenutno");
   const pogostoIds = pogosto?.artikelIds;
+  const { user: prijavljenUporabnik } = useAuth();
+  const zalogaNovo = prikazMenija !== "trenutno";
+  // Opozorilo za artikel brez zaloge (samo novi prikaz); dodajanje še vedno preveri strežnik.
+  const [zalogaOpozorilo, setZalogaOpozorilo] = useState<{ artikelId: number; ime: string } | null>(null);
   const pogostoZacetekRef = useRef(false);
   useEffect(() => {
     // Prvi zavihek v novih prikazih je »Pogosto« (če ima vsebino).
@@ -1797,6 +1837,15 @@ export default function Order() {
     );
   }, [kategorije]);
 
+  const naIztekuSt = useMemo(
+    () => zalogaNovo ? orderedArtikli.filter(a => {
+      if (!isOrderArticleShownWithStock(a, activeMulticourseMenuArticleIds.has(a.id), true)) return false;
+      const st = stanjeZaloge(a);
+      return st === "na_izteku" || st === "ni";
+    }).length : 0,
+    [zalogaNovo, orderedArtikli, activeMulticourseMenuArticleIds],
+  );
+
   const dnevniMeniModIdsPoArtiklu = useMemo(() => {
     const map = new Map<number, Set<number>>();
     if (!dnevniMeniDanes) return map;
@@ -1812,7 +1861,7 @@ export default function Order() {
   const { filteredArtikli, filteredArtikliModMatch } = useMemo(() => {
     // Only show output articles (prodajniArtikel) that have a category assigned
     let list = orderedArtikli.filter((article) =>
-      isOrderArticleVisible(article, activeMulticourseMenuArticleIds.has(article.id))
+      isOrderArticleShownWithStock(article, activeMulticourseMenuArticleIds.has(article.id), zalogaNovo)
     );
     if (narocilo?.nacin === "telefon") {
       list = list.filter(a => a.toGo === true);
@@ -1823,7 +1872,9 @@ export default function Order() {
       const poSifri = list.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === sifra);
       if (poSifri.length > 0) return { filteredArtikli: poSifri, filteredArtikliModMatch: new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>() };
     }
-    if (activeKategorija === "pogosto") {
+    if (activeKategorija === "na_izteku") {
+      list = list.filter(a => { const st = stanjeZaloge(a); return st === "na_izteku" || st === "ni"; });
+    } else if (activeKategorija === "pogosto") {
       const rang = new Map((pogostoIds ?? []).map((artikelId, i) => [artikelId, i]));
       list = list.filter(a => rang.has(a.id)).sort((a, b) => rang.get(a.id)! - rang.get(b.id)!);
     } else if (activeKategorija !== "all") {
@@ -1857,7 +1908,7 @@ export default function Order() {
       return { filteredArtikli: byMod, filteredArtikliModMatch: modMatch };
     }
     return { filteredArtikli: list, filteredArtikliModMatch: modMatch };
-  }, [orderedArtikli, activeKategorija, pogostoIds, odloznoIskanje, extraSinonimi, narocilo?.nacin, activeMulticourseMenuArticleIds]);
+  }, [orderedArtikli, activeKategorija, pogostoIds, odloznoIskanje, extraSinonimi, narocilo?.nacin, activeMulticourseMenuArticleIds, zalogaNovo]);
 
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() });
@@ -3022,6 +3073,7 @@ export default function Order() {
                 kategorije={kategorije ?? []}
                 active={activeKategorija}
                 kosiloAktivno={narocilo.status === "odprto" && kosilaAktivna}
+                naIztekuSt={naIztekuSt}
                 onChange={v => { setActiveKategorija(v); setSearch(""); }}
               />
             ) : prikazMenija === "C" ? null : (
@@ -3043,6 +3095,7 @@ export default function Order() {
               kategorije={kategorije ?? []}
               active={activeKategorija}
               kosiloAktivno={narocilo.status === "odprto" && kosilaAktivna}
+              naIztekuSt={naIztekuSt}
               onChange={v => { setActiveKategorija(v); setSearch(""); }}
             />
           )}
@@ -3084,6 +3137,10 @@ export default function Order() {
                             key={item.artikel.id}
                             artikel={item.artikel}
                             onAdd={(artId) => {
+                              if (zalogaNovo && stanjeZaloge(item.artikel) === "ni") {
+                                setZalogaOpozorilo({ artikelId: artId, ime: item.artikel.ime });
+                                return;
+                              }
                               if (multicourseMenuji.some(menu => menu.aktivno && menu.menuArtikelId === artId)) {
                                 handleAddArtikel(artId);
                                 return;
@@ -3098,6 +3155,7 @@ export default function Order() {
                             isHappyHourActive={activeHappyHourArticleIds.has(item.artikel.id)}
                             happyHourVelikostiPice={activeHappyHourPizzaSizes.get(item.artikel.id)}
                             gostota={naprava?.gostotaArtiklov ?? "privzeto"}
+                            zalogaNovo={zalogaNovo}
                           />
                         ) : (
                           <div key={`grupa-${item.baseIme}`}>
@@ -3132,6 +3190,39 @@ export default function Order() {
           </ScrollArea>
         </Tabs>
       </div>
+
+      <Dialog open={zalogaOpozorilo !== null} onOpenChange={(odprto) => { if (!odprto) setZalogaOpozorilo(null); }}>
+        <DialogContent data-testid="zaloga-opozorilo">
+          <DialogHeader>
+            <DialogTitle>Ni na zalogi</DialogTitle>
+            <DialogDescription>
+              {zalogaOpozorilo ? `»${zalogaOpozorilo.ime}« po izračunu zaloge ni več na voljo.` : ""}
+              {" "}Končno odločitev ob dodajanju sprejme strežnik in lahko dodajanje zavrne.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" className="min-h-[44px]" onClick={() => setZalogaOpozorilo(null)}>
+              {jeVodja(prijavljenUporabnik?.vloga) ? "Prekliči" : "V redu"}
+            </Button>
+            {jeVodja(prijavljenUporabnik?.vloga) && (
+              <Button
+                className="min-h-[44px]"
+                data-testid="zaloga-vseeno-dodaj"
+                onClick={() => {
+                  const artId = zalogaOpozorilo?.artikelId;
+                  setZalogaOpozorilo(null);
+                  if (artId == null) return;
+                  const modM = filteredArtikliModMatch.get(artId);
+                  if (modM) handleAddArtikelZModifikatorjem(artId, modM.skupinaId, modM.modifikatorId, modM.modIme);
+                  else handleAddArtikel(artId);
+                }}
+              >
+                Vseeno dodaj (vodja)
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Desni del — Račun ────────────────────────────────── */}
       <div className={`w-full md:w-[400px] flex-col md:h-full flex-1 min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>

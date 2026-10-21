@@ -173,6 +173,7 @@ const SELECT_FIELDS = {
   toGo: artikliTable.toGo,
   casPripraveMin: artikliTable.casPripraveMin,
   mealType: artikliTable.mealType,
+  spremljajPorcije: artikliTable.spremljajPorcije,
   recipeBatchPieces: artikliTable.recipeBatchPieces,
   preparedNormPortionQuantity: artikliTable.preparedNormPortionQuantity,
   vrstaArtikla: artikliTable.vrstaArtikla,
@@ -245,6 +246,7 @@ function mapRow(r: Record<string, unknown>) {
     toGo: Boolean(r.toGo),
     casPripraveMin: Number(r.casPripraveMin ?? 0),
     mealType: (r.mealType as "ala_carte" | "prepared" | "composite" | null) ?? "ala_carte",
+    spremljajPorcije: Boolean(r.spremljajPorcije),
     recipeBatchPieces: (r.recipeBatchPieces as number | null) ?? null,
     preparedNormPortionQuantity: r.preparedNormPortionQuantity == null ? null : Number(r.preparedNormPortionQuantity),
     vrstaArtikla: resolveArticleType(r.vrstaArtikla as string | null, {

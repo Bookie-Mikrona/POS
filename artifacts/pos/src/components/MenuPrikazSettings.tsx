@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { customFetch, getListKategorijeQueryKey, useListArtikli, useListKategorije, useUpdateKategorija } from "@workspace/api-client-react";
+import { customFetch, getListArtikliQueryKey, getListKategorijeQueryKey, useListArtikli, useListKategorije, useUpdateKategorija } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,18 @@ export function MenuPrikazSettings() {
       .slice(0, 60);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artikli, iskanje, pogosto, spremembe]);
+
+  const [spremljanje, setSpremljanje] = useState<Record<number, boolean>>({});
+  const nastaviSpremljanje = async (artikelId: number, vklopljeno: boolean) => {
+    setSpremljanje((prev) => ({ ...prev, [artikelId]: vklopljeno }));
+    try {
+      await customFetch("/api/artikli/spremljaj-porcije", { method: "PUT", body: JSON.stringify({ artikelId, vklopljeno }), headers: { "Content-Type": "application/json" }, responseType: "text" });
+      await queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
+    } catch (error) {
+      setSpremljanje((prev) => { const { [artikelId]: _odstrani, ...ostalo } = prev; return ostalo; });
+      toast({ title: "Nastavitve ni bilo mogoče shraniti", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+  };
 
   const shraniOddelek = async (k: NonNullable<typeof kategorije>[number], oddelek: string) => {
     try {
@@ -96,13 +108,22 @@ export function MenuPrikazSettings() {
         <div className="space-y-2">
           <p className="text-sm font-medium">Pogosto (24 artiklov)</p>
           <p className="text-xs text-muted-foreground">
-            Seznam se samodejno izračuna iz naročil zadnjih 60 dni. Artikel lahko pripnete (vedno je na seznamu) ali skrijete.
+            »Porcije« vklopi prikaz zaloge in opozoril v novem prikazu menija (samo prikaz; strežnik preverjanje opravi kot prej). Seznam se samodejno izračuna iz naročil zadnjih 60 dni. Artikel lahko pripnete (vedno je na seznamu) ali skrijete.
           </p>
           <Input value={iskanje} onChange={(e) => setIskanje(e.target.value)} placeholder="Poišči artikel …" className="min-h-[44px]" />
           <div className="space-y-1 max-h-72 overflow-y-auto">
             {prikazani.map((a) => (
               <label key={a.id} className="flex items-center justify-between gap-3 text-sm">
-                <span className="truncate">{a.ime}</span>
+                <span className="truncate flex-1">{a.ime}</span>
+                <label className="flex items-center gap-1 text-xs shrink-0">
+                  <input
+                    type="checkbox"
+                    aria-label={`Spremljaj porcije: ${a.ime}`}
+                    checked={spremljanje[a.id] ?? Boolean((a as { spremljajPorcije?: boolean }).spremljajPorcije)}
+                    onChange={(e) => void nastaviSpremljanje(a.id, e.target.checked)}
+                  />
+                  Porcije
+                </label>
                 <select
                   aria-label={`Pogosto: ${a.ime}`}
                   className="min-h-[44px] border rounded px-2 text-sm bg-background"

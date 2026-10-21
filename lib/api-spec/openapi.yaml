@@ -14320,6 +14320,9 @@ components:
         vrstniRed:
           type: integer
           description: Vrstni red prikaza v meniju
+        spremljajPorcije:
+          type: boolean
+          description: Samo prikaz; novi prikaz menija kaže zalogo in opozorila za artikel. Ne vpliva na strežniško preverjanje.
         mealType:
           type: string
           enum: [ala_carte, prepared, composite]

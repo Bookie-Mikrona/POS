@@ -18,3 +18,18 @@ export function isOrderArticleVisible(
       || article.availableQuantity > 0
     );
 }
+/**
+ * Novi prikaz zaloge: artikel s spremljanimi porcijami ostane viden tudi pri 0 porcijah
+ * (siva kartica »Ni«). Ostali pogoji vidnosti so nespremenjeni.
+ */
+export function isOrderArticleShownWithStock(
+  article: OrderArticleVisibilityInput & { spremljajPorcije?: boolean },
+  isConfiguredMulticourseMenu: boolean,
+  zalogaNovo: boolean,
+): boolean {
+  if (isOrderArticleVisible(article, isConfiguredMulticourseMenu)) return true;
+  return zalogaNovo
+    && article.spremljajPorcije === true
+    && article.prodajniArtikel === true
+    && article.kategorijaId != null;
+}

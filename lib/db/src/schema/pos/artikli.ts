@@ -112,6 +112,11 @@ export const artikliTable = pgTable("artikli", {
   mealType: text("meal_type", { enum: ["ala_carte", "prepared", "composite"] })
     .notNull()
     .default("ala_carte"),
+  /**
+   * Samo prikaz: ali novi prikaz menija kaže zalogo in opozorila za artikel.
+   * Ne vpliva na strežniško preverjanje razpoložljivosti.
+   */
+  spremljajPorcije: boolean("spremljaj_porcije").notNull().default(false),
   /** Namenska vloga artikla v ponudbi Malic; privzeto nobena. */
   malicaVloga: text("malica_vloga", { enum: ["none", "main", "soup", "dessert"] })
     .notNull()

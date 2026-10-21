@@ -93,4 +93,20 @@ router.put("/artikli/pogosto", requireEnota, async (req, res): Promise<void> => 
   res.sendStatus(204);
 });
 
+/** Vklop/izklop prikaza zaloge (samo prezentacija; strežniško preverjanje razpoložljivosti ostane nespremenjeno). */
+router.put("/artikli/spremljaj-porcije", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = (req as any).enotaId as number;
+  const { artikelId, vklopljeno } = (req.body ?? {}) as { artikelId?: unknown; vklopljeno?: unknown };
+  if (!Number.isInteger(artikelId) || (artikelId as number) < 1 || typeof vklopljeno !== "boolean") {
+    res.status(400).json({ error: "Neveljavni podatki." });
+    return;
+  }
+  const rows = await db.update(artikliTable)
+    .set({ spremljajPorcije: vklopljeno })
+    .where(and(eq(artikliTable.id, artikelId as number), eq(artikliTable.enotaId, enotaId)))
+    .returning({ id: artikliTable.id });
+  if (rows.length === 0) { res.status(404).json({ error: "Artikel ni najden." }); return; }
+  res.sendStatus(204);
+});
+
 export default router;
