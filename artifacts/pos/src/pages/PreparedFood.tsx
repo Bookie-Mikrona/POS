@@ -694,7 +694,7 @@ function DailyDateList({ year, onYearChange, onSelectDate }: { year: number, onY
                 <TableRow>
                   <TableHead>Datum</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Akcija</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Akcija</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -704,11 +704,11 @@ function DailyDateList({ year, onYearChange, onSelectDate }: { year: number, onY
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => onSelectDate(item.date)}
                   >
-                    <TableCell className="font-medium">{format(parseISO(item.date), "dd.MM.yyyy", { locale: sl })}</TableCell>
+                    <TableCell className="font-medium">{format(parseISO(item.date), "dd.MM.yyyy", { locale: sl })}<span className="block text-xs font-normal text-primary sm:hidden">Odpri ›</span></TableCell>
                        <TableCell className="align-top pt-2">
                       {item.allClosed ? <Badge variant="secondary">Zaključeno</Badge> : <Badge>Odprto</Badge>}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right sm:table-cell">
                       <Button variant="ghost" size="sm">Odpri</Button>
                     </TableCell>
                   </TableRow>
