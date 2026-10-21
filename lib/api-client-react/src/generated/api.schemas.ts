@@ -9372,6 +9372,43 @@ export interface KupecPoisciRezultat {
 }
 
 /**
+ * Prikaz menija na tej napravi. Privzeto trenutno.
+ */
+export type NapravaPrikazMenija = typeof NapravaPrikazMenija[keyof typeof NapravaPrikazMenija];
+
+
+export const NapravaPrikazMenija = {
+  trenutno: 'trenutno',
+  A: 'A',
+  B: 'B',
+  C: 'C',
+} as const;
+
+/**
+ * Gostota artiklov na tej napravi. Privzeto privzeto.
+ */
+export type NapravaGostotaArtiklov = typeof NapravaGostotaArtiklov[keyof typeof NapravaGostotaArtiklov];
+
+
+export const NapravaGostotaArtiklov = {
+  privzeto: 'privzeto',
+  kompaktno: 'kompaktno',
+  seznam: 'seznam',
+  velika: 'velika',
+} as const;
+
+/**
+ * Prikaz naročila na tej napravi. Privzeto staro.
+ */
+export type NapravaPrikazNarocila = typeof NapravaPrikazNarocila[keyof typeof NapravaPrikazNarocila];
+
+
+export const NapravaPrikazNarocila = {
+  staro: 'staro',
+  novo: 'novo',
+} as const;
+
+/**
  * Širina termalnega tiskalnika v mm (30 = NB80 58mm, 58 = ZCS, 80 = NB80 80mm)
  */
 export type NapravaTerminalConfigTiskalnikSirina = typeof NapravaTerminalConfigTiskalnikSirina[keyof typeof NapravaTerminalConfigTiskalnikSirina];
@@ -9440,6 +9477,12 @@ export interface Naprava {
      * @nullable
      */
   glasovniPragZaupanja?: number | null;
+  /** Prikaz menija na tej napravi. Privzeto trenutno. */
+  prikazMenija?: NapravaPrikazMenija;
+  /** Gostota artiklov na tej napravi. Privzeto privzeto. */
+  gostotaArtiklov?: NapravaGostotaArtiklov;
+  /** Prikaz naročila na tej napravi. Privzeto staro. */
+  prikazNarocila?: NapravaPrikazNarocila;
   /** Terminalne nastavitve te naprave (null = ni nastavljeno, ne preglasi globalnih). */
   terminalConfig?: NapravaTerminalConfig | null;
   ustvarjeno: string;
@@ -9450,6 +9493,43 @@ export interface NapravaRegistracijaVnos {
   napravaKljuc: string;
   ime: string;
 }
+
+/**
+ * Prikaz menija na tej napravi. Privzeto trenutno.
+ */
+export type NapravaPosodobitevPrikazMenija = typeof NapravaPosodobitevPrikazMenija[keyof typeof NapravaPosodobitevPrikazMenija];
+
+
+export const NapravaPosodobitevPrikazMenija = {
+  trenutno: 'trenutno',
+  A: 'A',
+  B: 'B',
+  C: 'C',
+} as const;
+
+/**
+ * Gostota artiklov na tej napravi. Privzeto privzeto.
+ */
+export type NapravaPosodobitevGostotaArtiklov = typeof NapravaPosodobitevGostotaArtiklov[keyof typeof NapravaPosodobitevGostotaArtiklov];
+
+
+export const NapravaPosodobitevGostotaArtiklov = {
+  privzeto: 'privzeto',
+  kompaktno: 'kompaktno',
+  seznam: 'seznam',
+  velika: 'velika',
+} as const;
+
+/**
+ * Prikaz naročila na tej napravi. Privzeto staro.
+ */
+export type NapravaPosodobitevPrikazNarocila = typeof NapravaPosodobitevPrikazNarocila[keyof typeof NapravaPosodobitevPrikazNarocila];
+
+
+export const NapravaPosodobitevPrikazNarocila = {
+  staro: 'staro',
+  novo: 'novo',
+} as const;
 
 /**
  * Širina tiskalnika v mm — 58 = ZCS Z92 (30 kol), 32 = BT tiskalnik (32 kol), 30 = NB80 58mm (30 kol), 80 = NoryoxNB80 (40 kol); null = počisti (samodejno zaznaj); vrednost = nastavi
@@ -9495,6 +9575,12 @@ export interface NapravaPosodobitev {
      * @nullable
      */
   glasovniPragZaupanja?: number | null;
+  /** Prikaz menija na tej napravi. Privzeto trenutno. */
+  prikazMenija?: NapravaPosodobitevPrikazMenija;
+  /** Gostota artiklov na tej napravi. Privzeto privzeto. */
+  gostotaArtiklov?: NapravaPosodobitevGostotaArtiklov;
+  /** Prikaz naročila na tej napravi. Privzeto staro. */
+  prikazNarocila?: NapravaPosodobitevPrikazNarocila;
   /**
      * Širina tiskalnika v mm — 58 = ZCS Z92 (30 kol), 32 = BT tiskalnik (32 kol), 30 = NB80 58mm (30 kol), 80 = NoryoxNB80 (40 kol); null = počisti (samodejno zaznaj); vrednost = nastavi
      * @nullable

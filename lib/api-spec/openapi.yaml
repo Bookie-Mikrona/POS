@@ -21926,6 +21926,18 @@ components:
           minimum: 0
           maximum: 1
           description: Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.
+        prikazMenija:
+          type: string
+          enum: [trenutno, A, B, C]
+          description: Prikaz menija na tej napravi. Privzeto trenutno.
+        gostotaArtiklov:
+          type: string
+          enum: [privzeto, kompaktno, seznam, velika]
+          description: Gostota artiklov na tej napravi. Privzeto privzeto.
+        prikazNarocila:
+          type: string
+          enum: [staro, novo]
+          description: Prikaz naročila na tej napravi. Privzeto staro.
         terminalConfig:
           nullable: true
           allOf:
@@ -22033,6 +22045,18 @@ components:
           minimum: 0
           maximum: 1
           description: Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.
+        prikazMenija:
+          type: string
+          enum: [trenutno, A, B, C]
+          description: Prikaz menija na tej napravi. Privzeto trenutno.
+        gostotaArtiklov:
+          type: string
+          enum: [privzeto, kompaktno, seznam, velika]
+          description: Gostota artiklov na tej napravi. Privzeto privzeto.
+        prikazNarocila:
+          type: string
+          enum: [staro, novo]
+          description: Prikaz naročila na tej napravi. Privzeto staro.
         tiskalnikSirina:
           type:
             - integer

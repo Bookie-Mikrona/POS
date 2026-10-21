@@ -10,6 +10,10 @@ export const napraveTable = pgTable("naprave", {
   dovoljeneMize: integer("dovoljene_mize").array(),
   glasovniPragZaupanja: real("glasovni_prag_zaupanja"),
   nastavitveJson: text("nastavitve_json"),
+  // Prikaz na napravi (samo prezentacija; privzeto = obstoječe obnašanje).
+  prikazMenija: text("prikaz_menija").notNull().default("trenutno"),
+  gostotaArtiklov: text("gostota_artiklov").notNull().default("privzeto"),
+  prikazNarocila: text("prikaz_narocila").notNull().default("staro"),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
   posodobljeno: timestamp("posodobljeno", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [unique("naprave_enota_kljuc_unique").on(t.enotaId, t.napravaKljuc)]);

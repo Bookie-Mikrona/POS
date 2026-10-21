@@ -32,6 +32,10 @@ export interface NapravaTerminalConfig {
   tiskalnikTip?: string;
 }
 
+export type PrikazMenija = "trenutno" | "A" | "B" | "C";
+export type GostotaArtiklov = "privzeto" | "kompaktno" | "seznam" | "velika";
+export type PrikazNarocila = "staro" | "novo";
+
 export interface NapravaData {
   id: number;
   podjetjeDavcna: string;
@@ -43,6 +47,10 @@ export interface NapravaData {
   dovoljeneMize?: number[] | null;
   glasovniPragZaupanja?: number | null;
   terminalConfig?: NapravaTerminalConfig | null;
+  /** Prikaz na tej napravi (samo prezentacija). Manjkajoče = privzeto/obstoječe obnašanje. */
+  prikazMenija?: PrikazMenija;
+  gostotaArtiklov?: GostotaArtiklov;
+  prikazNarocila?: PrikazNarocila;
   ustvarjeno: string;
   posodobljeno: string;
 }

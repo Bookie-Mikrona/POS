@@ -9569,6 +9569,9 @@ export const ListNapraveResponseItem = zod.object({
   "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
   "dovoljeneMize": zod.array(zod.number()).nullish().describe('Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize.'),
   "glasovniPragZaupanja": zod.number().min(listNapraveResponseGlasovniPragZaupanjaMin).max(listNapraveResponseGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "prikazMenija": zod.enum(['trenutno', 'A', 'B', 'C']).optional().describe('Prikaz menija na tej napravi. Privzeto trenutno.'),
+  "gostotaArtiklov": zod.enum(['privzeto', 'kompaktno', 'seznam', 'velika']).optional().describe('Gostota artiklov na tej napravi. Privzeto privzeto.'),
+  "prikazNarocila": zod.enum(['staro', 'novo']).optional().describe('Prikaz naročila na tej napravi. Privzeto staro.'),
   "terminalConfig": zod.object({
   "terminalAktiven": zod.boolean().optional(),
   "terminalIp": zod.string().optional(),
@@ -9624,6 +9627,9 @@ export const UpsertNapravaResponse = zod.object({
   "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
   "dovoljeneMize": zod.array(zod.number()).nullish().describe('Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize.'),
   "glasovniPragZaupanja": zod.number().min(upsertNapravaResponseGlasovniPragZaupanjaMin).max(upsertNapravaResponseGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "prikazMenija": zod.enum(['trenutno', 'A', 'B', 'C']).optional().describe('Prikaz menija na tej napravi. Privzeto trenutno.'),
+  "gostotaArtiklov": zod.enum(['privzeto', 'kompaktno', 'seznam', 'velika']).optional().describe('Gostota artiklov na tej napravi. Privzeto privzeto.'),
+  "prikazNarocila": zod.enum(['staro', 'novo']).optional().describe('Prikaz naročila na tej napravi. Privzeto staro.'),
   "terminalConfig": zod.object({
   "terminalAktiven": zod.boolean().optional(),
   "terminalIp": zod.string().optional(),
@@ -9700,6 +9706,9 @@ export const UpdateNapraveTerminaliResponse = zod.object({
   "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
   "dovoljeneMize": zod.array(zod.number()).nullish().describe('Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize.'),
   "glasovniPragZaupanja": zod.number().min(updateNapraveTerminaliResponseGlasovniPragZaupanjaMin).max(updateNapraveTerminaliResponseGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "prikazMenija": zod.enum(['trenutno', 'A', 'B', 'C']).optional().describe('Prikaz menija na tej napravi. Privzeto trenutno.'),
+  "gostotaArtiklov": zod.enum(['privzeto', 'kompaktno', 'seznam', 'velika']).optional().describe('Gostota artiklov na tej napravi. Privzeto privzeto.'),
+  "prikazNarocila": zod.enum(['staro', 'novo']).optional().describe('Prikaz naročila na tej napravi. Privzeto staro.'),
   "terminalConfig": zod.object({
   "terminalAktiven": zod.boolean().optional(),
   "terminalIp": zod.string().optional(),
@@ -9749,6 +9758,9 @@ export const UpdateNapravaBody = zod.object({
   "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
   "dovoljeneMize": zod.array(zod.number()).nullish(),
   "glasovniPragZaupanja": zod.number().min(updateNapravaBodyGlasovniPragZaupanjaMin).max(updateNapravaBodyGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "prikazMenija": zod.enum(['trenutno', 'A', 'B', 'C']).optional().describe('Prikaz menija na tej napravi. Privzeto trenutno.'),
+  "gostotaArtiklov": zod.enum(['privzeto', 'kompaktno', 'seznam', 'velika']).optional().describe('Gostota artiklov na tej napravi. Privzeto privzeto.'),
+  "prikazNarocila": zod.enum(['staro', 'novo']).optional().describe('Prikaz naročila na tej napravi. Privzeto staro.'),
   "tiskalnikSirina": zod.union([zod.literal(30),zod.literal(32),zod.literal(58),zod.literal(80),zod.literal(null)]).nullish().describe('Širina tiskalnika v mm — 58 = ZCS Z92 (30 kol), 32 = BT tiskalnik (32 kol), 30 = NB80 58mm (30 kol), 80 = NoryoxNB80 (40 kol); null = počisti (samodejno zaznaj); vrednost = nastavi'),
   "tiskalnikTip": zod.string().nullish().describe('Tip tiskalnika; null ali \"\" = počisti (ne-Windows)'),
   "tiskalnikCodePage": zod.union([zod.literal('cp1250'),zod.literal('wpc1250'),zod.literal('cp852'),zod.literal('ascii-translit'),zod.literal('bitmap'),zod.literal(null)]).nullish().describe('Kodna stran tiskalnika — enake vrednosti kot NastavitveTerminaliUpdate')
@@ -9768,6 +9780,9 @@ export const UpdateNapravaResponse = zod.object({
   "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
   "dovoljeneMize": zod.array(zod.number()).nullish().describe('Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize.'),
   "glasovniPragZaupanja": zod.number().min(updateNapravaResponseGlasovniPragZaupanjaMin).max(updateNapravaResponseGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "prikazMenija": zod.enum(['trenutno', 'A', 'B', 'C']).optional().describe('Prikaz menija na tej napravi. Privzeto trenutno.'),
+  "gostotaArtiklov": zod.enum(['privzeto', 'kompaktno', 'seznam', 'velika']).optional().describe('Gostota artiklov na tej napravi. Privzeto privzeto.'),
+  "prikazNarocila": zod.enum(['staro', 'novo']).optional().describe('Prikaz naročila na tej napravi. Privzeto staro.'),
   "terminalConfig": zod.object({
   "terminalAktiven": zod.boolean().optional(),
   "terminalIp": zod.string().optional(),

@@ -55,6 +55,7 @@ import {
 } from "@workspace/api-client-react";
 import type { TestniZagonPogled, Enota, BlagajnaPogled, Naprava } from "@workspace/api-client-react";
 import { useNaprava } from "@/contexts/NapravaContext";
+import { PrikazIzbire, PRIKAZ_PRIVZETO, type PrikazNastavitve } from "@/components/PrikazNaprave";
 import { prikaziZavihekEnote, smeUpravljatiEnote } from "@/lib/enoteTabVidnost";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -646,6 +647,7 @@ export default function Settings() {
   const [napravEditJeWindows, setNapravEditJeWindows] = useState(false);
   const [napravEditCodePage, setNapravEditCodePage] = useState<"cp1250" | "wpc1250" | "cp852" | "ascii-translit" | "bitmap">("cp1250");
   const [napravEditAiSvetovalecAktiven, setNapravEditAiSvetovalecAktiven] = useState(false);
+  const [napravEditPrikaz, setNapravEditPrikaz] = useState<PrikazNastavitve>(PRIKAZ_PRIVZETO);
   const [qrAiAsistentAktiven, setQrAiAsistentAktiven] = useState(false);
   const [toastTocilnicaAktiven, setToastTocilnicaAktiven] = useState(true);
 
@@ -4588,6 +4590,11 @@ export default function Settings() {
                           const cp = n.terminalConfig?.tiskalnikCodePage;
                           setNapravEditCodePage((cp === "cp852" || cp === "wpc1250" || cp === "ascii-translit" || cp === "bitmap") ? cp : "cp1250");
                           setNapravEditAiSvetovalecAktiven((n.terminalConfig as any)?.aiSvetovalecAktiven ?? false);
+                          setNapravEditPrikaz({
+                            prikazMenija: n.prikazMenija ?? PRIKAZ_PRIVZETO.prikazMenija,
+                            gostotaArtiklov: n.gostotaArtiklov ?? PRIKAZ_PRIVZETO.gostotaArtiklov,
+                            prikazNarocila: n.prikazNarocila ?? PRIKAZ_PRIVZETO.prikazNarocila,
+                          });
                           setNapravEditDialogOpen(true);
                         }} title={n.id === trenutnaNaprava?.id ? "Uredi to napravo" : `Uredi ${n.ime || "napravo"}`}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={async () => {
@@ -4662,6 +4669,10 @@ export default function Settings() {
                   })}
                 </div>
               )}
+            </div>
+            <div className="space-y-2 rounded-lg border p-3">
+              <Label className="text-base">Prikaz</Label>
+              <PrikazIzbire vrednost={napravEditPrikaz} onChange={setNapravEditPrikaz} />
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -4748,6 +4759,7 @@ export default function Settings() {
                     tiskalnikTip: napravEditJeWindows ? "windows" : null,  // null = počisti (ne-Windows)
                     tiskalnikCodePage: napravEditCodePage as "cp1250" | "wpc1250" | "cp852" | "ascii-translit" | "bitmap",
                     aiSvetovalecAktiven: napravEditAiSvetovalecAktiven,
+                    ...napravEditPrikaz,
                   } as any
                 });
                 await queryClient.invalidateQueries({ queryKey: getListNapraveQueryKey() });

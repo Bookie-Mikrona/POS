@@ -31,6 +31,7 @@ import { AutoStartProvider } from "@/contexts/AutoStartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, Users, ClipboardList, BookOpen, TrendingDown, Tag, Banknote, Recycle, Info, Activity, CalendarDays, QrCode, Utensils, Globe2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PrikazTrenutneNaprave } from "@/components/PrikazNaprave";
 import { EnotaSwitcher } from "@/components/EnotaSwitcher";
 import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
 import { UporabnikSidebarInfo } from "@/components/UporabnikSidebarInfo";
@@ -907,6 +908,8 @@ function Layout({ children }: { children: React.ReactNode }) {
                     <BlagajnaSwitcher />
                   </div>
                 )}
+
+                {activePosUnit && !isSuperAdmin && <PrikazTrenutneNaprave />}
 
                 <div className="grid grid-cols-4 gap-2">
                   {mobileSecondaryNav.map(item => (

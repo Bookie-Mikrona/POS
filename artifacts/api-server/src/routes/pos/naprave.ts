@@ -55,6 +55,21 @@ function sanitizeTerminalConfig(nastavitveJson: string | null | undefined): Reco
   }
 }
 
+const DOVOLJENI_PRIKAZ: Record<"prikazMenija" | "gostotaArtiklov" | "prikazNarocila", readonly string[]> = {
+  prikazMenija: ["trenutno", "A", "B", "C"],
+  gostotaArtiklov: ["privzeto", "kompaktno", "seznam", "velika"],
+  prikazNarocila: ["staro", "novo"],
+};
+
+/** Vrne ime prvega polja prikaza z neveljavno vrednostjo (ali null). */
+export function neveljavnoPoljePrikaza(telo: Record<string, unknown>): string | null {
+  for (const [polje, dovoljene] of Object.entries(DOVOLJENI_PRIKAZ)) {
+    const vrednost = telo[polje];
+    if (vrednost !== undefined && !(typeof vrednost === "string" && dovoljene.includes(vrednost))) return polje;
+  }
+  return null;
+}
+
 function createAiAccessToken(row: typeof napraveTable.$inferSelect): string {
   const secret = process.env.SESSION_SECRET;
   if (!secret) return "";
@@ -206,6 +221,13 @@ router.put("/naprave/:id", async (req, res): Promise<void> => {
   }
 
   const { tiskalnikSirina, tiskalnikCodePage, tiskalnikTip, aiSvetovalecAktiven, ...ostalo } = req.body as Record<string, unknown>;
+
+  // Prikaz na napravi: samo znane vrednosti (prezentacijski sloj, ne vpliva na naročanje ali račun).
+  const neveljavnoPolje = neveljavnoPoljePrikaza(ostalo);
+  if (neveljavnoPolje) {
+    res.status(400).json({ error: `Neveljavna vrednost za ${neveljavnoPolje}.` });
+    return;
+  }
 
   // Nastavitve tiskalnika se shranjujejo v nastavitveJson (ne kot stolpec).
   // null = IZBRIŠI ključ iz konfiguracije (samodejno zaznaj / počisti).
