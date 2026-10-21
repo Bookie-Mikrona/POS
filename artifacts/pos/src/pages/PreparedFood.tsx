@@ -228,10 +228,10 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
       const stock = stocks?.find(s => s.artikelId === row.artikelId);
       const availableThaw = Number(stock?.frozenQuantity ?? 0);
       const maxThaw = Number.isFinite(availableThaw) ? Math.max(0, availableThaw) : 0;
-      const totalQuantity = parseQuantity(edit.thawed)
+      const totalQuantity = Math.round((parseQuantity(edit.thawed)
         + parseQuantity(edit.prepared)
-        + parseQuantity(edit.correction);
-      const calculatedWaste = totalQuantity - Number(row.soldQuantity) - parseQuantity(edit.frozen);
+        + parseQuantity(edit.correction)) * 10_000) / 10_000;
+      const calculatedWaste = Math.round((totalQuantity - Number(row.soldQuantity) - parseQuantity(edit.frozen)) * 10_000) / 10_000;
       const isClosed = !!row.closedAt;
       const isReadOnly = !row.editable || isClosed;
       
