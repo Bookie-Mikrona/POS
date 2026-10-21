@@ -857,7 +857,7 @@ export default function PreparedFoodPage() {
       </div>
 
       <Tabs defaultValue="daily" className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="daily" className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4" /> Dnevna evidenca
           </TabsTrigger>
