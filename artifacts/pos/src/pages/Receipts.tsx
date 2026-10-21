@@ -779,13 +779,15 @@ export function UnknownVivaRefundsPanel({ enabled }: { enabled: boolean }) {
 
   return (
     <>
-      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-3" data-testid="panel-unknown-viva-refunds">
+      <div className={`rounded-lg border p-4 space-y-3 ${data.items.length > 0 ? "border-amber-300 bg-amber-50" : "bg-muted/30"}`} data-testid="panel-unknown-viva-refunds">
         <div className="flex items-start gap-2">
-          <TriangleAlert className="mt-0.5 h-5 w-5 text-amber-700" />
+          {data.items.length > 0 && <TriangleAlert className="mt-0.5 h-5 w-5 text-amber-700" />}
           <div>
-            <h2 className="font-semibold text-amber-950">Nejasna Viva vračila ({data.items.length})</h2>
-            <p className="text-xs text-amber-800">Najprej ponovno preverite Vivo. Ročno zaključite šele po primerjavi s terminalom ali izpiskom.</p>
-            <p className="text-xs text-amber-800">Druga odobritev je obvezna za »izvedeno« ter za zneske od {formatEur(data.approvalThreshold)} naprej.</p>
+            <h2 className={`font-semibold ${data.items.length > 0 ? "text-amber-950" : ""}`}>
+              {data.items.length > 0 ? `Nejasna Viva vračila (${data.items.length})` : "Viva vračila: ni nejasnih primerov"}
+            </h2>
+            {data.items.length > 0 && <p className="text-xs text-amber-800">Najprej ponovno preverite Vivo. Ročno zaključite šele po primerjavi s terminalom ali izpiskom.</p>}
+            <p className={`text-xs ${data.items.length > 0 ? "text-amber-800" : "text-muted-foreground"}`}>Druga odobritev je obvezna za »izvedeno« ter za zneske od {formatEur(data.approvalThreshold)} naprej.</p>
           </div>
         </div>
         <form className="flex flex-wrap items-end gap-2" onSubmit={event => {
