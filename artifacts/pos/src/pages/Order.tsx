@@ -287,6 +287,7 @@ interface SortableCardProps {
   artikliMap?: Map<number, ArtikelLookup>;
   isHappyHourActive?: boolean;
   happyHourVelikostiPice?: Set<"mala" | "normalna" | "druzinska">;
+  gostota?: "privzeto" | "kompaktno" | "seznam" | "velika";
 }
 
 // ── Slovensko korenjenje za glasovne ukaze ────────────────────────────────────
@@ -420,7 +421,27 @@ function ujemaSeArtikel(ime: string, iskanje: string, extra: [string, string][] 
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, isHappyHourActive, happyHourVelikostiPice }: SortableCardProps) {
+/** Gostota prikaza artiklov (nastavitev naprave, samo videz). »privzeto« ohrani obstoječi videz. */
+const GOSTOTA_MREZA: Record<string, string> = {
+  privzeto: "grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-20 md:pb-4",
+  kompaktno: "grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 pb-20 md:pb-4",
+  seznam: "grid grid-cols-1 gap-1.5 pb-20 md:pb-4",
+  velika: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-20 md:pb-4",
+};
+const GOSTOTA_GUMB: Record<string, string> = {
+  privzeto: "flex-col items-start justify-between p-3",
+  kompaktno: "flex-col items-start justify-between p-1.5",
+  seznam: "flex-row flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-2",
+  velika: "flex-col items-start justify-between p-4",
+};
+const GOSTOTA_MIN_VISINA: Record<string, [string, string]> = {
+  privzeto: ["4.5rem", "5.5rem"],
+  kompaktno: ["3.25rem", "4rem"],
+  seznam: ["2.75rem", "2.75rem"],
+  velika: ["6rem", "7rem"],
+};
+
+function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, isHappyHourActive, happyHourVelikostiPice, gostota = "privzeto" }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: artikel.id });
 
@@ -456,19 +477,19 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
   return (
     <div ref={setNodeRef} style={style}>
       <button
-        className="relative flex flex-col items-start p-3 border rounded-lg shadow-sm text-left w-full justify-between transition-all hover:brightness-95 active:scale-95"
+        className={`relative flex border rounded-lg shadow-sm text-left w-full transition-all hover:brightness-95 active:scale-95 ${GOSTOTA_GUMB[gostota] ?? GOSTOTA_GUMB.privzeto}`}
         style={{
           backgroundColor: bg ?? "hsl(var(--card))",
           color: hasColor ? "#fff" : undefined,
           borderColor: hasColor ? "transparent" : undefined,
           animation: flashing ? "pos-flash 0.28s ease-out" : undefined,
-          minHeight: privzetiImena ? "5.5rem" : "4.5rem",
+          minHeight: (GOSTOTA_MIN_VISINA[gostota] ?? GOSTOTA_MIN_VISINA.privzeto)[privzetiImena ? 1 : 0],
         }}
         onClick={() => onAdd(artikel.id)}
         disabled={pending}
       >
         <span
-          className="text-xs font-semibold leading-tight pr-5"
+          className={`font-semibold leading-tight pr-5 ${gostota === "velika" ? "text-base" : gostota === "kompaktno" ? "text-[11px]" : "text-xs"} ${gostota === "seznam" ? "flex-1 min-w-0" : ""}`}
           style={{ color: hasColor ? "rgba(255,255,255,0.95)" : undefined }}
         >
           {(artikel as { plu?: string | null }).plu && (
@@ -510,7 +531,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
                 </span>
               )}
               <span
-                className="text-sm font-bold"
+                className={`${gostota === "velika" ? "text-lg" : "text-sm"} font-bold`}
                 style={{
                   color: hasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))",
                   textDecoration: osnovnaCenaJeHappyHour ? "line-through" : undefined,
@@ -3056,7 +3077,7 @@ export default function Order() {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-20 md:pb-4">
+                    <div className={GOSTOTA_MREZA[naprava?.gostotaArtiklov ?? "privzeto"] ?? GOSTOTA_MREZA.privzeto} data-testid="artikli-mreza" data-gostota={naprava?.gostotaArtiklov ?? "privzeto"}>
                       {gridItems.map(item =>
                         item.type === "artikel" ? (
                           <SortableArtikelCard
@@ -3076,6 +3097,7 @@ export default function Order() {
                             artikliMap={artikliMapForOrder}
                             isHappyHourActive={activeHappyHourArticleIds.has(item.artikel.id)}
                             happyHourVelikostiPice={activeHappyHourPizzaSizes.get(item.artikel.id)}
+                            gostota={naprava?.gostotaArtiklov ?? "privzeto"}
                           />
                         ) : (
                           <div key={`grupa-${item.baseIme}`}>
