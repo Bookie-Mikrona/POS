@@ -155,3 +155,4 @@
 - [Hrana, recepti, meni in QR](food-menu-recipes-index.md) — kazalo pravil za recepte, alergene, meni, sestavljene jedi, pice, QR goste in povratne informacije.
 - [Pregled testov po rebazu](test-file-merge-checks.md) — čist samodejni merge ne zagotavlja, da so testi ostali v pravem obsegu; preveri celoten diff in meje testov.
 - [ZCS most brez izdajnih ključev](zcs-bridge-razvojna-razlicica.md) — offline fiskalnih ključev ne bo; most se dostavlja kot debug gradnja, release ne predlagaj
+- [Privzeti šifranti nove enote](privzeti-sifranti-enote.md) — osnova je Križišče; generiran posnetek, dopolnilni uvoz, brez alergenov in modifikatorjev.
