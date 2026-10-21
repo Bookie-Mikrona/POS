@@ -71,8 +71,7 @@ import { DdvNeskladjeAlert } from "@/components/DdvNeskladjeAlert";
 import { useToast } from "@/hooks/use-toast";
 import { useNaprava } from "@/contexts/NapravaContext";
 import { MenuNav } from "@/components/order/MenuNav";
-import { jeVodja, razpolozljivePorcije, stanjeZaloge } from "@/lib/zaloga-prikaz";
-import { useAuth } from "@/contexts/AuthContext";
+import { razpolozljivePorcije, stanjeZaloge } from "@/lib/zaloga-prikaz";
 import { usePogosto } from "@/hooks/use-pogosto";
 import { useSirokZaslon } from "@/hooks/use-siroki-zaslon";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -94,7 +93,7 @@ import { isOrderArticleVisible, isOrderArticleShownWithStock } from "@/lib/order
 import { orderAddErrorMessage } from "@/lib/order-add-error";
 import { DostavaStatusPanel } from "@/components/DostavaStatusPanel";
 import { KdsCountdown } from "@/lib/kdsNarocilo";
-import { getOrderItemKdsStatuses } from "@/lib/kdsItemStatus";
+import { getOrderItemKdsStatuses, kdsSkupinaPostavke, KDS_SKUPINE, type KdsSkupina } from "@/lib/kdsItemStatus";
 import { getNextKdsCoursesToFire } from "@/lib/kdsCourses";
 import { useFireKdsCourse, useKdsNalogiVecPostaj, useKdsPostaje } from "@/hooks/use-kds";
 import { formatMizaProstor } from "@/lib/formatMizaProstor";
@@ -1778,7 +1777,6 @@ export default function Order() {
     nastavljenPrikazMenija === "C" && jeUzekZaslon ? "B" : nastavljenPrikazMenija;
   const { data: pogosto } = usePogosto(prikazMenija !== "trenutno");
   const pogostoIds = pogosto?.artikelIds;
-  const { user: prijavljenUporabnik } = useAuth();
   const zalogaNovo = prikazMenija !== "trenutno";
   // Opozorilo za artikel brez zaloge (samo novi prikaz); dodajanje še vedno preveri strežnik.
   const [zalogaOpozorilo, setZalogaOpozorilo] = useState<{ artikelId: number; ime: string } | null>(null);
@@ -3213,24 +3211,8 @@ export default function Order() {
           </DialogHeader>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="outline" className="min-h-[44px]" onClick={() => setZalogaOpozorilo(null)}>
-              {jeVodja(prijavljenUporabnik?.vloga) ? "Prekliči" : "V redu"}
+              V redu
             </Button>
-            {jeVodja(prijavljenUporabnik?.vloga) && (
-              <Button
-                className="min-h-[44px]"
-                data-testid="zaloga-vseeno-dodaj"
-                onClick={() => {
-                  const artId = zalogaOpozorilo?.artikelId;
-                  setZalogaOpozorilo(null);
-                  if (artId == null) return;
-                  const modM = filteredArtikliModMatch.get(artId);
-                  if (modM) handleAddArtikelZModifikatorjem(artId, modM.skupinaId, modM.modifikatorId, modM.modIme);
-                  else handleAddArtikel(artId);
-                }}
-              >
-                Vseeno dodaj (vodja)
-              </Button>
-            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -3486,9 +3468,22 @@ export default function Order() {
                     }
                   }
                 }
-                const topPostavkeOrder = groupMulticourseOrderRows(filtiranePostavke.filter(p =>
+                const topPostavkeOrderNeurejene = groupMulticourseOrderRows(filtiranePostavke.filter(p =>
                   (p as typeof p & { parentPostavkaId?: number | null }).parentPostavkaId == null
                 ));
+                // Novi prikaz: postavke po dejanskem stanju KDS (stabilno razvrščanje, vsebina vrstic je ista).
+                const skupinaPoId = new Map<number, KdsSkupina>();
+                if (naroceloSheet) {
+                  for (const p of topPostavkeOrderNeurejene) {
+                    skupinaPoId.set(p.id, kdsSkupinaPostavke(
+                      getOrderItemKdsStatuses(p.id, orderKdsNalogi, kdsPostaje, kdsNow, p.pripravljeno).statuses,
+                    ));
+                  }
+                }
+                const topPostavkeOrder = naroceloSheet
+                  ? [...topPostavkeOrderNeurejene].sort((a, b) =>
+                      KDS_SKUPINE.indexOf(skupinaPoId.get(a.id)!) - KDS_SKUPINE.indexOf(skupinaPoId.get(b.id)!))
+                  : topPostavkeOrderNeurejene;
                 return topPostavkeOrder.map((postavka, idx) => {
                 const artRaw = artikliMapForOrder.get(postavka.artikelId) as { jePica?: boolean; modSkupine?: ModSkupinaFull[] } | undefined;
                 const artSkupineOrder = artRaw?.modSkupine ?? [];
@@ -3519,6 +3514,11 @@ export default function Order() {
                     data-testid={`order-item-${postavka.id}`}
                     className={`flex flex-col rounded-md bg-transparent py-1 px-1 transition-colors gap-0.5 ${kdsStatus.className} ${jeRacunana ? "opacity-50" : ""}`}
                   >
+                    {naroceloSheet && (idx === 0 || skupinaPoId.get(topPostavkeOrder[idx - 1].id) !== skupinaPoId.get(postavka.id)) && (
+                      <div className="-mt-1 mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid={`kds-skupina-${skupinaPoId.get(postavka.id)}`}>
+                        {skupinaPoId.get(postavka.id)}
+                      </div>
+                    )}
                     {/* Vrstica 1: številka + ime + gost badge + gumbi */}
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-muted-foreground w-4 shrink-0 text-right">{idx + 1}.</span>

@@ -82,3 +82,14 @@ export function getOrderItemKdsStatuses(
     undefined as typeof statuses[number] | undefined)?.outlineClassName ?? "",
   };
 }
+export const KDS_SKUPINE = ["Na čakanju", "V pripravi", "Pripravljeno", "Brez stanja KDS"] as const;
+export type KdsSkupina = (typeof KDS_SKUPINE)[number];
+
+/** Skupina postavke za novi prikaz naročila; po najvišji prioriteti dejanskega stanja KDS. */
+export function kdsSkupinaPostavke(statuses: ReadonlyArray<{ priority: number }>): KdsSkupina {
+  if (statuses.length === 0) return "Brez stanja KDS";
+  const p = Math.max(...statuses.map((s) => s.priority));
+  if (p === 1) return "Na čakanju";
+  if (p >= 2) return "V pripravi";
+  return "Pripravljeno";
+}

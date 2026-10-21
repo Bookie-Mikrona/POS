@@ -333,4 +333,54 @@ describe("Order — spodnji list naročila (nastavitev naprave)", () => {
     await act(async () => { fireEvent.click(gumbi[gumbi.length - 1]); });
     expect(mockSetLocation).toHaveBeenCalledWith(`/blagajna?narocilo=${NAROCILO_ID}`);
   });
+
+  it("KDS skupine: postavke so razvrščene po dejanskem stanju (na čakanju, v pripravi, pripravljeno)", async () => {
+    nastavi("novo");
+    const p = (id: number, ime: string) => ({ id, artikelId: 11, ime, kolicina: 1, cenaKos: 1, skupaj: 1, racunId: null, parentPostavkaId: null });
+    mockNarocilo.postavke = [p(1, "A"), p(2, "B"), p(3, "C"), p(4, "D")];
+    mockKdsState.stations = [{ id: 1, ime: "Kuhinja", tip: "kuhinja" }];
+    const nalog = (id: number, postavkaId: number, stanje: string) => ({ id, postavkaId, postajaId: 1, narociloId: NAROCILO_ID, stanje, ustvarjeno: new Date().toISOString(), aktiviranoAt: null }) as unknown as KdsNalog;
+    mockKdsState.nalogi = [nalog(1, 1, "bumped"), nalog(2, 2, "zadrzano"), nalog(3, 3, "novo")];
+    await odpri();
+    const glave = screen.getAllByTestId(/^kds-skupina-/).map(e => e.textContent);
+    expect(glave).toEqual(["Na čakanju", "V pripravi", "Pripravljeno", "Brez stanja KDS"]);
+    const vrstni = screen.getAllByTestId(/^order-item-\d+$/).map(e => e.getAttribute("data-testid"));
+    expect(vrstni).toEqual(["order-item-2", "order-item-3", "order-item-1", "order-item-4"]);
+  });
+
+  it("staro: brez KDS skupin", async () => {
+    nastavi("staro");
+    await odpri();
+    expect(screen.queryAllByTestId(/^kds-skupina-/)).toHaveLength(0);
+  });
+
+  it("enak račun pri vseh 32 kombinacijah menija, gostote in prikaza naročila", async () => {
+    type Args = { id: number; data: Record<string, unknown> };
+    const rezultati: string[] = [];
+    for (const meni of ["trenutno", "A", "B", "C"]) {
+      for (const gostota of ["privzeto", "kompaktno", "seznam", "velika"]) {
+        for (const prikazNarocila of ["staro", "novo"]) {
+          mockAddPostavkaMutate.mockClear();
+          mockSetLocation.mockClear();
+          nastavi(prikazNarocila);
+          (globalThis as { __testNaprava?: Record<string, unknown> }).__testNaprava = { ...(globalThis as { __testNaprava?: Record<string, unknown> }).__testNaprava, prikazMenija: meni, gostotaArtiklov: gostota };
+          const { unmount } = render(<Wrapper qc={makeQueryClient()}><Order /></Wrapper>);
+          const gumb = await screen.findByRole("button", { name: /Margherita/i });
+          await act(async () => { fireEvent.click(gumb); });
+          const dodaj = (mockAddPostavkaMutate.mock.calls[0] as [Args, ...unknown[]])[0];
+          const gumbi = screen.getAllByRole("button", { name: /Na blagajno/i });
+          await act(async () => { fireEvent.click(gumbi[gumbi.length - 1]); });
+          rezultati.push(JSON.stringify({
+            dodaj,
+            blagajna: mockSetLocation.mock.calls.at(-1)?.[0],
+            postavke: mockNarocilo.postavke.map(x => [x.id, x.kolicina, x.skupaj]),
+            skupaj: mockNarocilo.skupaj,
+          }));
+          unmount();
+        }
+      }
+    }
+    expect(rezultati).toHaveLength(32);
+    expect(new Set(rezultati).size).toBe(1);
+  });
 });

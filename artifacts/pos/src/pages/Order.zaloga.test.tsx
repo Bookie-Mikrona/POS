@@ -308,16 +308,14 @@ describe("Order — zaloga v novem prikazu menija", () => {
     expect(mockAddPostavkaMutate).not.toHaveBeenCalled();
   });
 
-  it("novi prikaz, 0 porcij, vodja: »Vseeno dodaj (vodja)« pokliče obstoječe dodajanje z enakimi podatki", async () => {
+  it("novi prikaz, 0 porcij, vodja: gumba »Vseeno dodaj« ni, strežniški klic se ne sproži", async () => {
     nastavi("A", 0, "admin");
     const gumb = await prikazi();
     await act(async () => { fireEvent.click(gumb); });
-    await act(async () => { fireEvent.click(await screen.findByTestId("zaloga-vseeno-dodaj")); });
-    await waitFor(() => expect(mockAddPostavkaMutate).toHaveBeenCalledTimes(1));
-    type MutateArgs = { id: number; data: Record<string, unknown> };
-    const klic = (mockAddPostavkaMutate.mock.calls[0] as [MutateArgs, ...unknown[]])[0];
-    expect(klic.id).toBe(NAROCILO_ID);
-    expect(klic.data.artikelId).toBe(mockPicaBrezDodatkov.id);
+    expect(await screen.findByTestId("zaloga-opozorilo")).toBeInTheDocument();
+    expect(screen.queryByTestId("zaloga-vseeno-dodaj")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Vseeno dodaj/)).not.toBeInTheDocument();
+    expect(mockAddPostavkaMutate).not.toHaveBeenCalled();
   });
 
   it("novi prikaz: značka samo ob 5 ali manj porcijah; pri 6 je ni", async () => {
