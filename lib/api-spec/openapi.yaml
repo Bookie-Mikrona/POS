@@ -14097,6 +14097,10 @@ components:
         dnevnoFiltriranje:
           type: boolean
           description: Ali kategorija uporablja dnevno filtriranje modifikatorjev
+        oddelek:
+          type: string
+          enum: [Hrana, Pica, Sladice, Kava, Pijača, Drugo]
+          description: Oddelek za prikaz menija A. Privzeto Drugo.
     KategorijaInput:
       type: object
       required:
@@ -14118,6 +14122,10 @@ components:
             - pijaca
         dnevnoFiltriranje:
           type: boolean
+        oddelek:
+          type: string
+          enum: [Hrana, Pica, Sladice, Kava, Pijača, Drugo]
+          description: Oddelek za prikaz menija A. Privzeto Drugo.
     AlergenKoda:
       type: string
       enum: [GLUTEN, RAKI, JAJCA, RIBE, ARASIDI, SOJA, MLEKO, OREŠČKI, ZELENA, GORČICA, SEZAM, SULFITI, VOLČJI_BOB, MEHKUŽCI]

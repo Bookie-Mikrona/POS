@@ -1808,7 +1808,8 @@ export const ListKategorijeResponseItem = zod.object({
   "barva": zod.string(),
   "vrstniRed": zod.number(),
   "tip": zod.enum(['hrana', 'pijaca']).nullish(),
-  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev')
+  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev'),
+  "oddelek": zod.enum(['Hrana', 'Pica', 'Sladice', 'Kava', 'Pijača', 'Drugo']).optional().describe('Oddelek za prikaz menija A. Privzeto Drugo.')
 })
 export const ListKategorijeResponse = zod.array(ListKategorijeResponseItem)
 
@@ -1824,7 +1825,8 @@ export const CreateKategorijaBody = zod.object({
   "barva": zod.string(),
   "vrstniRed": zod.number().optional(),
   "tip": zod.enum(['hrana', 'pijaca']).nullish(),
-  "dnevnoFiltriranje": zod.boolean().optional()
+  "dnevnoFiltriranje": zod.boolean().optional(),
+  "oddelek": zod.enum(['Hrana', 'Pica', 'Sladice', 'Kava', 'Pijača', 'Drugo']).optional().describe('Oddelek za prikaz menija A. Privzeto Drugo.')
 })
 
 export const createKategorijaResponsePovratnaEmbalazaDefault = false;
@@ -1841,7 +1843,8 @@ export const CreateKategorijaResponse = zod.object({
   "barva": zod.string(),
   "vrstniRed": zod.number(),
   "tip": zod.enum(['hrana', 'pijaca']).nullish(),
-  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev')
+  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev'),
+  "oddelek": zod.enum(['Hrana', 'Pica', 'Sladice', 'Kava', 'Pijača', 'Drugo']).optional().describe('Oddelek za prikaz menija A. Privzeto Drugo.')
 })
 
 
@@ -1863,7 +1866,8 @@ export const GetKategorijaResponse = zod.object({
   "barva": zod.string(),
   "vrstniRed": zod.number(),
   "tip": zod.enum(['hrana', 'pijaca']).nullish(),
-  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev')
+  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev'),
+  "oddelek": zod.enum(['Hrana', 'Pica', 'Sladice', 'Kava', 'Pijača', 'Drugo']).optional().describe('Oddelek za prikaz menija A. Privzeto Drugo.')
 })
 
 
@@ -1879,7 +1883,8 @@ export const UpdateKategorijaBody = zod.object({
   "barva": zod.string(),
   "vrstniRed": zod.number().optional(),
   "tip": zod.enum(['hrana', 'pijaca']).nullish(),
-  "dnevnoFiltriranje": zod.boolean().optional()
+  "dnevnoFiltriranje": zod.boolean().optional(),
+  "oddelek": zod.enum(['Hrana', 'Pica', 'Sladice', 'Kava', 'Pijača', 'Drugo']).optional().describe('Oddelek za prikaz menija A. Privzeto Drugo.')
 })
 
 export const updateKategorijaResponsePovratnaEmbalazaDefault = false;
@@ -1896,7 +1901,8 @@ export const UpdateKategorijaResponse = zod.object({
   "barva": zod.string(),
   "vrstniRed": zod.number(),
   "tip": zod.enum(['hrana', 'pijaca']).nullish(),
-  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev')
+  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev'),
+  "oddelek": zod.enum(['Hrana', 'Pica', 'Sladice', 'Kava', 'Pijača', 'Drugo']).optional().describe('Oddelek za prikaz menija A. Privzeto Drugo.')
 })
 
 

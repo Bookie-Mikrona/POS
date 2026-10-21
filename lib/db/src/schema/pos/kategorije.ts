@@ -9,6 +9,8 @@ export const kategorijeTable = pgTable("kategorije", {
   vrstniRed: integer("vrstni_red").notNull().default(0),
   tip: text("tip"),
   dnevnoFiltriranje: boolean("dnevno_filtriranje").notNull().default(false),
+  /** Oddelek za razvrstitev v prikazu menija A (samo prezentacija). */
+  oddelek: text("oddelek").notNull().default("Drugo"),
 });
 
 export type Kategorija = typeof kategorijeTable.$inferSelect;

@@ -70,6 +70,9 @@ import { AlertTriangle, ArrowLeft, ArrowLeftRight, Check, ChevronDown, Clipboard
 import { DdvNeskladjeAlert } from "@/components/DdvNeskladjeAlert";
 import { useToast } from "@/hooks/use-toast";
 import { useNaprava } from "@/contexts/NapravaContext";
+import { MenuNav } from "@/components/order/MenuNav";
+import { usePogosto } from "@/hooks/use-pogosto";
+import { useSirokZaslon } from "@/hooks/use-siroki-zaslon";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -1711,6 +1714,20 @@ export default function Order() {
   const [searchNumericKeyboard, setSearchNumericKeyboard] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeKategorija, setActiveKategorija] = useState<string>("all");
+  // Prikaz menija je nastavitev naprave (samo prezentacija). C potrebuje širok (ležeči) zaslon, sicer B.
+  const jeUzekZaslon = !useSirokZaslon();
+  const nastavljenPrikazMenija = naprava?.prikazMenija ?? "trenutno";
+  const prikazMenija: "trenutno" | "A" | "B" | "C" =
+    nastavljenPrikazMenija === "C" && jeUzekZaslon ? "B" : nastavljenPrikazMenija;
+  const { data: pogosto } = usePogosto(prikazMenija !== "trenutno");
+  const pogostoIds = pogosto?.artikelIds;
+  const pogostoZacetekRef = useRef(false);
+  useEffect(() => {
+    // Prvi zavihek v novih prikazih je »Pogosto« (če ima vsebino).
+    if (prikazMenija === "trenutno" || pogostoZacetekRef.current || !pogostoIds) return;
+    pogostoZacetekRef.current = true;
+    if (pogostoIds.length > 0) setActiveKategorija("pogosto");
+  }, [prikazMenija, pogostoIds]);
   const [search, setSearch] = useState("");
   const { poslusam: glasovnoMeni, zacni: zacniGlasovnoMeni, ustavi: ustaviGlasovnoMeni } = useGlasovniUkaz();
   // Ref na funkcijo za ročno prekinitev glasovne seje (nastavi jo handleGlasovnoMeni ob zagonu)
@@ -1785,7 +1802,10 @@ export default function Order() {
       const poSifri = list.filter(a => ((a as { plu?: string | null }).plu ?? "").toLowerCase() === sifra);
       if (poSifri.length > 0) return { filteredArtikli: poSifri, filteredArtikliModMatch: new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>() };
     }
-    if (activeKategorija !== "all") {
+    if (activeKategorija === "pogosto") {
+      const rang = new Map((pogostoIds ?? []).map((artikelId, i) => [artikelId, i]));
+      list = list.filter(a => rang.has(a.id)).sort((a, b) => rang.get(a.id)! - rang.get(b.id)!);
+    } else if (activeKategorija !== "all") {
       list = list.filter(a => a.kategorijaId != null && a.kategorijaId.toString() === activeKategorija);
     }
     const modMatch = new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>();
@@ -1816,7 +1836,7 @@ export default function Order() {
       return { filteredArtikli: byMod, filteredArtikliModMatch: modMatch };
     }
     return { filteredArtikli: list, filteredArtikliModMatch: modMatch };
-  }, [orderedArtikli, activeKategorija, odloznoIskanje, extraSinonimi, narocilo?.nacin, activeMulticourseMenuArticleIds]);
+  }, [orderedArtikli, activeKategorija, pogostoIds, odloznoIskanje, extraSinonimi, narocilo?.nacin, activeMulticourseMenuArticleIds]);
 
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() });
@@ -2834,11 +2854,13 @@ export default function Order() {
         </div>
 
         <Tabs
-          defaultValue="all"
-          className="flex-1 flex flex-col overflow-hidden"
+          value={activeKategorija}
+          className={prikazMenija === "C"
+            ? "flex-1 grid grid-cols-[8.5rem_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
+            : "flex-1 flex flex-col overflow-hidden"}
           onValueChange={v => { setActiveKategorija(v); setSearch(""); }}
         >
-          <div className="px-2 pt-1.5 pb-1.5 border-b space-y-1.5">
+          <div className={`px-2 pt-1.5 pb-1.5 border-b space-y-1.5${prikazMenija === "C" ? " col-span-2" : ""}`}>
             <OrderContextLine
               prostorIme={prostorIme}
               mizaIme={narocilo.mizaIme ?? null}
@@ -2973,6 +2995,15 @@ export default function Order() {
                 </>
               )}
             </div>}
+            {prikazMenija === "A" || prikazMenija === "B" ? (
+              <MenuNav
+                variant={prikazMenija}
+                kategorije={kategorije ?? []}
+                active={activeKategorija}
+                kosiloAktivno={narocilo.status === "odprto" && kosilaAktivna}
+                onChange={v => { setActiveKategorija(v); setSearch(""); }}
+              />
+            ) : prikazMenija === "C" ? null : (
             <TabsList className="h-auto flex-nowrap overflow-x-auto md:flex-wrap w-full justify-start gap-1 bg-transparent p-0 pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [&>*]:shrink-0 [&>*]:whitespace-nowrap">
               <TabsTrigger value="all" className="rounded-full border text-xs h-7 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary">Vse</TabsTrigger>
               {narocilo.status === "odprto" && kosilaAktivna && (
@@ -2982,8 +3013,18 @@ export default function Order() {
                 <TabsTrigger key={k.id} value={k.id.toString()} style={{ "--kc": k.barva, borderColor: k.barva } as React.CSSProperties} className="rounded-full border-2 text-xs h-7 px-3 data-[state=active]:bg-[var(--kc)] data-[state=active]:text-white">{k.ime}</TabsTrigger>
               ))}
             </TabsList>
+            )}
           </div>
 
+          {prikazMenija === "C" && (
+            <MenuNav
+              variant="C"
+              kategorije={kategorije ?? []}
+              active={activeKategorija}
+              kosiloAktivno={narocilo.status === "odprto" && kosilaAktivna}
+              onChange={v => { setActiveKategorija(v); setSearch(""); }}
+            />
+          )}
           <ScrollArea className="flex-1 p-3">
              {loadingArtikli || loadingKategorije ? (
                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-20 md:pb-4">

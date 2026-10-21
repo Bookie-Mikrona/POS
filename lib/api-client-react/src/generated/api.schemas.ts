@@ -2203,6 +2203,21 @@ export const KategorijaTip = {
   pijaca: 'pijaca',
 } as const;
 
+/**
+ * Oddelek za prikaz menija A. Privzeto Drugo.
+ */
+export type KategorijaOddelek = typeof KategorijaOddelek[keyof typeof KategorijaOddelek];
+
+
+export const KategorijaOddelek = {
+  Hrana: 'Hrana',
+  Pica: 'Pica',
+  Sladice: 'Sladice',
+  Kava: 'Kava',
+  Pijača: 'Pijača',
+  Drugo: 'Drugo',
+} as const;
+
 export interface Kategorija {
   id: number;
   povratnaEmbalaza?: boolean;
@@ -2219,6 +2234,8 @@ export interface Kategorija {
   tip?: KategorijaTip;
   /** Ali kategorija uporablja dnevno filtriranje modifikatorjev */
   dnevnoFiltriranje?: boolean;
+  /** Oddelek za prikaz menija A. Privzeto Drugo. */
+  oddelek?: KategorijaOddelek;
 }
 
 export type KategorijaInputTip = typeof KategorijaInputTip[keyof typeof KategorijaInputTip] | null;
@@ -2229,6 +2246,21 @@ export const KategorijaInputTip = {
   pijaca: 'pijaca',
 } as const;
 
+/**
+ * Oddelek za prikaz menija A. Privzeto Drugo.
+ */
+export type KategorijaInputOddelek = typeof KategorijaInputOddelek[keyof typeof KategorijaInputOddelek];
+
+
+export const KategorijaInputOddelek = {
+  Hrana: 'Hrana',
+  Pica: 'Pica',
+  Sladice: 'Sladice',
+  Kava: 'Kava',
+  Pijača: 'Pijača',
+  Drugo: 'Drugo',
+} as const;
+
 export interface KategorijaInput {
   /** @minLength 1 */
   ime: string;
@@ -2236,6 +2268,8 @@ export interface KategorijaInput {
   vrstniRed?: number;
   tip?: KategorijaInputTip;
   dnevnoFiltriranje?: boolean;
+  /** Oddelek za prikaz menija A. Privzeto Drugo. */
+  oddelek?: KategorijaInputOddelek;
 }
 
 export type AlergenKoda = typeof AlergenKoda[keyof typeof AlergenKoda];

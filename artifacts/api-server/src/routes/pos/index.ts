@@ -28,6 +28,7 @@ import { addClient, removeClient } from "../../lib/pos-sse";
 import enoteRouter from "./enote";
 import kategorijeRouter from "./kategorije";
 import artikliRouter from "./artikli";
+import pogostiArtikliRouter from "./pogosti-artikli";
 import mizeRouter from "./mize";
 import prostoriRouter from "./prostori";
 import narocilaRouter from "./narocila";
@@ -378,6 +379,7 @@ for (const [method, path] of actorRequiredPosRoutes) {
 export const protectedPosRouterMounts: ProtectedPosRouterMount[] = [
   { prefix: "", childRouter: articleCatalogExportRouter },
   { prefix: "", childRouter: kategorijeRouter },
+  { prefix: "", childRouter: pogostiArtikliRouter },
   { prefix: "", childRouter: artikliRouter },
   { prefix: "", childRouter: mizeRouter },
   { prefix: "", childRouter: prostoriRouter },

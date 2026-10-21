@@ -25,6 +25,7 @@ export * from "./blagajne";
 export * from "./poslovni-prostori";
 export * from "./nastavitve";
 export * from "./naprave";
+export * from "./pogosti-artikli";
 export * from "./zaloge";
 export * from "./prepared-food";
 export * from "./plate-waste";

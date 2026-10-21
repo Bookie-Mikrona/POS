@@ -55,6 +55,7 @@ import {
 } from "@workspace/api-client-react";
 import type { TestniZagonPogled, Enota, BlagajnaPogled, Naprava } from "@workspace/api-client-react";
 import { useNaprava } from "@/contexts/NapravaContext";
+import { MenuPrikazSettings } from "@/components/MenuPrikazSettings";
 import { PrikazIzbire, PRIKAZ_PRIVZETO, type PrikazNastavitve } from "@/components/PrikazNaprave";
 import { prikaziZavihekEnote, smeUpravljatiEnote } from "@/lib/enoteTabVidnost";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -4613,6 +4614,8 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>}
+
+      {!jeSuperAdmin && !jeUporabnik && <MenuPrikazSettings />}
 
       {!jeSuperAdmin && <Dialog open={napravEditDialogOpen} onOpenChange={setNapravEditDialogOpen}>
         <DialogContent className="max-h-[90vh] flex flex-col gap-0 w-full max-w-[min(32rem,calc(100vw-1rem))]">

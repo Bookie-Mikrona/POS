@@ -29,6 +29,7 @@ router.post("/kategorije", requireEnota, async (req, res): Promise<void> => {
     vrstniRed: data.vrstniRed ?? 0,
     tip: data.tip ?? null,
     dnevnoFiltriranje: data.dnevnoFiltriranje ?? false,
+    ...(data.oddelek !== undefined ? { oddelek: data.oddelek } : {}),
   }).returning();
   res.status(201).json((row));
 });
@@ -59,6 +60,8 @@ router.put("/kategorije/:id", requireEnota, async (req, res): Promise<void> => {
     vrstniRed: data.vrstniRed ?? 0,
     tip: data.tip ?? null,
     dnevnoFiltriranje: data.dnevnoFiltriranje ?? false,
+    // Brez polja v zahtevku ostane obstoječi oddelek nespremenjen.
+    ...(data.oddelek !== undefined ? { oddelek: data.oddelek } : {}),
   })
     .where(and(eq(kategorijeTable.id, params.data.id), sql`true`, eq(kategorijeTable.enotaId, tenotaId)))
     .returning();
