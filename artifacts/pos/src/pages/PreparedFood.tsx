@@ -45,7 +45,7 @@ function parseQuantity(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-const mobileCell = "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 [&>*:last-child]:ml-auto lg:[&>*:last-child]:ml-0 border-b border-border/40 px-3 py-2 text-sm last:border-0 lg:table-cell lg:border-0 lg:p-2";
+const mobileCell = "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 [&>*:last-child]:ml-auto lg:[&>*:last-child]:ml-0 border-b border-border/40 px-2 py-2 text-sm sm:px-3 last:border-0 lg:table-cell lg:border-0 lg:p-2";
 const mobileLabel = "shrink-0 text-xs font-medium text-muted-foreground lg:hidden";
 
 type EditState = {
@@ -88,10 +88,10 @@ function TouchQuantityInput({
   return (
     <div className="flex shrink-0 items-stretch justify-end gap-1">
       <div className="flex flex-col gap-0.5">
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za ${accessibleLargeStepLabel}`} onClick={() => adjust(largeStep)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 28, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za ${accessibleLargeStepLabel}`} onClick={() => adjust(largeStep)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
           +{largeStepLabel}
         </Button>
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za ${accessibleLargeStepLabel}`} onClick={() => adjust(-largeStep)} disabled={!allowNegative && amount < (maxQuantity === undefined ? largeStep : step)}>
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 28, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za ${accessibleLargeStepLabel}`} onClick={() => adjust(-largeStep)} disabled={!allowNegative && amount < (maxQuantity === undefined ? largeStep : step)}>
           −{largeStepLabel}
         </Button>
       </div>
@@ -108,13 +108,13 @@ function TouchQuantityInput({
         aria-label={label}
         onChange={portionBased ? undefined : event => onChange(event.target.value)}
         className="shrink-0 text-center font-semibold"
-        style={{ height: 32, width: 44, fontSize: 12 }}
+        style={{ height: 32, width: 40, fontSize: 12 }}
       />
       <div className="flex flex-col gap-0.5">
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za ${accessibleStepLabel}`} onClick={() => adjust(step)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 28, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za ${accessibleStepLabel}`} onClick={() => adjust(step)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
           +{stepLabel}
         </Button>
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za ${accessibleStepLabel}`} onClick={() => adjust(-step)} disabled={!allowNegative && amount < step}>
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 28, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za ${accessibleStepLabel}`} onClick={() => adjust(-step)} disabled={!allowNegative && amount < step}>
           −{stepLabel}
         </Button>
       </div>
@@ -396,7 +396,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
             </div>
           </div>
           {hasEditableRows && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button 
                 variant={isDirty ? "default" : "secondary"} 
                 onClick={handleSaveAll}
@@ -415,13 +415,13 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-2 sm:px-6">
         {isLoading || loadingStocks || loadingMalica || pizzaDoughQuery.isLoading ? (
           <div className="py-8 text-center text-muted-foreground">Nalagam...</div>
         ) : rowsWithCalculations.length === 0 ? (
           <div className="py-8 text-center text-muted-foreground">Ni artiklov z operativnim načinom "Pripravljena hrana".</div>
         ) : (
-          <div className="rounded-md border p-3 lg:p-0">
+          <div className="rounded-md border p-1.5 sm:p-3 lg:p-0">
               <Table aria-label="Dnevna evidenca pripravljene hrane" className={`block w-full table-fixed lg:table ${isCompactReadOnlyTable ? "lg:text-xs" : "lg:min-w-[1040px]"}`}>
                <TableHeader className="hidden lg:table-header-group">
                 <TableRow>
