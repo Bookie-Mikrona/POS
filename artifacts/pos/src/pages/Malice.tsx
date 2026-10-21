@@ -34,7 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Calendar, Utensils, Settings2, Plus, Pencil, Save, CheckCircle2, ChevronLeft, ChevronRight, Tags, ArrowRight } from "lucide-react";
+import { Loader2, Calendar, Utensils, Settings2, Plus, Pencil, Trash2, Save, CheckCircle2, ChevronLeft, ChevronRight, Tags, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function MalicePage() {
@@ -337,6 +337,22 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
     }
   };
 
+  const handleRemove = async (a: MalicaArticleAssignment) => {
+    const name = artikli?.find(x => x.id === a.artikelId)?.ime ?? `Artikel #${a.artikelId}`;
+    if (!window.confirm(`Odstranim »${name}« z malic? Artikel ostane v šifrantu, preteklih ponudb in računov ne spremeni.`)) return;
+    try {
+      await assignMutation.mutateAsync({
+        articleId: a.artikelId,
+        data: { role: "none", groupId: null, velikostPice: a.velikostPice ?? undefined, autoSyncPrice: true, malicaPriceCents: null },
+      });
+      toast({ title: "Artikel je odstranjen z malic" });
+      queryClient.invalidateQueries({ queryKey: getGetMalicaBootstrapQueryKey() });
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.napaka || "Odstranitev ni uspela";
+      toast({ title: "Napaka", description: msg, variant: "destructive" });
+    }
+  };
+
   const roleLabels: Record<string, string> = {
     main: "Glavna jed",
     soup: "Juha",
@@ -366,7 +382,7 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
               </tr>
             </thead>
             <tbody>
-              {assignments.map(a => {
+              {assignments.filter(a => a.role !== "none").map(a => {
                 const art = artikli?.find(x => x.id === a.artikelId);
                 const g = groups.find(x => x.id === a.groupId);
                 return (
@@ -387,14 +403,17 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleOpen(a)}>
+                      <Button variant="ghost" size="sm" aria-label="Uredi" onClick={() => handleOpen(a)}>
                         <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" aria-label={`Odstrani z malic: ${art?.ime ?? a.artikelId}`} disabled={assignMutation.isPending} onClick={() => void handleRemove(a)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     </td>
                   </tr>
                 );
               })}
-              {assignments.length === 0 && (
+              {assignments.filter(a => a.role !== "none").length === 0 && (
                 <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">Ni dodeljenih artiklov.</td></tr>
               )}
             </tbody>
