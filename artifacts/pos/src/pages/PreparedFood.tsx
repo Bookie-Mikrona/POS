@@ -15,7 +15,7 @@ import {
   useUpdatePreparedFoodStocks,
   useListArtikli,
 } from "@workspace/api-client-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -252,14 +252,40 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
     });
   }, [data, edits, stocks]);
 
-  const featuredArticleIds = useMemo(() => {
+  const offeredArticleIds = useMemo(() => {
     const offer = malicaOffers.find(item => item.businessDate === date
       && (item.status === "published" || item.status === "closed"));
     const ids = new Set<number>();
     for (const item of offer?.mainItems ?? []) if (item.enabled) ids.add(item.artikelId);
     for (const item of offer?.includedCourses ?? []) if (item.enabled) ids.add(item.artikelId);
-    return ids;
+    return [...ids].sort((a, b) => a - b);
   }, [date, malicaOffers]);
+
+  // Objavljena jed (npr. Ričet s klobaso) se pripravi kot osnovna pripravljena jed, ki je njena sestavina.
+  const offeredIngredientQueries = useQueries({
+    queries: offeredArticleIds.map(articleId => ({
+      queryKey: ["prepared-food-offered-normatives", articleId],
+      queryFn: async () => {
+        const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+        const response = await posFetch(`${base}/api/artikli/${articleId}/normativi`);
+        const body: unknown = await response.json().catch(() => null);
+        if (!response.ok) throw new Error("Sestavin objavljene jedi ni bilo mogoče naložiti.");
+        const list = body && typeof body === "object" && "normativi" in body ? (body as { normativi: unknown }).normativi : [];
+        return Array.isArray(list)
+          ? list.flatMap(item => item && typeof item === "object" && typeof (item as { vhodniArtikelId?: unknown }).vhodniArtikelId === "number"
+            ? [(item as { vhodniArtikelId: number }).vhodniArtikelId] : [])
+          : [];
+      },
+    })),
+  });
+  const offeredIngredientKey = offeredIngredientQueries.map(q => (q.data ?? []).join(",")).join("|");
+
+  const featuredArticleIds = useMemo(() => {
+    const ids = new Set<number>(offeredArticleIds);
+    for (const query of offeredIngredientQueries) for (const ingredientId of query.data ?? []) ids.add(ingredientId);
+    return ids;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offeredArticleIds, offeredIngredientKey]);
 
   const pizzaDoughArticles = useMemo(() => {
     const result = new Map<number, Array<"normalna" | "mala" | "druzinska">>();
