@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ODDELKI } from "@/components/order/MenuNav";
+import { predlogOddelka } from "@/lib/predlog-oddelkov";
 import { POGOSTO_QUERY_KEY, usePogosto } from "@/hooks/use-pogosto";
 
 type Rocno = "samodejno" | "pripni" | "skrij";
@@ -59,6 +60,24 @@ export function MenuPrikazSettings() {
     }
   };
 
+  // Predlog razvrstitve po imenih: nič se ne spremeni brez potrditve.
+  const [predlogi, setPredlogi] = useState<Array<{ id: number; ime: string; oddelek: string; izbran: boolean }> | null>(null);
+  const pripraviPredlog = () => {
+    const seznam = (kategorije ?? [])
+      .filter((k) => ((k as { oddelek?: string }).oddelek ?? "Drugo") === "Drugo")
+      .map((k) => ({ id: k.id, ime: k.ime, oddelek: predlogOddelka(k.ime), izbran: true }))
+      .filter((p) => p.oddelek !== "Drugo");
+    setPredlogi(seznam);
+  };
+  const uveljaviPredlog = async () => {
+    for (const p of predlogi ?? []) {
+      const k = (kategorije ?? []).find((x) => x.id === p.id);
+      if (k && p.izbran) await shraniOddelek(k, p.oddelek);
+    }
+    setPredlogi(null);
+    toast({ title: "Oddelki shranjeni" });
+  };
+
   const shraniPogosto = async () => {
     const trenutno = new Map<number, Rocno>();
     for (const r of pogosto?.rocno ?? []) trenutno.set(r.artikelId, r.akcija);
@@ -90,6 +109,32 @@ export function MenuPrikazSettings() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
+          <Button type="button" variant="outline" data-testid="predlagaj-oddelke" onClick={pripraviPredlog}>
+            Predlagaj razvrstitev po imenih
+          </Button>
+          {predlogi && (
+            <div className="space-y-2 rounded-lg border p-3" data-testid="predlog-oddelkov">
+              {predlogi.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Ni kategorij, ki bi jih bilo mogoče razvrstiti (vse so že razvrščene ali imena niso prepoznana).</p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium">Predlog (nič se ne spremeni, dokler ne potrdite):</p>
+                  {predlogi.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 text-sm min-h-[36px]">
+                      <input type="checkbox" checked={p.izbran} aria-label={`Uporabi predlog za ${p.ime}`}
+                        onChange={(e) => setPredlogi((prev) => prev?.map((x) => x.id === p.id ? { ...x, izbran: e.target.checked } : x) ?? null)} />
+                      <span className="flex-1 truncate">{p.ime}</span>
+                      <span className="font-medium">→ {p.oddelek}</span>
+                    </label>
+                  ))}
+                  <div className="flex gap-2">
+                    <Button type="button" data-testid="potrdi-predlog-oddelkov" onClick={() => void uveljaviPredlog()} disabled={!predlogi.some((p) => p.izbran)}>Potrdi razvrstitev</Button>
+                    <Button type="button" variant="ghost" onClick={() => setPredlogi(null)}>Prekliči</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {(kategorije ?? []).map((k) => (
             <label key={k.id} className="flex items-center justify-between gap-3 text-sm">
               <span className="truncate">{k.ime}</span>

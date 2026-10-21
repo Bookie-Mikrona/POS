@@ -26,7 +26,7 @@ import {
 } from "@workspace/api-client-react";
 import { NastavitveProvider, useNastavitve } from "@/contexts/NastavitveContext";
 import { HappyHourProvider, useHappyHour } from "@/contexts/HappyHourContext";
-import { NapravaProvider } from "@/contexts/NapravaContext";
+import { NapravaProvider, useNapravaNeobvezno } from "@/contexts/NapravaContext";
 import { AutoStartProvider } from "@/contexts/AutoStartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, Users, ClipboardList, BookOpen, TrendingDown, Tag, Banknote, Recycle, Info, Activity, CalendarDays, QrCode, Utensils, Globe2 } from "lucide-react";
@@ -694,6 +694,9 @@ function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const isOrderPage = location.startsWith("/narocilo/");
+  // Novi prikazi menija (A, B, C): med naročanjem spodnja navigacija izgine, da zasede prostor samo vrstica naročila.
+  const napravaCtx = useNapravaNeobvezno();
+  const skrijSpodnjoNavigacijo = isOrderPage && (napravaCtx?.naprava?.prikazMenija ?? "trenutno") !== "trenutno";
   const isCheckoutPage = location === "/blagajna";
 
   return (
@@ -800,7 +803,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         </aside>
       )}
 
-      <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
+      <main className={`flex-1 min-h-0 min-w-0 flex flex-col overflow-y-auto overflow-x-hidden ${skrijSpodnjoNavigacijo ? "pb-0" : "pb-16"} md:pb-0`}>
         {activePosUnit && <>
           <CertExpiryBanner />
           <FursNapakaRetryBanner />
@@ -838,7 +841,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       {activePosUnit && <QuickSwitch />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden bg-background border-t safe-area-inset-bottom">
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 ${skrijSpodnjoNavigacijo ? "hidden" : "flex"} md:hidden bg-background border-t safe-area-inset-bottom`} data-testid="spodnja-navigacija">
           {visiblePrimaryNav.map(item => (
             <Link
               key={item.href}

@@ -27,8 +27,14 @@ const chip = (aktiven: boolean) =>
     aktiven ? "bg-primary text-primary-foreground border-primary" : "bg-background text-foreground hover:bg-muted"
   }`;
 
+/** Majhen zavihek brez obrobe (višina 36 px, besedilo 13 px) za varianti A in B. */
+const zavihek = (aktiven: boolean) =>
+  `shrink-0 whitespace-nowrap rounded-md h-9 px-3 text-[13px] font-medium transition-colors ${
+    aktiven ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+  }`;
+
 function oddelekKategorije(k: MenuNavKategorija): string {
-  return (ODDELKI as readonly string[]).includes(k.oddelek ?? "") ? (k.oddelek as string) : "Drugo";
+  return k.oddelek?.trim() || "Drugo";
 }
 
 function SpecialniZavihki({ active, onChange, kosiloAktivno, naIztekuSt = 0, vertical }: Pick<MenuNavProps, "active" | "onChange" | "kosiloAktivno" | "naIztekuSt"> & { vertical?: boolean }) {
@@ -73,7 +79,9 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
       const o = oddelekKategorije(k);
       map.set(o, [...(map.get(o) ?? []), k]);
     }
-    return ODDELKI.filter((o) => map.has(o)).map((o) => ({ ime: o, kategorije: map.get(o)! }));
+    // Oddelki iz seznama, nato morebitni drugi oddelki v vrstnem redu pojavitve; prazni oddelki se ne prikažejo.
+    const imena = [...ODDELKI.filter((o) => map.has(o)), ...[...map.keys()].filter((o) => !(ODDELKI as readonly string[]).includes(o))];
+    return imena.map((o) => ({ ime: o, kategorije: map.get(o)! }));
   }, [kategorije]);
 
   if (variant === "C") {
@@ -89,22 +97,33 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
     );
   }
 
+  const pogostoGumb = (
+    <button type="button" data-testid="menu-nav-pogosto" aria-label="Pogosto" onClick={() => onChange("pogosto")} className={`${zavihek(active === "pogosto")} inline-flex items-center gap-1`}>
+      <Star className="h-4 w-4" aria-hidden /> Pogosto
+    </button>
+  );
+  const kosiloGumb = kosiloAktivno ? (
+    <button type="button" data-testid="tab-dnevno-kosilo" onClick={() => onChange("kosilo")} className={zavihek(active === "kosilo")}>Dnevno kosilo</button>
+  ) : null;
+
   if (variant === "B") {
     const aktivnaKat = kategorije.find((k) => String(k.id) === active);
     return (
-      <div data-testid="menu-nav-b" className="flex flex-wrap items-center gap-1.5 pb-1">
-        <button type="button" data-testid="menu-nav-pogosto" onClick={() => onChange("pogosto")} className={`${chip(active === "pogosto")} inline-flex items-center gap-1.5`}>
-          <Star className="h-4 w-4" aria-hidden /> Pogosto
-        </button>
-        <button type="button" data-testid="menu-nav-kategorije" onClick={() => setSheetOdprt(true)} className={`${chip(!!aktivnaKat)} inline-flex items-center gap-1`}>
+      <div data-testid="menu-nav-b" className="flex h-9 flex-nowrap items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {pogostoGumb}
+        <button type="button" data-testid="menu-nav-kategorije" onClick={() => setSheetOdprt(true)} className={`${zavihek(!!aktivnaKat)} inline-flex items-center gap-1`}>
           {aktivnaKat ? aktivnaKat.ime : `Kategorije (${kategorije.length})`} <ChevronDown className="h-4 w-4" aria-hidden />
         </button>
-        <button type="button" onClick={() => onChange("all")} className={chip(active === "all")}>Vse</button>
-        {kosiloAktivno && (
-          <button type="button" data-testid="tab-dnevno-kosilo" onClick={() => onChange("kosilo")} className={chip(active === "kosilo")}>Dnevno kosilo</button>
-        )}
+        {kosiloGumb}
         {naIztekuSt > 0 && (
-          <button type="button" data-testid="menu-nav-na-izteku" onClick={() => onChange("na_izteku")} className={chip(active === "na_izteku")}>Na izteku ({naIztekuSt})</button>
+          <button
+            type="button"
+            data-testid="menu-nav-na-izteku"
+            onClick={() => onChange("na_izteku")}
+            className={`ml-auto shrink-0 whitespace-nowrap rounded-full px-2.5 h-7 text-xs font-semibold ${active === "na_izteku" ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-900"}`}
+          >
+            Na izteku ({naIztekuSt})
+          </button>
         )}
         <Sheet open={sheetOdprt} onOpenChange={setSheetOdprt}>
           <SheetContent side="bottom" className="rounded-t-2xl max-h-[80dvh] overflow-y-auto">
@@ -128,29 +147,44 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
     );
   }
 
-  // Varianta A: oddelki + kategorije izbranega oddelka
+  // Varianta A: ena vrstica zavihkov (Pogosto + oddelki); vrstica kategorij samo, ko je izbran oddelek.
   const aktivnaKat = kategorije.find((k) => String(k.id) === active);
-  const oddelek = aktivnaKat ? oddelekKategorije(aktivnaKat) : (izbranOddelek ?? poOddelkih[0]?.ime ?? null);
-  const kategorijeOddelka = poOddelkih.find((o) => o.ime === oddelek)?.kategorije ?? [];
+  const oddelek = aktivnaKat ? oddelekKategorije(aktivnaKat) : izbranOddelek;
+  const kategorijeOddelka = aktivnaKat ? (poOddelkih.find((o) => o.ime === oddelek)?.kategorije ?? []) : [];
   return (
-    <div data-testid="menu-nav-a" className="space-y-1.5 pb-1">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <SpecialniZavihki active={active} onChange={onChange} kosiloAktivno={kosiloAktivno} naIztekuSt={naIztekuSt} />
+    <div data-testid="menu-nav-a">
+      <div data-testid="menu-nav-oddelki" className="flex h-9 flex-nowrap items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {pogostoGumb}
+        {kosiloGumb}
         {poOddelkih.map((o) => (
           <button
             key={o.ime}
             type="button"
             data-testid={`menu-nav-oddelek-${o.ime}`}
             onClick={() => { setIzbranOddelek(o.ime); onChange(String(o.kategorije[0]!.id)); }}
-            className={chip(aktivnaKat != null && oddelek === o.ime)}
+            className={zavihek(aktivnaKat != null && oddelek === o.ime)}
           >
             {o.ime}
           </button>
         ))}
       </div>
       {aktivnaKat && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {kategorijeOddelka.map((k) => <KategorijaGumb key={k.id} k={k} active={active} onChange={onChange} />)}
+        <div data-testid="menu-nav-kategorije-oddelka" className="flex h-9 flex-nowrap items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {kategorijeOddelka.map((k) => {
+            const a = active === String(k.id);
+            return (
+              <button
+                key={k.id}
+                type="button"
+                onClick={() => onChange(String(k.id))}
+                style={a ? { backgroundColor: k.barva, color: "#fff" } : undefined}
+                className={`shrink-0 whitespace-nowrap rounded-md h-8 px-2.5 text-xs font-medium inline-flex items-center gap-1.5 ${a ? "" : "text-foreground hover:bg-muted"}`}
+              >
+                {!a && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: k.barva }} aria-hidden />}
+                {k.ime}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

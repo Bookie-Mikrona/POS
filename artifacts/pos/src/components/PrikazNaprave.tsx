@@ -81,10 +81,13 @@ export function PrikazIzbire({
   vrednost,
   onChange,
   disabled,
+  takojUveljavi,
 }: {
   vrednost: PrikazNastavitve;
   onChange: (v: PrikazNastavitve) => void;
   disabled?: boolean;
+  /** Izbira se shrani takoj (hitro okno); to se izrecno pove. */
+  takojUveljavi?: boolean;
 }) {
   return (
     <div className="space-y-3" data-testid="prikaz-izbire">
@@ -94,9 +97,10 @@ export function PrikazIzbire({
         onChange={(v) => onChange({ ...vrednost, gostotaArtiklov: v })} />
       <Izbira naslov="Prikaz naročila" moznosti={NAROCILO} vrednost={vrednost.prikazNarocila} disabled={disabled}
         onChange={(v) => onChange({ ...vrednost, prikazNarocila: v })} />
-      <p className="text-xs text-muted-foreground">
-        Velja samo za to napravo. Naročanje in obračun se ne spremenita.
-      </p>
+      <div className="space-y-1 text-xs leading-snug text-muted-foreground whitespace-normal break-words" data-testid="prikaz-opomba">
+        <p>Velja samo za to napravo. Naročanje in obračun se ne spremenita.</p>
+        {takojUveljavi && <p className="font-medium text-foreground">Izbira se shrani in uveljavi takoj, gumb »Shrani« ni potreben.</p>}
+      </div>
     </div>
   );
 }
@@ -133,7 +137,7 @@ export function PrikazTrenutneNaprave() {
       <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-1">
         Prikaz (ta naprava) {saving && <Loader2 className="h-3 w-3 animate-spin" />}
       </p>
-      <PrikazIzbire vrednost={vrednost} onChange={(v) => void shrani(v)} disabled={saving} />
+      <PrikazIzbire vrednost={vrednost} onChange={(v) => void shrani(v)} disabled={saving} takojUveljavi />
     </div>
   );
 }

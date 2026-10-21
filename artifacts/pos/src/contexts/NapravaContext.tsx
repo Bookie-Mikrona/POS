@@ -159,6 +159,11 @@ export function NapravaProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Kot useNaprava, vendar vrne null zunaj NapravaProvider (npr. superadmin). */
+export function useNapravaNeobvezno(): NapravaCtx | null {
+  return useContext(NapravaContext);
+}
+
 export function useNaprava(): NapravaCtx {
   const ctx = useContext(NapravaContext);
   if (!ctx) throw new Error("useNaprava mora biti znotraj NapravaProvider");

@@ -477,7 +477,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
   const razpolozljivo = zalogaNovo ? razpolozljivePorcije(artikel) : null;
   const zalogaBadge = (stanje === "ni" || stanje === "na_izteku") ? (
     <span
-      className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+      className="shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
       style={{
         backgroundColor: stanje === "ni" ? "rgba(0,0,0,0.55)" : "rgba(251,191,36,0.95)",
         color: stanje === "ni" ? "#fff" : "#000",
@@ -1780,6 +1780,8 @@ export default function Order() {
   const { data: pogosto } = usePogosto(prikazMenija !== "trenutno");
   const pogostoIds = pogosto?.artikelIds;
   const zalogaNovo = prikazMenija !== "trenutno";
+  /** Novi prikazi menija (A, B, C): strnjen krmilni del, stalna vrstica naročila na dnu. */
+  const jeVariantaMenija = prikazMenija !== "trenutno";
   // Opozorilo za artikel brez zaloge (samo novi prikaz); dodajanje še vedno preveri strežnik.
   const [zalogaOpozorilo, setZalogaOpozorilo] = useState<{ artikelId: number; ime: string } | null>(null);
   // Novi prikaz naročila: izbrana vrstica (dejanja), zložene KDS skupine, brisanje z razveljavitvijo.
@@ -1845,8 +1847,7 @@ export default function Order() {
   const naIztekuSt = useMemo(
     () => zalogaNovo ? orderedArtikli.filter(a => {
       if (!isOrderArticleShownWithStock(a, activeMulticourseMenuArticleIds.has(a.id), true)) return false;
-      const st = stanjeZaloge(a);
-      return st === "na_izteku" || st === "ni";
+      return stanjeZaloge(a) === "na_izteku";
     }).length : 0,
     [zalogaNovo, orderedArtikli, activeMulticourseMenuArticleIds],
   );
@@ -1878,7 +1879,7 @@ export default function Order() {
       if (poSifri.length > 0) return { filteredArtikli: poSifri, filteredArtikliModMatch: new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>() };
     }
     if (activeKategorija === "na_izteku") {
-      list = list.filter(a => { const st = stanjeZaloge(a); return st === "na_izteku" || st === "ni"; });
+      list = list.filter(a => stanjeZaloge(a) === "na_izteku");
     } else if (activeKategorija === "pogosto") {
       const rang = new Map((pogostoIds ?? []).map((artikelId, i) => [artikelId, i]));
       list = list.filter(a => rang.has(a.id)).sort((a, b) => rang.get(a.id)! - rang.get(b.id)!);
@@ -2973,6 +2974,47 @@ export default function Order() {
     </div>
   ) : null;
 
+  /** Izbira gosta (samo mobilno). Kompaktna oblika: majhen gumb »+ Gost« v zgornji vrstici, brez lastne vrstice. */
+  const gostjeKontrole = (kompakt = false) => {
+    if (jeTelefonskoNarocilo) return null;
+    const mala = kompakt ? "shrink-0 whitespace-nowrap " : "";
+    return (
+      <div className={kompakt ? "flex flex-nowrap gap-1 items-center shrink-0 max-w-[62%] overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "md:hidden flex flex-wrap gap-1 items-center"} data-testid={kompakt ? "gostje-kompaktno" : undefined}>
+        {!kompakt && <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+        {steviloGostov === 0 ? (
+          <button type="button" onClick={() => { void handleDodajPrvegaGosta(); }}
+            className={`${mala}text-xs px-2 py-0.5 rounded-full border border-dashed text-muted-foreground hover:text-foreground transition-colors`}>
+            {kompakt ? "+ Gost" : "+ Dodaj gosta"}
+          </button>
+        ) : (
+          <>
+            <button type="button" onClick={() => setAktivniGostStevilka(null)}
+              className={`${mala}text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${aktivniGostStevilka === null ? "bg-foreground text-background border-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}>
+              Skupaj
+            </button>
+            {Array.from({ length: steviloGostov }, (_, i) => i + 1).map(g => (
+              <button key={g} type="button" onClick={() => setAktivniGostStevilka(g)}
+                className={`${mala}text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${aktivniGostStevilka === g ? `${gostBarva(g)} border-current` : "bg-background text-muted-foreground hover:text-foreground"}`}>
+                Gost {g}
+              </button>
+            ))}
+            {(() => {
+              const zadnjiPrazen = steviloGostov > 0 && nezaracunaneVse.every(p => (p as typeof p & { gostStevilka?: number | null }).gostStevilka !== steviloGostov);
+              return (
+                <button type="button" disabled={zadnjiPrazen}
+                  onClick={() => { const n = steviloGostov + 1; setSteviloGostov(n); setAktivniGostStevilka(n); }}
+                  className={`${mala}text-xs px-2 py-0.5 rounded-full border border-dashed text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+                  title={zadnjiPrazen ? "Zadnji gost nima artiklov" : undefined}>
+                  + Gost
+                </button>
+              );
+            })()}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
     {isBlocked && (
@@ -2983,12 +3025,28 @@ export default function Order() {
     )}
     <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden bg-muted/20">
       {/* ── Mobile tab switcher ──────────────────────────────── */}
-      <div className="md:hidden flex items-center border-b bg-background shrink-0 gap-1 px-1 py-1" data-testid="mobile-order-tabs">
-        <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={handleBack}>
+      <div className={`md:hidden flex items-center border-b bg-background shrink-0 gap-1 px-1 ${jeVariantaMenija && mobileTab === "meni" ? "h-8" : "py-1"}`} data-testid="mobile-order-tabs">
+        <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={handleBack} aria-label="Nazaj">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <span className="flex-1 min-w-0" aria-hidden="true" />
-        {!naroceloSheet && (<>
+        {jeVariantaMenija && mobileTab === "meni" ? (
+          <>
+            <OrderContextLine
+              prostorIme={prostorIme}
+              mizaIme={narocilo.mizaIme ?? null}
+              mizaStevilka={narocilo.mizaStevilka ?? null}
+              stevilkaNarocila={stevilkaNarocila}
+              virOznaka={virOznaka}
+              dostavaOb={predvidenCas}
+              testId="order-context-line-mobile"
+              className="flex-1 min-w-0"
+            />
+            {gostjeKontrole(true)}
+          </>
+        ) : (
+          <span className="flex-1 min-w-0" aria-hidden="true" />
+        )}
+        {!naroceloSheet && !(jeVariantaMenija && mobileTab === "meni") && (<>
         <button
           onClick={() => setMobileTab("meni")}
           className={`shrink-0 px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
@@ -3039,7 +3097,7 @@ export default function Order() {
             : "flex-1 flex flex-col overflow-hidden"}
           onValueChange={v => { setActiveKategorija(v); setSearch(""); }}
         >
-          <div className={`px-2 pt-1.5 pb-1.5 border-b space-y-1.5${prikazMenija === "C" ? " col-span-2" : ""}`}>
+          <div data-testid="menu-krmilni-del" className={`${jeVariantaMenija ? "px-2" : "px-2 pt-1.5 pb-1.5 space-y-1.5"} border-b${prikazMenija === "C" ? " col-span-2" : ""}`}>
             <OrderContextLine
               prostorIme={prostorIme}
               mizaIme={narocilo.mizaIme ?? null}
@@ -3047,11 +3105,11 @@ export default function Order() {
               stevilkaNarocila={stevilkaNarocila}
               virOznaka={virOznaka}
               dostavaOb={predvidenCas}
-              className="pb-1 border-b border-border/60"
+              className={jeVariantaMenija ? "max-md:hidden pb-1 border-b border-border/60" : "pb-1 border-b border-border/60"}
             />
-            <div className="relative flex gap-2 items-center">
+            <div className="relative flex gap-2 items-center" data-testid="menu-iskanje-vrstica">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className={`absolute left-2.5 ${jeVariantaMenija ? "top-2" : "top-2.5"} h-4 w-4 text-muted-foreground`} />
                 <KlavijaturaInput
                   placeholder={searchNumericKeyboard ? "Šifra PLU, npr. 3*101" : "Iskanje artikla..."}
                   value={search}
@@ -3078,7 +3136,7 @@ export default function Order() {
                     if (handleAddArtikel(zadetek[0].id, kolicina) !== "blocked") setSearch("");
                   }}
                   naslov="Iskanje artikla"
-                  className="pl-8 pr-8 h-9"
+                  className={`pl-8 pr-8 ${jeVariantaMenija ? "h-8" : "h-9"}`}
                 />
                 {search && (
                   <button
@@ -3099,7 +3157,7 @@ export default function Order() {
                 }}
                 title={searchNumericKeyboard ? "Številčna tipkovnica (šifra PLU) — klikni za abecedno" : "Abecedna tipkovnica (iskanje) — klikni za številčno šifro PLU"}
                 aria-label={searchNumericKeyboard ? "Preklopi na abecedno tipkovnico" : "Preklopi na številčno tipkovnico za šifro PLU"}
-                className={`shrink-0 flex items-center justify-center h-9 w-12 rounded-md border text-xs font-semibold transition-colors ${
+                className={`shrink-0 flex items-center justify-center ${jeVariantaMenija ? "h-8" : "h-9"} w-12 rounded-md border text-xs font-semibold transition-colors ${
                   searchNumericKeyboard ? "bg-primary text-primary-foreground border-primary" : "border-input text-muted-foreground hover:text-foreground hover:bg-accent"
                 }`}
               >
@@ -3129,7 +3187,7 @@ export default function Order() {
                 onClick={handleGlasovnoMeni}
                 disabled={aiObdeluje}
                 title={glasovnoAktivno ? "Poslušam… klikni za zaustavitev" : aiObdeluje ? "AI analizira naročilo…" : "Glasovni ukaz — naroči s prostim govorom"}
-                className={`shrink-0 flex items-center justify-center h-9 w-9 rounded-md border transition-colors ${
+                className={`shrink-0 flex items-center justify-center ${jeVariantaMenija ? "h-8 w-8" : "h-9 w-9"} rounded-md border transition-colors ${
                   glasovnoAktivno
                     ? "bg-red-50 border-red-300 text-red-500 animate-pulse"
                     : aiObdeluje
@@ -3140,40 +3198,7 @@ export default function Order() {
                 {glasovnoAktivno ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </button>
             </div>
-            {/* Gostje — samo mobile */}
-            {!jeTelefonskoNarocilo && <div className="md:hidden flex flex-wrap gap-1 items-center">
-              <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              {steviloGostov === 0 ? (
-                <button type="button" onClick={() => { void handleDodajPrvegaGosta(); }}
-                  className="text-xs px-2 py-0.5 rounded-full border border-dashed text-muted-foreground hover:text-foreground transition-colors">
-                  + Dodaj gosta
-                </button>
-              ) : (
-                <>
-                  <button type="button" onClick={() => setAktivniGostStevilka(null)}
-                    className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${aktivniGostStevilka === null ? "bg-foreground text-background border-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}>
-                    Skupaj
-                  </button>
-                  {Array.from({ length: steviloGostov }, (_, i) => i + 1).map(g => (
-                    <button key={g} type="button" onClick={() => setAktivniGostStevilka(g)}
-                      className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${aktivniGostStevilka === g ? `${gostBarva(g)} border-current` : "bg-background text-muted-foreground hover:text-foreground"}`}>
-                      Gost {g}
-                    </button>
-                  ))}
-                  {(() => {
-                    const zadnjiPrazen = steviloGostov > 0 && nezaracunaneVse.every(p => (p as typeof p & { gostStevilka?: number | null }).gostStevilka !== steviloGostov);
-                    return (
-                      <button type="button" disabled={zadnjiPrazen}
-                        onClick={() => { const n = steviloGostov + 1; setSteviloGostov(n); setAktivniGostStevilka(n); }}
-                        className="text-xs px-2 py-0.5 rounded-full border border-dashed text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        title={zadnjiPrazen ? "Zadnji gost nima artiklov" : undefined}>
-                        + Gost
-                      </button>
-                    );
-                  })()}
-                </>
-              )}
-            </div>}
+            {!jeVariantaMenija && gostjeKontrole()}
             {prikazMenija === "A" || prikazMenija === "B" ? (
               <MenuNav
                 variant={prikazMenija}
@@ -4018,7 +4043,7 @@ export default function Order() {
       </div>
     </div>
 
-    {naroceloSheet && mobileTab === "meni" && (
+    {(naroceloSheet || jeVariantaMenija) && mobileTab === "meni" && (
       <div className="md:hidden fixed inset-x-0 bottom-0 z-20 flex items-center gap-3 border-t bg-card px-3 py-2 shadow-lg" data-testid="narocilo-vrstica">
         <button type="button" data-testid="narocilo-odpri" onClick={() => setMobileTab("narocilo")} className="flex min-h-[44px] flex-1 min-w-0 flex-col items-start justify-center text-left">
           <span className="text-xs text-muted-foreground">Naročilo{postavkeCount > 0 && ` (${postavkeCount})`}</span>
