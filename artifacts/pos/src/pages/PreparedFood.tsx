@@ -108,7 +108,7 @@ function TouchQuantityInput({
         aria-label={label}
         onChange={portionBased ? undefined : event => onChange(event.target.value)}
         className="shrink-0 text-center font-semibold"
-        style={{ height: 32, width: 40, fontSize: 12 }}
+        style={{ height: 32, width: portionBased ? 40 : 60, fontSize: 12 }}
       />
       <div className="flex flex-col gap-0.5">
         <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 28, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za ${accessibleStepLabel}`} onClick={() => adjust(step)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
