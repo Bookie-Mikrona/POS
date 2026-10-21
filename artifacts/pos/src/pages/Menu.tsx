@@ -1,4 +1,5 @@
 import { formatEur } from "@/lib/formatEur";
+import { ODDELKI } from "@/components/order/MenuNav";
 import { useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics";
@@ -146,6 +147,7 @@ export default function Menu() {
   const [catOrder, setCatOrder] = useState("0");
   const [catTip, setCatTip] = useState<"hrana" | "pijaca" | "none">("none");
   const [catDnevnoFiltriranje, setCatDnevnoFiltriranje] = useState(false);
+  const [catOddelek, setCatOddelek] = useState<string>("Drugo");
 
   // ── Artikel dialog ───────────────────────────────────────────
   const [artDialogOpen, setArtDialogOpen] = useState(false);
@@ -872,7 +874,7 @@ export default function Menu() {
   // ── Kategorija handlers ──────────────────────────────────────
   const openNewCat = () => {
     setCatMode("nova"); setEditingKat(null);
-    setCatName(""); setCatColorRocno(false); setCatColor("#22c55e"); setCatOrder("0"); setCatTip("none"); setCatDnevnoFiltriranje(false);
+    setCatName(""); setCatColorRocno(false); setCatColor("#22c55e"); setCatOrder("0"); setCatTip("none"); setCatDnevnoFiltriranje(false); setCatOddelek("Drugo");
     setCatDialogOpen(true);
   };
 
@@ -880,6 +882,7 @@ export default function Menu() {
     setCatMode("uredi"); setEditingKat(k);
     setCatName(k.ime); setCatColor(k.barva); setCatOrder(String(k.vrstniRed));
     setCatTip((k.tip as "hrana" | "pijaca") ?? "none");
+    setCatOddelek((k as typeof k & { oddelek?: string }).oddelek ?? "Drugo");
     setCatDnevnoFiltriranje((k as typeof k & { dnevnoFiltriranje?: boolean }).dnevnoFiltriranje ?? false);
     setCatDialogOpen(true);
   };
@@ -887,7 +890,7 @@ export default function Menu() {
   const handleSaveCat = () => {
     const ime = catName.trim();
     if (!ime) return;
-    const data = { ime, barva: catColor, vrstniRed: parseInt(catOrder) || 0, tip: catTip === "none" ? null : catTip, dnevnoFiltriranje: catDnevnoFiltriranje };
+    const data = { ime, barva: catColor, vrstniRed: parseInt(catOrder) || 0, tip: catTip === "none" ? null : catTip, dnevnoFiltriranje: catDnevnoFiltriranje, oddelek: catOddelek as never };
     const showCategoryError = (err: unknown) => {
       const apiError = err as { data?: { error?: string; napaka?: string }; message?: string };
       toast({
@@ -2231,6 +2234,16 @@ export default function Menu() {
                   <SelectItem value="pijaca">Pijača</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Oddelek (prikaz menija)</Label>
+              <Select value={catOddelek} onValueChange={setCatOddelek}>
+                <SelectTrigger data-testid="kategorija-oddelek"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ODDELKI.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Vpliva samo na razvrstitev v zavihke menija. Usmerjanje v kuhinjo in točilnico določa tip.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
