@@ -91,6 +91,7 @@ import type { Nastavitve, Miza, Natakari, PoslovniProstor, Prostor } from "@work
 import { useAuth, POS_ENOTA_ID_KEY } from "@/contexts/AuthContext";
 import { useNastavitve } from "@/contexts/NastavitveContext";
 import { posFetch } from "@/lib/pos-auth-headers";
+import { PrivzetiSifrantiSettings } from "@/components/PrivzetiSifrantiSettings";
 import { DostavaSettings } from "@/components/DostavaSettings";
 import { NaseljaSettings } from "@/components/NaseljaSettings";
 import { HappyHourSettings } from "@/components/HappyHourSettings";
@@ -3103,6 +3104,7 @@ export default function Settings() {
             </CardContent>
           </Card>
           <DrobniInventarPredloge enote={(enote ?? []).filter(e => e.aktiven !== false)} />
+          <PrivzetiSifrantiSettings />
           {prijavljen?.vloga === "admin" && <TipPolicySettings />}
         </TabsContent>
         )}

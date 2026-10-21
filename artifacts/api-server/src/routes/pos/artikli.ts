@@ -68,6 +68,8 @@ import {
   type InitialNormativeUnit,
 } from "../../lib/initial-smart-normative";
 
+import { importirajPrivzeteSifrante, pregledPrivzetihSifrantov, preveriIzbor, PrivzetiSifrantiNapaka } from "../../lib/privzeti-sifranti-uvoz";
+
 const router: IRouter = Router();
 class NormativeStaleError extends Error {}
 type NormativeGraphLockTestContext = {
@@ -100,6 +102,25 @@ router.post("/artikli/drobni-inventar-predloge", requireEnota, async (req, res):
   }
   const result = await importirajDrobniInventar(db, (req as any).enotaId, [...new Set(kljuci as string[])]);
   res.json(result);
+});
+
+router.get("/artikli/privzeti-sifranti", requireEnota, async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json(await pregledPrivzetihSifrantov(db, (req as any).enotaId));
+});
+
+router.post("/artikli/privzeti-sifranti", requireEnota, async (req, res): Promise<void> => {
+  if (!["admin", "admin_enote", "superadmin"].includes((req as any).vloga)) {
+    res.status(403).json({ error: "Uvoz privzetih šifrantov zahteva vlogo admin ali admin_enote." });
+    return;
+  }
+  try {
+    const izbor = preveriIzbor(req.body);
+    res.json(await importirajPrivzeteSifrante(db, (req as any).enotaId, izbor));
+  } catch (error) {
+    if (error instanceof PrivzetiSifrantiNapaka) { res.status(error.status).json({ error: error.message }); return; }
+    throw error;
+  }
 });
 
 export function setNormativRevisionLockTestHook(

@@ -1,0 +1,165 @@
+{
+  "polizdelki": [
+    {
+      "sifra": "POL-01",
+      "naziv": "Goveja juha (osnova)",
+      "enota_mere": "L",
+      "sestavine": [
+        { "naziv": "Goveje kosti", "kolicina": 0.3, "enota": "kg" },
+        { "naziv": "Jušna zelenjava (zbirno)", "kolicina": 0.15, "enota": "kg" },
+        { "naziv": "Sol", "kolicina": 0.01, "enota": "kg" },
+        { "naziv": "Voda", "kolicina": 1.1, "enota": "L" }
+      ]
+    },
+    {
+      "sifra": "POL-02",
+      "naziv": "Testo za pico",
+      "enota_mere": "kg",
+      "sestavine": [
+        { "naziv": "Moka tip 00", "kolicina": 0.62, "enota": "kg" },
+        { "naziv": "Voda", "kolicina": 0.35, "enota": "L" },
+        { "naziv": "Kvas", "kolicina": 0.005, "enota": "kg" },
+        { "naziv": "Sol", "kolicina": 0.015, "enota": "kg" },
+        { "naziv": "Olivno olje", "kolicina": 0.01, "enota": "L" }
+      ]
+    },
+    {
+      "sifra": "POL-03",
+      "naziv": "Paradižnikova pelati omaka (za pico)",
+      "enota_mere": "kg",
+      "sestavine": [
+        { "naziv": "Pelati konzervirani", "kolicina": 0.9, "enota": "kg" },
+        { "naziv": "Sol", "kolicina": 0.01, "enota": "kg" },
+        { "naziv": "Origano", "kolicina": 0.002, "enota": "kg" },
+        { "naziv": "Olivno olje", "kolicina": 0.01, "enota": "L" }
+      ]
+    },
+    {
+      "sifra": "POL-04",
+      "naziv": "Bolonjska mesna omaka",
+      "enota_mere": "kg",
+      "sestavine": [
+        { "naziv": "Mleto mešano meso", "kolicina": 0.55, "enota": "kg" },
+        { "naziv": "Čebula", "kolicina": 0.15, "enota": "kg" },
+        { "naziv": "Pelati", "kolicina": 0.3, "enota": "kg" },
+        { "naziv": "Vino rdeče", "kolicina": 0.05, "enota": "L" },
+        { "naziv": "Začimbe", "kolicina": 0.01, "enota": "kg" }
+      ]
+    },
+    {
+      "sifra": "POL-05",
+      "naziv": "Palačinkino testo",
+      "enota_mere": "L",
+      "sestavine": [
+        { "naziv": "Moka gladka", "kolicina": 0.35, "enota": "kg" },
+        { "naziv": "Mleko", "kolicina": 0.5, "enota": "L" },
+        { "naziv": "Jajca", "kolicina": 3, "enota": "kos" },
+        { "naziv": "Radenska", "kolicina": 0.15, "enota": "L" },
+        { "naziv": "Sol/Sladkor", "kolicina": 0.01, "enota": "kg" }
+      ]
+    },
+    {
+      "sifra": "POL-06",
+      "naziv": "Domači njoki (surovi)",
+      "enota_mere": "kg",
+      "sestavine": [
+        { "naziv": "Krompir kuhan", "kolicina": 0.7, "enota": "kg" },
+        { "naziv": "Moka gladka", "kolicina": 0.25, "enota": "kg" },
+        { "naziv": "Jajca", "kolicina": 1, "enota": "kos" },
+        { "naziv": "Sol", "kolicina": 0.01, "enota": "kg" }
+      ]
+    },
+    {
+      "sifra": "POL-07",
+      "naziv": "Tatarska omaka",
+      "enota_mere": "kg",
+      "sestavine": [
+        { "naziv": "Majoneza", "kolicina": 0.75, "enota": "kg" },
+        { "naziv": "Kisle kumarice", "kolicina": 0.15, "enota": "kg" },
+        { "naziv": "Kapre", "kolicina": 0.05, "enota": "kg" },
+        { "naziv": "Kisla smetana", "kolicina": 0.05, "enota": "kg" }
+      ]
+    }
+  ],
+  "prodajni_artikli": [
+    {
+      "sifra": "ART-001",
+      "naziv": "Goveja juha z domačimi rezanci",
+      "kategorija_id": 0,
+      "kategorija_naziv": "Juhe",
+      "oddelek": "Hrana",
+      "cena_eur": 3.8,
+      "nacin_priprave": "pripravljeno",
+      "enota_mere": "porcija",
+      "normativ": [
+        { "naziv": "POL-01 Goveja juha", "kolicina": 0.25, "enota": "L" },
+        { "naziv": "Domači rezanci suhi", "kolicina": 0.02, "enota": "kg" },
+        { "naziv": "Peteršilj", "kolicina": 0.002, "enota": "kg" }
+      ]
+    },
+    {
+      "sifra": "ART-021",
+      "naziv": "Dunajski zrezek (svinjski)",
+      "kategorija_id": 2,
+      "kategorija_naziv": "Glavne jedi",
+      "oddelek": "Hrana",
+      "cena_eur": 9.8,
+      "nacin_priprave": "a_la_carte",
+      "enota_mere": "porcija",
+      "normativ": [
+        { "naziv": "Svinjski kare/stegno", "kolicina": 0.18, "enota": "kg" },
+        { "naziv": "Moka", "kolicina": 0.02, "enota": "kg" },
+        { "naziv": "Jajce", "kolicina": 1, "enota": "kos" },
+        { "naziv": "Drobtine", "kolicina": 0.03, "enota": "kg" },
+        { "naziv": "Olje za cvrtje", "kolicina": 0.03, "enota": "L" },
+        { "naziv": "Limona", "kolicina": 0.02, "enota": "kg" }
+      ]
+    },
+    {
+      "sifra": "ART-081",
+      "naziv": "Pica Capricciosa / Veseljak",
+      "kategorija_id": 8,
+      "kategorija_naziv": "Pice",
+      "oddelek": "Pica",
+      "cena_eur": 8.9,
+      "nacin_priprave": "a_la_carte",
+      "enota_mere": "porcija",
+      "normativ": [
+        { "naziv": "POL-02 Testo za pico", "kolicina": 0.25, "enota": "kg" },
+        { "naziv": "POL-03 Paradižnikova omaka", "kolicina": 0.08, "enota": "kg" },
+        { "naziv": "Sir Mozzarella/Edamec", "kolicina": 0.14, "enota": "kg" },
+        { "naziv": "Kuhana šunka", "kolicina": 0.08, "enota": "kg" },
+        { "naziv": "Šampinjoni sveži", "kolicina": 0.05, "enota": "kg" },
+        { "naziv": "Origano", "kolicina": 0.001, "enota": "kg" },
+        { "naziv": "Oliva", "kolicina": 1, "enota": "kos" }
+      ]
+    },
+    {
+      "sifra": "ART-101",
+      "naziv": "Espresso",
+      "kategorija_id": 10,
+      "kategorija_naziv": "Topli napitki",
+      "oddelek": "Kava",
+      "cena_eur": 1.6,
+      "nacin_priprave": "sestavljeno",
+      "enota_mere": "porcija",
+      "normativ": [
+        { "naziv": "Kava v zrnju", "kolicina": 0.007, "enota": "kg" },
+        { "naziv": "Sladkor porcijski", "kolicina": 1, "enota": "kos" }
+      ]
+    },
+    {
+      "sifra": "ART-121",
+      "naziv": "Laško Zlatorog svetlo (0,5 L)",
+      "kategorija_id": 12,
+      "kategorija_naziv": "Pivo",
+      "oddelek": "Pijača",
+      "cena_eur": 3.2,
+      "nacin_priprave": "sestavljeno",
+      "enota_mere": "kos",
+      "normativ": [
+        { "naziv": "Steklenica Laško Zlatorog 0,5 L", "kolicina": 1, "enota": "kos" }
+      ]
+    }
+  ]
+}
