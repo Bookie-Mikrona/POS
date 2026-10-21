@@ -341,14 +341,24 @@ router.put("/malice/offers/:offerId", async (req, res): Promise<void> => {
   const offerId = id(req.params.offerId);
   const [offer] = await db.select().from(malicaDailyOffersTable).where(and(eq(malicaDailyOffersTable.id, offerId), eq(malicaDailyOffersTable.enotaId, unit(req))));
   if (!offer) { res.status(404).json({ error: "Ponudba ne obstaja." }); return; }
-  if (offer.status !== "draft") { res.status(409).json({ error: "Objavljene ponudbe ni mogoče spreminjati." }); return; }
+  // Objavljeno ponudbo je dovoljeno popraviti (zamenjava jedi, dodajanje odmrznjene jedi); zaključene ne.
+  if (offer.status !== "draft" && offer.status !== "published") { res.status(409).json({ error: "Zaključene ponudbe ni mogoče spreminjati." }); return; }
   const hasMainItems = Array.isArray(req.body?.mainItems);
   const hasIncludedCourses = Array.isArray(req.body?.includedCourses);
   const mainItems = hasMainItems ? req.body.mainItems : [];
   const includedCourses = hasIncludedCourses ? req.body.includedCourses : [];
   if (hasMainItems && mainItems.length === 0) { res.status(400).json({ error: "Ponudba mora vsebovati glavno jed." }); return; }
+  if (offer.status === "published" && hasMainItems && !mainItems.some((item: { enabled?: boolean }) => item.enabled !== false)) {
+    res.status(400).json({ error: "Objavljena ponudba mora vsebovati vsaj eno omogočeno glavno jed." }); return;
+  }
   const saved = await db.transaction(async (tx) => {
     if (!hasMainItems && !hasIncludedCourses) return offer;
+    // Pri objavljeni ponudbi nespremenjene jedi obdržijo ceno, ki so jo gostje že videli.
+    const prejsnjeCene = new Map<string, number>();
+    if (offer.status === "published") {
+      const prejsnje = await tx.select().from(malicaDailyMainItemsTable).where(eq(malicaDailyMainItemsTable.offerId, offerId));
+      for (const p of prejsnje) prejsnjeCene.set(`${p.groupId}|${p.artikelId}|${p.velikostPice ?? ""}`, p.priceCentsSnapshot);
+    }
     if (hasMainItems) await tx.delete(malicaDailyMainItemsTable).where(eq(malicaDailyMainItemsTable.offerId, offerId));
     if (hasIncludedCourses) await tx.delete(malicaDailyIncludedCoursesTable).where(eq(malicaDailyIncludedCoursesTable.offerId, offerId));
     for (const item of mainItems) {
@@ -358,7 +368,8 @@ router.put("/malice/offers/:offerId", async (req, res): Promise<void> => {
         velikostPice: resolved.velikostPice,
         position: Number(item.position ?? 0), enabled: item.enabled !== false,
         articleNameSnapshot: resolved.article.ime,
-        priceCentsSnapshot: await effectiveGroupPrice(tx, offer.enotaId, resolved.groupId, offer.businessDate),
+        priceCentsSnapshot: prejsnjeCene.get(`${resolved.groupId}|${resolved.artikelId}|${resolved.velikostPice ?? ""}`)
+          ?? await effectiveGroupPrice(tx, offer.enotaId, resolved.groupId, offer.businessDate),
         availableQuantity: item.availableQuantity == null ? null : String(item.availableQuantity),
       });
     }

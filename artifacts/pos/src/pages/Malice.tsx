@@ -595,7 +595,7 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
           }
         });
       }
-      toast({ title: "Dnevna ponudba shranjena" });
+      toast({ title: offer?.status === "published" ? "Spremembe so objavljene" : "Dnevna ponudba shranjena" });
       queryClient.invalidateQueries({ queryKey: getListMalicaDailyOffersQueryKey() });
     } catch (err: any) {
       const msg = err.response?.data?.message || err.response?.data?.napaka || "Napaka pri shranjevanju";
@@ -695,7 +695,7 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
               {offer?.status === "closed" ? (
                 <span className="text-muted-foreground font-medium">Zaključeno (ni več vidno gostom)</span>
               ) : offer?.status === "published" ? (
-                <span className="text-emerald-600 font-medium">Objavljeno in vidno gostom</span>
+                <span className="text-emerald-600 font-medium">Objavljeno in vidno gostom. Jedi lahko zamenjate ali dodate in shranite spremembe.</span>
               ) : offer ? (
                 <span className="text-amber-600 font-medium">Osnutek (ni objavljeno)</span>
               ) : (
@@ -707,6 +707,13 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
             {(!offer || offer.status === "draft") && (
               <Button variant="default" onClick={handleSave} disabled={!formData || createMutation.isPending || updateMutation.isPending}>
                 <Save className="w-4 h-4 mr-2" /> Shrani osnutek
+              </Button>
+            )}
+            {offer && offer.status === "published" && (
+              <Button variant="default" onClick={() => {
+                if (window.confirm("Spremembe bodo takoj vidne gostom (QR meni in naročanje). Že oddana naročila se ne spremenijo. Shranim?")) void handleSave();
+              }} disabled={!formData || updateMutation.isPending}>
+                <Save className="w-4 h-4 mr-2" /> Shrani spremembe
               </Button>
             )}
             {offer && offer.status === "draft" && (
@@ -746,7 +753,7 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
                                 m.groupId === g.id && m.artikelId === a.artikelId && (m.velikostPice ?? null) === size,
                               )}
                               onCheckedChange={() => toggleMainItem(g.id, a.artikelId, size)}
-                              disabled={!!offer && offer.status !== "draft"}
+                              disabled={!!offer && offer.status === "closed"}
                             />
                             <Label htmlFor={checkboxId} className="font-normal cursor-pointer leading-tight">
                               {art?.ime || `Art #${a.artikelId}`}
@@ -776,7 +783,7 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
                           id={`soup-${s.id}`} 
                           checked={isChecked}
                           onCheckedChange={() => toggleCourse(s.artikelId, "soup")}
-                          disabled={!!offer && offer.status !== "draft"}
+                          disabled={!!offer && offer.status === "closed"}
                         />
                         <Label htmlFor={`soup-${s.id}`} className="font-normal cursor-pointer leading-tight">
                           {art?.ime || `Art #${s.artikelId}`}
@@ -801,7 +808,7 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
                           id={`dessert-${s.id}`} 
                           checked={isChecked}
                           onCheckedChange={() => toggleCourse(s.artikelId, "dessert")}
-                          disabled={!!offer && offer.status !== "draft"}
+                          disabled={!!offer && offer.status === "closed"}
                         />
                         <Label htmlFor={`dessert-${s.id}`} className="font-normal cursor-pointer leading-tight">
                           {art?.ime || `Art #${s.artikelId}`}
