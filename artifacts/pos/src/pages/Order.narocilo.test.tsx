@@ -12,7 +12,7 @@
  */
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, screen, waitFor, act } from "@testing-library/react";
+import { render, fireEvent, screen, waitFor, act, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import Order, { selectOrderKdsNalogi } from "./Order";
@@ -62,6 +62,9 @@ const mockAddPostavkaMutate = vi.hoisted(() => vi.fn());
 const mockUpdatePostavkaMutate = vi.hoisted(() => vi.fn());
 const mockUpdatePostavkaAsync = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
+const mockRemoveMutate = vi.hoisted(() => vi.fn());
+const mockRemoveAsync = vi.hoisted(() => vi.fn());
+const mockFireCourse = vi.hoisted(() => vi.fn());
 const mockSetLocation = vi.hoisted(() => vi.fn());
 const mockZacniGlasovni = vi.hoisted(() => vi.fn());
 const mockKdsState = vi.hoisted(() => ({
@@ -72,7 +75,7 @@ const mockKdsState = vi.hoisted(() => ({
 vi.mock("@/hooks/use-kds", () => ({
   useKdsPostaje: () => ({ data: mockKdsState.stations }),
   useKdsNalogiVecPostaj: () => [{ data: mockKdsState.nalogi }],
-  useFireKdsCourse: () => ({ mutate: vi.fn(), isPending: false }),
+  useFireKdsCourse: () => ({ mutate: mockFireCourse, isPending: false }),
 }));
 // Lunch quoting is a separate flow, outside these order-line regressions.
 vi.mock("@/components/DailyLunchOrderFlow", () => ({
@@ -170,7 +173,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useAddMulticourseMenu: () => ({ mutate: vi.fn(), isPending: false }),
   customFetch: vi.fn(() => Promise.resolve([])),
   useAddPostavkaModifikatorji: () => ({ mutate: vi.fn(), isPending: false }),
-  useRemovePostavka: () => ({ mutate: vi.fn() }),
+  useRemovePostavka: () => ({ mutate: mockRemoveMutate, mutateAsync: mockRemoveAsync }),
   useUpdatePostavkaKolicina: () => ({ mutate: mockUpdatePostavkaMutate, mutateAsync: mockUpdatePostavkaAsync }),
   useSpojiNarocili: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useUpdateNarocilo: () => ({ mutate: vi.fn(), isPending: false }),
@@ -228,6 +231,12 @@ vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+vi.mock("@/components/OpombaDialog", () => ({
+  default: ({ onPotrdi }: { onPotrdi: (n: string) => void }) => (
+    <button type="button" data-testid="opomba-dialog-potrdi" onClick={() => onPotrdi("brez sira")}>potrdi opombo</button>
+  ),
+}));
+
 vi.mock("@/components/DdvNeskladjeAlert", () => ({
   DdvNeskladjeAlert: () => null,
 }));
@@ -280,6 +289,9 @@ describe("Order — spodnji list naročila (nastavitev naprave)", () => {
     mockAddPostavkaMutate.mockClear();
     mockUpdatePostavkaMutate.mockClear();
     mockUpdatePostavkaAsync.mockReset();
+    mockRemoveMutate.mockClear();
+    mockRemoveAsync.mockReset();
+    mockFireCourse.mockClear();
     mockSetLocation.mockClear();
     mockZacniGlasovni.mockClear();
     mockZacniGlasovni.mockReturnValue(true);
@@ -343,7 +355,11 @@ describe("Order — spodnji list naročila (nastavitev naprave)", () => {
     mockKdsState.nalogi = [nalog(1, 1, "bumped"), nalog(2, 2, "zadrzano"), nalog(3, 3, "novo")];
     await odpri();
     const glave = screen.getAllByTestId(/^kds-skupina-/).map(e => e.textContent);
-    expect(glave).toEqual(["Na čakanju", "V pripravi", "Pripravljeno", "Brez stanja KDS"]);
+    expect(glave).toEqual(["Na čakanju1", "V pripravi1", "Pripravljeno1", "Brez stanja KDS1"]);
+    // »V pripravi« in »Pripravljeno« sta privzeto zloženi: vrstici 3 in 1 nista vidni.
+    expect(screen.getAllByTestId(/^order-item-\d+$/).map(e => e.getAttribute("data-testid"))).toEqual(["order-item-2", "order-item-4"]);
+    await act(async () => { fireEvent.click(screen.getByTestId("kds-skupina-V pripravi")); });
+    await act(async () => { fireEvent.click(screen.getByTestId("kds-skupina-Pripravljeno")); });
     const vrstni = screen.getAllByTestId(/^order-item-\d+$/).map(e => e.getAttribute("data-testid"));
     expect(vrstni).toEqual(["order-item-2", "order-item-3", "order-item-1", "order-item-4"]);
   });
@@ -365,7 +381,8 @@ describe("Order — spodnji list naročila (nastavitev naprave)", () => {
           nastavi(prikazNarocila);
           (globalThis as { __testNaprava?: Record<string, unknown> }).__testNaprava = { ...(globalThis as { __testNaprava?: Record<string, unknown> }).__testNaprava, prikazMenija: meni, gostotaArtiklov: gostota };
           const { unmount } = render(<Wrapper qc={makeQueryClient()}><Order /></Wrapper>);
-          const gumb = await screen.findByRole("button", { name: /Margherita/i });
+          await screen.findAllByRole("button", { name: /Margherita/i });
+          const gumb = screen.getAllByRole("button", { name: /Margherita/i }).find(b => !b.getAttribute("data-testid"))!;
           await act(async () => { fireEvent.click(gumb); });
           const dodaj = (mockAddPostavkaMutate.mock.calls[0] as [Args, ...unknown[]])[0];
           const gumbi = screen.getAllByRole("button", { name: /Na blagajno/i });
@@ -382,5 +399,213 @@ describe("Order — spodnji list naročila (nastavitev naprave)", () => {
     }
     expect(rezultati).toHaveLength(32);
     expect(new Set(rezultati).size).toBe(1);
+  });
+
+  // ── Dejanja novega lista kličejo iste funkcije kot stari prikaz ──────────────
+  type Zajem = { posodobi: unknown[]; posodobiAsync: unknown[]; odstrani: unknown[]; hod: unknown[]; glas: number; dialogi: string[] };
+  const zajem = (): Zajem => ({
+    posodobi: mockUpdatePostavkaMutate.mock.calls.map(c => c[0]),
+    posodobiAsync: mockUpdatePostavkaAsync.mock.calls.map(c => c[0]),
+    odstrani: mockRemoveMutate.mock.calls.map(c => c[0]),
+    hod: mockFireCourse.mock.calls.map(c => c[0]),
+    glas: mockZacniGlasovni.mock.calls.length,
+    dialogi: [
+      screen.queryByTestId("opomba-dialog-potrdi") ? "opomba" : "",
+      screen.queryByText(/^Opcije — /) ? "opcije" : "",
+    ].filter(Boolean),
+  });
+  const pripravi = (prikaz: "staro" | "novo", dodatno: { gost?: boolean; hod?: boolean; opcije?: boolean } = {}) => {
+    nastavi(prikaz);
+    mockArtikli.splice(0, mockArtikli.length, {
+      ...mockPicaBrezDodatkov,
+      toGo: true,
+      modSkupine: dodatno.opcije ? [{ id: 1, ime: "Dodatki", modifikatorji: [{ id: 5, ime: "Sir", aktiven: true, privzet: false, cenaDodatek: 0 }] }] : [],
+    } as unknown as (typeof mockArtikli)[number]);
+    mockNarocilo.postavke = [{
+      id: 1, artikelId: 11, artikelIme: "Margherita", ime: "Margherita", kolicina: 2, cenaKos: 8.5, skupaj: 17,
+      racunId: null, parentPostavkaId: null, opomba: "brez soli", gostStevilka: dodatno.gost ? 1 : null,
+    }];
+    if (dodatno.hod) {
+      mockKdsState.stations = [{ id: 1, ime: "Kuhinja", tip: "kuhinja" }];
+      mockKdsState.nalogi = [
+        { id: 1, postavkaId: 1, postajaId: 1, narociloId: NAROCILO_ID, stanje: "bumped", pairingGroupId: "g1", courseSequence: 1, courseNumber: 1, ustvarjeno: new Date().toISOString(), aktiviranoAt: null },
+        { id: 2, postavkaId: 1, postajaId: 1, narociloId: NAROCILO_ID, stanje: "zadrzano", pairingGroupId: "g1", courseSequence: 2, courseNumber: 2, ustvarjeno: new Date().toISOString(), aktiviranoAt: null },
+      ] as unknown as KdsNalog[];
+    }
+  };
+  const poPrikazu = async (
+    dodatno: { gost?: boolean; hod?: boolean; opcije?: boolean },
+    staro: () => Promise<void> | void,
+    novo: () => Promise<void> | void,
+  ) => {
+    const izidi: Zajem[] = [];
+    for (const prikaz of ["staro", "novo"] as const) {
+      mockUpdatePostavkaMutate.mockClear(); mockUpdatePostavkaAsync.mockReset(); mockRemoveMutate.mockClear();
+      mockFireCourse.mockClear(); mockZacniGlasovni.mockClear(); mockZacniGlasovni.mockReturnValue(true);
+      pripravi(prikaz, dodatno);
+      const { unmount } = render(<Wrapper qc={makeQueryClient()}><Order /></Wrapper>);
+      await screen.findByTestId("artikli-mreza");
+      await act(async () => { await (prikaz === "staro" ? staro() : novo()); });
+      izidi.push(zajem());
+      unmount();
+    }
+    expect(izidi[1]).toEqual(izidi[0]);
+    return izidi[1];
+  };
+  const izberiVrstico = async () => { await act(async () => { fireEvent.click(screen.getByTestId("row-izberi-1")); }); };
+  const klikni = async (el: HTMLElement) => { await act(async () => { fireEvent.click(el); }); };
+
+  it("sprememba količine (−, +) kliče iste funkcije kot staro", async () => {
+    const gumbiStaro = () => within(screen.getByTestId("order-item-quantity-1")).getAllByRole("button");
+    const minus = await poPrikazu({},
+      async () => { await klikni(gumbiStaro()[0]); },
+      async () => { await klikni(screen.getByTestId("row-minus-1")); },
+    );
+    expect(minus.posodobi).toEqual([{ id: NAROCILO_ID, postavkaId: 1, data: { kolicina: 1 } }]);
+    const plus = await poPrikazu({},
+      async () => { const g = gumbiStaro(); await klikni(g[g.length - 1]); },
+      async () => { await klikni(screen.getByTestId("row-plus-1")); },
+    );
+    expect(plus.posodobi).toEqual([{ id: NAROCILO_ID, postavkaId: 1, data: { kolicina: 3 } }]);
+  });
+
+  it("dodaj gosta kliče iste funkcije kot staro", async () => {
+    const izid = await poPrikazu({},
+      async () => { const g = screen.getAllByText("+ Dodaj gosta"); await klikni(g[g.length - 1]); },
+      async () => { const g = screen.getAllByText("+ Dodaj gosta"); await klikni(g[g.length - 1]); },
+    );
+    expect(izid.posodobiAsync).toEqual([{ id: NAROCILO_ID, postavkaId: 1, data: { kolicina: 2, gostStevilka: 1 } }]);
+  });
+
+  it("sprememba gosta v vrstici kliče iste funkcije kot staro", async () => {
+    const izid = await poPrikazu({ gost: true },
+      async () => { await klikni(screen.getByTitle("Klikni za spremembo gosta")); },
+      async () => { await izberiVrstico(); await klikni(screen.getByTestId("row-akcija-gost")); },
+    );
+    expect(izid.posodobi).toHaveLength(1);
+  });
+
+  it("glasovni vnos (naročilo in zapis na vrstici) kliče iste funkcije kot staro", async () => {
+    const izid = await poPrikazu({},
+      async () => {
+        await klikni(screen.getAllByTitle("Glasovni ukaz — naroči s prostim govorom")[0]);
+        await klikni(screen.getByTitle("Dodaj zvočno opombo"));
+      },
+      async () => {
+        await klikni(screen.getAllByTitle("Glasovni ukaz — naroči s prostim govorom")[0]);
+        await izberiVrstico(); await klikni(screen.getByTestId("row-akcija-glas"));
+      },
+    );
+    expect(izid.glas).toBe(2);
+  });
+
+  it("popust kliče iste funkcije kot staro", async () => {
+    const vnesi = async () => {
+      const vnos = within(screen.getByTestId("order-item-1")).getByRole("textbox") as HTMLInputElement;
+      await act(async () => { fireEvent.change(vnos, { target: { value: "10" } }); });
+      await act(async () => { fireEvent.keyDown(vnos, { key: "Enter" }); });
+    };
+    const izid = await poPrikazu({},
+      async () => { await klikni(screen.getByTitle("Dodaj popust")); await vnesi(); },
+      async () => { await izberiVrstico(); await klikni(screen.getByTestId("row-akcija-popust")); await vnesi(); },
+    );
+    expect(izid.posodobi).toEqual([{ id: NAROCILO_ID, postavkaId: 1, data: { kolicina: 2, cenaKos: 7.65 } }]);
+  });
+
+  it("opcije odprejo isti pogovor kot staro", async () => {
+    const izid = await poPrikazu({ opcije: true },
+      async () => { await klikni(screen.getByRole("button", { name: /Opcije/ })); },
+      async () => { await izberiVrstico(); await klikni(screen.getByTestId("row-akcija-opcije")); },
+    );
+    expect(izid.dialogi).toContain("opcije");
+  });
+
+  it("zapis kliče iste funkcije kot staro", async () => {
+    const izid = await poPrikazu({},
+      async () => { await klikni(screen.getByTitle("Vnesi opombo s tipkovnico")); await klikni(screen.getByTestId("opomba-dialog-potrdi")); },
+      async () => { await izberiVrstico(); await klikni(screen.getByTestId("row-akcija-zapis")); await klikni(screen.getByTestId("opomba-dialog-potrdi")); },
+    );
+    expect(izid.posodobi).toEqual([{ id: NAROCILO_ID, postavkaId: 1, data: { kolicina: 2, opomba: "brez sira" } }]);
+  });
+
+  it("brisanje zapisa kliče iste funkcije kot staro", async () => {
+    const izid = await poPrikazu({},
+      async () => { await klikni(screen.getByTitle("Zbriši opombo")); },
+      async () => { await izberiVrstico(); await klikni(screen.getByTestId("row-akcija-zbrisi-zapis")); },
+    );
+    expect(izid.posodobi).toEqual([{ id: NAROCILO_ID, postavkaId: 1, data: { kolicina: 2, opomba: null } }]);
+  });
+
+  it("To Go kliče iste funkcije kot staro", async () => {
+    const izid = await poPrikazu({},
+      async () => { await klikni(screen.getByTitle("Dodaj To Go embalažo")); },
+      async () => { await izberiVrstico(); await klikni(screen.getByTestId("row-akcija-togo")); },
+    );
+    expect(izid.posodobi).toEqual([{ id: NAROCILO_ID, postavkaId: 1, data: { kolicina: 2, toGo: true } }]);
+  });
+
+  it("»Sprosti 2. hod« je dosegljiv in kliče iste funkcije kot staro", async () => {
+    const klikHod = async () => { await klikni(await screen.findByRole("button", { name: /Sprosti 2\. hod/ })); };
+    const izid = await poPrikazu({ hod: true }, klikHod, klikHod);
+    expect(izid.hod).toHaveLength(1);
+  });
+
+  it("brisanje: staro takoj, novo po 4 s z isto funkcijo in snackbarom »Razveljavi«", async () => {
+    // staro
+    pripravi("staro");
+    const staro = render(<Wrapper qc={makeQueryClient()}><Order /></Wrapper>);
+    await screen.findByTestId("artikli-mreza");
+    await klikni(screen.getByTitle("Odstrani artikel"));
+    const starPoziv = mockRemoveMutate.mock.calls.map(c => c[0]);
+    staro.unmount();
+    mockRemoveMutate.mockClear(); mockToast.mockClear();
+    // novo
+    pripravi("novo");
+    render(<Wrapper qc={makeQueryClient()}><Order /></Wrapper>);
+    await screen.findByTestId("artikli-mreza");
+    await izberiVrstico();
+    await klikni(screen.getByTestId("row-akcija-brisi"));
+    expect(screen.queryByTestId("order-item-1")).not.toBeInTheDocument();
+    const toastArg = mockToast.mock.calls.at(-1)![0] as { duration: number; action: React.ReactElement<{ altText: string }> };
+    expect(toastArg.duration).toBe(4000);
+    expect(toastArg.action.props.altText).toBe("Razveljavi");
+    expect(mockRemoveMutate).not.toHaveBeenCalled();
+    await act(async () => { await new Promise(r => setTimeout(r, 4200)); });
+    expect(mockRemoveMutate.mock.calls.map(c => c[0])).toEqual(starPoziv);
+  });
+
+  it("razveljavitev brisanja vrne vrstico in ničesar ne izbriše", async () => {
+    pripravi("novo");
+    render(<Wrapper qc={makeQueryClient()}><Order /></Wrapper>);
+    await screen.findByTestId("artikli-mreza");
+    await izberiVrstico();
+    await klikni(screen.getByTestId("row-akcija-brisi"));
+    const toastArg = mockToast.mock.calls.at(-1)![0] as { action: React.ReactElement<{ onClick: () => void }> };
+    await act(async () => { toastArg.action.props.onClick(); });
+    expect(screen.getByTestId("order-item-1")).toBeInTheDocument();
+    await act(async () => { await new Promise(r => setTimeout(r, 4200)); });
+    expect(mockRemoveMutate).not.toHaveBeenCalled();
+  });
+
+  it("»Na blagajno« najprej opravi čakajoče brisanje, nato odpre blagajno", async () => {
+    mockRemoveAsync.mockResolvedValue(mockNarocilo);
+    pripravi("novo");
+    render(<Wrapper qc={makeQueryClient()}><Order /></Wrapper>);
+    await screen.findByTestId("artikli-mreza");
+    await izberiVrstico();
+    await klikni(screen.getByTestId("row-akcija-brisi"));
+    await klikni(screen.getByTestId("narocilo-vrstica-blagajna"));
+    expect(mockRemoveAsync).toHaveBeenCalledWith({ id: NAROCILO_ID, postavkaId: 1 });
+    expect(mockSetLocation).toHaveBeenCalledWith(`/blagajna?narocilo=${NAROCILO_ID}`);
+  });
+
+  it("dejanja so samo pri izbrani vrstici, ne v vsaki", async () => {
+    pripravi("novo");
+    render(<Wrapper qc={makeQueryClient()}><Order /></Wrapper>);
+    await screen.findByTestId("artikli-mreza");
+    expect(screen.queryByTestId("row-actions-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("row-akcija-popust")).not.toBeInTheDocument();
+    await izberiVrstico();
+    expect(screen.getByTestId("row-actions-1")).toBeInTheDocument();
   });
 });

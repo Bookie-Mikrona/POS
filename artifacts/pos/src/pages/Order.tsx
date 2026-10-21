@@ -71,6 +71,8 @@ import { DdvNeskladjeAlert } from "@/components/DdvNeskladjeAlert";
 import { useToast } from "@/hooks/use-toast";
 import { useNaprava } from "@/contexts/NapravaContext";
 import { MenuNav } from "@/components/order/MenuNav";
+import { CompactOrderRow } from "@/components/order/CompactOrderRow";
+import { ToastAction } from "@/components/ui/toast";
 import { razpolozljivePorcije, stanjeZaloge } from "@/lib/zaloga-prikaz";
 import { usePogosto } from "@/hooks/use-pogosto";
 import { useSirokZaslon } from "@/hooks/use-siroki-zaslon";
@@ -1780,6 +1782,11 @@ export default function Order() {
   const zalogaNovo = prikazMenija !== "trenutno";
   // Opozorilo za artikel brez zaloge (samo novi prikaz); dodajanje še vedno preveri strežnik.
   const [zalogaOpozorilo, setZalogaOpozorilo] = useState<{ artikelId: number; ime: string } | null>(null);
+  // Novi prikaz naročila: izbrana vrstica (dejanja), zložene KDS skupine, brisanje z razveljavitvijo.
+  const [izbranaVrstica, setIzbranaVrstica] = useState<number | null>(null);
+  const [odprteSkupine, setOdprteSkupine] = useState<Set<string>>(new Set());
+  const [skritaBrisanja, setSkritaBrisanja] = useState<Set<number>>(new Set());
+  const cakajocaBrisanja = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const pogostoZacetekRef = useRef(false);
   useEffect(() => {
     // Prvi zavihek v novih prikazih je »Pogosto« (če ima vsebino).
@@ -2378,8 +2385,57 @@ export default function Order() {
 
   // Novi prikaz naročila (samo videz): spodnji list na mobilnem zaslonu; vsebina naročila je ista.
   const naroceloSheet = (naprava?.prikazNarocila ?? "staro") !== "staro";
-  const naBlagajno = () => {
+  const odstraniSkritoBrisanje = (postavkaId: number) =>
+    setSkritaBrisanja(prev => { const n = new Set(prev); n.delete(postavkaId); return n; });
+  // Brisanje z razveljavitvijo (4 s): vrstica se skrije, dejansko brisanje opravi ista funkcija kot v starem prikazu.
+  const brisiZRazveljavitvijo = (postavka: { id: number; ime: string }) => {
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavka.id) || pendingPostavke.has(postavka.id) || cakajocaBrisanja.current.has(postavka.id)) return;
+    setSkritaBrisanja(prev => new Set(prev).add(postavka.id));
+    setIzbranaVrstica(null);
+    const timer = setTimeout(() => {
+      cakajocaBrisanja.current.delete(postavka.id);
+      handleRemovePostavka(postavka.id, () => odstraniSkritoBrisanje(postavka.id));
+    }, 4000);
+    cakajocaBrisanja.current.set(postavka.id, timer);
+    toast({
+      title: "Artikel odstranjen",
+      description: postavka.ime,
+      duration: 4000,
+      action: (
+        <ToastAction
+          altText="Razveljavi"
+          onClick={() => {
+            const t = cakajocaBrisanja.current.get(postavka.id);
+            if (t) clearTimeout(t);
+            cakajocaBrisanja.current.delete(postavka.id);
+            odstraniSkritoBrisanje(postavka.id);
+          }}
+        >
+          Razveljavi
+        </ToastAction>
+      ),
+    });
+  };
+  const naBlagajno = async () => {
     if (!narocilo) return;
+    // Čakajoča brisanja je treba opraviti pred plačilom, da se izbrisana postavka ne zaračuna.
+    const cakajoca = [...cakajocaBrisanja.current.entries()];
+    if (cakajoca.length > 0) {
+      for (const [, timer] of cakajoca) clearTimeout(timer);
+      cakajocaBrisanja.current.clear();
+      try {
+        for (const [postavkaId] of cakajoca) {
+          const u = await removePostavka.mutateAsync({ id, postavkaId });
+          queryClient.setQueryData(getGetNarociloQueryKey(id), u);
+        }
+        queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+      } catch {
+        for (const [postavkaId] of cakajoca) odstraniSkritoBrisanje(postavkaId);
+        toast({ title: "Napaka", description: "Ni bilo mogoče odstraniti artikla", variant: "destructive" });
+        return;
+      }
+    }
     const gostParam = aktivniGostStevilka !== null && neracunanePostavke.length > 0
       ? `&gost=${aktivniGostStevilka}`
       : "";
@@ -2561,11 +2617,53 @@ export default function Order() {
     }
   };
 
-  const handleRemovePostavka = (postavkaId: number) => {
+  // Odpre izbiro opcij za obstoječo postavko (skupna koda starega in novega prikaza naročila).
+  const odpriOpcijePostavke = (postavkaId: number, artSkupineOrder: ModSkupinaFull[]) => {
+    const childRows = (narocilo?.postavke ?? []).filter(
+      p => (p as typeof p & { parentPostavkaId?: number | null }).parentPostavkaId === postavkaId
+        && (p as typeof p & { modifikatorId?: number | null }).modifikatorId != null
+    );
+    const preloaded: { skupinaId: number; modifikatorId: number }[] = [];
+    for (const cr of childRows) {
+      const modId = (cr as typeof cr & { modifikatorId?: number | null }).modifikatorId!;
+      for (const sk of artSkupineOrder) {
+        if (sk.modifikatorji.some(m => m.id === modId)) {
+          preloaded.push({ skupinaId: sk.id, modifikatorId: modId });
+          break;
+        }
+      }
+    }
+    const nestedSelections: Record<string, number[]> = {};
+    let missingSource = false;
+    for (const cr of childRows) {
+      const parentModifierId = (cr as typeof cr & { modifikatorId?: number | null }).modifikatorId;
+      if (parentModifierId == null || !preloaded.some(selection => selection.modifikatorId === parentModifierId)) continue;
+      const nestedRows = (narocilo?.postavke ?? []).filter(row =>
+        (row as typeof row & { parentPostavkaId?: number | null }).parentPostavkaId === cr.id
+          && (row as typeof row & { modifikatorId?: number | null }).modifikatorId != null,
+      );
+      for (const nestedRow of nestedRows) {
+        const sourceId = (nestedRow as typeof nestedRow & { modifierSourceArticleId?: number | null }).modifierSourceArticleId;
+        const nestedModifierId = (nestedRow as typeof nestedRow & { modifikatorId?: number | null }).modifikatorId;
+        if (sourceId == null || nestedModifierId == null) {
+          missingSource = true;
+          continue;
+        }
+        const key = `${parentModifierId}:${sourceId}`;
+        nestedSelections[key] = [...(nestedSelections[key] ?? []), nestedModifierId];
+      }
+    }
+    setOpcijeNestedDataError(missingSource);
+    setOpcijePodIzbire(nestedSelections);
+    setOpcijePostavkaId(postavkaId);
+    setOpcijeIzbrani(preloaded);
+  };
+
+  const handleRemovePostavka = (postavkaId: number, onKoncano?: () => void) => {
     if (checkBlock()) return;
-    if (isTemporaryPostavkaId(postavkaId) || pendingPostavke.has(postavkaId)) return;
+    if (isTemporaryPostavkaId(postavkaId) || pendingPostavke.has(postavkaId)) { onKoncano?.(); return; }
     setPendingPostavke(prev => new Set(prev).add(postavkaId));
-    const settle = () => setPendingPostavke(prev => { const s = new Set(prev); s.delete(postavkaId); return s; });
+    const settle = () => { setPendingPostavke(prev => { const s = new Set(prev); s.delete(postavkaId); return s; }); onKoncano?.(); };
     removePostavka.mutate({ id, postavkaId }, {
       onSuccess: (u) => {
         queryClient.setQueryData(getGetNarociloQueryKey(id), u);
@@ -3507,6 +3605,89 @@ export default function Order() {
                   postavka.id, orderKdsNalogi, kdsPostaje, kdsNow, postavka.pripravljeno,
                 );
 
+                if (naroceloSheet) {
+                  // Novi prikaz: strnjena vrstica; dejanja izbrane vrstice kličejo iste funkcije kot stari prikaz.
+                  if (skritaBrisanja.has(postavka.id)) return null;
+                  const skupina = skupinaPoId.get(postavka.id)!;
+                  const zlozena = (skupina === "V pripravi" || skupina === "Pripravljeno") && !odprteSkupine.has(skupina);
+                  const vSkupini = topPostavkeOrder.filter(p => skupinaPoId.get(p.id) === skupina && !skritaBrisanja.has(p.id));
+                  const jePrvaVSkupini = vSkupini[0]?.id === postavka.id;
+                  const glava = jePrvaVSkupini ? (
+                    <button
+                      type="button"
+                      key={`skupina-${skupina}`}
+                      data-testid={`kds-skupina-${skupina}`}
+                      aria-expanded={!zlozena}
+                      onClick={() => setOdprteSkupine(prev => { const n = new Set(prev); if (n.has(skupina)) n.delete(skupina); else n.add(skupina); return n; })}
+                      className="flex w-full items-center justify-between bg-muted/50 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      <span>{skupina}</span>
+                      <span className="flex items-center gap-1 normal-case tabular-nums">
+                        {vSkupini.length}
+                        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${zlozena ? "-rotate-90" : ""}`} />
+                      </span>
+                    </button>
+                  ) : null;
+                  if (zlozena) return glava;
+                  const artLookup = orderedArtikli.find(a => a.id === postavka.artikelId);
+                  const stanjeVrstice = artLookup ? stanjeZaloge(artLookup) : "brez";
+                  const toGoInfo = artikliMapForOrder.get(postavka.artikelId) as { toGo?: boolean } | undefined;
+                  const gostSt = (postavka as typeof postavka & { gostStevilka?: number | null }).gostStevilka ?? null;
+                  const jeIzbrana = izbranaVrstica === postavka.id;
+                  return (
+                    <div key={postavka.id} data-testid={`order-item-${postavka.id}`} className={`py-0.5 ${kdsStatus.className}`}>
+                      {glava}
+                      <CompactOrderRow
+                        postavka={postavka}
+                        izbrana={jeIzbrana}
+                        onIzberi={() => setIzbranaVrstica(jeIzbrana ? null : postavka.id)}
+                        jeRacunana={jeRacunana}
+                        jeVecHodniMeni={jeVecHodniMeni}
+                        jeVObdelavi={jePostavkaVObdelavi}
+                        jeZacasna={jeZacasnaPostavka}
+                        skupaj={skupajZEmbalazo}
+                        imaPopust={hasDiscount}
+                        opcije={(modChildMapOrder.get(postavka.id) ?? []).map(mc => mc.ime)}
+                        dodatki={dodat.map(d => ({ id: d.id, ime: d.ime, kolicina: d.kolicina, skupaj: d.skupaj, jeEmbalaza: d.jeEmbalaza === true }))}
+                        kdsOznake={kdsStatus.statuses.map(st => ({ id: st.id, label: st.label, stationName: st.stationName, badgeClassName: st.badgeClassName, minutes: st.minutes }))}
+                        zaloga={stanjeVrstice === "ni" ? { stanje: "ni", porcij: 0 } : stanjeVrstice === "na_izteku" && artLookup ? { stanje: "na_izteku", porcij: razpolozljivePorcije(artLookup) } : null}
+                        gost={!jeRacunana && !jeVecHodniMeni && steviloGostov > 0 ? gostSt : null}
+                        gostBarva={gostSt !== null ? gostBarva(gostSt) : ""}
+                        steviloGostov={steviloGostov}
+                        imaToGo={!jeDostava && !!toGoInfo?.toGo}
+                        toGoAktiven={!!(postavka as typeof postavka & { toGo?: boolean }).toGo}
+                        imaOpcije={artSkupineOrder.length > 0}
+                        mikrofon={mikrofon?.postavkaId === postavka.id && (mikrofon.stanje === "poslusam" || mikrofon.stanje === "napaka") ? mikrofon.stanje : null}
+                        popustOdprt={isDiscountOpen}
+                        akcije={{
+                          kolicina: (n) => handleUpdateKolicina(postavka.id, n),
+                          dodatekPlus: handleDodatekIncrement,
+                          dodatekMinus: handleDodatekDecrement,
+                          gost: () => handleSpremeniGosta(postavka.id),
+                          toGo: () => handleToGo(postavka),
+                          popust: () => setDiscountOpenId(isDiscountOpen ? null : postavka.id),
+                          mikrofon: () => handleMikrofon(postavka),
+                          zapis: () => setOpombaPostavka({ id: postavka.id, artikelId: postavka.artikelId, kolicina: postavka.kolicina, opomba: postavka.opomba ?? null }),
+                          zbrisiZapis: () => handleBrisiOpombo(postavka),
+                          opcije: () => odpriOpcijePostavke(postavka.id, artSkupineOrder),
+                          brisi: () => brisiZRazveljavitvijo(postavka),
+                          odpriRacun: () => setLocation(postavka.racunStevilka ? `/racuni?stevilka=${encodeURIComponent(postavka.racunStevilka)}` : "/racuni"),
+                        }}
+                      />
+                      {isDiscountOpen && !jeVecHodniMeni && (
+                        <DiscountInput
+                          postavkaId={postavka.id}
+                          cenaKos={postavka.cenaKos}
+                          cenaKosOriginalna={postavka.cenaKosOriginalna ?? null}
+                          kolicina={postavka.kolicina}
+                          onApply={handleApplyDiscount}
+                          onCancel={() => setDiscountOpenId(null)}
+                        />
+                      )}
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={postavka.id}
@@ -3514,11 +3695,6 @@ export default function Order() {
                     data-testid={`order-item-${postavka.id}`}
                     className={`flex flex-col rounded-md bg-transparent py-1 px-1 transition-colors gap-0.5 ${kdsStatus.className} ${jeRacunana ? "opacity-50" : ""}`}
                   >
-                    {naroceloSheet && (idx === 0 || skupinaPoId.get(topPostavkeOrder[idx - 1].id) !== skupinaPoId.get(postavka.id)) && (
-                      <div className="-mt-1 mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid={`kds-skupina-${skupinaPoId.get(postavka.id)}`}>
-                        {skupinaPoId.get(postavka.id)}
-                      </div>
-                    )}
                     {/* Vrstica 1: številka + ime + gost badge + gumbi */}
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-muted-foreground w-4 shrink-0 text-right">{idx + 1}.</span>
@@ -3771,46 +3947,7 @@ export default function Order() {
                           <button
                             type="button"
                             className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
-                            onClick={() => {
-                              const childRows = (narocilo?.postavke ?? []).filter(
-                                p => (p as typeof p & { parentPostavkaId?: number | null }).parentPostavkaId === postavka.id
-                                  && (p as typeof p & { modifikatorId?: number | null }).modifikatorId != null
-                              );
-                              const preloaded: { skupinaId: number; modifikatorId: number }[] = [];
-                              for (const cr of childRows) {
-                                const modId = (cr as typeof cr & { modifikatorId?: number | null }).modifikatorId!;
-                                for (const sk of artSkupineOrder) {
-                                  if (sk.modifikatorji.some(m => m.id === modId)) {
-                                    preloaded.push({ skupinaId: sk.id, modifikatorId: modId });
-                                    break;
-                                  }
-                                }
-                              }
-                              const nestedSelections: Record<string, number[]> = {};
-                              let missingSource = false;
-                              for (const cr of childRows) {
-                                const parentModifierId = (cr as typeof cr & { modifikatorId?: number | null }).modifikatorId;
-                                if (parentModifierId == null || !preloaded.some(selection => selection.modifikatorId === parentModifierId)) continue;
-                                const nestedRows = (narocilo?.postavke ?? []).filter(row =>
-                                  (row as typeof row & { parentPostavkaId?: number | null }).parentPostavkaId === cr.id
-                                    && (row as typeof row & { modifikatorId?: number | null }).modifikatorId != null,
-                                );
-                                for (const nestedRow of nestedRows) {
-                                  const sourceId = (nestedRow as typeof nestedRow & { modifierSourceArticleId?: number | null }).modifierSourceArticleId;
-                                  const nestedModifierId = (nestedRow as typeof nestedRow & { modifikatorId?: number | null }).modifikatorId;
-                                  if (sourceId == null || nestedModifierId == null) {
-                                    missingSource = true;
-                                    continue;
-                                  }
-                                  const key = `${parentModifierId}:${sourceId}`;
-                                  nestedSelections[key] = [...(nestedSelections[key] ?? []), nestedModifierId];
-                                }
-                              }
-                              setOpcijeNestedDataError(missingSource);
-                              setOpcijePodIzbire(nestedSelections);
-                              setOpcijePostavkaId(postavka.id);
-                              setOpcijeIzbrani(preloaded);
-                            }}
+                            onClick={() => odpriOpcijePostavke(postavka.id, artSkupineOrder)}
                           >
                             <Settings2 className="h-3 w-3" />Opcije
                           </button>
