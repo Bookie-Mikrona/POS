@@ -20,6 +20,8 @@ interface MenuNavProps {
   kosiloAktivno: boolean;
   /** Število artiklov z 5 ali manj porcijami (ali brez); čip je viden samo, ko je > 0. */
   naIztekuSt?: number;
+  /** Varianta A: vrstica kategorij se začasno skrije med drsenjem artiklov navzdol. */
+  skrijKategorije?: boolean;
 }
 
 const chip = (aktiven: boolean) =>
@@ -69,7 +71,7 @@ function KategorijaGumb({ k, active, onChange, vertical }: { k: MenuNavKategorij
   );
 }
 
-export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, naIztekuSt = 0 }: MenuNavProps) {
+export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, naIztekuSt = 0, skrijKategorije = false }: MenuNavProps) {
   const [izbranOddelek, setIzbranOddelek] = useState<string | null>(null);
   const [sheetOdprt, setSheetOdprt] = useState(false);
 
@@ -149,8 +151,10 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
 
   // Varianta A: ena vrstica zavihkov (Pogosto + oddelki); vrstica kategorij samo, ko je izbran oddelek.
   const aktivnaKat = kategorije.find((k) => String(k.id) === active);
-  const oddelek = aktivnaKat ? oddelekKategorije(aktivnaKat) : izbranOddelek;
-  const kategorijeOddelka = aktivnaKat ? (poOddelkih.find((o) => o.ime === oddelek)?.kategorije ?? []) : [];
+  const celOddelek = active.startsWith("oddelek:") ? active.slice("oddelek:".length) : null;
+  const oddelek = celOddelek ?? (aktivnaKat ? oddelekKategorije(aktivnaKat) : izbranOddelek);
+  const oddelekIzbran = celOddelek != null || aktivnaKat != null;
+  const kategorijeOddelka = oddelekIzbran ? (poOddelkih.find((o) => o.ime === oddelek)?.kategorije ?? []) : [];
   return (
     <div data-testid="menu-nav-a">
       <div data-testid="menu-nav-oddelki" className="flex h-9 flex-nowrap items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -161,15 +165,23 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
             key={o.ime}
             type="button"
             data-testid={`menu-nav-oddelek-${o.ime}`}
-            onClick={() => { setIzbranOddelek(o.ime); onChange(String(o.kategorije[0]!.id)); }}
-            className={zavihek(aktivnaKat != null && oddelek === o.ime)}
+            onClick={() => { setIzbranOddelek(o.ime); onChange(`oddelek:${o.ime}`); }}
+            className={zavihek(oddelekIzbran && oddelek === o.ime)}
           >
             {o.ime}
           </button>
         ))}
       </div>
-      {aktivnaKat && (
+      {oddelekIzbran && !skrijKategorije && (
         <div data-testid="menu-nav-kategorije-oddelka" className="flex h-9 flex-nowrap items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            data-testid="menu-nav-oddelek-vse"
+            onClick={() => onChange(`oddelek:${oddelek}`)}
+            className={`shrink-0 whitespace-nowrap rounded-md h-8 px-2.5 text-xs font-medium ${celOddelek != null ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"}`}
+          >
+            Vse
+          </button>
           {kategorijeOddelka.map((k) => {
             const a = active === String(k.id);
             return (

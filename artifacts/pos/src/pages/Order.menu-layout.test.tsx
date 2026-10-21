@@ -335,6 +335,11 @@ describe("Order — strnjen krmilni del, vrstica naročila in Na izteku", () => 
     await prikazi(naprava("A"));
     await act(async () => { fireEvent.click(screen.getByTestId("menu-nav-oddelek-Hrana")); });
     const kat = screen.getByTestId("menu-nav-kategorije-oddelka");
+    // »Vse« je izbran: prikazani so artikli vseh kategorij oddelka (samo kategorija 1 = Hrana), ne drugih.
+    expect(within(kat).getByTestId("menu-nav-oddelek-vse")).toBeTruthy();
+    expect(screen.getAllByText(/^Jed [A-Z]x[a-z]$/).length).toBe(mockArtikli.filter((a) => a.kategorijaId === 1).length);
+    await act(async () => { fireEvent.click(within(kat).getByRole("button", { name: "Juhe" })); });
+    expect(screen.getAllByText(/^Jed [A-Z]x[a-z]$/).length).toBe(mockArtikli.filter((a) => a.kategorijaId === 1).length);
     expect(kat.className).toContain("h-9");
     expect(kat.className).toContain("flex-nowrap");
     expect(within(kat).getByRole("button", { name: "Juhe" })).toBeTruthy();
@@ -432,6 +437,25 @@ describe("Order — strnjen krmilni del, vrstica naročila in Na izteku", () => 
       if (nar === "novo") expect(screen.getByTestId("narocilo-sheet")).toBeTruthy();
     });
   }
+
+  it("varianta A: drsenje artiklov navzdol skrije iskanje in vrstico kategorij (zavihki oddelkov ostanejo), drsenje navzgor ju takoj vrne", async () => {
+    await prikazi(naprava("A"));
+    await act(async () => { fireEvent.click(screen.getByTestId("menu-nav-oddelek-Hrana")); });
+    const viewport = screen.getByTestId("artikli-mreza").closest("[data-radix-scroll-area-viewport]") as HTMLElement;
+    const drsi = async (top: number) => {
+      viewport.scrollTop = top;
+      await act(async () => { fireEvent.scroll(viewport); });
+    };
+    await drsi(10);
+    await drsi(120);
+    expect(screen.getByTestId("menu-iskanje-vrstica").className).toContain("hidden");
+    expect(screen.queryByTestId("menu-nav-kategorije-oddelka")).toBeNull();
+    expect(screen.getByTestId("menu-nav-oddelki")).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 320));
+    await drsi(100);
+    expect(screen.getByTestId("menu-iskanje-vrstica").className).not.toContain("hidden");
+    expect(screen.getByTestId("menu-nav-kategorije-oddelka")).toBeTruthy();
+  });
 
   it("meritev: krmilni del ≤ 105 px (15 % od 700), vsaj 12 ploščic vidnih pri 360 × 700 px", () => {
     // Izmerjene višine iz razredov (jsdom ne meri postavitve): vrstica naslova h-8, iskanje h-8, zavihki h-9, robovi py-0.5.

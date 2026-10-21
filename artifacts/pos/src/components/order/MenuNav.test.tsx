@@ -17,10 +17,11 @@ describe("MenuNav", () => {
     expect(screen.getByTestId("tab-dnevno-kosilo")).toBeTruthy();
     expect(screen.getByTestId("menu-nav-oddelek-Drugo")).toBeTruthy(); // kategorija brez oddelka je v »Drugo«
     fireEvent.click(screen.getByTestId("menu-nav-oddelek-Hrana"));
-    expect(onChange).toHaveBeenCalledWith("1");
-    rerender(<MenuNav variant="A" kategorije={kategorije} active="1" onChange={onChange} kosiloAktivno={false} />);
+    expect(onChange).toHaveBeenCalledWith("oddelek:Hrana");
+    rerender(<MenuNav variant="A" kategorije={kategorije} active="oddelek:Hrana" onChange={onChange} kosiloAktivno={false} />);
     expect(screen.getByRole("button", { name: "Juhe" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Kava" })?.closest("[data-testid='menu-nav-a']")).toBeTruthy();
+    expect(screen.getByTestId("menu-nav-oddelek-vse").className).toContain("bg-primary");
+    expect(screen.queryByRole("button", { name: "Kava" })?.closest("[data-testid='menu-nav-kategorije-oddelka']")).toBeNull();
     expect(screen.queryByTestId("tab-dnevno-kosilo")).toBeNull();
   });
 

@@ -1772,6 +1772,26 @@ export default function Order() {
   const [searchNumericKeyboard, setSearchNumericKeyboard] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeKategorija, setActiveKategorija] = useState<string>("all");
+  // Varianti A/B: pri drsenju artiklov navzdol se iskanje in vrstica kategorij skrijeta, pri drsenju navzgor takoj vrneta.
+  const [skritKrmilniDel, setSkritKrmilniDel] = useState(false);
+  const zadnjiScroll = useRef({ top: 0, ignorirajDo: 0 });
+  const onSeznamScroll = useCallback((e: React.UIEvent<HTMLElement>) => {
+    const el = e.target as HTMLElement;
+    if (!(el instanceof HTMLElement) || el.dataset.radixScrollAreaViewport === undefined) return;
+    const stanje = zadnjiScroll.current;
+    const top = el.scrollTop;
+    const zdaj = Date.now();
+    if (zdaj < stanje.ignorirajDo) { stanje.top = top; return; }
+    const razlika = top - stanje.top;
+    stanje.top = top;
+    if (top <= 8) { setSkritKrmilniDel(prev => { if (prev) stanje.ignorirajDo = zdaj + 300; return false; }); return; }
+    if (razlika > 6 && top > 40) {
+      setSkritKrmilniDel(prev => { if (!prev) stanje.ignorirajDo = zdaj + 300; return true; });
+    } else if (razlika < -2) {
+      setSkritKrmilniDel(prev => { if (prev) stanje.ignorirajDo = zdaj + 300; return false; });
+    }
+  }, []);
+  useEffect(() => { setSkritKrmilniDel(false); zadnjiScroll.current = { top: 0, ignorirajDo: 0 }; }, [activeKategorija]);
   // Prikaz menija je nastavitev naprave (samo prezentacija). C potrebuje širok (ležeči) zaslon, sicer B.
   const jeUzekZaslon = !useSirokZaslon();
   const nastavljenPrikazMenija = naprava?.prikazMenija ?? "trenutno";
@@ -1883,6 +1903,10 @@ export default function Order() {
     } else if (activeKategorija === "pogosto") {
       const rang = new Map((pogostoIds ?? []).map((artikelId, i) => [artikelId, i]));
       list = list.filter(a => rang.has(a.id)).sort((a, b) => rang.get(a.id)! - rang.get(b.id)!);
+    } else if (activeKategorija.startsWith("oddelek:")) {
+      const oddelekIme = activeKategorija.slice("oddelek:".length);
+      const idji = new Set((kategorije ?? []).filter(k => ((k as { oddelek?: string | null }).oddelek?.trim() || "Drugo") === oddelekIme).map(k => k.id));
+      list = list.filter(a => a.kategorijaId != null && idji.has(a.kategorijaId));
     } else if (activeKategorija !== "all") {
       list = list.filter(a => a.kategorijaId != null && a.kategorijaId.toString() === activeKategorija);
     }
@@ -3107,7 +3131,7 @@ export default function Order() {
               dostavaOb={predvidenCas}
               className={jeVariantaMenija ? "max-md:hidden pb-1 border-b border-border/60" : "pb-1 border-b border-border/60"}
             />
-            <div className="relative flex gap-2 items-center" data-testid="menu-iskanje-vrstica">
+            <div className={`relative flex gap-2 items-center${jeVariantaMenija && prikazMenija !== "C" && skritKrmilniDel ? " hidden" : ""}`} data-testid="menu-iskanje-vrstica">
               <div className="relative flex-1">
                 <Search className={`absolute left-2.5 ${jeVariantaMenija ? "top-2" : "top-2.5"} h-4 w-4 text-muted-foreground`} />
                 <KlavijaturaInput
@@ -3206,6 +3230,7 @@ export default function Order() {
                 active={activeKategorija}
                 kosiloAktivno={narocilo.status === "odprto" && kosilaAktivna}
                 naIztekuSt={naIztekuSt}
+                skrijKategorije={skritKrmilniDel}
                 onChange={v => { setActiveKategorija(v); setSearch(""); }}
               />
             ) : prikazMenija === "C" ? null : (
@@ -3231,7 +3256,7 @@ export default function Order() {
               onChange={v => { setActiveKategorija(v); setSearch(""); }}
             />
           )}
-          <ScrollArea className="flex-1 p-3">
+          <ScrollArea className="flex-1 p-3" onScrollCapture={jeVariantaMenija && prikazMenija !== "C" ? onSeznamScroll : undefined}>
              {loadingArtikli || loadingKategorije ? (
                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-20 md:pb-4">
                  {Array.from({ length: 12 }).map((_, index) => (
