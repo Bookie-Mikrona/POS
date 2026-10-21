@@ -18,6 +18,8 @@ interface MenuNavProps {
   active: string;
   onChange: (value: string) => void;
   kosiloAktivno: boolean;
+  /** Danes je objavljena ponudba malic. */
+  maliceAktivne?: boolean;
   /** Število artiklov z 5 ali manj porcijami (ali brez); čip je viden samo, ko je > 0. */
   naIztekuSt?: number;
   /** Varianta A: vrstica kategorij se začasno skrije med drsenjem artiklov navzdol. */
@@ -39,7 +41,7 @@ function oddelekKategorije(k: MenuNavKategorija): string {
   return k.oddelek?.trim() || "Drugo";
 }
 
-function SpecialniZavihki({ active, onChange, kosiloAktivno, naIztekuSt = 0, vertical }: Pick<MenuNavProps, "active" | "onChange" | "kosiloAktivno" | "naIztekuSt"> & { vertical?: boolean }) {
+function SpecialniZavihki({ active, onChange, kosiloAktivno, maliceAktivne, naIztekuSt = 0, vertical }: Pick<MenuNavProps, "active" | "onChange" | "kosiloAktivno" | "maliceAktivne" | "naIztekuSt"> & { vertical?: boolean }) {
   const cls = (a: boolean) => (vertical ? `${chip(a)} w-full justify-start text-left rounded-md` : chip(a));
   return (
     <>
@@ -49,6 +51,9 @@ function SpecialniZavihki({ active, onChange, kosiloAktivno, naIztekuSt = 0, ver
       <button type="button" onClick={() => onChange("all")} className={cls(active === "all")}>Vse</button>
       {kosiloAktivno && (
         <button type="button" data-testid="tab-dnevno-kosilo" onClick={() => onChange("kosilo")} className={cls(active === "kosilo")}>Dnevno kosilo</button>
+      )}
+      {maliceAktivne && (
+        <button type="button" data-testid="tab-malice" onClick={() => onChange("malice")} className={cls(active === "malice")}>Malice</button>
       )}
       {naIztekuSt > 0 && (
         <button type="button" data-testid="menu-nav-na-izteku" onClick={() => onChange("na_izteku")} className={cls(active === "na_izteku")}>Na izteku ({naIztekuSt})</button>
@@ -71,7 +76,7 @@ function KategorijaGumb({ k, active, onChange, vertical }: { k: MenuNavKategorij
   );
 }
 
-export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, naIztekuSt = 0, skrijKategorije = false }: MenuNavProps) {
+export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, maliceAktivne = false, naIztekuSt = 0, skrijKategorije = false }: MenuNavProps) {
   const [izbranOddelek, setIzbranOddelek] = useState<string | null>(null);
   const [sheetOdprt, setSheetOdprt] = useState(false);
 
@@ -93,7 +98,7 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
         data-testid="menu-nav-c"
         className="flex flex-col gap-1.5 overflow-y-auto border-r p-1.5 min-h-0"
       >
-        <SpecialniZavihki active={active} onChange={onChange} kosiloAktivno={kosiloAktivno} naIztekuSt={naIztekuSt} vertical />
+        <SpecialniZavihki active={active} onChange={onChange} kosiloAktivno={kosiloAktivno} maliceAktivne={maliceAktivne} naIztekuSt={naIztekuSt} vertical />
         {kategorije.map((k) => <KategorijaGumb key={k.id} k={k} active={active} onChange={onChange} vertical />)}
       </aside>
     );
@@ -107,6 +112,9 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
   const kosiloGumb = kosiloAktivno ? (
     <button type="button" data-testid="tab-dnevno-kosilo" onClick={() => onChange("kosilo")} className={zavihek(active === "kosilo")}>Dnevno kosilo</button>
   ) : null;
+  const maliceGumb = maliceAktivne ? (
+    <button type="button" data-testid="tab-malice" onClick={() => onChange("malice")} className={zavihek(active === "malice")}>Malice</button>
+  ) : null;
 
   if (variant === "B") {
     const aktivnaKat = kategorije.find((k) => String(k.id) === active);
@@ -117,6 +125,7 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
           {aktivnaKat ? aktivnaKat.ime : `Kategorije (${kategorije.length})`} <ChevronDown className="h-4 w-4" aria-hidden />
         </button>
         {kosiloGumb}
+        {maliceGumb}
         {naIztekuSt > 0 && (
           <button
             type="button"
@@ -160,6 +169,7 @@ export function MenuNav({ variant, kategorije, active, onChange, kosiloAktivno, 
       <div data-testid="menu-nav-oddelki" className="flex h-9 flex-nowrap items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {pogostoGumb}
         {kosiloGumb}
+        {maliceGumb}
         {poOddelkih.map((o) => (
           <button
             key={o.ime}

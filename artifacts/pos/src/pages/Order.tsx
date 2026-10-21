@@ -44,6 +44,7 @@ import {
   useAddMulticourseMenu,
   useGetKdsNastavitve,
   getGetKdsNastavitveQueryKey,
+  useListMalicaDailyOffers,
 } from "@workspace/api-client-react";
 
 import {
@@ -107,6 +108,7 @@ import {
 import { useAiSvetovalec } from "@/hooks/use-ai-svetovalec";
 import { AiSvetovalecPanel } from "@/components/AiSvetovalecPanel";
 import { DailyLunchOrderFlow } from "@/components/DailyLunchOrderFlow";
+import { MalicaMenuPanel } from "@/components/order/MalicaMenuPanel";
 import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
 import { onlyActiveArticles } from "@/lib/activeArticles";
 import { GatewayConflictError, localOrderRoute, parseLocalOrderRoute, type GatewayOrderSnapshot } from "@/lib/gatewayClient";
@@ -1298,6 +1300,11 @@ export default function Order() {
   const { data: ponudbeKosil } = useListDailyLunchOffers();
   const kosilaAktivna = (ponudbeKosil?.offers ?? []).some(
     (p) => p.status === "published" && String(p.businessDate).slice(0, 10) === danasStr,
+  );
+  const { data: ponudbeMalic } = useListMalicaDailyOffers({ from: danasStr, to: danasStr });
+  const maliceAktivne = (ponudbeMalic ?? []).some(
+    (p) => p.status === "published" && String(p.businessDate).slice(0, 10) === danasStr
+      && (p.mainItems ?? []).some((item) => item.enabled),
   );
   // This endpoint is intentionally not generated yet; keep its cache key explicit
   // so menu configuration changes get a normal freshness path.
@@ -3229,6 +3236,7 @@ export default function Order() {
                 kategorije={kategorije ?? []}
                 active={activeKategorija}
                 kosiloAktivno={narocilo.status === "odprto" && kosilaAktivna}
+                maliceAktivne={narocilo.status === "odprto" && maliceAktivne}
                 naIztekuSt={naIztekuSt}
                 skrijKategorije={skritKrmilniDel}
                 onChange={v => { setActiveKategorija(v); setSearch(""); }}
@@ -3238,6 +3246,9 @@ export default function Order() {
               <TabsTrigger value="all" className="rounded-full border text-xs h-7 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary">Vse</TabsTrigger>
               {narocilo.status === "odprto" && kosilaAktivna && (
                 <TabsTrigger value="kosilo" data-testid="tab-dnevno-kosilo" className="rounded-full border-2 border-amber-500 text-xs h-7 px-3 data-[state=active]:bg-amber-500 data-[state=active]:text-white">Dnevno kosilo</TabsTrigger>
+              )}
+              {narocilo.status === "odprto" && maliceAktivne && (
+                <TabsTrigger value="malice" data-testid="tab-malice" className="rounded-full border-2 border-orange-500 text-xs h-7 px-3 data-[state=active]:bg-orange-500 data-[state=active]:text-white">Malice</TabsTrigger>
               )}
               {kategorije?.map(k => (
                 <TabsTrigger key={k.id} value={k.id.toString()} style={{ "--kc": k.barva, borderColor: k.barva } as React.CSSProperties} className="rounded-full border-2 text-xs h-7 px-3 data-[state=active]:bg-[var(--kc)] data-[state=active]:text-white">{k.ime}</TabsTrigger>
@@ -3252,6 +3263,7 @@ export default function Order() {
               kategorije={kategorije ?? []}
               active={activeKategorija}
               kosiloAktivno={narocilo.status === "odprto" && kosilaAktivna}
+                maliceAktivne={narocilo.status === "odprto" && maliceAktivne}
               naIztekuSt={naIztekuSt}
               onChange={v => { setActiveKategorija(v); setSearch(""); }}
             />
@@ -3267,6 +3279,17 @@ export default function Order() {
                <div className="pb-20 md:pb-4 max-w-3xl">
                  <DailyLunchOrderFlow
                    narociloId={narocilo.id}
+                   onAdded={() => {
+                     queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(narocilo.id) });
+                     queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+                   }}
+                 />
+               </div>
+             ) : activeKategorija === "malice" && maliceAktivne && narocilo.status === "odprto" ? (
+               <div className="pb-20 md:pb-4 max-w-3xl">
+                 <MalicaMenuPanel
+                   narociloId={narocilo.id}
+                   businessDate={danasStr}
                    onAdded={() => {
                      queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(narocilo.id) });
                      queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });

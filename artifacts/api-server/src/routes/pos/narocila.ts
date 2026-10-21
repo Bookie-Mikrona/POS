@@ -4,7 +4,7 @@ export function assertNoClaimedMalicaAllocations(claims: readonly unknown[]): vo
   if (claims.length > 0) throw new Error("MALICA_ALLOCATION_CLAIMED");
 }
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
+import { artModSkupineTable, artikliTable, db, malicaDailyMainItemsTable, malicaDailyOffersTable, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
 import { AddMulticourseMenuBody, AddMulticourseMenuParams, AddMulticourseMenuResponse } from "@workspace/api-zod";
 import { broadcastToDevice, broadcastToUnit } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
@@ -28,6 +28,7 @@ import {
   assertPreparedFoodAvailability,
   buildModifierAvailabilityRequests,
   businessDateForTimestamp,
+  currentBusinessDate as currentPosBusinessDate,
   InsufficientPreparedFoodAvailabilityError,
   lockPreparedFoodAvailability,
   loadModifierAvailabilitySnapshots,
@@ -2537,6 +2538,31 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   } else if (jeHappyHourAktiven && artikel.happyHourCena != null) {
     cenaKos = Number(artikel.happyHourCena);
     jeHappyHourCena = true;
+  }
+  // Malica: cena je posnetek cene skupine iz objavljene današnje ponudbe, ne cena artikla.
+  const maliceMainItemId = (parsed.data as { maliceMainItemId?: number | null }).maliceMainItemId;
+  if (maliceMainItemId != null) {
+    if (!Number.isInteger(maliceMainItemId) || maliceMainItemId < 1) { res.status(400).json({ error: "Neveljavna malica." }); return; }
+    const [maliceItem] = await db.select({
+      artikelId: malicaDailyMainItemsTable.artikelId,
+      enabled: malicaDailyMainItemsTable.enabled,
+      priceCents: malicaDailyMainItemsTable.priceCentsSnapshot,
+      velikostPice: malicaDailyMainItemsTable.velikostPice,
+      status: malicaDailyOffersTable.status,
+      businessDate: malicaDailyOffersTable.businessDate,
+    }).from(malicaDailyMainItemsTable)
+      .innerJoin(malicaDailyOffersTable, eq(malicaDailyOffersTable.id, malicaDailyMainItemsTable.offerId))
+      .where(and(eq(malicaDailyMainItemsTable.id, maliceMainItemId), eq(malicaDailyOffersTable.enotaId, tenotaId)));
+    if (!maliceItem || maliceItem.artikelId !== artikel.id || !maliceItem.enabled || maliceItem.status !== "published"
+      || maliceItem.businessDate !== await currentPosBusinessDate(tenotaId)) {
+      res.status(409).json({ error: "Ta malica danes ni na voljo." }); return;
+    }
+    if ((maliceItem.velikostPice ?? null) !== (izbranaVelikostPice?.id ?? null)) {
+      res.status(409).json({ error: "Velikost pice se ne ujema z malico." }); return;
+    }
+    originalCena = maliceItem.priceCents / 100;
+    cenaKos = originalCena;
+    jeHappyHourCena = false;
   }
   const skupaj = round2(cenaKos * kolicina);
   const gostStevilka = (parsed.data as { gostStevilka?: number | null }).gostStevilka ?? null;
