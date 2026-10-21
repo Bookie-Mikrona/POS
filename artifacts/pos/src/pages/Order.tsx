@@ -2378,6 +2378,15 @@ export default function Order() {
     maksTimer = setTimeout(zakljuci, 60_000);
   };
 
+  // Novi prikaz naročila (samo videz): spodnji list na mobilnem zaslonu; vsebina naročila je ista.
+  const naroceloSheet = (naprava?.prikazNarocila ?? "staro") !== "staro";
+  const naBlagajno = () => {
+    if (!narocilo) return;
+    const gostParam = aktivniGostStevilka !== null && neracunanePostavke.length > 0
+      ? `&gost=${aktivniGostStevilka}`
+      : "";
+    setLocation(`/blagajna?narocilo=${gatewayMode && gatewayOrderId ? localOrderRoute(gatewayOrderId) : narocilo.id}${gostParam}`);
+  };
   const handleAddArtikel = (artikelId: number, kolicina = 1, opomba?: string): "dialog" | "direct" | "blocked" => {
     if (checkBlock()) return "blocked";
     const configuredMenu = multicourseMenuji.find(menu => menu.aktivno && menu.menuArtikelId === artikelId);
@@ -2883,6 +2892,7 @@ export default function Order() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <span className="flex-1 min-w-0" aria-hidden="true" />
+        {!naroceloSheet && (<>
         <button
           onClick={() => setMobileTab("meni")}
           className={`shrink-0 px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
@@ -2899,10 +2909,11 @@ export default function Order() {
         >
           Naročilo{postavkeCount > 0 && ` (${postavkeCount})`}
         </button>
+        </>)}
       </div>
 
       {/* ── Levi del — Meni ──────────────────────────────────── */}
-      <div className={`flex-1 flex flex-col h-full border-r bg-background ${mobileTab === "narocilo" ? "hidden md:flex" : "flex"}`}>
+      <div className={`flex-1 flex flex-col h-full border-r bg-background ${mobileTab === "narocilo" && !naroceloSheet ? "hidden md:flex" : "flex"}`}>
         <div className="hidden md:flex p-2 border-b items-center gap-3">
           <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
@@ -3225,7 +3236,23 @@ export default function Order() {
       </Dialog>
 
       {/* ── Desni del — Račun ────────────────────────────────── */}
-      <div className={`w-full md:w-[400px] flex-col md:h-full flex-1 min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
+      {naroceloSheet && mobileTab === "narocilo" && (
+        <div className="md:hidden fixed inset-0 z-30 bg-black/40" data-testid="narocilo-sheet-ozadje" onClick={() => setMobileTab("meni")} />
+      )}
+      <div
+        data-testid={naroceloSheet ? "narocilo-sheet" : undefined}
+        className={`w-full md:w-[400px] flex-col md:h-full min-h-0 bg-background shadow-xl relative ${
+          naroceloSheet
+            ? `md:flex-1 md:z-10 ${mobileTab === "narocilo" ? "flex flex-1 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:top-[12%] max-md:z-40 max-md:rounded-t-2xl max-md:overflow-hidden" : "hidden md:flex"}`
+            : `flex-1 z-10 ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`
+        }`}
+      >
+        {naroceloSheet && (
+          <button type="button" data-testid="narocilo-sheet-zapri" onClick={() => setMobileTab("meni")}
+            className="md:hidden shrink-0 flex items-center justify-center gap-2 min-h-[44px] border-b text-xs font-semibold text-muted-foreground">
+            <span className="h-1 w-10 rounded-full bg-muted-foreground/40" aria-hidden /> Zapri naročilo
+          </button>
+        )}
         <div className="shrink-0 px-3 py-1.5 md:p-2.5 border-b bg-card space-y-1 md:space-y-0.5">
           <OrderContextLine
             prostorIme={prostorIme}
@@ -3840,12 +3867,7 @@ export default function Order() {
           <Button
             size="lg"
             className="w-full max-md:flex-1 max-md:min-w-0 max-md:order-1 text-lg h-12"
-            onClick={() => {
-              const gostParam = aktivniGostStevilka !== null && neracunanePostavke.length > 0
-                ? `&gost=${aktivniGostStevilka}`
-                : "";
-              setLocation(`/blagajna?narocilo=${gatewayMode && gatewayOrderId ? localOrderRoute(gatewayOrderId) : narocilo.id}${gostParam}`);
-            }}
+            onClick={naBlagajno}
             disabled={narocilo.postavke?.length === 0}
           >
             {ddvNeskladje ? (
@@ -3858,6 +3880,19 @@ export default function Order() {
         </div>
       </div>
     </div>
+
+    {naroceloSheet && mobileTab === "meni" && (
+      <div className="md:hidden fixed inset-x-0 bottom-0 z-20 flex items-center gap-3 border-t bg-card px-3 py-2 shadow-lg" data-testid="narocilo-vrstica">
+        <button type="button" data-testid="narocilo-odpri" onClick={() => setMobileTab("narocilo")} className="flex min-h-[44px] flex-1 min-w-0 flex-col items-start justify-center text-left">
+          <span className="text-xs text-muted-foreground">Naročilo{postavkeCount > 0 && ` (${postavkeCount})`}</span>
+          <span className="text-lg font-bold tabular-nums text-primary leading-tight">{formatEur(neracunaneSkupaj)}</span>
+        </button>
+        <Button size="lg" className="h-11 shrink-0" data-testid="narocilo-vrstica-blagajna" disabled={narocilo.postavke?.length === 0} onClick={naBlagajno}>
+          <Wallet className="w-5 h-5 mr-2" />
+          Na blagajno
+        </Button>
+      </div>
+    )}
 
     <Dialog open={casDialogOpen} onOpenChange={setCasDialogOpen}>
       <DialogContent className="max-w-sm">
