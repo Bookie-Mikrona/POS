@@ -1110,6 +1110,8 @@ export default function Order() {
   const [flashingId, setFlashingId] = useState<number | null>(null);
   const [discountOpenId, setDiscountOpenId] = useState<number | null>(null);
   // Modifikatorji dialog: prikaže se pred dodajanjem artikla z obveznimi skupinami
+  // Izbrana malica, ki jo naslednje dodajanje artikla (neposredno ali prek okna modifikatorjev) pošlje strežniku.
+  const maliceIzbiraRef = useRef<{ mainItemId: number; courseIds: number[]; velikostPice: "mala" | "normalna" | "druzinska" | null } | null>(null);
   const [modDialogArtikelId, setModDialogArtikelId] = useState<number | null>(null);
   const [modDialogIzbrani, setModDialogIzbrani] = useState<{ skupinaId: number; modifikatorId: number }[]>([]);
   const [modDialogPodIzbire, setModDialogPodIzbire] = useState<Record<string, number[]>>({});
@@ -2528,7 +2530,13 @@ export default function Order() {
     setFlashingId(artikelId);
     playTapSound();
     setTimeout(() => setFlashingId(null), 300);
-    addPostavka.mutate({ id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null } }, {
+    const malica = maliceIzbiraRef.current;
+    maliceIzbiraRef.current = null;
+    addPostavka.mutate({ id, data: {
+      artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null,
+      ...(malica ? { maliceMainItemId: malica.mainItemId, maliceCourseIds: malica.courseIds, ...(malica.velikostPice ? { velikostPice: malica.velikostPice } : {}) } : {}),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any }, {
       onSuccess: (updatedNarocilo) => {
         clearSkipAutoStart();
         // Zamenjaj temp postavko (id < 0) s strežniško (pravi id, DDV, happy hour cena)
@@ -3288,11 +3296,12 @@ export default function Order() {
              ) : activeKategorija === "malice" && maliceAktivne && narocilo.status === "odprto" ? (
                <div className="pb-20 md:pb-4 max-w-3xl">
                  <MalicaMenuPanel
-                   narociloId={narocilo.id}
                    businessDate={danasStr}
-                   onAdded={() => {
-                     queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(narocilo.id) });
-                     queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+                   onPick={(item, courseIds) => {
+                     maliceIzbiraRef.current = { mainItemId: item.id, courseIds, velikostPice: item.velikostPice ?? null };
+                     const rezultat = handleAddArtikel(item.artikelId);
+                     if (rezultat === "blocked") maliceIzbiraRef.current = null;
+                     else if (rezultat === "dialog" && item.velikostPice) setModDialogVelikostPice(item.velikostPice);
                    }}
                  />
                </div>
@@ -4621,7 +4630,9 @@ export default function Order() {
         const izbrani = [...modDialogIzbrani];
         const kolicina = modDialogKolicina;
         const opomba = modDialogOpomba;
-        const velikostPice = artJePica
+        const malica = maliceIzbiraRef.current;
+        maliceIzbiraRef.current = null;
+        const velikostPice = malica?.velikostPice ? malica.velikostPice : artJePica
           ? (modDialogVelikostPice ?? aktivneVelikostiPic.find((velikost) => velikost.id === "normalna")?.id ?? aktivneVelikostiPic[0]?.id)
           : undefined;
         setPendingArtikli(prev => new Set(prev).add(artikelId));
@@ -4661,10 +4672,11 @@ export default function Order() {
           setModDialogKolicina(kolicina);
           setModDialogOpomba(opomba);
           setModDialogVelikostPice(velikostPice);
+          maliceIzbiraRef.current = malica;
         };
         addPostavka.mutate(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload, velikostPice } as any },
+          { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload, velikostPice, ...(malica ? { maliceMainItemId: malica.mainItemId, maliceCourseIds: malica.courseIds } : {}) } as any },
           {
             onSuccess: (updatedNarocilo) => {
               clearSkipAutoStart();
@@ -4687,7 +4699,7 @@ export default function Order() {
       }
 
         return (
-        <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
+        <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { maliceIzbiraRef.current = null; setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
           <DialogContent data-pos-dialog-top className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl max-h-[calc(100dvh-3rem)] overflow-hidden p-4 sm:p-6" style={{ top: `${vidnoObmocje.top + 8}px`, maxHeight: `${Math.max(200, vidnoObmocje.height - 16)}px` }}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -4851,7 +4863,7 @@ export default function Order() {
               </div>
             )}
             <div className="shrink-0 -mx-4 sm:-mx-6 -mb-1 flex gap-2 border-t bg-background px-4 sm:px-6 pt-3">
-              <Button variant="outline" className="flex-1" onClick={() => { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); }}>Prekliči</Button>
+              <Button variant="outline" className="flex-1" onClick={() => { maliceIzbiraRef.current = null; setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); }}>Prekliči</Button>
               <Button className="flex-1" disabled={isPotrdiDisabled || addPostavka.isPending} onClick={handlePotrdiModifikatorje}>
                 Potrdi
               </Button>

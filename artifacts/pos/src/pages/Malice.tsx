@@ -565,8 +565,8 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
   useMemo(() => {
     if (offer) {
       setFormData({
-        mainItems: offer.mainItems || [],
-        includedCourses: offer.includedCourses || []
+        mainItems: (offer.mainItems || []).filter(item => item.enabled),
+        includedCourses: (offer.includedCourses || []).filter(course => course.enabled)
       });
     } else {
       setFormData({ mainItems: [], includedCourses: [] });
@@ -581,8 +581,9 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
   const handleSave = async () => {
     if (!formData) return;
     try {
+      let saved: unknown;
       if (offer) {
-        await updateMutation.mutateAsync({
+        saved = await updateMutation.mutateAsync({
           offerId: offer.id,
           data: {
             mainItems: formData.mainItems,
@@ -598,7 +599,15 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
           }
         });
       }
+      const warnings = offer ? ((saved as { warnings?: string[] } | undefined)?.warnings ?? []) : [];
       toast({ title: offer?.status === "published" ? "Spremembe so objavljene" : "Dnevna ponudba shranjena" });
+      if (warnings.length > 0) {
+        toast({
+          title: "Odstranjene jedi so še na odprtih naročilih",
+          description: `${warnings.join("; ")}. Natakar jih mora na naročilu zamenjati.`,
+          variant: "destructive",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: getListMalicaDailyOffersQueryKey() });
     } catch (err: any) {
       const msg = err.response?.data?.message || err.response?.data?.napaka || "Napaka pri shranjevanju";

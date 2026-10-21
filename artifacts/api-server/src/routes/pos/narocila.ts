@@ -4,7 +4,7 @@ export function assertNoClaimedMalicaAllocations(claims: readonly unknown[]): vo
   if (claims.length > 0) throw new Error("MALICA_ALLOCATION_CLAIMED");
 }
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, malicaDailyMainItemsTable, malicaDailyOffersTable, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
+import { artModSkupineTable, artikliTable, db, malicaDailyIncludedCoursesTable, malicaDailyMainItemsTable, malicaDailyOffersTable, malicaSaleSnapshotsTable, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
 import { AddMulticourseMenuBody, AddMulticourseMenuParams, AddMulticourseMenuResponse } from "@workspace/api-zod";
 import { broadcastToDevice, broadcastToUnit } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
@@ -2541,9 +2541,19 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   }
   // Malica: cena je posnetek cene skupine iz objavljene današnje ponudbe, ne cena artikla.
   const maliceMainItemId = (parsed.data as { maliceMainItemId?: number | null }).maliceMainItemId;
+  const maliceCourseIdsRaw = (parsed.data as { maliceCourseIds?: unknown }).maliceCourseIds;
+  type MalicaKontekst = {
+    offerId: number; offerVersion: number; groupId: number; mainItemId: number; priceCents: number;
+    courses: Array<{ id: number; artikelId: number; courseType: "soup" | "dessert" }>;
+  };
+  let malicaKontekst: MalicaKontekst | null = null;
   if (maliceMainItemId != null) {
     if (!Number.isInteger(maliceMainItemId) || maliceMainItemId < 1) { res.status(400).json({ error: "Neveljavna malica." }); return; }
+    if (kolicina !== 1) { res.status(400).json({ error: "Malico je mogoče dodati samo po eno." }); return; }
     const [maliceItem] = await db.select({
+      offerId: malicaDailyOffersTable.id,
+      offerVersion: malicaDailyOffersTable.version,
+      groupId: malicaDailyMainItemsTable.groupId,
       artikelId: malicaDailyMainItemsTable.artikelId,
       enabled: malicaDailyMainItemsTable.enabled,
       priceCents: malicaDailyMainItemsTable.priceCentsSnapshot,
@@ -2560,6 +2570,28 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
     if ((maliceItem.velikostPice ?? null) !== (izbranaVelikostPice?.id ?? null)) {
       res.status(409).json({ error: "Velikost pice se ne ujema z malico." }); return;
     }
+    const courseIds = Array.isArray(maliceCourseIdsRaw) ? maliceCourseIdsRaw : [];
+    if (courseIds.some(courseId => !Number.isInteger(courseId) || courseId < 1) || new Set(courseIds).size !== courseIds.length) {
+      res.status(400).json({ error: "Neveljavna izbira juhe ali sladice." }); return;
+    }
+    const courses: MalicaKontekst["courses"] = [];
+    if (courseIds.length > 0) {
+      const rows = await db.select().from(malicaDailyIncludedCoursesTable)
+        .where(and(eq(malicaDailyIncludedCoursesTable.offerId, maliceItem.offerId), inArray(malicaDailyIncludedCoursesTable.id, courseIds)));
+      if (rows.length !== courseIds.length || rows.some(row => !row.enabled)) {
+        res.status(409).json({ error: "Izbrana juha ali sladica danes ni na voljo." }); return;
+      }
+      for (const type of ["soup", "dessert"] as const) {
+        if (rows.filter(row => row.courseType === type).length > 1) {
+          res.status(400).json({ error: type === "soup" ? "V malici je vključena ena juha." : "V malici je vključena ena sladica." }); return;
+        }
+      }
+      for (const row of rows) courses.push({ id: row.id, artikelId: row.artikelId, courseType: row.courseType });
+    }
+    malicaKontekst = {
+      offerId: maliceItem.offerId, offerVersion: maliceItem.offerVersion, groupId: maliceItem.groupId,
+      mainItemId: maliceMainItemId, priceCents: maliceItem.priceCents, courses,
+    };
     originalCena = maliceItem.priceCents / 100;
     cenaKos = originalCena;
     jeHappyHourCena = false;
@@ -2891,6 +2923,46 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
           toGo: postavkaToGo,
           parentPostavkaId: insertedModifier!.id,
         });
+      }
+    }
+
+    if (malicaKontekst) {
+      const kontekst = malicaKontekst;
+      const courseRows = kontekst.courses.length > 0
+        ? await tx.select().from(artikliTable).where(and(
+            inArray(artikliTable.id, kontekst.courses.map(course => course.artikelId)),
+            eq(artikliTable.enotaId, tenotaId),
+          ))
+        : [];
+      const courseById = new Map(courseRows.map(row => [row.id, row]));
+      await tx.insert(malicaSaleSnapshotsTable).values({
+        postavkaId: inserted.id, offerId: kontekst.offerId, offerVersion: kontekst.offerVersion, groupId: kontekst.groupId,
+        regularPriceCents: kontekst.priceCents, actualPriceCents: kontekst.priceCents, priceSource: "regular",
+        mainItemId: kontekst.mainItemId,
+        soupId: kontekst.courses.find(course => course.courseType === "soup")?.id ?? null,
+        dessertId: kontekst.courses.find(course => course.courseType === "dessert")?.id ?? null,
+        selectedCourseIds: kontekst.courses.map(course => course.id),
+        guestPayableCents: kontekst.priceCents,
+      });
+      if (kontekst.courses.length > 0) {
+        await assertPreparedFoodAvailability(tx, tenotaId, businessDate,
+          kontekst.courses.map(course => ({ articleId: course.artikelId, quantity: 1 })));
+        const pairingGroupId = `malice:${params.data.id}:${crypto.randomUUID()}`;
+        await tx.update(postavkeTable).set({ pairingGroupId, courseNumber: 2, courseSequence: 2, courseNameSnapshot: "main" })
+          .where(eq(postavkeTable.id, inserted.id));
+        for (const course of kontekst.courses) {
+          const row = courseById.get(course.artikelId);
+          if (!row) throw new Error("Izbrana juha ali sladica ne obstaja.");
+          const courseNumber = course.courseType === "soup" ? 1 : 3;
+          await tx.insert(postavkeTable).values({
+            narociloId: params.data.id, artikelId: row.id, ime: row.ime, kolicina: 1,
+            cenaKos: "0.00", cenaKosOriginalna: "0.00", skupaj: "0.00", davek: davekZaPostavko,
+            mealType: row.mealType ?? "ala_carte", vrstaArtikla: row.vrstaArtikla ?? vrstaArtiklaZaPostavko,
+            jeDelMenija: jeDelMenijaZaPostavko, gostStevilka, toGo: postavkaToGo, napravaId,
+            pairingGroupId, courseNumber, courseSequence: courseNumber, courseNameSnapshot: course.courseType,
+            availabilityRequirements: [{ articleId: row.id, quantity: 1, mealType: row.mealType ?? "ala_carte" }],
+          });
+        }
       }
     }
 

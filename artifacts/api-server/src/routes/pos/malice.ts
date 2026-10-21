@@ -15,6 +15,7 @@ import {
   malicaPartnerGroupPricesTable,
   malicaBeneficiariesTable,
   malicaContractsTable,
+  malicaSaleSnapshotsTable,
   narocilaTable,
   postavkeTable,
 } from "@workspace/db";
@@ -350,6 +351,102 @@ router.put("/malice/offers/:offerId", async (req, res): Promise<void> => {
   if (hasMainItems && mainItems.length === 0) { res.status(400).json({ error: "Ponudba mora vsebovati glavno jed." }); return; }
   if (offer.status === "published" && hasMainItems && !mainItems.some((item: { enabled?: boolean }) => item.enabled !== false)) {
     res.status(400).json({ error: "Objavljena ponudba mora vsebovati vsaj eno omogočeno glavno jed." }); return;
+  }
+  if (offer.status === "published") {
+    // Objavljene ponudbe ne brišemo na novo: nanjo so lahko vezani že prodani posnetki malic.
+    const warnings: string[] = [];
+    const saved = await db.transaction(async (tx) => {
+      const removedMainIds: number[] = [];
+      const removedCourseIds: number[] = [];
+      if (hasMainItems) {
+        const existing = await tx.select().from(malicaDailyMainItemsTable).where(eq(malicaDailyMainItemsTable.offerId, offerId));
+        const keyOf = (groupId: number, artikelId: number, velikost: string | null) => `${groupId}|${artikelId}|${velikost ?? ""}`;
+        const byKey = new Map(existing.map(row => [keyOf(row.groupId, row.artikelId, row.velikostPice ?? null), row]));
+        const keep = new Set<string>();
+        for (const item of mainItems) {
+          const resolved = await resolveMainItem(tx, offer.enotaId, item);
+          const key = keyOf(resolved.groupId, resolved.artikelId, resolved.velikostPice ?? null);
+          keep.add(key);
+          const row = byKey.get(key);
+          const enabled = item.enabled !== false;
+          const availableQuantity = item.availableQuantity == null ? null : String(item.availableQuantity);
+          if (row) {
+            if (row.enabled && !enabled) removedMainIds.push(row.id);
+            await tx.update(malicaDailyMainItemsTable).set({ enabled, position: Number(item.position ?? 0), availableQuantity })
+              .where(eq(malicaDailyMainItemsTable.id, row.id));
+          } else {
+            await tx.insert(malicaDailyMainItemsTable).values({
+              offerId, groupId: resolved.groupId, artikelId: resolved.artikelId, velikostPice: resolved.velikostPice,
+              position: Number(item.position ?? 0), enabled, articleNameSnapshot: resolved.article.ime,
+              priceCentsSnapshot: await effectiveGroupPrice(tx, offer.enotaId, resolved.groupId, offer.businessDate),
+              availableQuantity,
+            });
+          }
+        }
+        for (const row of existing) {
+          if (keep.has(keyOf(row.groupId, row.artikelId, row.velikostPice ?? null))) continue;
+          const [sold] = await tx.select({ id: malicaSaleSnapshotsTable.id }).from(malicaSaleSnapshotsTable)
+            .where(eq(malicaSaleSnapshotsTable.mainItemId, row.id)).limit(1);
+          if (sold) {
+            if (row.enabled) removedMainIds.push(row.id);
+            await tx.update(malicaDailyMainItemsTable).set({ enabled: false }).where(eq(malicaDailyMainItemsTable.id, row.id));
+          } else {
+            await tx.delete(malicaDailyMainItemsTable).where(eq(malicaDailyMainItemsTable.id, row.id));
+          }
+        }
+      }
+      if (hasIncludedCourses) {
+        const existing = await tx.select().from(malicaDailyIncludedCoursesTable).where(eq(malicaDailyIncludedCoursesTable.offerId, offerId));
+        const byKey = new Map(existing.map(row => [`${row.courseType}|${row.artikelId}`, row]));
+        const keep = new Set<string>();
+        for (const item of includedCourses) {
+          if (!["soup", "dessert"].includes(item.courseType)) throw new Error("Neveljaven tip vključenega hoda.");
+          const [article] = await tx.select({ ime: artikliTable.ime }).from(artikliTable).where(and(eq(artikliTable.id, Number(item.artikelId)), eq(artikliTable.enotaId, offer.enotaId), eq(artikliTable.malicaVloga, item.courseType)));
+          if (!article) throw new Error("Artikel ni dovoljen za izbrani hod.");
+          const key = `${item.courseType}|${Number(item.artikelId)}`;
+          keep.add(key);
+          const row = byKey.get(key);
+          const enabled = item.enabled !== false;
+          if (row) {
+            if (row.enabled && !enabled) removedCourseIds.push(row.id);
+            await tx.update(malicaDailyIncludedCoursesTable).set({ enabled, quantity: String(item.quantity ?? row.quantity) })
+              .where(eq(malicaDailyIncludedCoursesTable.id, row.id));
+          } else {
+            await tx.insert(malicaDailyIncludedCoursesTable).values({ offerId, courseType: item.courseType, artikelId: Number(item.artikelId), articleNameSnapshot: article.ime, quantity: String(item.quantity ?? 0), enabled });
+          }
+        }
+        for (const row of existing) {
+          if (keep.has(`${row.courseType}|${row.artikelId}`)) continue;
+          const [sold] = await tx.select({ id: malicaSaleSnapshotsTable.id }).from(malicaSaleSnapshotsTable)
+            .where(or(eq(malicaSaleSnapshotsTable.soupId, row.id), eq(malicaSaleSnapshotsTable.dessertId, row.id))).limit(1);
+          if (sold) {
+            if (row.enabled) removedCourseIds.push(row.id);
+            await tx.update(malicaDailyIncludedCoursesTable).set({ enabled: false }).where(eq(malicaDailyIncludedCoursesTable.id, row.id));
+          } else {
+            await tx.delete(malicaDailyIncludedCoursesTable).where(eq(malicaDailyIncludedCoursesTable.id, row.id));
+          }
+        }
+      }
+      // Opozorilo za jedi, ki so že na odprtih naročilih (natakar jih mora zamenjati ročno).
+      const conditions = [
+        ...(removedMainIds.length ? [inArray(malicaSaleSnapshotsTable.mainItemId, removedMainIds)] : []),
+        ...(removedCourseIds.length ? [inArray(malicaSaleSnapshotsTable.soupId, removedCourseIds), inArray(malicaSaleSnapshotsTable.dessertId, removedCourseIds)] : []),
+      ];
+      if (conditions.length > 0) {
+        const open = await tx.select({ ime: postavkeTable.ime, narociloId: postavkeTable.narociloId })
+          .from(malicaSaleSnapshotsTable)
+          .innerJoin(postavkeTable, eq(postavkeTable.id, malicaSaleSnapshotsTable.postavkaId))
+          .innerJoin(narocilaTable, eq(narocilaTable.id, postavkeTable.narociloId))
+          .where(and(eq(narocilaTable.status, "odprto"), or(...conditions)));
+        const counts = new Map<string, number>();
+        for (const row of open) counts.set(row.ime, (counts.get(row.ime) ?? 0) + 1);
+        for (const [ime, count] of counts) warnings.push(`${ime}: ${count}× na odprtih naročilih`);
+      }
+      const [updated] = await tx.update(malicaDailyOffersTable).set({ version: offer.version + 1, updatedAt: new Date() }).where(eq(malicaDailyOffersTable.id, offerId)).returning();
+      return updated!;
+    });
+    res.json({ ...(await offerDetails(saved)), warnings });
+    return;
   }
   const saved = await db.transaction(async (tx) => {
     if (!hasMainItems && !hasIncludedCourses) return offer;
