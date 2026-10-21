@@ -1111,7 +1111,7 @@ export default function Order() {
   const [discountOpenId, setDiscountOpenId] = useState<number | null>(null);
   // Modifikatorji dialog: prikaže se pred dodajanjem artikla z obveznimi skupinami
   // Izbrana malica, ki jo naslednje dodajanje artikla (neposredno ali prek okna modifikatorjev) pošlje strežniku.
-  const maliceIzbiraRef = useRef<{ mainItemId: number; courseIds: number[]; velikostPice: "mala" | "normalna" | "druzinska" | null } | null>(null);
+  const maliceIzbiraRef = useRef<{ mainItemId: number; courseIds: number[]; partnerId: string | null; velikostPice: "mala" | "normalna" | "druzinska" | null } | null>(null);
   const [modDialogArtikelId, setModDialogArtikelId] = useState<number | null>(null);
   const [modDialogIzbrani, setModDialogIzbrani] = useState<{ skupinaId: number; modifikatorId: number }[]>([]);
   const [modDialogPodIzbire, setModDialogPodIzbire] = useState<Record<string, number[]>>({});
@@ -2534,7 +2534,7 @@ export default function Order() {
     maliceIzbiraRef.current = null;
     addPostavka.mutate({ id, data: {
       artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null,
-      ...(malica ? { maliceMainItemId: malica.mainItemId, maliceCourseIds: malica.courseIds, ...(malica.velikostPice ? { velikostPice: malica.velikostPice } : {}) } : {}),
+      ...(malica ? { maliceMainItemId: malica.mainItemId, maliceCourseIds: malica.courseIds, ...(malica.partnerId ? { malicePartnerId: malica.partnerId } : {}), ...(malica.velikostPice ? { velikostPice: malica.velikostPice } : {}) } : {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any }, {
       onSuccess: (updatedNarocilo) => {
@@ -3297,8 +3297,8 @@ export default function Order() {
                <div className="pb-20 md:pb-4 max-w-3xl">
                  <MalicaMenuPanel
                    businessDate={danasStr}
-                   onPick={(item, courseIds) => {
-                     maliceIzbiraRef.current = { mainItemId: item.id, courseIds, velikostPice: item.velikostPice ?? null };
+                   onPick={(item, courseIds, partnerId) => {
+                     maliceIzbiraRef.current = { mainItemId: item.id, courseIds, partnerId, velikostPice: item.velikostPice ?? null };
                      const rezultat = handleAddArtikel(item.artikelId);
                      if (rezultat === "blocked") maliceIzbiraRef.current = null;
                      else if (rezultat === "dialog" && item.velikostPice) setModDialogVelikostPice(item.velikostPice);
@@ -4676,7 +4676,7 @@ export default function Order() {
         };
         addPostavka.mutate(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload, velikostPice, ...(malica ? { maliceMainItemId: malica.mainItemId, maliceCourseIds: malica.courseIds } : {}) } as any },
+          { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload, velikostPice, ...(malica ? { maliceMainItemId: malica.mainItemId, maliceCourseIds: malica.courseIds, ...(malica.partnerId ? { malicePartnerId: malica.partnerId } : {}) } : {}) } as any },
           {
             onSuccess: (updatedNarocilo) => {
               clearSkipAutoStart();

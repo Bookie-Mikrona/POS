@@ -29,7 +29,7 @@ const dateOk = (value: unknown): value is string => typeof value === "string" &&
 const id = (value: string | string[] | undefined) => Number(Array.isArray(value) ? value[0] : value);
 const unit = (req: any) => (req as PosRequest).enotaId;
 const dayBefore = (value: string) => { const d = new Date(`${value}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); };
-async function validPartner(enotaId: number, partnerId: string) {
+export async function validPartner(enotaId: number, partnerId: string) {
   const [partner] = await db.select({ id: counterpartiesTable.id }).from(counterpartiesTable)
     .innerJoin(enoteTable, eq(counterpartiesTable.companyId, enoteTable.companyId))
     .where(and(eq(counterpartiesTable.id, partnerId), eq(enoteTable.id, enotaId), or(eq(counterpartiesTable.type, "customer"), eq(counterpartiesTable.type, "both")))).limit(1);

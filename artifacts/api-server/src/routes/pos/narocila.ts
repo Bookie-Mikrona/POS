@@ -1,10 +1,11 @@
+import { validPartner } from "./malice";
 import { Router, type IRouter, type Request, type Response } from "express";
 
 export function assertNoClaimedMalicaAllocations(claims: readonly unknown[]): void {
   if (claims.length > 0) throw new Error("MALICA_ALLOCATION_CLAIMED");
 }
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, malicaDailyIncludedCoursesTable, malicaDailyMainItemsTable, malicaDailyOffersTable, malicaSaleSnapshotsTable, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
+import { artModSkupineTable, artikliTable, db, malicaDailyIncludedCoursesTable, malicaPartnerGroupPricesTable, malicaDailyMainItemsTable, malicaDailyOffersTable, malicaSaleSnapshotsTable, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
 import { AddMulticourseMenuBody, AddMulticourseMenuParams, AddMulticourseMenuResponse } from "@workspace/api-zod";
 import { broadcastToDevice, broadcastToUnit } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
@@ -2544,6 +2545,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   const maliceCourseIdsRaw = (parsed.data as { maliceCourseIds?: unknown }).maliceCourseIds;
   type MalicaKontekst = {
     offerId: number; offerVersion: number; groupId: number; mainItemId: number; priceCents: number;
+    regularPriceCents: number; partnerId: string | null;
     courses: Array<{ id: number; artikelId: number; courseType: "soup" | "dessert" }>;
   };
   let malicaKontekst: MalicaKontekst | null = null;
@@ -2588,11 +2590,28 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       }
       for (const row of rows) courses.push({ id: row.id, artikelId: row.artikelId, courseType: row.courseType });
     }
+    let maliceCena = maliceItem.priceCents;
+    const malicePartnerId = (parsed.data as { malicePartnerId?: unknown }).malicePartnerId;
+    let partnerId: string | null = null;
+    if (malicePartnerId != null && malicePartnerId !== "") {
+      if (typeof malicePartnerId !== "string" || !await validPartner(tenotaId, malicePartnerId)) {
+        res.status(404).json({ error: "Partner ne pripada izbrani enoti." }); return;
+      }
+      partnerId = malicePartnerId;
+      const [partnerPrice] = await db.select({ priceCents: malicaPartnerGroupPricesTable.priceCents }).from(malicaPartnerGroupPricesTable)
+        .where(and(
+          eq(malicaPartnerGroupPricesTable.enotaId, tenotaId), eq(malicaPartnerGroupPricesTable.kupecId, partnerId),
+          eq(malicaPartnerGroupPricesTable.groupId, maliceItem.groupId), eq(malicaPartnerGroupPricesTable.active, true),
+          sql`${malicaPartnerGroupPricesTable.validFrom} <= ${maliceItem.businessDate}`,
+          sql`(${malicaPartnerGroupPricesTable.validTo} IS NULL OR ${malicaPartnerGroupPricesTable.validTo} >= ${maliceItem.businessDate})`,
+        )).orderBy(sql`${malicaPartnerGroupPricesTable.validFrom} DESC`).limit(1);
+      if (partnerPrice) maliceCena = partnerPrice.priceCents;
+    }
     malicaKontekst = {
       offerId: maliceItem.offerId, offerVersion: maliceItem.offerVersion, groupId: maliceItem.groupId,
-      mainItemId: maliceMainItemId, priceCents: maliceItem.priceCents, courses,
+      mainItemId: maliceMainItemId, priceCents: maliceCena, regularPriceCents: maliceItem.priceCents, partnerId, courses,
     };
-    originalCena = maliceItem.priceCents / 100;
+    originalCena = maliceCena / 100;
     cenaKos = originalCena;
     jeHappyHourCena = false;
   }
@@ -2937,7 +2956,8 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       const courseById = new Map(courseRows.map(row => [row.id, row]));
       await tx.insert(malicaSaleSnapshotsTable).values({
         postavkaId: inserted.id, offerId: kontekst.offerId, offerVersion: kontekst.offerVersion, groupId: kontekst.groupId,
-        regularPriceCents: kontekst.priceCents, actualPriceCents: kontekst.priceCents, priceSource: "regular",
+        regularPriceCents: kontekst.regularPriceCents, actualPriceCents: kontekst.priceCents,
+        priceSource: kontekst.partnerId ? "partner" : "regular", partnerId: kontekst.partnerId,
         mainItemId: kontekst.mainItemId,
         soupId: kontekst.courses.find(course => course.courseType === "soup")?.id ?? null,
         dessertId: kontekst.courses.find(course => course.courseType === "dessert")?.id ?? null,

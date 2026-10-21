@@ -41,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PartnerMalicePrices } from "@/components/PartnerMalicePrices";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2,
@@ -1007,6 +1008,8 @@ export default function Partnerji() {
                   </div>
                 )}
               </section>
+
+              {editId != null && <PartnerMalicePrices partnerId={editId} />}
 
               {/* Cenik — samo za obstoječe partnerje */}
               {editId != null && (
