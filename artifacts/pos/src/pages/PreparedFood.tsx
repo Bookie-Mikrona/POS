@@ -274,14 +274,18 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
 
   const orderedRows = useMemo(() => {
     const collator = new Intl.Collator("sl", { sensitivity: "base", numeric: true });
+    // Aktivnost po shranjenih podatkih, da se vrstice med vnosom ne prerazporejajo.
+    const isActiveRow = (r: typeof rowsWithCalculations[number]) => [r.thawedQuantity, r.preparedQuantity, r.correctionQuantity, r.soldQuantity, r.frozenAtEndQuantity]
+      .some(v => Number(v || 0) !== 0);
     const byName = (a: typeof rowsWithCalculations[number], b: typeof rowsWithCalculations[number]) =>
-      collator.compare(a.articleName ?? "", b.articleName ?? "");
+      Number(isActiveRow(b)) - Number(isActiveRow(a)) || collator.compare(a.articleName ?? "", b.articleName ?? "");
     const featured = rowsWithCalculations.filter(row => featuredArticleIds.has(row.artikelId)).sort(byName);
     const featuredIds = new Set(featured.map(row => row.artikelId));
     const dough = [...pizzaDoughArticles.keys()]
       .filter(articleId => !featuredIds.has(articleId))
       .map(articleId => rowsWithCalculations.find(row => row.artikelId === articleId))
-      .filter((row): row is typeof rowsWithCalculations[number] => Boolean(row));
+      .filter((row): row is typeof rowsWithCalculations[number] => Boolean(row))
+      .sort(byName);
     const placedIds = new Set([...featuredIds, ...dough.map(row => row.artikelId)]);
     const remaining = rowsWithCalculations.filter(row => !placedIds.has(row.artikelId));
     const thawAvailable = remaining
