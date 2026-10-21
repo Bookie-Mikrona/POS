@@ -583,7 +583,12 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
           </DialogHeader>
           
           <div className="mt-2 max-h-[60vh] space-y-3 overflow-y-auto rounded-md border p-3">
-            {rowsWithCalculations.filter(r => r.editable && !r.isClosed).map(row => (
+            {[...rowsWithCalculations.filter(r => r.editable && !r.isClosed)]
+              .sort((a, b) => {
+                const active = (r: typeof a) => r.totalQuantity !== 0 || Number(r.soldQuantity) !== 0 || parseQuantity(r.edit.frozen) !== 0;
+                return Number(active(b)) - Number(active(a))
+                  || (a.articleName ?? "").localeCompare(b.articleName ?? "", "sl", { sensitivity: "base", numeric: true });
+              }).map(row => (
               <div key={row.id} className="rounded-md border p-3">
                 <div className="mb-2 font-medium">{row.articleName || `Artikel #${row.artikelId}`}</div>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
