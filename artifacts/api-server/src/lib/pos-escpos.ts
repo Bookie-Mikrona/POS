@@ -349,6 +349,8 @@ export interface PrintRacunData {
   kupecNaslov?: string | null;
   kupecZavezanecDdv?: boolean | null;
   vivaTerminalSessionId?: string | null;
+  /** ID Viva transakcije (Android Terminal / Tap to Pay / Smart); izpiše se na računu pri kartičnem plačilu. */
+  vivaTransactionId?: string | null;
   sumupCheckoutId?: string | null;
   stornoIzvornaRacunStevilka?: string | null;
   racunMaticna?: string | null;
@@ -472,6 +474,13 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDouble
     line("SUMUP CHECKOUT:", true);
     const cid = data.sumupCheckoutId;
     for (let i = 0; i < cid.length; i += cols) line(cid.slice(i, i + cols));
+  }
+
+  if (data.vivaTransactionId && !data.vivaTerminalSessionId) {
+    line(dashedLine(cols));
+    line("VIVA TRANSAKCIJA:", true);
+    const tid = data.vivaTransactionId;
+    for (let i = 0; i < tid.length; i += cols) line(tid.slice(i, i + cols));
   }
 
   line(dashedLine(cols));
@@ -841,6 +850,11 @@ export function buildNb80TextReceipt(data: PrintRacunData): ZcsRacunJson {
     line(dashedLine(COLS)); line("SUMUP CHECKOUT:"); // "N" — 40 zn. pri 1×
     const cid = data.sumupCheckoutId;
     for (let i = 0; i < cid.length; i += COLS) line(cid.slice(i, i + COLS));
+  }
+  if (data.vivaTransactionId && !data.vivaTerminalSessionId) {
+    line(dashedLine(COLS)); line("VIVA TRANSAKCIJA:");
+    const tid = data.vivaTransactionId;
+    for (let i = 0; i < tid.length; i += COLS) line(tid.slice(i, i + COLS));
   }
 
   line(dashedLine(COLS));
@@ -1285,6 +1299,18 @@ export function buildEscPosReceipt(
     const cid = data.sumupCheckoutId;
     for (let i = 0; i < cid.length; i += cols) {
       line(cid.slice(i, i + cols));
+    }
+  }
+
+  // --- VIVA TRANSAKCIJA ---
+  if (data.vivaTransactionId && !data.vivaTerminalSessionId) {
+    line(dashedLine(cols));
+    bytes(CMD.BOLD_ON);
+    line("VIVA TRANSAKCIJA:");
+    bytes(CMD.BOLD_OFF);
+    const tid = data.vivaTransactionId;
+    for (let i = 0; i < tid.length; i += cols) {
+      line(tid.slice(i, i + cols));
     }
   }
 
