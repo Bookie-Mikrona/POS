@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { preberiVivaPoverilnicePodjetja } from "../../lib/viva-company-credentials";
 import multer from "multer";
 import { ObjectStorageService } from "../../lib/objectStorage";
 import { REFUND_EVIDENCE_MAX_BYTES, REFUND_EVIDENCE_MIMES, validateRefundEvidence, refundEvidenceHash } from "../../lib/refundEvidence";
@@ -410,6 +411,19 @@ async function getDeviceTerminalConfig(
   // blagajne. Zaradi združljivosti jih še vedno lahko vnese skrbnik na eni
   // napravi; vse ostale naprave istega podjetja jih nato podedujejo. Poizvedba
   // je strogo omejena na companyId, zato se najemniki nikoli ne premešajo.
+  {
+    const [enota] = await db.select({ companyId: enoteTable.companyId })
+      .from(enoteTable)
+      .where(eq(enoteTable.id, tenotaId));
+    if (!enota) return { ...TC_EMPTY };
+    // Poverilnice na ravni podjetja imajo prednost pred starimi kopijami na napravah.
+    const podjetje = await preberiVivaPoverilnicePodjetja(enota.companyId);
+    if (podjetje) {
+      raw.vivaClientId = podjetje.clientId;
+      raw.vivaClientSecret = podjetje.clientSecret;
+      raw.vivaDemoNacin = podjetje.demoNacin;
+    }
+  }
   if (!String(raw.vivaClientId ?? "").trim() || !String(raw.vivaClientSecret ?? "").trim()) {
     const [enota] = await db.select({ companyId: enoteTable.companyId })
       .from(enoteTable)

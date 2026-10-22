@@ -1,8 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq, sql } from "drizzle-orm";
-import { db, napraveTable } from "@workspace/db";
+import { db, napraveTable, enoteTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { createHmac } from "node:crypto";
+import { preberiVivaPoverilnicePodjetja, shraniVivaPoverilnicePodjetja } from "../../lib/viva-company-credentials";
 
 const router: IRouter = Router();
 
@@ -87,12 +88,48 @@ function napravaToResponse(row: typeof napraveTable.$inferSelect, includePrivate
     terminalConfig: sanitizeTerminalConfig(row.nastavitveJson)};
 }
 
+/**
+ * Viva Client ID/Secret sta poverilnici podjetja. Strežnik jih pri plačilu že
+ * podeduje od katerekoli naprave podjetja (glej terminal.ts); tu enako
+ * prikažemo v nastavitvah, da jih ni treba vnašati na vsaki napravi.
+ * Skrivnosti se nikoli ne vrne, samo ali je nastavljena.
+ */
+async function skupnaViva(enotaId: number): Promise<{ vivaClientId: string; vivaClientSecretNastavljen: boolean; vivaDemoNacin: boolean } | null> {
+  const [enota] = await db.select({ companyId: enoteTable.companyId }).from(enoteTable).where(eq(enoteTable.id, enotaId));
+  if (!enota) return null;
+  const podjetje = await preberiVivaPoverilnicePodjetja(enota.companyId);
+  if (podjetje) return { vivaClientId: podjetje.clientId, vivaClientSecretNastavljen: true, vivaDemoNacin: podjetje.demoNacin };
+  const naprave = await db.select({ nastavitveJson: napraveTable.nastavitveJson })
+    .from(napraveTable)
+    .innerJoin(enoteTable, eq(enoteTable.id, napraveTable.enotaId))
+    .where(eq(enoteTable.companyId, enota.companyId));
+  for (const n of naprave) {
+    if (!n.nastavitveJson) continue;
+    try {
+      const raw = JSON.parse(n.nastavitveJson) as Record<string, unknown>;
+      if (String(raw.vivaClientId ?? "").trim() && String(raw.vivaClientSecret ?? "").trim()) {
+        return { vivaClientId: String(raw.vivaClientId), vivaClientSecretNastavljen: true, vivaDemoNacin: Boolean(raw.vivaDemoNacin ?? false) };
+      }
+    } catch { /* neveljavna konfiguracija ene naprave ne blokira drugih */ }
+  }
+  return null;
+}
+
+async function napravaToResponseSkupno(row: typeof napraveTable.$inferSelect, includePrivateIdentity = false) {
+  const odgovor = napravaToResponse(row, includePrivateIdentity);
+  const tc = odgovor.terminalConfig as Record<string, unknown> | null;
+  if (!tc) return odgovor;
+  const skupno = await skupnaViva(row.enotaId);
+  if (!skupno) return odgovor;
+  return { ...odgovor, terminalConfig: { ...tc, ...skupno } };
+}
+
 router.get("/naprave", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const rows = await db.select().from(napraveTable).where(
     and(eq(napraveTable.enotaId, tenotaId))
   );
-  res.json(rows.map((row) => napravaToResponse(row)));
+  res.json(await Promise.all(rows.map((row) => napravaToResponseSkupno(row))));
 });
 
 router.post("/naprave/registracija", async (req, res): Promise<void> => {
@@ -125,7 +162,7 @@ router.post("/naprave/registracija", async (req, res): Promise<void> => {
   }
 
   const isNew = existing.length === 0;
-  res.status(isNew ? 201 : 200).json(napravaToResponse(naprava, true));
+  res.status(isNew ? 201 : 200).json(await napravaToResponseSkupno(naprava, true));
 });
 
 router.put("/naprave/terminali", requireEnota, async (req, res): Promise<void> => {
@@ -189,10 +226,34 @@ router.put("/naprave/terminali", requireEnota, async (req, res): Promise<void> =
   if (d.sumupTerminalSerial !== undefined)      novConfig.sumupTerminalSerial      = d.sumupTerminalSerial;
   if (d.sumupApiKey && d.sumupApiKey.trim() !== "")             novConfig.sumupApiKey       = d.sumupApiKey.trim();
   if (d.vivaAktiven !== undefined)              novConfig.vivaAktiven              = d.vivaAktiven;
-  if (d.vivaClientId !== undefined)             novConfig.vivaClientId             = d.vivaClientId;
   if (d.vivaSourceCode !== undefined)           novConfig.vivaSourceCode           = d.vivaSourceCode;
-  if (d.vivaDemoNacin !== undefined)            novConfig.vivaDemoNacin            = d.vivaDemoNacin;
-  if (d.vivaClientSecret && d.vivaClientSecret.trim() !== "")  novConfig.vivaClientSecret = d.vivaClientSecret.trim();
+
+  // Client ID, Client Secret in demo način so poverilnice podjetja: shrani jih na ravni podjetja.
+  // Obstoječih kopij na napravah ne brišemo.
+  if (d.vivaClientId !== undefined || d.vivaDemoNacin !== undefined || (d.vivaClientSecret && d.vivaClientSecret.trim() !== "")) {
+    const [enota] = await db.select({ companyId: enoteTable.companyId }).from(enoteTable).where(eq(enoteTable.id, tenotaId));
+    if (enota) {
+      const trenutne = await preberiVivaPoverilnicePodjetja(enota.companyId);
+      const skupno = trenutne ?? await (async () => {
+        const naprave = await db.select({ nastavitveJson: napraveTable.nastavitveJson })
+          .from(napraveTable).innerJoin(enoteTable, eq(enoteTable.id, napraveTable.enotaId))
+          .where(eq(enoteTable.companyId, enota.companyId));
+        for (const n of naprave) {
+          try {
+            const raw = JSON.parse(n.nastavitveJson ?? "{}") as Record<string, unknown>;
+            if (String(raw.vivaClientId ?? "").trim() && String(raw.vivaClientSecret ?? "").trim()) {
+              return { clientId: String(raw.vivaClientId), clientSecret: String(raw.vivaClientSecret), demoNacin: Boolean(raw.vivaDemoNacin) };
+            }
+          } catch { /* preskoči */ }
+        }
+        return null;
+      })();
+      const clientId = d.vivaClientId !== undefined && d.vivaClientId.trim() !== "" ? d.vivaClientId.trim() : skupno?.clientId ?? "";
+      const clientSecret = d.vivaClientSecret && d.vivaClientSecret.trim() !== "" ? d.vivaClientSecret.trim() : skupno?.clientSecret ?? "";
+      const demoNacin = d.vivaDemoNacin !== undefined ? Boolean(d.vivaDemoNacin) : skupno?.demoNacin ?? false;
+      if (clientId && clientSecret) await shraniVivaPoverilnicePodjetja(enota.companyId, { clientId, clientSecret, demoNacin });
+    }
+  }
   if (d.vivaTerminalAktiven !== undefined)      novConfig.vivaTerminalAktiven      = d.vivaTerminalAktiven;
   if (d.vivaTerminalId !== undefined)           novConfig.vivaTerminalId           = d.vivaTerminalId;
   if (d.vivaAndroidTerminalAktiven !== undefined) novConfig.vivaAndroidTerminalAktiven = d.vivaAndroidTerminalAktiven;
@@ -209,7 +270,7 @@ router.put("/naprave/terminali", requireEnota, async (req, res): Promise<void> =
     .where(eq(napraveTable.id, obstojecaNaprava.id))
     .returning();
 
-  res.json(napravaToResponse(updated));
+  res.json(await napravaToResponseSkupno(updated));
 });
 
 router.put("/naprave/:id", async (req, res): Promise<void> => {
@@ -266,7 +327,7 @@ router.put("/naprave/:id", async (req, res): Promise<void> => {
     .returning();
 
   if (!updated) { res.status(404).json({ error: "Naprava ni najdena" }); return; }
-  res.json(napravaToResponse(updated));
+  res.json(await napravaToResponseSkupno(updated));
 });
 
 router.delete("/naprave/:id", async (req, res): Promise<void> => {
