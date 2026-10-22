@@ -764,8 +764,8 @@ ${linije.map(vrHtml).join("\n")}
           headers: { "Content-Type": "application/json", ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}) },
           body: JSON.stringify({ narociloId: selectedNarocilo, znesek: terminalskiZnesek }),
         });
-        if (!odgovor.ok && odgovor.status !== 409) {
-          toast({ title: "Napaka", description: "Prejšnjega poskusa ni bilo mogoče zaključiti.", variant: "destructive" });
+        if (!odgovor.ok) {
+          toast({ title: "Napaka", description: `Prejšnjega poskusa ni bilo mogoče zaključiti (${odgovor.status}).`, variant: "destructive" });
           return;
         }
       } catch {

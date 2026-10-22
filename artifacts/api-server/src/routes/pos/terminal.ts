@@ -585,41 +585,36 @@ router.post("/terminal/card-payment-attempts/:paymentAttemptId/abandon", async (
   const posReq = req as unknown as PosRequest;
   const companyId = posReq.companyId;
   const enotaId = posReq.enotaId;
-  const paymentAttemptId = String(req.params.paymentAttemptId ?? "").trim();
   const narociloId = Number(req.body?.narociloId);
   const amountCents = exactEuroCents(Number(req.body?.znesek));
-  if (!companyId || !/^[A-Za-z0-9_-]{16,128}$/.test(paymentAttemptId)
-    || !Number.isInteger(enotaId) || !Number.isInteger(narociloId) || narociloId < 1 || amountCents === null) {
+  if (!companyId || !Number.isInteger(enotaId) || !Number.isInteger(narociloId) || narociloId < 1 || amountCents === null) {
     res.status(400).json({ error: "Manjkajo veljavni podatki za preklic poskusa." });
     return;
   }
-  const [attempt] = await db.select().from(posKarticnaPlacilaAttemptTable).where(and(
+  // Operater potrjuje plačilo za to naročilo in znesek, zato zaključimo vse
+  // nerešene poskuse zanju (ključ v brskalniku je lahko zastarel).
+  const nereseni = await db.select().from(posKarticnaPlacilaAttemptTable).where(and(
     eq(posKarticnaPlacilaAttemptTable.companyId, companyId),
     eq(posKarticnaPlacilaAttemptTable.enotaId, enotaId),
     eq(posKarticnaPlacilaAttemptTable.narociloId, narociloId),
     eq(posKarticnaPlacilaAttemptTable.purpose, "receipt"),
-    or(eq(posKarticnaPlacilaAttemptTable.id, paymentAttemptId), eq(posKarticnaPlacilaAttemptTable.idempotencyKey, paymentAttemptId)),
-  )).limit(1);
-  if (!attempt || Math.round(Number(attempt.znesek) * 100) !== amountCents) {
-    res.status(404).json({ error: "Plačilni poskus ni najden." });
-    return;
+    eq(posKarticnaPlacilaAttemptTable.znesek, (amountCents / 100).toFixed(2)),
+    inArray(posKarticnaPlacilaAttemptTable.status, ["reserved", "pending", "unknown"]),
+  ));
+  for (const attempt of nereseni) {
+    await setCardPaymentAttempt(attempt.id, {
+      status: "failed", providerRawStatus: "OPERATOR_ABANDONED",
+      napaka: "Operater je potrdil, da kartica ni bila bremenjena.",
+    });
+    await writePosActorAudit(query => db.execute(query), {
+      enotaId,
+      natakarId: posReq.posActorNatakarId ?? null,
+      actorClerkUserId: posReq.clerkUserId,
+      action: "card_payment_attempt_abandoned",
+      metadata: { attemptId: attempt.id, orderId: narociloId, amountCents, provider: attempt.provider, previousStatus: attempt.status },
+    });
   }
-  if (!["reserved", "pending", "unknown"].includes(attempt.status)) {
-    res.status(409).json({ error: "Ta poskus ni nerešen, zato ga ni mogoče preklicati." });
-    return;
-  }
-  await setCardPaymentAttempt(attempt.id, {
-    status: "failed", providerRawStatus: "OPERATOR_ABANDONED",
-    napaka: "Operater je potrdil, da kartica ni bila bremenjena.",
-  });
-  await writePosActorAudit(query => db.execute(query), {
-    enotaId,
-    natakarId: posReq.posActorNatakarId ?? null,
-    actorClerkUserId: posReq.clerkUserId,
-    action: "card_payment_attempt_abandoned",
-    metadata: { attemptId: attempt.id, orderId: narociloId, amountCents, provider: attempt.provider, previousStatus: attempt.status },
-  });
-  res.json({ ok: true });
+  res.json({ ok: true, zakljucenih: nereseni.length });
 });
 
 router.get("/terminal/card-payment-attempts/:paymentAttemptId/recovery", async (req, res): Promise<void> => {
