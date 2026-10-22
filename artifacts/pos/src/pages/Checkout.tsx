@@ -1391,6 +1391,7 @@ ${linije.map(vrHtml).join("\n")}
   const showSimulationFlow = import.meta.env.DEV
     && nastavitve?.fursNacin === "simulacija"
     && user?.capabilities?.includes("simulation") === true
+    && _aktivniTerminal === "brez_terminala"
     && placilniNacin === "kartica"
     && !splitMode
     && terminalskiZnesek > 0
