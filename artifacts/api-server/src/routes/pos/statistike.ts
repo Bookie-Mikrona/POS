@@ -2325,6 +2325,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
         LEFT JOIN artikli a ON a.id = p.artikel_id
         JOIN racuni r ON r.id = p.racun_id
         WHERE ${inArray(sql`p.racun_id`, aktivniRacunIds)}
+          AND NOT (p.artikel_id IS NULL AND p.vrsta_artikla IS NULL AND p.skupaj::numeric = 0)
         GROUP BY p.racun_id, p.ime, a.enota_mere, p.davek, COALESCE(p.vrsta_artikla, 'storitev')
         ORDER BY p.ime, p.davek, vrsta DESC
       `)
