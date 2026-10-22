@@ -750,31 +750,9 @@ ${linije.map(vrHtml).join("\n")}
     });
     return false;
   };
-  const resetPaymentGuardAfterReconciliation = async () => {
-    // This is deliberately an explicit operator action.  A timeout/network
-    // failure must never silently open the way for a second card charge.
-    // Nerešen poskus mora strežnik zaključiti, sicer novega plačila ne dovoli.
-    const nerešen = selectedNarocilo ? findStoredCardAttempt(selectedNarocilo, terminalskiZnesek) : null;
-    if (nerešen && selectedNarocilo) {
-      if (!window.confirm("Ste preverili, da kartica NI bila bremenjena? Če potrdite, bo prejšnji poskus zaključen kot neuspel in dovoljen bo nov poskus.")) return;
-      try {
-        const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-        const odgovor = await posFetch(`${base}/api/terminal/card-payment-attempts/${encodeURIComponent(nerešen.key)}/abandon`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}) },
-          body: JSON.stringify({ narociloId: selectedNarocilo, znesek: terminalskiZnesek }),
-        });
-        if (!odgovor.ok) {
-          toast({ title: "Napaka", description: `Prejšnjega poskusa ni bilo mogoče zaključiti (${odgovor.status}).`, variant: "destructive" });
-          return;
-        }
-      } catch {
-        toast({ title: "Napaka", description: "Prejšnjega poskusa ni bilo mogoče zaključiti.", variant: "destructive" });
-        return;
-      }
-      sessionStorage.removeItem(cardAttemptStorageKey(nerešen.provider, selectedNarocilo));
-      cardPaymentAttemptRef.current = null;
-    }
+  const [odkleniPotrdiOpen, setOdkleniPotrdiOpen] = useState(false);
+  const [odkleniBusy, setOdkleniBusy] = useState(false);
+  const sprostiLokalnoStanjePlacila = () => {
     releasePaymentGuard();
     recoveryCompletionAttemptRef.current = null;
     recoverySelectionTokenRef.current = null;
@@ -783,6 +761,40 @@ ${linije.map(vrHtml).join("\n")}
     setTerminalStanje("idle");
     setTerminalRezultat(null);
   };
+  // Operater izrecno potrdi, da kartica ni bila bremenjena; strežnik nerešen
+  // poskus za to naročilo in znesek zaključi, sicer novega plačila ne dovoli.
+  const potrdiOdklepNovegaPoskusa = async () => {
+    if (!selectedNarocilo || odkleniBusy) return;
+    setOdkleniBusy(true);
+    const nerešen = findStoredCardAttempt(selectedNarocilo, terminalskiZnesek);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 15_000);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const odgovor = await posFetch(`${base}/api/terminal/card-payment-attempts/${encodeURIComponent(nerešen?.key ?? "none")}/abandon`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}) },
+        body: JSON.stringify({ narociloId: selectedNarocilo, znesek: terminalskiZnesek }),
+      });
+      if (!odgovor.ok) {
+        toast({ title: "Napaka", description: `Prejšnjega poskusa ni bilo mogoče zaključiti (${odgovor.status}).`, variant: "destructive" });
+        return;
+      }
+      for (const p of ["payten", "sumup", "viva_smart", "viva_terminal", "simulacija"] as CardProvider[]) {
+        sessionStorage.removeItem(cardAttemptStorageKey(p, selectedNarocilo));
+      }
+      cardPaymentAttemptRef.current = null;
+      setOdkleniPotrdiOpen(false);
+      sprostiLokalnoStanjePlacila();
+    } catch {
+      toast({ title: "Napaka", description: "Strežnik se ni odzval. Poskusite znova.", variant: "destructive" });
+    } finally {
+      window.clearTimeout(timer);
+      setOdkleniBusy(false);
+    }
+  };
+  const resetPaymentGuardAfterReconciliation = () => setOdkleniPotrdiOpen(true);
   const paymentOrFinalizationInProgress = paymentGuard.state !== "idle";
   const [vivaCheckoutUrl, setVivaCheckoutUrl] = useState<string | null>(null);
   const [vivaBridgeLaunchUrl, setVivaBridgeLaunchUrl] = useState<string | null>(null);
@@ -3915,6 +3927,20 @@ ${linije.map(vrHtml).join("\n")}
             </Button>
           </CardFooter>
         </Card>
+        <Dialog open={odkleniPotrdiOpen} onOpenChange={(o) => { if (!odkleniBusy) setOdkleniPotrdiOpen(o); }}>
+          <DialogContent data-testid="dialog-odkleni-poskus">
+            <DialogHeader><DialogTitle>Ste preverili plačilo?</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Potrdite samo, če je kartica NI bila bremenjena. Prejšnji poskus bo zaključen kot neuspel in dovoljen bo nov poskus.
+            </p>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" disabled={odkleniBusy} onClick={() => setOdkleniPotrdiOpen(false)}>Prekliči</Button>
+              <Button disabled={odkleniBusy} onClick={() => void potrdiOdklepNovegaPoskusa()} data-testid="button-potrdi-odklep">
+                {odkleniBusy ? "Zaključujem..." : "Kartica ni bila bremenjena"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
