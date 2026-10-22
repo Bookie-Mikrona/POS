@@ -750,9 +750,31 @@ ${linije.map(vrHtml).join("\n")}
     });
     return false;
   };
-  const resetPaymentGuardAfterReconciliation = () => {
+  const resetPaymentGuardAfterReconciliation = async () => {
     // This is deliberately an explicit operator action.  A timeout/network
     // failure must never silently open the way for a second card charge.
+    // Nerešen poskus mora strežnik zaključiti, sicer novega plačila ne dovoli.
+    const nerešen = selectedNarocilo ? findStoredCardAttempt(selectedNarocilo, terminalskiZnesek) : null;
+    if (nerešen && selectedNarocilo) {
+      if (!window.confirm("Ste preverili, da kartica NI bila bremenjena? Če potrdite, bo prejšnji poskus zaključen kot neuspel in dovoljen bo nov poskus.")) return;
+      try {
+        const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+        const odgovor = await posFetch(`${base}/api/terminal/card-payment-attempts/${encodeURIComponent(nerešen.key)}/abandon`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}) },
+          body: JSON.stringify({ narociloId: selectedNarocilo, znesek: terminalskiZnesek }),
+        });
+        if (!odgovor.ok && odgovor.status !== 409) {
+          toast({ title: "Napaka", description: "Prejšnjega poskusa ni bilo mogoče zaključiti.", variant: "destructive" });
+          return;
+        }
+      } catch {
+        toast({ title: "Napaka", description: "Prejšnjega poskusa ni bilo mogoče zaključiti.", variant: "destructive" });
+        return;
+      }
+      sessionStorage.removeItem(cardAttemptStorageKey(nerešen.provider, selectedNarocilo));
+      cardPaymentAttemptRef.current = null;
+    }
     releasePaymentGuard();
     recoveryCompletionAttemptRef.current = null;
     recoverySelectionTokenRef.current = null;
