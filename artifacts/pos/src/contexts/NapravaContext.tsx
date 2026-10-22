@@ -105,7 +105,12 @@ export function NapravaProvider({ children }: { children: ReactNode }) {
   const enotaId = user?.enotaId;
   const prevEnotaIdRef = useRef<number | undefined>(undefined);
 
-  const registriraj = useCallback(async () => {
+  const registriraj = useCallback(async (poskus = 0): Promise<void> => {
+    // Če strežnik začasno ni dosegljiv (npr. ob ponovnem zagonu), registracijo
+    // ponovimo, sicer ostanejo nastavitve terminala prazne in plačilo ne uporabi Vive.
+    const ponovi = () => {
+      if (poskus < 6) window.setTimeout(() => { void registriraj(poskus + 1); }, 3000 * (poskus + 1));
+    };
     setNapravaLoading(true);
     try {
       const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
@@ -121,12 +126,13 @@ export function NapravaProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({ napravaKljuc, ime: defaultDeviceIme() }),
       });
-      if (!res.ok) return;
+      if (!res.ok) { ponovi(); return; }
       const data = (await res.json()) as NapravaData;
       setNaprava(data);
       try { localStorage.setItem(DEVICE_CACHE_KEY, JSON.stringify(data)); } catch { /* nič */ }
     } catch {
-      // API nedostopen — nadaljujemo brez naprave
+      // API nedostopen — nadaljujemo brez naprave in poskusimo znova
+      ponovi();
     } finally {
       setNapravaLoading(false);
     }
@@ -153,7 +159,7 @@ export function NapravaProvider({ children }: { children: ReactNode }) {
   }, [enotaId, registriraj]);
 
   return (
-    <NapravaContext.Provider value={{ naprava, napravaKljuc, napravaLoading, refreshNaprava: registriraj, updateTerminalConfig }}>
+    <NapravaContext.Provider value={{ naprava, napravaKljuc, napravaLoading, refreshNaprava: () => registriraj(), updateTerminalConfig }}>
       {children}
     </NapravaContext.Provider>
   );

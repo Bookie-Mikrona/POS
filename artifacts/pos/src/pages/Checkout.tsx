@@ -3167,6 +3167,10 @@ ${linije.map(vrHtml).join("\n")}
 
   const handleRetryTerminal = async () => {
     if (!selectedNarocilo || !selectedOrder) return;
+    if (_aktivniTerminal === "brez_terminala") {
+      toast({ title: "Terminal ni naložen", description: "Nastavitve plačilnega terminala te naprave še niso naložene. Osvežite stran in poskusite znova.", variant: "destructive" });
+      return;
+    }
     if (!requireCurrentActorSession()) return;
     const inspectedNarociloId = selectedNarocilo;
     const inspectedAmount = terminalskiZnesek;
