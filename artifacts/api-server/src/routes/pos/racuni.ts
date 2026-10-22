@@ -1556,7 +1556,15 @@ router.post("/racuni", async (req, res): Promise<void> => {
     znesekNapitnina: parsed.data.znesekNapitnina,
     sspReferenca,
   });
-  if (!paymentValidation.ok) { res.status(400).json({ error: paymentValidation.error }); return; }
+  if (!paymentValidation.ok) {
+    logger.warn({
+      narociloId: parsed.data.narociloId, napaka: paymentValidation.error, skupaj: prodajaSkupaj,
+      placilnaNacin: parsed.data.placilnaNacin, gotovina: parsed.data.znesekGotovina, kartica: parsed.data.znesekKartica,
+      bon: parsed.data.znesekBon, negotovinsko: parsed.data.znesekNegotovinsko, napitnina: parsed.data.znesekNapitnina,
+      postavkeIds: postavkeIdsReq ?? null, steviloPostavk: (selectedPostavke as any[]).length,
+    }, "Zavrnjeno plačilo računa");
+    res.status(400).json({ error: paymentValidation.error }); return;
+  }
   const { napitnina, normalizedKartica, suppliedPaymentFields } = paymentValidation;
   const individualVoucherAmountCents = Math.round(Number(parsed.data.znesekBon ?? 0) * 100);
   if (individualVoucherCode && individualVoucherAmountCents <= 0) {
