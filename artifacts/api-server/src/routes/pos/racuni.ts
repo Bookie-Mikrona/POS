@@ -1460,7 +1460,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
   // Cena na enoto pri partnerju: malica uporabi svojo skupinsko ceno, juha/sladica ostaneta brezplačni.
   const partnerCenaZa = (p: any): number | undefined => {
     if (malicaPartnerCene.has(p.id)) return malicaPartnerCene.get(p.id);
-    if (jeMalicaPostavka(p)) return 0;
+    if (kupecId && jeMalicaPostavka(p)) return 0;
     return (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
   };
 
