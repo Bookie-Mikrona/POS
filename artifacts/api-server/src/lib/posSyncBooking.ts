@@ -66,6 +66,7 @@ import {
   costCentersTable,
   preparedFoodDailyLedgersTable,
   partnerCenikiTable,
+  malicaPartnerGroupPricesTable,
 } from "@workspace/db";
 import { createVatLedgerEntries, type EntryMeta, type VatLine } from "./vatLedger";
 import { businessDateForInstant, getBusinessDayBounds } from "./pos-business-day";
@@ -843,20 +844,12 @@ async function syncPosBookingForDayUnlocked(
         negotovinsko:  sql<string>`COALESCE(SUM(CASE WHEN NOT (
           ${racuniTable.placilnaNacin} = 'negotovinsko'
           AND ${racuniTable.kupecCpId} IS NOT NULL
-          AND EXISTS (
-            SELECT 1 FROM ${partnerCenikiTable}
-            WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId}
-              AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}
-          )
+          AND (EXISTS (SELECT 1 FROM ${partnerCenikiTable} WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId} AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}) OR EXISTS (SELECT 1 FROM ${malicaPartnerGroupPricesTable} WHERE ${malicaPartnerGroupPricesTable.kupecId} = ${racuniTable.kupecCpId} AND ${malicaPartnerGroupPricesTable.enotaId} = ${racuniTable.enotaId} AND ${malicaPartnerGroupPricesTable.active}))
         ) THEN CAST(${racuniTable.znesekNegotovinsko} AS numeric) ELSE 0 END), 0)`,
         pogodbeno: sql<string>`COALESCE(SUM(CASE WHEN (
           ${racuniTable.placilnaNacin} = 'negotovinsko'
           AND ${racuniTable.kupecCpId} IS NOT NULL
-          AND EXISTS (
-            SELECT 1 FROM ${partnerCenikiTable}
-            WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId}
-              AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}
-          )
+          AND (EXISTS (SELECT 1 FROM ${partnerCenikiTable} WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId} AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}) OR EXISTS (SELECT 1 FROM ${malicaPartnerGroupPricesTable} WHERE ${malicaPartnerGroupPricesTable.kupecId} = ${racuniTable.kupecCpId} AND ${malicaPartnerGroupPricesTable.enotaId} = ${racuniTable.enotaId} AND ${malicaPartnerGroupPricesTable.active}))
         ) THEN CAST(${racuniTable.znesekNegotovinsko} AS numeric) ELSE 0 END), 0)`,
         skupaj:        sql<string>`COALESCE(SUM(CAST(${racuniTable.skupaj} AS numeric)), 0)`,
       })
@@ -1600,11 +1593,7 @@ async function syncPosBookingForDayUnlocked(
         kupecZavezanecDdv:   racuniTable.kupecZavezanecDdv,
         kupecId:             racuniTable.kupecId,
         kupecCpId:           racuniTable.kupecCpId,
-        hasPartnerPriceList: sql<boolean>`EXISTS (
-          SELECT 1 FROM ${partnerCenikiTable}
-          WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId}
-            AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}
-        )`,
+        hasPartnerPriceList: sql<boolean>`(EXISTS (SELECT 1 FROM ${partnerCenikiTable} WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId} AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}) OR EXISTS (SELECT 1 FROM ${malicaPartnerGroupPricesTable} WHERE ${malicaPartnerGroupPricesTable.kupecId} = ${racuniTable.kupecCpId} AND ${malicaPartnerGroupPricesTable.enotaId} = ${racuniTable.enotaId} AND ${malicaPartnerGroupPricesTable.active}))`,
         dniOdloga:           racuniTable.dniOdloga,
         enotaId:             racuniTable.enotaId,
       })
@@ -2253,20 +2242,12 @@ async function syncPosBookingForMonthUnlocked(
         negotovinsko: sql<string>`COALESCE(SUM(CASE WHEN NOT (
           ${racuniTable.placilnaNacin} = 'negotovinsko'
           AND ${racuniTable.kupecCpId} IS NOT NULL
-          AND EXISTS (
-            SELECT 1 FROM ${partnerCenikiTable}
-            WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId}
-              AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}
-          )
+          AND (EXISTS (SELECT 1 FROM ${partnerCenikiTable} WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId} AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}) OR EXISTS (SELECT 1 FROM ${malicaPartnerGroupPricesTable} WHERE ${malicaPartnerGroupPricesTable.kupecId} = ${racuniTable.kupecCpId} AND ${malicaPartnerGroupPricesTable.enotaId} = ${racuniTable.enotaId} AND ${malicaPartnerGroupPricesTable.active}))
         ) THEN CAST(${racuniTable.znesekNegotovinsko} AS numeric) ELSE 0 END), 0)`,
         pogodbeno: sql<string>`COALESCE(SUM(CASE WHEN (
           ${racuniTable.placilnaNacin} = 'negotovinsko'
           AND ${racuniTable.kupecCpId} IS NOT NULL
-          AND EXISTS (
-            SELECT 1 FROM ${partnerCenikiTable}
-            WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId}
-              AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}
-          )
+          AND (EXISTS (SELECT 1 FROM ${partnerCenikiTable} WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId} AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}) OR EXISTS (SELECT 1 FROM ${malicaPartnerGroupPricesTable} WHERE ${malicaPartnerGroupPricesTable.kupecId} = ${racuniTable.kupecCpId} AND ${malicaPartnerGroupPricesTable.enotaId} = ${racuniTable.enotaId} AND ${malicaPartnerGroupPricesTable.active}))
         ) THEN CAST(${racuniTable.znesekNegotovinsko} AS numeric) ELSE 0 END), 0)`,
         skupaj: sql<string>`COALESCE(SUM(CAST(${racuniTable.skupaj} AS numeric)), 0)`,
       }).from(racuniTable).where(and(

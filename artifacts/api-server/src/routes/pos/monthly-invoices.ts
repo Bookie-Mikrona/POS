@@ -1,7 +1,7 @@
 import { Router, type Response } from "express";
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { db, counterpartiesTable, partnerCenikiTable, posMonthlyInvoicesTable, posMonthlyInvoiceReceiptsTable, racuniTable } from "@workspace/db";
+import { db, counterpartiesTable, partnerCenikiTable, malicaPartnerGroupPricesTable, posMonthlyInvoicesTable, posMonthlyInvoiceReceiptsTable, racuniTable } from "@workspace/db";
 import { IssuePosMonthlyInvoiceBody } from "@workspace/api-zod";
 import type { PosRequest } from "../../middlewares/pos";
 import { localToday, validDate, validUuid, monthlyInvoiceFacts, MonthlyInvoiceError } from "../../lib/posMonthlyInvoice";
@@ -29,10 +29,11 @@ function fail(error: unknown, res: Response) {
 }
 router.get("/pos-monthly-invoices/partners", async (req, res) => {
   const c = req as PosRequest;
-  const rows = await db.selectDistinct({ id: counterpartiesTable.id, name: counterpartiesTable.name, paymentTermsDays: counterpartiesTable.paymentTermsDays })
-    .from(counterpartiesTable).innerJoin(partnerCenikiTable, eq(partnerCenikiTable.kupecId, counterpartiesTable.id))
+  const rows = await db.select({ id: counterpartiesTable.id, name: counterpartiesTable.name, paymentTermsDays: counterpartiesTable.paymentTermsDays })
+    .from(counterpartiesTable)
     .where(and(eq(counterpartiesTable.companyId, c.companyId), eq(counterpartiesTable.isActive, true),
-      inArray(counterpartiesTable.type, ["customer", "both"]), eq(partnerCenikiTable.enotaId, c.enotaId)));
+      inArray(counterpartiesTable.type, ["customer", "both"]),
+      sql`(EXISTS (SELECT 1 FROM ${partnerCenikiTable} WHERE ${partnerCenikiTable.kupecId} = ${counterpartiesTable.id} AND ${partnerCenikiTable.enotaId} = ${c.enotaId}) OR EXISTS (SELECT 1 FROM ${malicaPartnerGroupPricesTable} WHERE ${malicaPartnerGroupPricesTable.kupecId} = ${counterpartiesTable.id} AND ${malicaPartnerGroupPricesTable.enotaId} = ${c.enotaId} AND ${malicaPartnerGroupPricesTable.active}))`));
   res.json(rows.map(p => ({ ...p, paymentTermsDays: p.paymentTermsDays ?? 0 })).sort((a, b) => a.name.localeCompare(b.name, "sl")));
 });
 router.get("/pos-monthly-invoices/preview", async (req, res) => {

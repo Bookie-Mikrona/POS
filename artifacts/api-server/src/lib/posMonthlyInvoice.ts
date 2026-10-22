@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { companiesTable, counterpartiesTable, db, enoteTable, partnerCenikiTable,
+import { companiesTable, counterpartiesTable, db, enoteTable, partnerCenikiTable, malicaPartnerGroupPricesTable,
   posContractInvoiceReceiptsTable, posMonthlyInvoiceReceiptsTable, postavkeTable, racuniTable,
   type MonthlyInvoiceSnapshot } from "@workspace/db";
 import { businessDateForInstant } from "./pos-business-day";
@@ -34,7 +34,7 @@ export async function monthlyInvoiceFacts(companyId: string, enotaId: number, co
   const [partner] = await q.select().from(counterpartiesTable).where(and(
     eq(counterpartiesTable.id, counterpartyId), eq(counterpartiesTable.companyId, companyId),
     eq(counterpartiesTable.isActive, true), inArray(counterpartiesTable.type, ["customer", "both"]),
-    sql`EXISTS (SELECT 1 FROM ${partnerCenikiTable} WHERE ${partnerCenikiTable.kupecId} = ${counterpartiesTable.id} AND ${partnerCenikiTable.enotaId} = ${enotaId})`,
+    sql`(EXISTS (SELECT 1 FROM ${partnerCenikiTable} WHERE ${partnerCenikiTable.kupecId} = ${counterpartiesTable.id} AND ${partnerCenikiTable.enotaId} = ${enotaId}) OR EXISTS (SELECT 1 FROM ${malicaPartnerGroupPricesTable} WHERE ${malicaPartnerGroupPricesTable.kupecId} = ${counterpartiesTable.id} AND ${malicaPartnerGroupPricesTable.enotaId} = ${enotaId} AND ${malicaPartnerGroupPricesTable.active}))`,
   ));
   if (!partner) throw new MonthlyInvoiceError(404, "Partner nima pogodbenega cenika v tej enoti.");
   const [company] = await q.select({

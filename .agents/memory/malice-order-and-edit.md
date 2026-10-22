@@ -6,3 +6,5 @@ Malica na naročilu = ena postavka po ceni skupine (posnetek v ponudbi) + vklju�
 **Why:** prodani posnetki kažejo na dnevne artikle (restrict), zato objavljene ponudbe ne smemo brisati/na novo graditi; odstranjena prodana jed se samo onemogoči, odprta naročila se ne spreminjajo, natakar le dobi opozorilo.
 Partnerska cena malice = partnerjeva cena skupine (velja od naslednjega poslovnega dne), brez nje redna cena. Pogodbeni načini kritja/omejitve/upravičenci še niso vezani na naročilo (nejasna pravila, uporabnik ni odgovoril).
 **How to apply:** pred širitvijo na kritje/delitev DDV potrdi pravila z uporabnikom.
+
+Pravilo partnerja (potrdil uporabnik): zaposleni partnerskega podjetja ob izdaji računa podajo davčno številko; cene se samodejno uskladijo, izda se negotovinski račun, ob koncu meseca zbirni A4 račun. Partner plača vse (brez delitve). Partner z nastavljenimi cenami malic velja za pogodbenega (knjiženje in mesečni račun), enako kot partner s cenikom artiklov. Juha/sladica ostaneta 0 €.

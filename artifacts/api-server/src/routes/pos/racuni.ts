@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, count, desc, eq, inArray, isNotNull, isNull, like, ne, or, sql, sum } from "drizzle-orm";
-import { artikliTable, blagajneTable, darilniBonGibiTable, darilniBonIzdajeTable, db, enoteTable, fursAttemptsTable, fursPayloadSnapshotsTable, izmeneTable, mizeTable, modifikatorjiTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, odmoriTable, partnerCenikiTable, posKarticnaPlacilaAttemptTable, posKarticnaPlacilaReferenceTable, postavkeTable, posBookingSettingsTable, racunFinalizationPlansTable, racunIzdajaZahteveTable, racuniTable, tiskalneNalogeTable, tipDistributionProfileEntriesTable, tipDistributionProfilesTable, vivaVracilaTable, vivaVraciloStatusPrehodiTable, zalogaGibiTable } from "@workspace/db";
+import { artikliTable, blagajneTable, darilniBonGibiTable, darilniBonIzdajeTable, db, enoteTable, fursAttemptsTable, fursPayloadSnapshotsTable, izmeneTable, mizeTable, modifikatorjiTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, odmoriTable, partnerCenikiTable, malicaPartnerGroupPricesTable, malicaSaleSnapshotsTable, malicaDailyOffersTable, posKarticnaPlacilaAttemptTable, posKarticnaPlacilaReferenceTable, postavkeTable, posBookingSettingsTable, racunFinalizationPlansTable, racunIzdajaZahteveTable, racuniTable, tiskalneNalogeTable, tipDistributionProfileEntriesTable, tipDistributionProfilesTable, vivaVracilaTable, vivaVraciloStatusPrehodiTable, zalogaGibiTable } from "@workspace/db";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { faktorNormativaModifikatorja, faktorNormativaPodModifikatorja } from "../../lib/pica-poraba";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
@@ -1435,6 +1435,35 @@ router.post("/racuni", async (req, res): Promise<void> => {
     }
   }
 
+  // Malice: pri partnerju se cena skupine uskladi s partnerjevo ceno skupine (privzeto redna cena).
+  // Vključeni juha in sladica ostaneta po 0 €. Partnerski cenik artiklov malic ne spreminja.
+  const malicaPartnerCene = new Map<number, number>();
+  {
+    const izbraneIds = (selectedPostavke as any[]).map((p: any) => p.id as number);
+    const maliceVrstice = !kupecId || izbraneIds.length === 0 ? [] : await db
+      .select({ postavkaId: malicaSaleSnapshotsTable.postavkaId, groupId: malicaSaleSnapshotsTable.groupId, businessDate: malicaDailyOffersTable.businessDate })
+      .from(malicaSaleSnapshotsTable)
+      .innerJoin(malicaDailyOffersTable, eq(malicaDailyOffersTable.id, malicaSaleSnapshotsTable.offerId))
+      .where(inArray(malicaSaleSnapshotsTable.postavkaId, izbraneIds));
+    const partnerCeneSkupin = kupecId && maliceVrstice.length > 0
+      ? await db.select().from(malicaPartnerGroupPricesTable).where(and(eq(malicaPartnerGroupPricesTable.enotaId, tenotaId), eq(malicaPartnerGroupPricesTable.kupecId, kupecId), eq(malicaPartnerGroupPricesTable.active, true)))
+      : [];
+    for (const v of maliceVrstice) {
+      const veljavna = partnerCeneSkupin
+        .filter(c => c.groupId === v.groupId && c.validFrom <= v.businessDate && (!c.validTo || c.validTo >= v.businessDate))
+        .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
+      const postavka = (selectedPostavke as any[]).find((p: any) => p.id === v.postavkaId);
+      malicaPartnerCene.set(v.postavkaId, veljavna ? veljavna.priceCents / 100 : Number(postavka?.cenaKos ?? 0));
+    }
+  }
+  const jeMalicaPostavka = (p: any) => typeof p.pairingGroupId === "string" && p.pairingGroupId.startsWith("malice:");
+  // Cena na enoto pri partnerju: malica uporabi svojo skupinsko ceno, juha/sladica ostaneta brezplačni.
+  const partnerCenaZa = (p: any): number | undefined => {
+    if (malicaPartnerCene.has(p.id)) return malicaPartnerCene.get(p.id);
+    if (jeMalicaPostavka(p)) return 0;
+    return (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
+  };
+
   // Bon za pico — izračun efektivnega popusta na pokrite pice (sortirano od najdražje)
   const steviloBonov = (parsed.data as { steviloBonov?: number | null }).steviloBonov ?? 0;
   const bonPicaPopustMap = new Map<number, { reducedAmount: number; pokriteKol: number }>();
@@ -1471,7 +1500,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
   // za pokrite pice upoštevamo bon za pico popust (skupaj zmanjšan za vrednost pokritih enot)
   const jeReprezentancaAliLastna = ["reprezentanca", "lastna_poraba"].includes(parsed.data.placilnaNacin);
   const skupajIzPostavk = round2((selectedPostavke as any[]).reduce((acc: number, p: any) => {
-    const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
+    const customCena = partnerCenaZa(p);
     let vsota = customCena !== undefined ? round2(customCena * Number(p.kolicina)) : Number(p.skupaj);
     const bonPopust = bonPicaPopustMap.get(p.id);
     if (bonPopust) vsota = Math.max(0, vsota - bonPopust.reducedAmount);
@@ -1480,7 +1509,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
   // Za reprezentanco in lastno porabo: skupaj = 0 (100% popust, brezplačno),
   // ddv in osnova pa ostaneta iz originalnih cen — za prikaz na računu in FURS TaxesPerSeller.
   const prodajaDdv = round2((selectedPostavke as any[]).reduce((acc: number, p: any) => {
-    const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
+    const customCena = partnerCenaZa(p);
     let vsota = customCena !== undefined ? round2(customCena * Number(p.kolicina)) : Number(p.skupaj);
     const bonPopust = bonPicaPopustMap.get(p.id);
     if (bonPopust) vsota = Math.max(0, vsota - bonPopust.reducedAmount);
@@ -1633,7 +1662,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
 
   // DDV consistency check — preskoči kadar je aktiven partnerski cenik ali reprezentanca/lastna_poraba
   const jeNadaljevanje = allPostavke.some(p => p.racunId !== null);
-  if (!jeDelni && !jeNadaljevanje && !partnerCenikMap && !jeReprezentancaAliLastna && steviloBonov === 0) {
+  if (!jeDelni && !jeNadaljevanje && !partnerCenikMap && malicaPartnerCene.size === 0 && !jeReprezentancaAliLastna && steviloBonov === 0) {
     const narociloSkupaj = Number(narocilo.skupaj);
     try {
       preveriSkupajKonsistentnost(prodajaOsnova, prodajaDdv, narociloSkupaj);
@@ -1979,7 +2008,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
   const fursPostavke: FursSnapshotPayload["postavke"] = [];
   const receiptPostavke = (selectedPostavke as any[]).filter((p) => !isInternalMulticourseMenuComponent(p));
   for (const p of receiptPostavke) {
-    const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
+    const customCena = partnerCenaZa(p);
     const origCena = customCena !== undefined ? customCena : Number(p.cenaKos);
     const bonPopust = bonPicaPopustMap.get(p.id);
     if (bonPopust && bonPopust.reducedAmount > 0 && origCena > 0) {
@@ -2140,7 +2169,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
         issuedAt: datumCas.toISOString(), isPartial: jeDelni,
       },
       soldLines: selectedPostavke.map((p: any) => {
-        const customPrice = p.artikelId ? partnerCenikMap?.get(p.artikelId) : undefined;
+        const customPrice = partnerCenaZa(p);
         const unitGross = customPrice ?? Number(p.cenaKos);
         return {
           id: p.id, articleId: p.artikelId ?? null, modifierId: p.modifikatorId ?? null,
@@ -2719,7 +2748,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
           jeEmbalaza: p.jeEmbalaza === true,
         })));
         const eracunPostavke = projectPackagingDisplayPrices(receiptPostavke.map(p => {
-          const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
+          const customCena = partnerCenaZa(p);
           const cenaBruto = customCena !== undefined ? customCena : Number(p.cenaKos);
           return {
             postavkaId: p.id,
