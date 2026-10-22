@@ -1096,7 +1096,7 @@ ${linije.map(vrHtml).join("\n")}
   // namenjen prav nadaljevanju izdaje računa.
   const selectedOrder = gatewayCheckoutMode && selectedGatewayOrderId
     ? (narocila ?? []).find(n => String(n.id) === selectedGatewayOrderId)
-    : resumeNarocilo?.id === selectedNarocilo
+    : resumeNarocilo?.id === selectedNarocilo && resumeNarocilo.status === "odprto"
     ? resumeNarocilo
     : odprta.find(n => n.id === selectedNarocilo);
   const gatewayCloudOrderId = (() => {
