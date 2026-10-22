@@ -3833,7 +3833,7 @@ ${linije.map(vrHtml).join("\n")}
             <p className="text-muted-foreground text-sm">Račun ni bil izdan.</p>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            {paymentGuard.state === "reconciliation-required" ? (
+            {paymentGuard.state !== "idle" ? (
               <>
                 <Alert className="text-left border-amber-300 bg-amber-50">
                   <AlertTriangle className="h-4 w-4 text-amber-700" />
