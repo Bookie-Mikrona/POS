@@ -1260,6 +1260,17 @@ export default function Order() {
     ),
     [kdsNalogQueries, activeKdsOrderId, gatewayOrderId, gatewayMode],
   );
+  // Postaje brez aktivnega zaslona (npr. enota ne uporablja zaslona točilnice) ne kažejo časa in stanja priprave.
+  const { data: kdsZasloni } = useQuery<Array<{ aktiven: boolean; postajaIds: number[] }>>({
+    queryKey: ["kds", "prikazovalniki", gatewayOffline.scope?.enotaId],
+    enabled: !!gatewayOffline.scope?.enotaId,
+    queryFn: () => customFetch("/api/kds/prikazovalniki"),
+  });
+  const orderKdsNalogiZaPrikaz = useMemo(() => {
+    if (!kdsZasloni) return orderKdsNalogi;
+    const pokrite = new Set(kdsZasloni.filter(z => z.aktiven).flatMap(z => z.postajaIds));
+    return orderKdsNalogi.filter(n => pokrite.has(n.postajaId));
+  }, [orderKdsNalogi, kdsZasloni]);
   const nextKdsCourses = useMemo(() => getNextKdsCoursesToFire(orderKdsNalogi), [orderKdsNalogi]);
   const [kdsNow, setKdsNow] = useState(() => Date.now());
   useEffect(() => {
@@ -3656,7 +3667,7 @@ export default function Order() {
                 if (naroceloSheet) {
                   for (const p of topPostavkeOrderNeurejene) {
                     skupinaPoId.set(p.id, kdsSkupinaPostavke(
-                      getOrderItemKdsStatuses(p.id, orderKdsNalogi, kdsPostaje, kdsNow, p.pripravljeno).statuses,
+                      getOrderItemKdsStatuses(p.id, orderKdsNalogiZaPrikaz, kdsPostaje, kdsNow, p.pripravljeno).statuses,
                     ));
                   }
                 }
@@ -3684,7 +3695,7 @@ export default function Order() {
                 const jeZacasnaPostavka = isTemporaryPostavkaId(postavka.id);
                 const jePostavkaVObdelavi = jeZacasnaPostavka || pendingPostavke.has(postavka.id);
                 const kdsStatus = getOrderItemKdsStatuses(
-                  postavka.id, orderKdsNalogi, kdsPostaje, kdsNow, postavka.pripravljeno,
+                  postavka.id, orderKdsNalogiZaPrikaz, kdsPostaje, kdsNow, postavka.pripravljeno,
                 );
 
                 if (naroceloSheet) {
