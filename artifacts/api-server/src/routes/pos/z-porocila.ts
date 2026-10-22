@@ -176,6 +176,20 @@ router.post("/x-porocilo/uskladitev-gotovine", async (req: Request, res: Respons
   } catch (error: unknown) {
     const [existing] = await db.select().from(posCashReconciliationsTable).where(and(eq(posCashReconciliationsTable.enotaId, posReq.enotaId), eq(posCashReconciliationsTable.idempotencyKey, idempotencyKey))).limit(1);
     if (existing) { res.status(200).json({ ...existing, pricakovanaGotovina: Number(existing.pricakovanaGotovina), prestetaGotovina: Number(existing.prestetaGotovina), razlika: Number(existing.razlika) }); return; }
+    // Za isti poslovni dan in blagajno je dovoljen en sam zapis usklajevanja.
+    const [dayRecord] = await db.select().from(posCashReconciliationsTable).where(and(
+      eq(posCashReconciliationsTable.enotaId, posReq.enotaId),
+      eq(posCashReconciliationsTable.blagajnaId, blagajnaId),
+      eq(posCashReconciliationsTable.poslovniDatum, poslovniDatum),
+    )).limit(1);
+    if (dayRecord) {
+      if (dayRecord.confirmed && Number(dayRecord.prestetaGotovina) === prestetaGotovina) {
+        res.status(200).json({ ...dayRecord, pricakovanaGotovina: Number(dayRecord.pricakovanaGotovina), prestetaGotovina: Number(dayRecord.prestetaGotovina), razlika: Number(dayRecord.razlika) });
+        return;
+      }
+      res.status(409).json({ error: "Za ta poslovni dan je usklajevanje gotovine že shranjeno z drugim zneskom." });
+      return;
+    }
     throw error;
   }
 });
