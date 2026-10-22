@@ -48,7 +48,7 @@ export function isInternalMulticourseComponent(row: {
 
 /** Dnevno kosilo: vse vrstice hodov so vidne na naročilu (cena kosila je na glavni jedi). */
 export function isDailyLunchRow(row: { pairingGroupId?: string | null }): boolean {
-  return row.pairingGroupId?.startsWith("daily-lunch:") === true;
+  return row.pairingGroupId?.startsWith("daily-lunch:") === true || row.pairingGroupId?.startsWith("malice:") === true;
 }
 
 /** Združi DDV-razdeljene komercialne vrstice paketa samo za prikaz v POS-u. */
