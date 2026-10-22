@@ -118,10 +118,9 @@ async function skupnaViva(enotaId: number): Promise<{ vivaClientId: string; viva
 async function napravaToResponseSkupno(row: typeof napraveTable.$inferSelect, includePrivateIdentity = false) {
   const odgovor = napravaToResponse(row, includePrivateIdentity);
   const tc = odgovor.terminalConfig as Record<string, unknown> | null;
-  if (!tc) return odgovor;
   const skupno = await skupnaViva(row.enotaId);
   if (!skupno) return odgovor;
-  return { ...odgovor, terminalConfig: { ...tc, ...skupno } };
+  return { ...odgovor, terminalConfig: { ...(tc ?? {}), ...skupno } };
 }
 
 router.get("/naprave", async (req, res): Promise<void> => {
